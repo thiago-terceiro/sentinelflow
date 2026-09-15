@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    output: "standalone",
+    // standalone is for Docker/self-hosted. Vercel manages its own output format.
+    output: process.env.VERCEL ? undefined : "standalone",
     reactStrictMode: true,
     poweredByHeader: false,
     deploymentId: process.env.DEPLOYMENT_VERSION,
