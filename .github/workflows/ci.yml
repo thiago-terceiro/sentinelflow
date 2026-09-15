@@ -1,0 +1,52 @@
+name: sentinelflow-ci
+
+on:
+  pull_request:
+    paths:
+      - "sentinelflow/**"
+      - ".github/workflows/ci.yml"
+      - ".github/scripts/validate-sentinelflow.sh"
+  push:
+    branches:
+      - main
+    paths:
+      - "sentinelflow/**"
+      - ".github/workflows/ci.yml"
+      - ".github/scripts/validate-sentinelflow.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  backend-validate:
+    name: backend-validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run backend validation
+        run: bash .github/scripts/validate-sentinelflow.sh backend
+
+  frontend-build:
+    name: frontend-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10"
+
+      - name: Run frontend validation
+        run: bash .github/scripts/validate-sentinelflow.sh frontend

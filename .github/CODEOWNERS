@@ -1,0 +1,7 @@
+# Replace @thiag if your GitHub username or team is different
+
+* @thiag
+
+/sentinelflow/backend/ @thiag
+/sentinelflow/frontend/ @thiag
+/.github/ @thiag

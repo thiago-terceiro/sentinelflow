@@ -1,0 +1,119 @@
+# Render Blueprint — SentinelFlow free-tier deployment
+# Docs: https://render.com/docs/blueprint-spec
+#
+# HOW TO USE:
+#   1. Push this repo to GitHub.
+#   2. In Render dashboard → New → Blueprint → connect your repo.
+#      When asked for the render.yaml location, enter: sentinelflow/render.yaml
+#   3. After the first deploy, set the three secrets marked "sync: false" in the
+#      Render dashboard under sentinelflow-backend → Environment:
+#        DATABASE_URL            (Supabase: postgresql+asyncpg://...)
+#        LANGGRAPH_CHECKPOINT_URL (Supabase: postgresql://...)
+#        OPENAI_API_KEY          (your key)
+#   4. Update CORS_ALLOWED_ORIGINS once you know your Vercel URL (see step 5).
+#   5. Deploy frontend to Vercel (see sentinelflow/frontend/vercel.json).
+
+services:
+  - type: web
+    name: sentinelflow-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: oregon
+    healthCheckPath: /api/v1/health
+    # Runs inside the container before traffic is switched over (zero-downtime).
+    preDeployCommand: alembic upgrade head
+    envVars:
+      # ── App ──────────────────────────────────────────────────────────────
+      - key: APP_ENV
+        value: development
+      - key: API_HOST
+        value: "0.0.0.0"
+      - key: API_PORT
+        value: "8000"
+      - key: ENABLE_API_DOCS
+        value: "true"
+
+      # ── Host / CORS ───────────────────────────────────────────────────────
+      # Wildcards work with Starlette TrustedHostMiddleware.
+      - key: ALLOWED_HOSTS
+        value: '["*.onrender.com","localhost","127.0.0.1"]'
+      # IMPORTANT: replace with your real Vercel URL after frontend is deployed,
+      # then redeploy the backend service.
+      - key: CORS_ALLOWED_ORIGINS
+        value: '["https://REPLACE_WITH_YOUR_VERCEL_URL.vercel.app"]'
+
+      # ── Database (Supabase) ───────────────────────────────────────────────
+      # Set these in the Render dashboard after creating a Supabase project.
+      # Supabase → Project Settings → Database → Connection string:
+      #   DATABASE_URL:            use the "URI" tab, add "+asyncpg" after "postgresql"
+      #   LANGGRAPH_CHECKPOINT_URL: same URI tab, keep as plain "postgresql://"
+      - key: DATABASE_URL
+        sync: false
+      - key: LANGGRAPH_CHECKPOINT_URL
+        sync: false
+
+      # ── Redis (Render managed, auto-wired) ──────────────────────────────
+      - key: QUEUE_REDIS_URL
+        fromService:
+          type: redis
+          name: sentinelflow-redis
+          property: connectionString
+
+      # ── Auth ─────────────────────────────────────────────────────────────
+      - key: AUTH_ISSUER
+        value: sentinelflow-dev
+      - key: AUTH_AUDIENCE
+        value: sentinelflow-api
+      # Render generates a cryptographically random secret automatically.
+      - key: AUTH_JWT_SECRET
+        generateValue: true
+      - key: AUTH_ALLOW_DEV_TOKENS
+        value: "true"
+
+      # ── LLM ──────────────────────────────────────────────────────────────
+      # Set in the Render dashboard.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MODEL_NAME
+        value: gpt-4.1-mini
+
+  # ── Background worker (arq) ───────────────────────────────────────────────
+  # The free plan has no background-worker tier. Uncomment and switch to
+  # plan: starter ($7/month) when you are ready to enable async investigations.
+  #
+  # - type: worker
+  #   name: sentinelflow-worker
+  #   runtime: docker
+  #   dockerfilePath: ./backend/Dockerfile
+  #   dockerContext: ./backend
+  #   plan: starter
+  #   startCommand: python -m app.worker
+  #   envVars:
+  #     - key: APP_ENV
+  #       value: development
+  #     - key: DATABASE_URL
+  #       sync: false
+  #     - key: LANGGRAPH_CHECKPOINT_URL
+  #       sync: false
+  #     - key: QUEUE_REDIS_URL
+  #       fromService:
+  #         type: redis
+  #         name: sentinelflow-redis
+  #         property: connectionString
+  #     - key: AUTH_JWT_SECRET
+  #       fromService:
+  #         type: web
+  #         name: sentinelflow-backend
+  #         envVarKey: AUTH_JWT_SECRET
+  #     - key: OPENAI_API_KEY
+  #       sync: false
+  #     - key: MODEL_NAME
+  #       value: gpt-4.1-mini
+
+  # ── Redis (Render free Key Value) ─────────────────────────────────────────
+  - type: redis
+    name: sentinelflow-redis
+    plan: free
+    ipAllowList: []

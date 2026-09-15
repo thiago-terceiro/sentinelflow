@@ -1,0 +1,58 @@
+services:
+  backend-init:
+    profiles: ["prod"]
+    environment:
+      APP_ENV: production
+      SEED_DEMO_DATA: "false"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY for prod profile}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?Set OTEL_EXPORTER_OTLP_ENDPOINT for prod profile}
+      AUTH_ISSUER: ${AUTH_ISSUER:?Set AUTH_ISSUER for prod profile}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:?Set AUTH_AUDIENCE for prod profile}
+      AUTH_ALLOW_DEV_TOKENS: "false"
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_OIDC_ISSUER: ${AUTH_OIDC_ISSUER:-}
+      AUTH_OIDC_DISCOVERY_URL: ${AUTH_OIDC_DISCOVERY_URL:-}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-}
+      AUTH_RESOURCE_CLIENT_ID: ${AUTH_RESOURCE_CLIENT_ID:-}
+
+  backend:
+    profiles: ["prod"]
+    environment:
+      APP_ENV: production
+      ENABLE_API_DOCS: "false"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY for prod profile}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?Set OTEL_EXPORTER_OTLP_ENDPOINT for prod profile}
+      AUTH_ISSUER: ${AUTH_ISSUER:?Set AUTH_ISSUER for prod profile}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:?Set AUTH_AUDIENCE for prod profile}
+      AUTH_ALLOW_DEV_TOKENS: "false"
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_OIDC_ISSUER: ${AUTH_OIDC_ISSUER:-}
+      AUTH_OIDC_DISCOVERY_URL: ${AUTH_OIDC_DISCOVERY_URL:-}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-}
+      AUTH_RESOURCE_CLIENT_ID: ${AUTH_RESOURCE_CLIENT_ID:-}
+
+  worker:
+    profiles: ["prod"]
+    environment:
+      APP_ENV: production
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY for prod profile}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?Set OTEL_EXPORTER_OTLP_ENDPOINT for prod profile}
+      AUTH_ISSUER: ${AUTH_ISSUER:?Set AUTH_ISSUER for prod profile}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:?Set AUTH_AUDIENCE for prod profile}
+      AUTH_ALLOW_DEV_TOKENS: "false"
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_OIDC_ISSUER: ${AUTH_OIDC_ISSUER:-}
+      AUTH_OIDC_DISCOVERY_URL: ${AUTH_OIDC_DISCOVERY_URL:-}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-}
+      AUTH_RESOURCE_CLIENT_ID: ${AUTH_RESOURCE_CLIENT_ID:-}
+
+  frontend:
+    profiles: ["prod"]
+    environment:
+      APP_ENV: production
+      AUTH_OIDC_ISSUER: ${AUTH_OIDC_ISSUER:?Set AUTH_OIDC_ISSUER for prod profile}
+      AUTH_OIDC_CLIENT_ID: ${AUTH_OIDC_CLIENT_ID:?Set AUTH_OIDC_CLIENT_ID for prod profile}
+      AUTH_OIDC_CLIENT_SECRET: ${AUTH_OIDC_CLIENT_SECRET:-}
+
+  proxy:
+    profiles: ["prod"]
