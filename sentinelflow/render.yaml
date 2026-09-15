@@ -44,11 +44,9 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         value: '["https://REPLACE_WITH_YOUR_VERCEL_URL.vercel.app"]'
 
-      # ── Database (Supabase) ───────────────────────────────────────────────
-      # Set these in the Render dashboard after creating a Supabase project.
-      # Supabase → Project Settings → Database → Connection string:
-      #   DATABASE_URL:            use the "URI" tab, add "+asyncpg" after "postgresql"
-      #   LANGGRAPH_CHECKPOINT_URL: same URI tab, keep as plain "postgresql://"
+      # ── Database (Supabase — already provisioned) ────────────────────────
+      # Values are in sentinelflow/.deployment-secrets.txt (gitignored).
+      # Set these in the Render dashboard → sentinelflow-backend → Environment.
       - key: DATABASE_URL
         sync: false
       - key: LANGGRAPH_CHECKPOINT_URL

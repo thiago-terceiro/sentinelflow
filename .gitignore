@@ -33,6 +33,9 @@ out/
 .env.*.local
 # .env.example is kept intentionally
 
+# Deployment secrets (local only)
+.deployment-secrets.txt
+
 # Docker
 docker-compose.override.yml
 
