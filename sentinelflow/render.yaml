@@ -20,7 +20,7 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
-    region: oregon
+    region: frankfurt
     healthCheckPath: /api/v1/health
     # preDeployCommand is not supported in the Render's free plan, if using paid plan uncomment below and update ci.yml
     # preDeployCommand: alembic upgrade head    
