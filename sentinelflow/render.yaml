@@ -27,7 +27,7 @@ services:
     envVars:
       # ── App ──────────────────────────────────────────────────────────────
       - key: APP_ENV
-        value: development
+        value: production
       - key: API_HOST
         value: "0.0.0.0"
       - key: API_PORT
@@ -77,38 +77,50 @@ services:
       - key: MODEL_NAME
         value: gpt-4.1-mini
 
-  # ── Background worker (arq) ───────────────────────────────────────────────
-  # The free plan has no background-worker tier. Uncomment and switch to
-  # plan: starter ($7/month) when you are ready to enable async investigations.
-  #
-  # - type: worker
-  #   name: sentinelflow-worker
-  #   runtime: docker
-  #   dockerfilePath: ./backend/Dockerfile
-  #   dockerContext: ./backend
-  #   plan: starter
-  #   startCommand: python -m app.worker
-  #   envVars:
-  #     - key: APP_ENV
-  #       value: development
-  #     - key: DATABASE_URL
-  #       sync: false
-  #     - key: LANGGRAPH_CHECKPOINT_URL
-  #       sync: false
-  #     - key: QUEUE_REDIS_URL
-  #       fromService:
-  #         type: redis
-  #         name: sentinelflow-redis
-  #         property: connectionString
-  #     - key: AUTH_JWT_SECRET
-  #       fromService:
-  #         type: web
-  #         name: sentinelflow-backend
-  #         envVarKey: AUTH_JWT_SECRET
-  #     - key: OPENAI_API_KEY
-  #       sync: false
-  #     - key: MODEL_NAME
-  #       value: gpt-4.1-mini
+  # ── Worker-as-web-service (free-tier workaround) ─────────────────────────
+  # Render's free plan has no background-worker type, so we run arq inside a
+  # tiny FastAPI process (app/worker_server.py). Render health-checks /health
+  # to keep the service alive; the arq worker runs as an asyncio task in the
+  # FastAPI lifespan.
+  - type: web
+    name: sentinelflow-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    # Override the Dockerfile CMD to start the worker server instead of the API.
+    dockerCommand: uvicorn app.worker_server:app --host 0.0.0.0 --port 8000 --proxy-headers
+    envVars:
+      # Use development to skip the production validator (no OTEL needed here).
+      - key: APP_ENV
+        value: development
+      - key: DATABASE_URL
+        sync: false
+      - key: LANGGRAPH_CHECKPOINT_URL
+        sync: false
+      - key: QUEUE_REDIS_URL
+        fromService:
+          type: redis
+          name: sentinelflow-redis
+          property: connectionString
+      # Shared with the backend so tokens are valid across both services.
+      - key: AUTH_JWT_SECRET
+        fromService:
+          type: web
+          name: sentinelflow-backend
+          envVarKey: AUTH_JWT_SECRET
+      - key: AUTH_ISSUER
+        value: sentinelflow-dev
+      - key: AUTH_AUDIENCE
+        value: sentinelflow-api
+      - key: AUTH_ALLOW_DEV_TOKENS
+        value: "true"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MODEL_NAME
+        value: gpt-4.1-mini
 
   # ── Redis (Render free Key Value) ─────────────────────────────────────────
   - type: redis
