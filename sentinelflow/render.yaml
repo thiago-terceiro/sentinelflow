@@ -22,8 +22,8 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /api/v1/health
-    # Runs inside the container before traffic is switched over (zero-downtime).
-    preDeployCommand: alembic upgrade head
+    # preDeployCommand is not supported in the Render's free plan, if using paid plan uncomment below and update ci.yml
+    # preDeployCommand: alembic upgrade head    
     envVars:
       # ── App ──────────────────────────────────────────────────────────────
       - key: APP_ENV

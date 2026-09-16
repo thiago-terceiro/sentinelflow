@@ -50,3 +50,38 @@ jobs:
 
       - name: Run frontend validation
         run: bash .github/scripts/validate-sentinelflow.sh frontend
+
+  # TODO: migrations should follow expand → migrate → contract.
+  database-migrate:
+    name: database-migrate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: backend-validate
+    runs-on: ubuntu-latest
+
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Verify database URL is configured
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL is not configured in the production GitHub environment."
+            exit 1
+          fi
+
+      - name: Sync backend dependencies
+        working-directory: sentinelflow/backend
+        run: uv sync
+
+      - name: Run database migrations
+        working-directory: sentinelflow/backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: uv run alembic upgrade head
