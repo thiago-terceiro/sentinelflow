@@ -19,7 +19,7 @@ services:
   - type: web
     name: sentinelflow-backend
     runtime: docker
-    rootDir: sentinelflow
+    rootDir: /sentinelflow
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -98,7 +98,7 @@ services:
   - type: web
     name: sentinelflow-worker
     runtime: docker
-    rootDir: sentinelflow
+    rootDir: /sentinelflow
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
