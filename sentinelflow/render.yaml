@@ -5,11 +5,13 @@
 #   1. Push this repo to GitHub.
 #   2. In Render dashboard → New → Blueprint → connect your repo.
 #      When asked for the render.yaml location, enter: sentinelflow/render.yaml
-#   3. After the first deploy, set the three secrets marked "sync: false" in the
+#   3. After the first deploy, set the five secrets marked "sync: false" in the
 #      Render dashboard under sentinelflow-backend → Environment:
 #        DATABASE_URL            (Supabase: postgresql+asyncpg://...)
 #        LANGGRAPH_CHECKPOINT_URL (Supabase: postgresql://...)
-#        OPENAI_API_KEY          (your key)
+#        OPENAI_API_KEY          (your inference provider key)
+#        OTEL_EXPORTER_OTLP_ENDPOINT  (e.g., Grafana Cloud OTLP endpoint)
+#        OTEL_EXPORTER_OTLP_HEADERS   (e.g., Authorization=Basic <base64>)
 #   4. Update CORS_ALLOWED_ORIGINS once you know your Vercel URL (see step 5).
 #   5. Deploy frontend to Vercel (see sentinelflow/frontend/vercel.json).
 
@@ -76,6 +78,16 @@ services:
         sync: false
       - key: MODEL_NAME
         value: gpt-4.1-mini
+
+      # ── Telemetry (OTEL) ─────────────────────────────────────────────────
+      # Set in the Render dashboard. Get a free OTLP endpoint from Grafana Cloud
+      # (https://grafana.com/products/cloud/) or Honeycomb (https://honeycomb.io).
+      # Example Grafana Cloud: endpoint=https://otlp-gateway-prod-us-east-0.grafana.net/v1/traces
+      # headers=Authorization=Basic <base64(user:apiKey)>
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        sync: false
 
   # ── Worker-as-web-service (free-tier workaround) ─────────────────────────
   # Render's free plan has no background-worker type, so we run arq inside a
