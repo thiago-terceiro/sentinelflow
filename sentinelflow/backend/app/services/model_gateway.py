@@ -141,7 +141,7 @@ class ModelGateway:
 
                 content = ai_msg.content if ai_msg is not None else ""
                 output_text = content if isinstance(content, str) else str(content)
-                reasoning_value = response_metadata.get("reasoning_content")
+                reasoning_value = response_metadata.get("reasoning")
                 reasoning_text = reasoning_value if isinstance(reasoning_value, str) else None
 
                 return LLMCallResult(
