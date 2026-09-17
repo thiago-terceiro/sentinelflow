@@ -45,7 +45,7 @@ services:
       # IMPORTANT: replace with your real Vercel URL after frontend is deployed,
       # then redeploy the backend service.
       - key: CORS_ALLOWED_ORIGINS
-        value: '["https://REPLACE_WITH_YOUR_VERCEL_URL.vercel.app"]'
+        value: '["https://frontend-five-flame-66.vercel.app/"]'
 
       # ── Database (Supabase — already provisioned) ────────────────────────
       # Values are in sentinelflow/.deployment-secrets.txt (gitignored).
@@ -64,9 +64,15 @@ services:
 
       # ── Auth ─────────────────────────────────────────────────────────────
       - key: AUTH_ISSUER
-        value: sentinelflow-dev
+        value: https://fmteujlopnckukroopfz.supabase.co
       - key: AUTH_AUDIENCE
-        value: sentinelflow-api
+        value: authenticated
+      - key: AUTH_OIDC_ISSUER
+        value: https://fmteujlopnckukroopfz.supabase.co
+      - key: AUTH_OIDC_DISCOVERY_URL
+        value: https://fmteujlopnckukroopfz.supabase.co/.well-known/openid-configuration
+      - key: AUTH_JWKS_URL
+        value: https://fmteujlopnckukroopfz.supabase.co/.well-known/jwks.json
       # Render generates a cryptographically random secret automatically.
       - key: AUTH_JWT_SECRET
         generateValue: true
@@ -78,7 +84,7 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: MODEL_NAME
-        value: gpt-4.1-mini
+        value: openai/gpt-oss-120b:free
 
       # ── Telemetry (OTEL) ─────────────────────────────────────────────────
       # Set in the Render dashboard. Get a free OTLP endpoint from Grafana Cloud
@@ -126,18 +132,19 @@ services:
           name: sentinelflow-backend
           envVarKey: AUTH_JWT_SECRET
       - key: AUTH_ISSUER
-        value: sentinelflow-dev
+        value: https://fmteujlopnckukroopfz.supabase.co
       - key: AUTH_AUDIENCE
-        value: sentinelflow-api
+        value: authenticated
       - key: AUTH_ALLOW_DEV_TOKENS
         value: "false"
       - key: OPENAI_API_KEY
         sync: false
       - key: MODEL_NAME
-        value: gpt-4.1-mini
+        value: openai/gpt-oss-120b:free
 
   # ── Redis (Render free Key Value) ─────────────────────────────────────────
   - type: redis
     name: sentinelflow-redis
+    region: frankfurt
     plan: free
     ipAllowList: []
