@@ -109,7 +109,7 @@ services:
     envVars:
       # Use development to skip the production validator (no OTEL needed here).
       - key: APP_ENV
-        value: development
+        value: production
       - key: DATABASE_URL
         sync: false
       - key: LANGGRAPH_CHECKPOINT_URL
@@ -130,7 +130,7 @@ services:
       - key: AUTH_AUDIENCE
         value: sentinelflow-api
       - key: AUTH_ALLOW_DEV_TOKENS
-        value: "true"
+        value: "false"
       - key: OPENAI_API_KEY
         sync: false
       - key: MODEL_NAME
