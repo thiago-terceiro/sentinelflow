@@ -71,7 +71,7 @@ services:
       - key: AUTH_JWT_SECRET
         generateValue: true
       - key: AUTH_ALLOW_DEV_TOKENS
-        value: "true"
+        value: "false"
 
       # ── LLM ──────────────────────────────────────────────────────────────
       # Set in the Render dashboard.
