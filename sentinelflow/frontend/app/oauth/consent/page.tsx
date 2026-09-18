@@ -41,6 +41,22 @@ export default async function ConsentPage({
     //     redirect(`/auth/login?redirect=${encodeURIComponent(redirectTo)}`);
     // }
 
+    // anonymous flow for demo testing
+    const { data: claimsData } = await supabase.auth.getClaims();
+
+    if (!claimsData?.claims) {
+        const { error: anonymousError } =
+            await supabase.auth.signInAnonymously();
+
+        if (anonymousError) {
+            return (
+                <div>
+                    Error creating demo session: {anonymousError.message}
+                </div>
+            );
+        }
+    }
+
     // Get authorization details using the authorization_id
     const { data: authDetails, error } = await supabase.auth.oauth.getAuthorizationDetails(authorization_id);
 
