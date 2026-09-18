@@ -34,8 +34,11 @@ export default async function ConsentPage({
     const claims = data?.claims;
 
     if (!claims) {
+        const redirectTo =
+            `/oauth/consent?authorization_id=${encodeURIComponent(authorization_id)}`;
+
         // Redirect to login, preserving authorization_id
-        redirect(`/login?redirect=/oauth/consent?authorization_id=${authorization_id}`);
+        redirect(`/auth/login?redirect=${encodeURIComponent(redirectTo)}`);
     }
 
     // Get authorization details using the authorization_id
