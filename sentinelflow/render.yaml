@@ -64,13 +64,13 @@ services:
 
       # ── Auth ─────────────────────────────────────────────────────────────
       - key: AUTH_ISSUER
-        value: https://fmteujlopnckukroopfz.supabase.co
+        value: https://fmteujlopnckukroopfz.supabase.co/auth/v1
       - key: AUTH_AUDIENCE
         value: authenticated
       - key: AUTH_OIDC_ISSUER
-        value: https://fmteujlopnckukroopfz.supabase.co
+        value: https://fmteujlopnckukroopfz.supabase.co/auth/v1
       - key: AUTH_OIDC_DISCOVERY_URL
-        value: https://fmteujlopnckukroopfz.supabase.co/.well-known/openid-configuration
+        value: https://fmteujlopnckukroopfz.supabase.co/auth/v1/.well-known/openid-configuration
       - key: AUTH_JWKS_URL
         value: https://fmteujlopnckukroopfz.supabase.co/.well-known/jwks.json
       # Render generates a cryptographically random secret automatically.
@@ -132,7 +132,7 @@ services:
           name: sentinelflow-backend
           envVarKey: AUTH_JWT_SECRET
       - key: AUTH_ISSUER
-        value: https://fmteujlopnckukroopfz.supabase.co
+        value: https://fmteujlopnckukroopfz.supabase.co/auth/v1
       - key: AUTH_AUDIENCE
         value: authenticated
       - key: AUTH_ALLOW_DEV_TOKENS
