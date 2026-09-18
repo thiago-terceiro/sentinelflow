@@ -123,3 +123,5 @@ export const GET = async (request: NextRequest): Promise<NextResponse> => {
         );
     }
 };
+
+export const POST = GET;
