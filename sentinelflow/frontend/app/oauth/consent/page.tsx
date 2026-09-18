@@ -29,17 +29,17 @@ export default async function ConsentPage({
         }
     );
 
-    // Check if user is authenticated
-    const { data } = await supabase.auth.getClaims();
-    const claims = data?.claims;
+    // Check if user is authenticated - commented out for demo purposes
+    // const { data } = await supabase.auth.getClaims();
+    // const claims = data?.claims;
 
-    if (!claims) {
-        const redirectTo =
-            `/oauth/consent?authorization_id=${encodeURIComponent(authorization_id)}`;
+    // if (!claims) {
+    //     const redirectTo =
+    //         `/oauth/consent?authorization_id=${encodeURIComponent(authorization_id)}`;
 
-        // Redirect to login, preserving authorization_id
-        redirect(`/auth/login?redirect=${encodeURIComponent(redirectTo)}`);
-    }
+    //     // Redirect to login, preserving authorization_id
+    //     redirect(`/auth/login?redirect=${encodeURIComponent(redirectTo)}`);
+    // }
 
     // Get authorization details using the authorization_id
     const { data: authDetails, error } = await supabase.auth.oauth.getAuthorizationDetails(authorization_id);
