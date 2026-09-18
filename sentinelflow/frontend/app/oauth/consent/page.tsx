@@ -30,8 +30,8 @@ export default async function ConsentPage({
     );
 
     // Check if user is authenticated - commented out for demo purposes
-    // const { data } = await supabase.auth.getClaims();
-    // const claims = data?.claims;
+    const { data } = await supabase.auth.getClaims();
+    const claims = data?.claims;
 
     // if (!claims) {
     //     const redirectTo =
@@ -41,20 +41,11 @@ export default async function ConsentPage({
     //     redirect(`/auth/login?redirect=${encodeURIComponent(redirectTo)}`);
     // }
 
-    // anonymous flow for demo testing
-    const { data: claimsData } = await supabase.auth.getClaims();
-
-    if (!claimsData?.claims) {
-        const { error: anonymousError } =
-            await supabase.auth.signInAnonymously();
-
-        if (anonymousError) {
-            return (
-                <div>
-                    Error creating demo session: {anonymousError.message}
-                </div>
-            );
-        }
+    // for demo testing
+    if (!claims) {
+        redirect(
+            `/api/oauth/demo-session?authorization_id=${encodeURIComponent(authorization_id)}`
+        );
     }
 
     // Get authorization details using the authorization_id
