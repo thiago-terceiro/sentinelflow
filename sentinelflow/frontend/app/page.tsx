@@ -56,7 +56,7 @@ export default function HomePage() {
                     {fetchError}
                     {fetchError.toLowerCase().includes("authentication") || fetchError.toLowerCase().includes("unauthenticated") ? (
                         <span style={{ display: "block", marginTop: 10 }}>
-                            <Link href="/auth/login" style={{ color: "var(--danger)", textDecoration: "underline" }}>
+                            <Link href="/login" style={{ color: "var(--danger)", textDecoration: "underline" }}>
                                 Continue with sign-in
                             </Link>
                         </span>

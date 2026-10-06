@@ -30,7 +30,7 @@ services:
     envVars:
       # ── App ──────────────────────────────────────────────────────────────
       - key: APP_ENV
-        value: production
+        value: development
       - key: API_HOST
         value: "0.0.0.0"
       - key: API_PORT
@@ -45,7 +45,7 @@ services:
       # IMPORTANT: replace with your real Vercel URL after frontend is deployed,
       # then redeploy the backend service.
       - key: CORS_ALLOWED_ORIGINS
-        value: '["https://frontend-five-flame-66.vercel.app/"]'
+        value: '["https://frontend-five-flame-66.vercel.app"]'
 
       # ── Database (Supabase — already provisioned) ────────────────────────
       # Values are in sentinelflow/.deployment-secrets.txt (gitignored).
@@ -77,7 +77,7 @@ services:
       - key: AUTH_JWT_SECRET
         generateValue: true
       - key: AUTH_ALLOW_DEV_TOKENS
-        value: "false"
+        value: "true"
 
       # ── LLM ──────────────────────────────────────────────────────────────
       # Set in the Render dashboard.
@@ -113,9 +113,9 @@ services:
     # Override the Dockerfile CMD to start the worker server instead of the API.
     dockerCommand: uvicorn app.worker_server:app --host 0.0.0.0 --port 8000 --proxy-headers
     envVars:
-      # Use development to skip the production validator (no OTEL needed here).
+      # Keep worker in development mode for test-login DEV_TOKENS support.
       - key: APP_ENV
-        value: production
+        value: development
       - key: DATABASE_URL
         sync: false
       - key: LANGGRAPH_CHECKPOINT_URL
@@ -136,7 +136,7 @@ services:
       - key: AUTH_AUDIENCE
         value: authenticated
       - key: AUTH_ALLOW_DEV_TOKENS
-        value: "false"
+        value: "true"
       - key: OPENAI_API_KEY
         sync: false
       - key: MODEL_NAME

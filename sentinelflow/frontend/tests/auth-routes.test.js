@@ -3,143 +3,95 @@ import test from "node:test";
 
 import { NextRequest } from "next/server.js";
 
-process.env.APP_ENV = "test";
-process.env.AUTH_OIDC_ISSUER = "https://idp.example.com";
-process.env.AUTH_OIDC_CLIENT_ID = "sentinelflow-web";
-process.env.AUTH_OIDC_CLIENT_SECRET = "secret-for-tests";
-process.env.AUTH_OIDC_CALLBACK_PATH = "/auth/callback";
-process.env.AUTH_POST_LOGIN_PATH = "/";
-process.env.AUTH_POST_LOGOUT_PATH = "/";
-process.env.INTERNAL_ACCESS_TOKEN_COOKIE_NAME = "sentinelflow_access_token";
-process.env.INTERNAL_ID_TOKEN_COOKIE_NAME = "sentinelflow_id_token";
+test("/auth/login redirects to /login and preserves returnTo", async () => {
+    const { GET } = await import("../app/auth/login/route.ts");
+    const request = new NextRequest("https://console.example.com/auth/login?returnTo=/disputes/disp_123");
 
-const discoveryPayload = {
-    issuer: "https://idp.example.com",
-    authorization_endpoint: "https://idp.example.com/oauth2/v2/auth",
-    token_endpoint: "https://idp.example.com/oauth2/v2/token",
-    end_session_endpoint: "https://idp.example.com/oauth2/v2/logout",
-};
+    const response = await GET(request);
 
-const jsonResponse = (payload, status = 200) => {
-    return new Response(JSON.stringify(payload), {
-        status,
+    assert.equal(response.status, 307);
+    assert.equal(
+        response.headers.get("location"),
+        "https://console.example.com/login?returnTo=%2Fdisputes%2Fdisp_123",
+    );
+});
+
+test("/api/auth/login accepts hardcoded credentials and sets session cookies", async () => {
+    const { POST } = await import("../app/api/auth/login/route.ts");
+    const body = new URLSearchParams({
+        username: "reviewer",
+        password: "reviewer123",
+        role: "reviewer",
+        returnTo: "/",
+    });
+    const request = new NextRequest("https://console.example.com/api/auth/login", {
+        method: "POST",
+        body,
         headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
         },
     });
-};
 
-test("/auth/login redirects to authorization endpoint and sets transient cookies", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => jsonResponse(discoveryPayload);
+    const response = await POST(request);
 
-    try {
-        const { GET } = await import("../app/auth/login/route.ts");
-        const request = new NextRequest(
-            "https://console.example.com/auth/login?returnTo=/disputes/disp_123&prompt=login",
-        );
-
-        const response = await GET(request);
-
-        assert.equal(response.status, 307);
-        const location = response.headers.get("location");
-        assert.ok(location);
-        const redirectUrl = new URL(location);
-        assert.equal(redirectUrl.origin, "https://idp.example.com");
-        assert.equal(redirectUrl.searchParams.get("client_id"), "sentinelflow-web");
-        assert.equal(
-            redirectUrl.searchParams.get("redirect_uri"),
-            "https://console.example.com/auth/callback",
-        );
-        assert.equal(redirectUrl.searchParams.get("code_challenge_method"), "S256");
-        assert.equal(redirectUrl.searchParams.get("prompt"), "login");
-        assert.ok(response.cookies.get("sentinelflow_oidc_state")?.value);
-        assert.ok(response.cookies.get("sentinelflow_oidc_nonce")?.value);
-        assert.ok(response.cookies.get("sentinelflow_oidc_verifier")?.value);
-        assert.equal(
-            response.cookies.get("sentinelflow_oidc_return_to")?.value,
-            "/disputes/disp_123",
-        );
-    } finally {
-        globalThis.fetch = originalFetch;
-    }
+    assert.equal(response.status, 307);
+    assert.equal(response.headers.get("location"), "https://console.example.com/");
+    assert.equal(response.cookies.get("sentinelflow_access_token")?.value, "dev-reviewer");
+    assert.equal(response.cookies.get("sentinelflow_test_user")?.value, "reviewer:reviewer");
 });
 
-test("/auth/callback exchanges code, stores tokens, and clears transient cookies", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url) => {
-        const asString = String(url);
-        if (asString.includes("openid-configuration")) {
-            return jsonResponse(discoveryPayload);
-        }
-        if (asString.includes("/oauth2/v2/token")) {
-            return jsonResponse({
-                access_token: "access-token-123",
-                id_token: "id-token-456",
-                expires_in: 1800,
-            });
-        }
-        throw new Error(`Unexpected fetch URL in test: ${asString}`);
-    };
+test("/api/auth/login rejects invalid credentials", async () => {
+    const { POST } = await import("../app/api/auth/login/route.ts");
+    const body = new URLSearchParams({
+        username: "reviewer",
+        password: "wrong-password",
+        role: "reviewer",
+        returnTo: "/disputes",
+    });
+    const request = new NextRequest("https://console.example.com/api/auth/login", {
+        method: "POST",
+        body,
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    });
 
-    try {
-        const { GET } = await import("../app/auth/callback/route.ts");
-        const request = new NextRequest(
-            "https://console.example.com/auth/callback?code=auth-code&state=state-123&iss=https://idp.example.com",
-            {
-                headers: {
-                    cookie: [
-                        "sentinelflow_oidc_state=state-123",
-                        "sentinelflow_oidc_verifier=verifier-abc",
-                        "sentinelflow_oidc_return_to=/disputes/disp_123",
-                    ].join("; "),
-                },
-            },
-        );
+    const response = await POST(request);
 
-        const response = await GET(request);
-
-        assert.equal(response.status, 307);
-        assert.equal(response.headers.get("location"), "https://console.example.com/disputes/disp_123");
-        assert.equal(response.cookies.get("sentinelflow_access_token")?.value, "access-token-123");
-        assert.equal(response.cookies.get("sentinelflow_id_token")?.value, "id-token-456");
-        assert.equal(response.cookies.get("sentinelflow_oidc_state")?.value, "");
-        assert.equal(response.cookies.get("sentinelflow_oidc_nonce")?.value, "");
-        assert.equal(response.cookies.get("sentinelflow_oidc_verifier")?.value, "");
-        assert.equal(response.cookies.get("sentinelflow_oidc_return_to")?.value, "");
-    } finally {
-        globalThis.fetch = originalFetch;
-    }
+    assert.equal(response.status, 307);
+    assert.equal(
+        response.headers.get("location"),
+        "https://console.example.com/login?error=invalid_credentials&returnTo=%2Fdisputes",
+    );
 });
 
-test("/auth/logout clears session cookies and redirects to IdP logout endpoint", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => jsonResponse(discoveryPayload);
+test("/auth/callback redirects to /login with oidc_disabled", async () => {
+    const { GET } = await import("../app/auth/callback/route.ts");
+    const request = new NextRequest("https://console.example.com/auth/callback?code=test");
 
-    try {
-        const { GET } = await import("../app/auth/logout/route.ts");
-        const request = new NextRequest("https://console.example.com/auth/logout", {
-            headers: {
-                cookie: "sentinelflow_id_token=id-token-456",
-            },
-        });
+    const response = await GET(request);
 
-        const response = await GET(request);
+    assert.equal(response.status, 307);
+    assert.equal(response.headers.get("location"), "https://console.example.com/login?error=oidc_disabled");
+});
 
-        assert.equal(response.status, 307);
-        const location = response.headers.get("location");
-        assert.ok(location);
-        const redirectUrl = new URL(location);
-        assert.equal(redirectUrl.origin, "https://idp.example.com");
-        assert.equal(redirectUrl.pathname, "/oauth2/v2/logout");
-        assert.equal(
-            redirectUrl.searchParams.get("post_logout_redirect_uri"),
-            "https://console.example.com/",
-        );
-        assert.equal(redirectUrl.searchParams.get("id_token_hint"), "id-token-456");
-        assert.equal(response.cookies.get("sentinelflow_access_token")?.value, "");
-        assert.equal(response.cookies.get("sentinelflow_id_token")?.value, "");
-    } finally {
-        globalThis.fetch = originalFetch;
-    }
+test("/auth/logout clears session cookies and redirects home", async () => {
+    const { GET } = await import("../app/auth/logout/route.ts");
+    const request = new NextRequest("https://console.example.com/auth/logout", {
+        headers: {
+            cookie: [
+                "sentinelflow_access_token=dev-reviewer",
+                "sentinelflow_id_token=id-token-123",
+                "sentinelflow_test_user=reviewer:reviewer",
+            ].join("; "),
+        },
+    });
+
+    const response = await GET(request);
+
+    assert.equal(response.status, 307);
+    assert.equal(response.headers.get("location"), "https://console.example.com/");
+    assert.equal(response.cookies.get("sentinelflow_access_token")?.value, "");
+    assert.equal(response.cookies.get("sentinelflow_id_token")?.value, "");
+    assert.equal(response.cookies.get("sentinelflow_test_user")?.value, "");
 });

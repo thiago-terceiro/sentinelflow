@@ -3,7 +3,7 @@ import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import { cookies } from "next/headers";
 import Link from "next/link";
 
-import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/oidc";
+import { ACCESS_TOKEN_COOKIE_NAME, TEST_USER_COOKIE_NAME } from "@/lib/testAuth";
 
 import "./globals.css";
 
@@ -18,6 +18,9 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const cookieStore = await cookies();
     const hasSession = Boolean(cookieStore.get(ACCESS_TOKEN_COOKIE_NAME)?.value);
+    const userInfo = cookieStore.get(TEST_USER_COOKIE_NAME)?.value ?? "";
+    const [username, role] = userInfo.split(":", 2);
+    const sessionLabel = username && role ? `${username} (${role})` : null;
 
     return (
         <html lang="en" className={`${headline.variable} ${body.variable}`}>
@@ -33,11 +36,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                         }}
                     >
                         <strong>SentinelFlow Console</strong>
-                        {hasSession ? (
-                            <Link href="/auth/logout" style={{ color: "var(--muted)" }}>Sign out</Link>
-                        ) : (
-                            <Link href="/auth/login" style={{ color: "var(--muted)" }}>Sign in</Link>
-                        )}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            {hasSession && sessionLabel ? <span style={{ color: "var(--muted)" }}>{sessionLabel}</span> : null}
+                            {hasSession ? (
+                                <Link href="/auth/logout" style={{ color: "var(--muted)" }}>Sign out</Link>
+                            ) : (
+                                <Link href="/login" style={{ color: "var(--muted)" }}>Sign in</Link>
+                            )}
+                        </div>
                     </div>
                 </header>
                 {children}
