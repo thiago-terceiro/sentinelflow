@@ -39,7 +39,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             {hasSession && sessionLabel ? <span style={{ color: "var(--muted)" }}>{sessionLabel}</span> : null}
                             {hasSession ? (
-                                <Link href="/auth/logout" style={{ color: "var(--muted)" }}>Sign out</Link>
+                                <Link href="/auth/logout" prefetch={false} style={{ color: "var(--muted)" }}>Sign out</Link>
                             ) : (
                                 <Link href="/login" style={{ color: "var(--muted)" }}>Sign in</Link>
                             )}
