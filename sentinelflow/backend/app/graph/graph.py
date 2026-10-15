@@ -49,18 +49,18 @@ def validate_production_checkpointer() -> None:
         raise RuntimeError("Invalid LANGGRAPH_CHECKPOINT_URL for production checkpointer.") from exc
 
 
+@lru_cache(maxsize=1)
+def _postgres_checkpointer(conn_string: str) -> Any:
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+    return AsyncPostgresSaver.from_conn_string(conn_string)
+
+
 def _build_checkpointer() -> Any:
     settings = get_settings()
     if settings.APP_ENV == "production":
         validate_production_checkpointer()
-        try:
-            from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-        except ImportError as exc:  # pragma: no cover
-            raise RuntimeError(
-                "Install langgraph-checkpoint-postgres and psycopg[binary] "
-                "for production checkpointer support."
-            ) from exc
-        return AsyncPostgresSaver.from_conn_string(settings.LANGGRAPH_CHECKPOINT_URL)
+        return _postgres_checkpointer(settings.LANGGRAPH_CHECKPOINT_URL)
     return _memory_checkpointer()
 
 

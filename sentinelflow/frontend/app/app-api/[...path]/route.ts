@@ -84,18 +84,31 @@ const proxy = async (request: NextRequest, parts: string[]): Promise<Response> =
         requestHeaders.set("X-Request-Id", requestId);
     }
 
-    const body = request.method === "GET" ? undefined : await request.text();
-    const upstreamResponse = await fetch(targetPath(parts, request.nextUrl.searchParams.toString()), {
-        method: request.method,
-        headers: requestHeaders,
-        body,
-        cache: "no-store",
-    });
+    try {
+        const body = request.method === "GET" ? undefined : await request.text();
+        const upstreamResponse = await fetch(targetPath(parts, request.nextUrl.searchParams.toString()), {
+            method: request.method,
+            headers: requestHeaders,
+            body,
+            cache: "no-store",
+        });
 
-    return new Response(upstreamResponse.body, {
-        status: upstreamResponse.status,
-        headers: passthroughHeaders(upstreamResponse.headers),
-    });
+        return new Response(upstreamResponse.body, {
+            status: upstreamResponse.status,
+            headers: passthroughHeaders(upstreamResponse.headers),
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Upstream connection error";
+        return Response.json(
+            {
+                error: {
+                    code: "UPSTREAM_UNAVAILABLE",
+                    message: `Failed to communicate with backend service: ${message}`,
+                },
+            },
+            { status: 502 },
+        );
+    }
 };
 
 type RouteContext = {

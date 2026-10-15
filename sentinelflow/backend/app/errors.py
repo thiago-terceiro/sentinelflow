@@ -37,6 +37,7 @@ class NotFoundError(AppError):
 def error_response(code: str, message: str, request_id: str, status_code: int) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
+        headers={"x-request-id": request_id},
         content={
             "error": {
                 "code": code,

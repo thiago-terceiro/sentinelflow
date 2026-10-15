@@ -320,6 +320,35 @@ def _redis_settings() -> RedisSettings:
     return RedisSettings.from_dsn(settings.QUEUE_REDIS_URL)
 
 
+_shared_redis_pool: Any = None
+_redis_pool_lock: asyncio.Lock | None = None
+
+
+def _get_redis_pool_lock() -> asyncio.Lock:
+    global _redis_pool_lock
+    if _redis_pool_lock is None:
+        _redis_pool_lock = asyncio.Lock()
+    return _redis_pool_lock
+
+
+async def get_redis_pool() -> Any:
+    global _shared_redis_pool
+    if _shared_redis_pool is not None:
+        return _shared_redis_pool
+    async with _get_redis_pool_lock():
+        if _shared_redis_pool is None:
+            _shared_redis_pool = await create_pool(_redis_settings())
+        return _shared_redis_pool
+
+
+async def close_redis_pool() -> None:
+    global _shared_redis_pool
+    async with _get_redis_pool_lock():
+        if _shared_redis_pool is not None:
+            await _shared_redis_pool.aclose()
+            _shared_redis_pool = None
+
+
 def _active_job_id(investigation_id: str) -> str:
     return ACTIVE_JOB_ID_TEMPLATE.format(investigation_id=investigation_id)
 
@@ -330,11 +359,8 @@ async def _enqueue_job(
     job_id: str,
     payload: dict[str, Any],
 ) -> bool:
-    pool = await create_pool(_redis_settings())
-    try:
-        job = await pool.enqueue_job(job_name, payload, _job_id=job_id)
-    finally:
-        await pool.aclose()
+    pool = await get_redis_pool()
+    job = await pool.enqueue_job(job_name, payload, _job_id=job_id)
     return job is not None
 
 

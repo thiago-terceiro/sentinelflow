@@ -24,6 +24,16 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+async def check_redis_connectivity(redis_url: str) -> None:
+    from redis.asyncio import from_url
+
+    client = from_url(redis_url, socket_timeout=2.0)
+    try:
+        await client.ping()
+    finally:
+        await client.aclose()
+
+
 @router.get("/ready")
 async def ready(session: DBSessionDep) -> dict[str, str]:
     await session.execute(text("SELECT 1"))
@@ -77,6 +87,23 @@ async def ready(session: DBSessionDep) -> dict[str, str]:
                 message="Production checkpointer configuration is invalid.",
                 status_code=503,
             ) from exc
+        redis_url = getattr(settings, "QUEUE_REDIS_URL", None)
+        if redis_url:
+            try:
+                await check_redis_connectivity(redis_url)
+            except Exception as exc:
+                logger.error(
+                    "Readiness failed: background queue is unreachable.",
+                    extra={
+                        "event": "readiness_failed",
+                        "reason": str(exc),
+                    },
+                )
+                raise AppError(
+                    code="READINESS_QUEUE_UNAVAILABLE",
+                    message="Background queue is unavailable.",
+                    status_code=503,
+                ) from exc
     return {"status": "ready"}
 
 

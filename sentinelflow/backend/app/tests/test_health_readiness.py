@@ -106,14 +106,56 @@ async def test_ready_fails_when_production_checkpointer_validation_fails(
         raise AssertionError("Expected readiness to fail when checkpointer validation fails")
 
 
+async def test_ready_fails_when_queue_unavailable_in_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.api.health.get_settings",
+        lambda: SimpleNamespace(
+            APP_ENV="production",
+            OPENAI_API_KEY="set",
+            QUEUE_REDIS_URL="redis://localhost:6379/0",
+        ),
+    )
+    monkeypatch.setattr("app.api.health.validate_production_checkpointer", lambda: None)
+
+    async def _fail_redis(_url: str) -> None:
+        raise ConnectionError("connection refused")
+
+    monkeypatch.setattr("app.api.health.check_redis_connectivity", _fail_redis)
+    session = _FakeSession(
+        {
+            "disputes": "disputes",
+            "investigations": "investigations",
+            "audit_records": "audit_records",
+        }
+    )
+
+    try:
+        await ready(cast(AsyncSession, session))
+    except AppError as exc:
+        assert exc.code == "READINESS_QUEUE_UNAVAILABLE"
+    else:
+        raise AssertionError("Expected readiness to fail when queue is unavailable")
+
+
 async def test_ready_succeeds_when_dependencies_are_valid(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         "app.api.health.get_settings",
-        lambda: SimpleNamespace(APP_ENV="production", OPENAI_API_KEY="set"),
+        lambda: SimpleNamespace(
+            APP_ENV="production",
+            OPENAI_API_KEY="set",
+            QUEUE_REDIS_URL="redis://localhost:6379/0",
+        ),
     )
     monkeypatch.setattr("app.api.health.validate_production_checkpointer", lambda: None)
+
+    async def _ok_redis(_url: str) -> None:
+        return None
+
+    monkeypatch.setattr("app.api.health.check_redis_connectivity", _ok_redis)
     session = _FakeSession(
         {
             "disputes": "disputes",

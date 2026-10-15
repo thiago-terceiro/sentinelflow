@@ -386,8 +386,43 @@ async def test_run_resume_investigation_job_defaults_decision_to_empty(
     assert captured["decision"] == {}
 
 
-async def test_enqueue_job_closes_pool_on_success(monkeypatch: Any) -> None:
-    from app.services.investigations import _enqueue_job
+async def test_enqueue_job_uses_shared_pool(monkeypatch: Any) -> None:
+    from app.services.investigations import _enqueue_job, close_redis_pool
+
+    await close_redis_pool()
+
+    created_pools: list[Any] = []
+
+    class _FakeJob:
+        pass
+
+    class _FakePool:
+        async def enqueue_job(self, name: str, payload: object, *, _job_id: str) -> _FakeJob:
+            return _FakeJob()
+
+        async def aclose(self) -> None:
+            pass
+
+    async def _fake_create_pool(_settings: object) -> _FakePool:
+        pool = _FakePool()
+        created_pools.append(pool)
+        return pool
+
+    monkeypatch.setattr("app.services.investigations.create_pool", _fake_create_pool)
+
+    result1 = await _enqueue_job("some_job", job_id="jid_1", payload={"k": "v"})
+    result2 = await _enqueue_job("some_job", job_id="jid_2", payload={"k": "v"})
+
+    assert result1 is True
+    assert result2 is True
+    assert len(created_pools) == 1
+    await close_redis_pool()
+
+
+async def test_close_redis_pool_closes_active_pool(monkeypatch: Any) -> None:
+    from app.services.investigations import _enqueue_job, close_redis_pool
+
+    await close_redis_pool()
 
     pool_closed = {"value": False}
 
@@ -406,34 +441,10 @@ async def test_enqueue_job_closes_pool_on_success(monkeypatch: Any) -> None:
 
     monkeypatch.setattr("app.services.investigations.create_pool", _fake_create_pool)
 
-    result = await _enqueue_job("some_job", job_id="jid_1", payload={"k": "v"})
+    await _enqueue_job("some_job", job_id="jid_1", payload={})
+    assert pool_closed["value"] is False
 
-    assert result is True
-    assert pool_closed["value"] is True
-
-
-async def test_enqueue_job_closes_pool_on_failure(monkeypatch: Any) -> None:
-    from app.services.investigations import _enqueue_job
-
-    pool_closed = {"value": False}
-
-    class _FailPool:
-        async def enqueue_job(self, name: str, payload: object, *, _job_id: str) -> None:
-            raise RuntimeError("redis unavailable")
-
-        async def aclose(self) -> None:
-            pool_closed["value"] = True
-
-    async def _fake_create_pool(_settings: object) -> _FailPool:
-        return _FailPool()
-
-    monkeypatch.setattr("app.services.investigations.create_pool", _fake_create_pool)
-
-    try:
-        await _enqueue_job("some_job", job_id="jid_2", payload={})
-    except RuntimeError:
-        pass
-
+    await close_redis_pool()
     assert pool_closed["value"] is True
 
 
