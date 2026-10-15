@@ -20,11 +20,11 @@ resolve_uv_bin() {
   local candidates=()
   if [[ -n "$user_name" ]]; then
     candidates+=(
-      "/home/$user_name/.local/bin/uv"
-      "/mnt/c/Users/$user_name/.local/bin/uv"
-      "/c/Users/$user_name/.local/bin/uv"
-      "/mnt/c/Users/$user_name/.local/bin/uv.exe"
       "/c/Users/$user_name/.local/bin/uv.exe"
+      "/mnt/c/Users/$user_name/.local/bin/uv.exe"
+      "/c/Users/$user_name/.local/bin/uv"
+      "/mnt/c/Users/$user_name/.local/bin/uv"
+      "/home/$user_name/.local/bin/uv"
     )
   fi
 
@@ -72,13 +72,13 @@ if [[ -z "$NODE_BIN" ]]; then
 fi
 
 run_backend() {
-  echo "[sentinelflow] backend: uv sync --extra dev && uv run ruff check app && uv run pytest && uv run python -m app.evals.run"
+  echo "[sentinelflow] backend: uv sync --extra dev && uv run --no-sync ruff check app && uv run --no-sync pytest && uv run --no-sync python -m app.evals.run"
   (
     cd "$app_root/backend"
     "$UV_BIN" sync --extra dev
-    "$UV_BIN" run ruff check app
-    "$UV_BIN" run pytest
-    "$UV_BIN" run python -m app.evals.run
+    "$UV_BIN" run --no-sync ruff check app
+    "$UV_BIN" run --no-sync pytest
+    "$UV_BIN" run --no-sync python -m app.evals.run
   )
 }
 

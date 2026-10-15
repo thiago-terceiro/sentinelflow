@@ -233,6 +233,8 @@ async def record_audit_event(
         )
         session.add(record)
         if raw_artifact is not None and fernet is not None and artifact_id is not None and key_id:
+            if hasattr(session, "flush"):
+                await session.flush()
             ciphertext = fernet.encrypt(_canonical_payload(raw_artifact).encode("utf-8")).decode(
                 "utf-8"
             )
