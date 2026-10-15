@@ -1,11 +1,30 @@
-export type DisputeSummary = {
-    id: string;
-    case_code: string;
-    title: string;
-    amount: number;
-    currency: string;
-    status: "open" | "investigating" | "pending_review" | "closed";
-    created_at: string;
+import type { components, paths } from "./types/api.generated";
+
+export type ApiPaths = paths;
+export type ApiSchemas = components["schemas"];
+
+export type DisputeSummary = ApiSchemas["DisputeSummary"];
+export type DisputeDetail = ApiSchemas["DisputeDetail"];
+export type RiskAssessment = NonNullable<ApiSchemas["InvestigationRun"]["risk_assessment"]>;
+export type RiskFactor = ApiSchemas["RiskFactor"];
+export type InvestigationBudget = ApiSchemas["InvestigationBudget"];
+export type InvestigationHypothesis = ApiSchemas["InvestigationHypothesis"] & {
+    thought_process?: string;
+    reasoning_steps?: string[];
+};
+export type InvestigationReport = NonNullable<ApiSchemas["InvestigationRun"]["report"]>;
+export type InvestigationRun = ApiSchemas["InvestigationRun"];
+export type ComplianceFinding = ApiSchemas["ComplianceFinding"];
+export type ApprovalDecision = ApiSchemas["ApprovalDecision"]["decision"];
+export type AuditCorrectionRequest = ApiSchemas["AuditCorrectionRequest"];
+export type AuditCorrectionResponse = ApiSchemas["AuditCorrectionResponse"];
+export type AuditIntegrity = ApiSchemas["AuditIntegrityResponse"];
+export type AuditRecord = ApiSchemas["AuditRecordItem"] & {
+    actor?: string;
+    is_redacted?: boolean;
+    redaction_policy?: string | null;
+    trace_id?: string | null;
+    span_id?: string | null;
 };
 
 export type Evidence = {
@@ -29,61 +48,6 @@ export type AnalyzerSummary = {
     evidence_ids: string[];
     contradictions: string[];
     recommended_followups: string[];
-};
-
-export type RiskFactor = {
-    name: string;
-    score: number;
-    weight: number;
-    explanation: string;
-    evidence_ids: string[];
-};
-
-export type RiskAssessment = {
-    score: number;
-    level: "low" | "medium" | "high" | "critical";
-    factors: RiskFactor[];
-    threshold_triggered: boolean;
-    explanation: string;
-};
-
-export type InvestigationHypothesis = {
-    statement: string;
-    confidence: number;
-    supporting_evidence_ids: string[];
-    contradicting_evidence_ids: string[];
-    thought_process?: string;
-    reasoning_steps?: string[];
-};
-
-export type InvestigationReport = {
-    conclusion: string;
-    recommendation: "approve" | "deny" | "escalate" | "insufficient_evidence";
-    confidence: number;
-    hypotheses: InvestigationHypothesis[];
-    risk_factors: RiskFactor[];
-    evidence_ids: string[];
-    unresolved_questions: string[];
-    compliance_findings: string[];
-};
-
-export type InvestigationRun = {
-    id: string;
-    dispute_id: string;
-    thread_id: string;
-    status: "pending" | "running" | "awaiting_approval" | "completed" | "failed";
-    created_at: string;
-    updated_at: string;
-    budget: {
-        max_iterations: number;
-        max_tool_calls: number;
-        max_analyzer_calls: number;
-        max_tokens: number;
-        max_seconds: number;
-    };
-    risk_assessment: RiskAssessment | null;
-    compliance_findings: Array<Record<string, unknown>>;
-    report: InvestigationReport | null;
 };
 
 export type StreamEvent = {
@@ -137,46 +101,4 @@ export type ConsoleState = {
     reasoningSteps?: string[];
     currentPhase?: "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
     reviewerGuidance?: string | null;
-};
-
-export type ApprovalDecision = "approve" | "deny" | "request_revision";
-
-export type AuditRecord = {
-    id: string;
-    investigation_id: string | null;
-    dispute_id: string | null;
-    sequence_no: number;
-    event_name: string;
-    actor: string;
-    payload: Record<string, unknown>;
-    created_at: string;
-    prev_hash: string | null;
-    row_hash: string;
-    is_redacted: boolean;
-    redaction_policy: string | null;
-};
-
-export type AuditIntegrity = {
-    investigation_id: string;
-    total_records: number;
-    valid: boolean;
-    first_sequence: number | null;
-    last_sequence: number | null;
-    broken_sequences: number[];
-    invalid_hashes: number[];
-};
-
-export type AuditCorrectionRequest = {
-    target_record_id: string;
-    reason: string;
-    proposed_payload: Record<string, unknown>;
-};
-
-export type AuditCorrectionResponse = {
-    id: string;
-    correction_sequence_no: number;
-    target_record_id: string;
-    reason: string;
-    status: string;
-    created_at: string;
 };

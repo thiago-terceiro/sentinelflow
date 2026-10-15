@@ -16,6 +16,7 @@ from app.schemas.audit import (
     AuditCorrectionRequest,
     AuditCorrectionResponse,
     AuditIntegrityResponse,
+    AuditRecordItem,
 )
 from app.schemas.disputes import DisputeCreateRequest, DisputeDetail, DisputeStatus, DisputeSummary
 from app.schemas.investigation import InvestigationRun
@@ -188,7 +189,7 @@ async def get_evidence(
     return record.evidence
 
 
-@router.get("/audit/records")
+@router.get("/audit/records", response_model=list[AuditRecordItem])
 async def list_global_audit_records(
     session: DBSessionDep,
     principal: PrincipalDep,

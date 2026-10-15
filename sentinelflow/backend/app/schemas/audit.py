@@ -36,3 +36,18 @@ class AuditArtifactResponse(BaseModel):
     audit_record_id: str
     key_id: str
     payload: dict[str, object]
+
+
+class AuditRecordItem(BaseModel):
+    id: str
+    dispute_id: str | None = None
+    investigation_id: str | None = None
+    event_name: str
+    payload: dict[str, object]
+    actor_id: str
+    actor_role: str
+    sequence_no: int
+    prev_hash: str | None = None
+    row_hash: str | None = None
+    created_at: datetime
+

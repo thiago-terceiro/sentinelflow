@@ -81,12 +81,9 @@ export const AuditPage = () => {
         setCorrectionFeedback(null);
         try {
             await createAuditCorrection(correctionTarget.investigation_id, {
-                target_record_id: correctionTarget.id,
-                reason: correctionReason,
-                proposed_payload: {
-                    reviewer_note: "Auditor flagged discrepancy for offline model evaluation",
-                    corrected_at: new Date().toISOString(),
-                },
+                supersedes_event_id: correctionTarget.id,
+                reason_code: "AUDITOR_DISCREPANCY",
+                note: correctionReason || "Auditor flagged discrepancy for offline model evaluation",
             });
             setCorrectionFeedback("✓ Immutable audit correction appended successfully.");
             setTimeout(() => {
