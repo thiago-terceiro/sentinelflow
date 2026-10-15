@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any, cast
@@ -598,3 +599,99 @@ async def test_stream_emits_snapshot_events_before_checking_terminal_status(
     types = [e["type"] for e in events]
     assert "evidence_added" in types
     assert "run_completed" in types
+
+
+# ---------------------------------------------------------------------------
+# PROD-030 – event broadcaster tests
+# ---------------------------------------------------------------------------
+
+
+async def test_investigation_broadcaster_publishes_to_all_subscribers() -> None:
+    from app.services.investigations import InvestigationBroadcaster
+
+    broadcaster = InvestigationBroadcaster()
+    q1 = await broadcaster.subscribe("inv_test_pub")
+    q2 = await broadcaster.subscribe("inv_test_pub")
+
+    event = {"id": "ev_1", "type": "evidence_added", "data": {"key": "value"}}
+    await broadcaster.publish("inv_test_pub", event)
+
+    received_1 = await q1.get()
+    received_2 = await q2.get()
+
+    assert received_1 == event
+    assert received_2 == event
+
+    await broadcaster.publish_terminal("inv_test_pub")
+    assert await q1.get() is None
+    assert await q2.get() is None
+
+    await broadcaster.unsubscribe("inv_test_pub", q1)
+    await broadcaster.unsubscribe("inv_test_pub", q2)
+    assert "inv_test_pub" not in broadcaster._subscribers
+
+
+async def test_investigation_broadcaster_unsubscribes_cleanly() -> None:
+    from app.services.investigations import InvestigationBroadcaster
+
+    broadcaster = InvestigationBroadcaster()
+    q = await broadcaster.subscribe("inv_unsub")
+    assert "inv_unsub" in broadcaster._subscribers
+
+    await broadcaster.unsubscribe("inv_unsub", q)
+    assert "inv_unsub" not in broadcaster._subscribers
+
+
+async def test_stream_graph_events_receives_live_broadcaster_events(monkeypatch: Any) -> None:
+    import json as _json
+    from contextlib import asynccontextmanager
+
+    from app.services.investigations import investigation_broadcaster
+
+    inv_id = "inv_live_test"
+    record = _stream_record(status="running", timeline_events=[], investigation_id=inv_id)
+
+    @asynccontextmanager
+    async def _fake_session() -> Any:
+        yield _FakeStreamSession(record)
+
+    monkeypatch.setattr("app.services.investigations.SessionLocal", _fake_session)
+    monkeypatch.setattr("app.services.investigations.build_graph", lambda _s: _FakeStreamGraph([]))
+
+    collected: list[dict[str, Any]] = []
+
+    async def consume_stream() -> None:
+        async for chunk in stream_graph_events(inv_id):
+            raw = chunk.removeprefix("data: ").strip()
+            if raw:
+                collected.append(_json.loads(raw))
+
+    consumer_task = asyncio.create_task(consume_stream())
+
+    # Allow consumer to subscribe and complete initial DB read
+    await asyncio.sleep(0.05)
+
+    # Publish live event
+    live_event = {
+        "id": "live_ev_1",
+        "type": "evidence_added",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "data": {"source": "live_test"},
+    }
+    await investigation_broadcaster.publish(inv_id, live_event)
+
+    # Publish terminal event
+    terminal_event = {
+        "id": "live_ev_2",
+        "type": "run_completed",
+        "timestamp": "2026-01-01T00:01:00Z",
+        "data": {},
+    }
+    await investigation_broadcaster.publish(inv_id, terminal_event)
+
+    await asyncio.wait_for(consumer_task, timeout=2.0)
+
+    types = [e["type"] for e in collected]
+    assert "evidence_added" in types
+    assert "run_completed" in types
+

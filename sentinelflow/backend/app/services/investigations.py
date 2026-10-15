@@ -5,7 +5,6 @@ import json
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from time import monotonic
 from typing import Any, cast
 from uuid import uuid4
 
@@ -43,6 +42,51 @@ VALID_INVESTIGATION_STATUSES = {
     "completed",
     "failed",
 }
+
+
+class InvestigationBroadcaster:
+    """In-memory event hub for real-time SSE streaming without polling the database."""
+
+    def __init__(self) -> None:
+        self._subscribers: dict[str, set[asyncio.Queue[dict[str, Any] | None]]] = {}
+        self._lock = asyncio.Lock()
+
+    async def subscribe(self, investigation_id: str) -> asyncio.Queue[dict[str, Any] | None]:
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue(maxsize=200)
+        async with self._lock:
+            self._subscribers.setdefault(investigation_id, set()).add(queue)
+        return queue
+
+    async def unsubscribe(
+        self, investigation_id: str, queue: asyncio.Queue[dict[str, Any] | None]
+    ) -> None:
+        async with self._lock:
+            subs = self._subscribers.get(investigation_id)
+            if subs is not None:
+                subs.discard(queue)
+                if not subs:
+                    self._subscribers.pop(investigation_id, None)
+
+    async def publish(self, investigation_id: str, event: dict[str, Any]) -> None:
+        async with self._lock:
+            subs = list(self._subscribers.get(investigation_id, ()))
+        for q in subs:
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
+
+    async def publish_terminal(self, investigation_id: str) -> None:
+        async with self._lock:
+            subs = list(self._subscribers.get(investigation_id, ()))
+        for q in subs:
+            try:
+                q.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
+
+
+investigation_broadcaster = InvestigationBroadcaster()
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,8 +356,34 @@ async def _run_graph(
 ) -> None:
     graph = build_graph(session)
     config = thread_config(record.thread_id)
-    await graph.ainvoke(graph_input, config=config)
+    seen_ids: set[str] = set()
+    if record.timeline_events:
+        for ev in record.timeline_events:
+            eid = ev.get("id")
+            if eid:
+                seen_ids.add(eid)
+
+    if hasattr(graph, "astream"):
+        async for chunk in graph.astream(graph_input, config=config, stream_mode="updates"):
+            if isinstance(chunk, dict):
+                new_events = extract_timeline_events(chunk)
+                for event in new_events:
+                    eid = event.get("id")
+                    if eid and eid in seen_ids:
+                        continue
+                    if eid:
+                        seen_ids.add(eid)
+                    await investigation_broadcaster.publish(record.id, event)
+    elif hasattr(graph, "ainvoke"):
+        await graph.ainvoke(graph_input, config=config)
+
     await persist_graph_state(session, record, graph, config)
+    for event in replay_events(record):
+        eid = event.get("id")
+        if eid and eid not in seen_ids:
+            seen_ids.add(eid)
+            await investigation_broadcaster.publish(record.id, event)
+    await investigation_broadcaster.publish_terminal(record.id)
 
 
 def _redis_settings() -> RedisSettings:
@@ -499,11 +569,10 @@ async def schedule_resume(
 
 
 async def stream_graph_events(investigation_id: str) -> AsyncIterator[str]:
-    last_event_count = 0
-    emitted_terminal_failure = False
-    last_output_at = monotonic()
+    queue = await investigation_broadcaster.subscribe(investigation_id)
+    emitted_ids: set[str] = set()
 
-    while True:
+    try:
         async with SessionLocal() as session:
             record = await session.get(InvestigationRecord, investigation_id)
             if record is None:
@@ -519,56 +588,71 @@ async def stream_graph_events(investigation_id: str) -> AsyncIterator[str]:
                 )
                 return
 
-            graph = build_graph(session)
-            snapshot = await graph.aget_state(thread_config(record.thread_id))
-            snapshot_values = _snapshot_values(snapshot) if snapshot is not None else {}
-            timeline_events = _as_timeline_events(snapshot_values.get("timeline_events"))
+            timeline_events = _as_timeline_events(getattr(record, "timeline_events", None))
+            if not timeline_events:
+                graph = build_graph(session)
+                snapshot = await graph.aget_state(thread_config(record.thread_id))
+                snapshot_values = _snapshot_values(snapshot) if snapshot is not None else {}
+                timeline_events = _as_timeline_events(snapshot_values.get("timeline_events"))
 
-            if len(timeline_events) > last_event_count:
-                for event in timeline_events[last_event_count:]:
-                    yield serialize_event(event)
-                    last_output_at = monotonic()
-                last_event_count = len(timeline_events)
+            for event in timeline_events:
+                eid = event.get("id")
+                if eid:
+                    emitted_ids.add(eid)
+                yield serialize_event(event)
 
             if record.status in TERMINAL_STATUSES:
-                if last_event_count == 0:
+                if not timeline_events:
                     for event in replay_events(record):
+                        eid = event.get("id")
+                        if eid:
+                            emitted_ids.add(eid)
                         yield serialize_event(event)
-                    return
-                already_has_failure = any(
-                    e.get("type") == "run_failed" for e in timeline_events
-                )
-                should_emit_failure = (
-                    record.status == "failed"
-                    and not emitted_terminal_failure
-                    and not already_has_failure
-                )
-                if should_emit_failure:
+
+                has_failure = any(e.get("type") == "run_failed" for e in timeline_events)
+                if record.status == "failed" and not has_failure:
                     yield serialize_event(
                         build_stream_event(
                             "run_failed",
                             {
                                 "investigation_id": record.id,
                                 "message": "Investigation failed. Retry or contact operations.",
-                                "failure_reason": record.failure_reason,
+                                "failure_reason": getattr(record, "failure_reason", None),
                             },
                             event_id=f"run_failed_{record.id}",
                         )
                     )
-                    emitted_terminal_failure = True
                 return
 
-            if monotonic() - last_output_at >= STREAM_HEARTBEAT_SECONDS:
+        while True:
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=STREAM_HEARTBEAT_SECONDS)
+                if event is None:
+                    break
+                eid = event.get("id")
+                if eid and eid in emitted_ids:
+                    continue
+                if eid:
+                    emitted_ids.add(eid)
+                yield serialize_event(event)
+                if event.get("type") in {"run_completed", "run_failed", "approval_required"}:
+                    break
+            except TimeoutError:
                 yield serialize_event(
                     build_stream_event(
                         "heartbeat",
-                        {
-                            "investigation_id": investigation_id,
-                            "status": record.status,
-                        },
-                        event_id=f"heartbeat_{investigation_id}_{last_event_count}",
+                        {"investigation_id": investigation_id, "status": "running"},
+                        event_id=f"heartbeat_{investigation_id}_{len(emitted_ids)}",
                     )
                 )
-                last_output_at = monotonic()
-
-        await asyncio.sleep(STREAM_POLL_INTERVAL_SECONDS)
+                async with SessionLocal() as session:
+                    rec = await session.get(InvestigationRecord, investigation_id)
+                    if rec and rec.status in TERMINAL_STATUSES:
+                        for ev in replay_events(rec):
+                            ev_id = ev.get("id")
+                            if ev_id and ev_id not in emitted_ids:
+                                emitted_ids.add(ev_id)
+                                yield serialize_event(ev)
+                        break
+    finally:
+        await investigation_broadcaster.unsubscribe(investigation_id, queue)
