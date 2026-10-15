@@ -108,6 +108,7 @@ class InvestigatorAgent:
             analyzers=analyzers,
             failed_tools=failed_tools,
             failed_analyzers=failed_analyzers,
+            reviewer_guidance=reviewer_guidance,
         ), None
 
     def _heuristic_iteration(
@@ -118,6 +119,7 @@ class InvestigatorAgent:
         analyzers: list[AnalyzerSummary],
         failed_tools: list[dict[str, str]],
         failed_analyzers: list[dict[str, str]],
+        reviewer_guidance: str | None = None,
     ) -> InvestigatorIteration:
         categories = {item.category for item in evidence}
         failed_tool_names = {item["name"] for item in failed_tools}
@@ -162,10 +164,15 @@ class InvestigatorAgent:
             customer
             and customer.facts.get("tenure_years", 0) > 3
             and customer.facts.get("prior_fraud_signals", 0) == 0
+            and confidence >= 0.60
         ):
             contradicting.append(customer.id)
             questions.append(
                 "Why does the transaction look risky despite a stable customer history?"
+            )
+        if customer and customer.facts.get("prior_disputes", 0) > 1:
+            questions.append(
+                "Customer has multiple prior disputes; requires manual triage of dispute grounds."
             )
         if analyzers and any(item.contradictions for item in analyzers):
             questions.append(
@@ -182,6 +189,9 @@ class InvestigatorAgent:
                 f"Identified {len(contradicting)} contradicting factors: "
                 "customer history stability vs activity risk."
             )
+        if reviewer_guidance:
+            reasoning_steps.append(f"Incorporated reviewer steering guidance: {reviewer_guidance}")
+            statement = f"{statement} Steering guidance applied: {reviewer_guidance}."
         thought_process = " ".join(reasoning_steps)
 
         return InvestigatorIteration(

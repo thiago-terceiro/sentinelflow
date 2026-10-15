@@ -8,6 +8,7 @@ from opentelemetry import trace
 
 from app.api.approvals import router as approvals_router
 from app.api.disputes import router as disputes_router
+from app.api.evals import router as evals_router
 from app.api.health import router as health_router
 from app.config import get_settings
 from app.db.session import engine
@@ -52,3 +53,4 @@ configure_telemetry(app)
 app.include_router(health_router, prefix=settings.API_V1_PREFIX)
 app.include_router(disputes_router, prefix=settings.API_V1_PREFIX)
 app.include_router(approvals_router, prefix=settings.API_V1_PREFIX)
+app.include_router(evals_router, prefix=settings.API_V1_PREFIX)

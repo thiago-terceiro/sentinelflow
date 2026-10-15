@@ -19,6 +19,9 @@ export type ApprovalDecision = ApiSchemas["ApprovalDecision"]["decision"];
 export type AuditCorrectionRequest = ApiSchemas["AuditCorrectionRequest"];
 export type AuditCorrectionResponse = ApiSchemas["AuditCorrectionResponse"];
 export type AuditIntegrity = ApiSchemas["AuditIntegrityResponse"];
+export type EvalSuiteReport = ApiSchemas["EvalSuiteReport"];
+export type CaseEvalResult = ApiSchemas["CaseEvalResult"];
+export type CaseScoreDetail = ApiSchemas["CaseScoreDetail"];
 export type AuditRecord = ApiSchemas["AuditRecordItem"] & {
     actor?: string;
     is_redacted?: boolean;

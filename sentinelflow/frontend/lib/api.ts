@@ -5,6 +5,7 @@ import type {
     AuditIntegrity,
     AuditRecord,
     DisputeSummary,
+    EvalSuiteReport,
     InvestigationRun,
 } from "@/lib/types";
 
@@ -130,4 +131,12 @@ export const getAuditArtifact = async (
     artifactType: "sar" | "summary",
 ): Promise<Record<string, unknown>> => {
     return request<Record<string, unknown>>(`/investigations/${investigationId}/artifacts/${artifactType}`);
+};
+
+export const getLatestEvaluation = async (): Promise<EvalSuiteReport> => {
+    return request<EvalSuiteReport>("/evals/latest");
+};
+
+export const triggerEvaluationRun = async (): Promise<EvalSuiteReport> => {
+    return request<EvalSuiteReport>("/evals/run", { method: "POST" });
 };

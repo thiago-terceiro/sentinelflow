@@ -732,6 +732,60 @@
           }
         }
       }
+    },
+    "/api/v1/evals/latest": {
+      "get": {
+        "tags": [
+          "evaluations"
+        ],
+        "summary": "Get Latest Evaluation",
+        "description": "Retrieve the most recent AI evaluation benchmark scorecard.",
+        "operationId": "get_latest_evaluation_api_v1_evals_latest_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalSuiteReport"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/evals/run": {
+      "post": {
+        "tags": [
+          "evaluations"
+        ],
+        "summary": "Trigger Evaluation Run",
+        "description": "Trigger an on-demand AI evaluation benchmark run across golden test cases.",
+        "operationId": "trigger_evaluation_run_api_v1_evals_run_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalSuiteReport"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1048,6 +1102,137 @@
         ],
         "title": "AuditRecordItem"
       },
+      "CaseEvalResult": {
+        "properties": {
+          "case_code": {
+            "type": "string",
+            "title": "Case Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "evaluation_category": {
+            "type": "string",
+            "title": "Evaluation Category"
+          },
+          "predicted_recommendation": {
+            "type": "string",
+            "title": "Predicted Recommendation"
+          },
+          "expected_recommendation": {
+            "type": "string",
+            "title": "Expected Recommendation"
+          },
+          "predicted_risk_score": {
+            "type": "number",
+            "title": "Predicted Risk Score"
+          },
+          "expected_risk_range": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Expected Risk Range"
+          },
+          "evidence_collected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Collected"
+          },
+          "scores": {
+            "$ref": "#/components/schemas/CaseScoreDetail"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "reasoning_summary": {
+            "type": "string",
+            "title": "Reasoning Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "case_code",
+          "title",
+          "evaluation_category",
+          "predicted_recommendation",
+          "expected_recommendation",
+          "predicted_risk_score",
+          "expected_risk_range",
+          "evidence_collected",
+          "scores",
+          "passed",
+          "reasoning_summary"
+        ],
+        "title": "CaseEvalResult"
+      },
+      "CaseScoreDetail": {
+        "properties": {
+          "decision_score": {
+            "type": "number",
+            "title": "Decision Score",
+            "description": "Score from 0.0 to 1.0 for decision accuracy"
+          },
+          "risk_score": {
+            "type": "number",
+            "title": "Risk Score",
+            "description": "Score from 0.0 to 1.0 for risk calibration"
+          },
+          "grounding_score": {
+            "type": "number",
+            "title": "Grounding Score",
+            "description": "Score from 0.0 to 1.0 for evidence citation validity"
+          },
+          "tool_efficiency_score": {
+            "type": "number",
+            "title": "Tool Efficiency Score",
+            "description": "Score from 0.0 to 1.0 for tool coverage & efficiency"
+          },
+          "steering_score": {
+            "type": "number",
+            "title": "Steering Score",
+            "description": "Score from 0.0 to 1.0 for reviewer steering compliance"
+          },
+          "pii_safety_score": {
+            "type": "number",
+            "title": "Pii Safety Score",
+            "description": "1.0 if clean, 0.0 if unredacted PII detected"
+          },
+          "overall_case_score": {
+            "type": "number",
+            "title": "Overall Case Score",
+            "description": "Weighted composite score"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed",
+            "description": "Whether the case met the passing criteria"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_score",
+          "risk_score",
+          "grounding_score",
+          "tool_efficiency_score",
+          "steering_score",
+          "pii_safety_score",
+          "overall_case_score",
+          "passed"
+        ],
+        "title": "CaseScoreDetail"
+      },
       "ComplianceFinding": {
         "properties": {
           "framework": {
@@ -1290,6 +1475,86 @@
           "created_at"
         ],
         "title": "DisputeSummary"
+      },
+      "EvalSuiteReport": {
+        "properties": {
+          "evaluation_id": {
+            "type": "string",
+            "title": "Evaluation Id"
+          },
+          "run_at": {
+            "type": "string",
+            "title": "Run At"
+          },
+          "total_cases": {
+            "type": "integer",
+            "title": "Total Cases"
+          },
+          "passed_cases": {
+            "type": "integer",
+            "title": "Passed Cases"
+          },
+          "overall_score": {
+            "type": "number",
+            "title": "Overall Score"
+          },
+          "decision_accuracy": {
+            "type": "number",
+            "title": "Decision Accuracy"
+          },
+          "risk_calibration_accuracy": {
+            "type": "number",
+            "title": "Risk Calibration Accuracy"
+          },
+          "grounding_rate": {
+            "type": "number",
+            "title": "Grounding Rate"
+          },
+          "tool_efficiency_rate": {
+            "type": "number",
+            "title": "Tool Efficiency Rate"
+          },
+          "steering_compliance_rate": {
+            "type": "number",
+            "title": "Steering Compliance Rate"
+          },
+          "pii_safety_rate": {
+            "type": "number",
+            "title": "Pii Safety Rate"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/CaseEvalResult"
+            },
+            "type": "array",
+            "title": "Cases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evaluation_id",
+          "run_at",
+          "total_cases",
+          "passed_cases",
+          "overall_score",
+          "decision_accuracy",
+          "risk_calibration_accuracy",
+          "grounding_rate",
+          "tool_efficiency_rate",
+          "steering_compliance_rate",
+          "pii_safety_rate",
+          "status",
+          "cases"
+        ],
+        "title": "EvalSuiteReport"
       },
       "HTTPValidationError": {
         "properties": {

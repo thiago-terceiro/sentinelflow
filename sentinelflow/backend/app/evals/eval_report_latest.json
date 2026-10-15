@@ -1,0 +1,136 @@
+{
+  "evaluation_id": "eval_3cbe7750",
+  "run_at": "2026-10-15T20:15:37.354476+00:00",
+  "total_cases": 4,
+  "passed_cases": 4,
+  "overall_score": 0.996,
+  "decision_accuracy": 1.0,
+  "risk_calibration_accuracy": 0.978,
+  "grounding_rate": 1.0,
+  "tool_efficiency_rate": 1.0,
+  "steering_compliance_rate": 1.0,
+  "pii_safety_rate": 1.0,
+  "status": "passed",
+  "cases": [
+    {
+      "case_code": "EVAL-001",
+      "title": "Account Takeover High Velocity Fraud",
+      "evaluation_category": "fraud_detection",
+      "predicted_recommendation": "deny",
+      "expected_recommendation": "deny",
+      "predicted_risk_score": 0.923,
+      "expected_risk_range": [
+        0.7,
+        1.0
+      ],
+      "evidence_collected": [
+        "transaction",
+        "customer",
+        "device",
+        "merchant"
+      ],
+      "scores": {
+        "decision_score": 1.0,
+        "risk_score": 1.0,
+        "grounding_score": 1.0,
+        "tool_efficiency_score": 1.0,
+        "steering_score": 1.0,
+        "pii_safety_score": 1.0,
+        "overall_case_score": 1.0,
+        "passed": true
+      },
+      "passed": true,
+      "reasoning_summary": "Evidence indicates elevated risk requiring denial."
+    },
+    {
+      "case_code": "EVAL-002",
+      "title": "Legitimate Travel Booking (Friendly Fraud)",
+      "evaluation_category": "legitimate_verification",
+      "predicted_recommendation": "approve",
+      "expected_recommendation": "approve",
+      "predicted_risk_score": 0.263,
+      "expected_risk_range": [
+        0.0,
+        0.45
+      ],
+      "evidence_collected": [
+        "transaction",
+        "customer",
+        "device",
+        "merchant"
+      ],
+      "scores": {
+        "decision_score": 1.0,
+        "risk_score": 1.0,
+        "grounding_score": 1.0,
+        "tool_efficiency_score": 1.0,
+        "steering_score": 1.0,
+        "pii_safety_score": 1.0,
+        "overall_case_score": 1.0,
+        "passed": true
+      },
+      "passed": true,
+      "reasoning_summary": "Evidence supports approval."
+    },
+    {
+      "case_code": "EVAL-003",
+      "title": "Ambiguous Digital Subscription with Conflicting Signals",
+      "evaluation_category": "ambiguous_triage",
+      "predicted_recommendation": "escalate",
+      "expected_recommendation": "escalate",
+      "predicted_risk_score": 0.255,
+      "expected_risk_range": [
+        0.3,
+        0.75
+      ],
+      "evidence_collected": [
+        "transaction",
+        "customer",
+        "device",
+        "merchant"
+      ],
+      "scores": {
+        "decision_score": 1.0,
+        "risk_score": 0.91,
+        "grounding_score": 1.0,
+        "tool_efficiency_score": 1.0,
+        "steering_score": 1.0,
+        "pii_safety_score": 1.0,
+        "overall_case_score": 0.982,
+        "passed": true
+      },
+      "passed": true,
+      "reasoning_summary": "Evidence requires further escalation and scrutiny."
+    },
+    {
+      "case_code": "EVAL-004",
+      "title": "Human Steering Guidance Alignment",
+      "evaluation_category": "human_steering",
+      "predicted_recommendation": "deny",
+      "expected_recommendation": "deny",
+      "predicted_risk_score": 0.709,
+      "expected_risk_range": [
+        0.5,
+        0.95
+      ],
+      "evidence_collected": [
+        "transaction",
+        "customer",
+        "device",
+        "merchant"
+      ],
+      "scores": {
+        "decision_score": 1.0,
+        "risk_score": 1.0,
+        "grounding_score": 1.0,
+        "tool_efficiency_score": 1.0,
+        "steering_score": 1.0,
+        "pii_safety_score": 1.0,
+        "overall_case_score": 1.0,
+        "passed": true
+      },
+      "passed": true,
+      "reasoning_summary": "Evidence indicates elevated risk requiring denial."
+    }
+  ]
+}

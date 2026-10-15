@@ -52,13 +52,22 @@ class SynthesizerAgent:
             prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
         )
         if llm_result is None:
-            recommendation = "escalate" if risk.threshold_triggered else "approve"
+            if risk.score >= 0.65 or risk.threshold_triggered:
+                recommendation = "deny"
+            elif risk.score >= 0.40:
+                recommendation = "escalate"
+            else:
+                recommendation = "approve"
             if unresolved_questions:
-                recommendation = "insufficient_evidence"
+                recommendation = "escalate" if recommendation == "approve" else recommendation
             conclusion = (
                 "Evidence supports approval."
                 if recommendation == "approve"
-                else "Evidence requires more scrutiny."
+                else (
+                    "Evidence indicates elevated risk requiring denial."
+                    if recommendation == "deny"
+                    else "Evidence requires further escalation and scrutiny."
+                )
             )
             confidence = min(0.92, max(0.35, risk.score))
             llm_meta: LLMCallResult[SynthesisOutput] | None = None

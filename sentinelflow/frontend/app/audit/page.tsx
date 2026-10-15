@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAuditIntegrity, getAuditRecords, createAuditCorrection } from "@/lib/api";
 import type { AuditIntegrity, AuditRecord } from "@/lib/types";
+import { AiEvaluationBenchmarkPanel } from "@/components/AiEvaluationBenchmarkPanel";
 
 export const AuditPage = () => {
     const [records, setRecords] = useState<AuditRecord[]>([]);
@@ -11,6 +12,7 @@ export const AuditPage = () => {
     const [selectedRecord, setSelectedRecord] = useState<AuditRecord | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<"ledger" | "evals">("ledger");
 
     // Filters
     const [disputeIdInput, setDisputeIdInput] = useState("");
@@ -213,15 +215,53 @@ export const AuditPage = () => {
                 </div>
             </div>
 
-            {/* Compliance & Integrity Status Cards */}
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                    gap: 16,
-                    marginBottom: 20,
-                }}
-            >
+            {/* Navigation Tabs */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+                <button
+                    onClick={() => setActiveTab("ledger")}
+                    style={{
+                        padding: "10px 18px",
+                        borderRadius: 999,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        border: activeTab === "ledger" ? "1px solid var(--accent)" : "1px solid rgba(255,255,255,0.1)",
+                        background: activeTab === "ledger" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+                        color: activeTab === "ledger" ? "var(--foreground)" : "var(--muted)",
+                        cursor: "pointer",
+                    }}
+                >
+                    📋 Audit Ledger & Traces
+                </button>
+                <button
+                    onClick={() => setActiveTab("evals")}
+                    style={{
+                        padding: "10px 18px",
+                        borderRadius: 999,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        border: activeTab === "evals" ? "1px solid var(--accent)" : "1px solid rgba(255,255,255,0.1)",
+                        background: activeTab === "evals" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+                        color: activeTab === "evals" ? "var(--foreground)" : "var(--muted)",
+                        cursor: "pointer",
+                    }}
+                >
+                    🎯 AI Model Evaluations & Continuous Improvement
+                </button>
+            </div>
+
+            {activeTab === "evals" ? (
+                <AiEvaluationBenchmarkPanel />
+            ) : (
+                <>
+                    {/* Compliance & Integrity Status Cards */}
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                            gap: 16,
+                            marginBottom: 20,
+                        }}
+                    >
                 {/* Cryptographic hash chain */}
                 <div className="shell-card" style={{ padding: 20 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -785,6 +825,8 @@ export const AuditPage = () => {
                     </div>
                 </div>
             ) : null}
+                </>
+            )}
 
             {/* Append-Only Correction Modal */}
             {isCorrectionModalOpen && correctionTarget ? (

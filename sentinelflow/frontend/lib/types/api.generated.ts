@@ -243,6 +243,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/evals/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Latest Evaluation
+         * @description Retrieve the most recent AI evaluation benchmark scorecard.
+         */
+        get: operations["get_latest_evaluation_api_v1_evals_latest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/evals/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Evaluation Run
+         * @description Trigger an on-demand AI evaluation benchmark run across golden test cases.
+         */
+        post: operations["trigger_evaluation_run_api_v1_evals_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -350,6 +390,76 @@ export interface components {
              */
             created_at: string;
         };
+        /** CaseEvalResult */
+        CaseEvalResult: {
+            /** Case Code */
+            case_code: string;
+            /** Title */
+            title: string;
+            /** Evaluation Category */
+            evaluation_category: string;
+            /** Predicted Recommendation */
+            predicted_recommendation: string;
+            /** Expected Recommendation */
+            expected_recommendation: string;
+            /** Predicted Risk Score */
+            predicted_risk_score: number;
+            /** Expected Risk Range */
+            expected_risk_range: [
+                number,
+                number
+            ];
+            /** Evidence Collected */
+            evidence_collected: string[];
+            scores: components["schemas"]["CaseScoreDetail"];
+            /** Passed */
+            passed: boolean;
+            /** Reasoning Summary */
+            reasoning_summary: string;
+        };
+        /** CaseScoreDetail */
+        CaseScoreDetail: {
+            /**
+             * Decision Score
+             * @description Score from 0.0 to 1.0 for decision accuracy
+             */
+            decision_score: number;
+            /**
+             * Risk Score
+             * @description Score from 0.0 to 1.0 for risk calibration
+             */
+            risk_score: number;
+            /**
+             * Grounding Score
+             * @description Score from 0.0 to 1.0 for evidence citation validity
+             */
+            grounding_score: number;
+            /**
+             * Tool Efficiency Score
+             * @description Score from 0.0 to 1.0 for tool coverage & efficiency
+             */
+            tool_efficiency_score: number;
+            /**
+             * Steering Score
+             * @description Score from 0.0 to 1.0 for reviewer steering compliance
+             */
+            steering_score: number;
+            /**
+             * Pii Safety Score
+             * @description 1.0 if clean, 0.0 if unredacted PII detected
+             */
+            pii_safety_score: number;
+            /**
+             * Overall Case Score
+             * @description Weighted composite score
+             */
+            overall_case_score: number;
+            /**
+             * Passed
+             * @description Whether the case met the passing criteria
+             */
+            passed: boolean;
+        };
         /** ComplianceFinding */
         ComplianceFinding: {
             /** Framework */
@@ -456,6 +566,38 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** EvalSuiteReport */
+        EvalSuiteReport: {
+            /** Evaluation Id */
+            evaluation_id: string;
+            /** Run At */
+            run_at: string;
+            /** Total Cases */
+            total_cases: number;
+            /** Passed Cases */
+            passed_cases: number;
+            /** Overall Score */
+            overall_score: number;
+            /** Decision Accuracy */
+            decision_accuracy: number;
+            /** Risk Calibration Accuracy */
+            risk_calibration_accuracy: number;
+            /** Grounding Rate */
+            grounding_rate: number;
+            /** Tool Efficiency Rate */
+            tool_efficiency_rate: number;
+            /** Steering Compliance Rate */
+            steering_compliance_rate: number;
+            /** Pii Safety Rate */
+            pii_safety_rate: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "passed" | "failed";
+            /** Cases */
+            cases: components["schemas"]["CaseEvalResult"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1030,6 +1172,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_latest_evaluation_api_v1_evals_latest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalSuiteReport"];
+                };
+            };
+        };
+    };
+    trigger_evaluation_run_api_v1_evals_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalSuiteReport"];
                 };
             };
         };
