@@ -52,6 +52,8 @@ export type InvestigationHypothesis = {
     confidence: number;
     supporting_evidence_ids: string[];
     contradicting_evidence_ids: string[];
+    thought_process?: string;
+    reasoning_steps?: string[];
 };
 
 export type InvestigationReport = {
@@ -131,4 +133,50 @@ export type ConsoleState = {
     reconnectAttempt: number;
     nextReconnectDelayMs: number | null;
     error: string | null;
+    activeThoughtProcess?: string | null;
+    reasoningSteps?: string[];
+    currentPhase?: "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
+    reviewerGuidance?: string | null;
+};
+
+export type ApprovalDecision = "approve" | "deny" | "request_revision";
+
+export type AuditRecord = {
+    id: string;
+    investigation_id: string | null;
+    dispute_id: string | null;
+    sequence_no: number;
+    event_name: string;
+    actor: string;
+    payload: Record<string, unknown>;
+    created_at: string;
+    prev_hash: string | null;
+    row_hash: string;
+    is_redacted: boolean;
+    redaction_policy: string | null;
+};
+
+export type AuditIntegrity = {
+    investigation_id: string;
+    total_records: number;
+    valid: boolean;
+    first_sequence: number | null;
+    last_sequence: number | null;
+    broken_sequences: number[];
+    invalid_hashes: number[];
+};
+
+export type AuditCorrectionRequest = {
+    target_record_id: string;
+    reason: string;
+    proposed_payload: Record<string, unknown>;
+};
+
+export type AuditCorrectionResponse = {
+    id: string;
+    correction_sequence_no: number;
+    target_record_id: string;
+    reason: string;
+    status: string;
+    created_at: string;
 };

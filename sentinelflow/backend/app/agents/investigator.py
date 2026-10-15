@@ -7,7 +7,7 @@ from app.graph.prompts import investigator_iteration, investigator_system
 from app.schemas.disputes import DisputeDetail
 from app.schemas.investigation import AnalyzerSummary, Evidence, InvestigationHypothesis
 from app.services.model_gateway import LLMCallResult, ModelGateway
-from app.services.trace_safety import sha256_text
+from app.services.trace_safety import redact_text, sha256_text
 from pydantic import BaseModel, Field
 
 TOOL_REQUESTS = (
@@ -39,6 +39,17 @@ class AnalyzerRequest(BaseModel):
 
 class InvestigatorIteration(BaseModel):
     summary: str
+    thought_process: str = Field(
+        default="",
+        description=(
+            "Internal chain of thought evaluating contradictory evidence "
+            "and formulating next steps."
+        ),
+    )
+    reasoning_steps: list[str] = Field(
+        default_factory=lambda: cast(list[str], []),
+        description="Step-by-step investigative reasoning deductions.",
+    )
     hypotheses: list[InvestigationHypothesis]
     unresolved_questions: list[str]
     tool_requests: list[ToolRequest] = Field(default_factory=lambda: cast(list[ToolRequest], []))
@@ -66,22 +77,27 @@ class InvestigatorAgent:
         analyzers: list[AnalyzerSummary],
         failed_tools: list[dict[str, str]],
         failed_analyzers: list[dict[str, str]],
+        reviewer_guidance: str | None = None,
     ) -> tuple[InvestigatorIteration, LLMCallResult[InvestigatorIteration] | None]:
-        prompt = (
-            f"Dispute: {dispute.model_dump_json(indent=2)}\n"
-            f"Evidence count: {len(evidence)}\n"
-            f"Analyzer count: {len(analyzers)}\n"
-            f"Failed tools:\n{self._failure_note(failed_tools)}\n"
-            f"Failed analyzers:\n{self._failure_note(failed_analyzers)}"
-        )
+        sanitized_dispute_json, _ = redact_text(dispute.model_dump_json(indent=2))
+        prompt_parts = [
+            f"Dispute: {sanitized_dispute_json}",
+            f"Evidence count: {len(evidence)}",
+            f"Analyzer count: {len(analyzers)}",
+            f"Failed tools:\n{self._failure_note(failed_tools)}",
+            f"Failed analyzers:\n{self._failure_note(failed_analyzers)}",
+        ]
+        if reviewer_guidance:
+            prompt_parts.append(f"Reviewer Steering Guidance:\n{reviewer_guidance}")
+        prompt = "\n".join(prompt_parts)
         llm_result: LLMCallResult[InvestigatorIteration] | None = (
             await self.gateway.generate_structured(
-            system_prompt=investigator_system,
-            user_prompt=f"{investigator_iteration}\n\n{prompt}",
-            schema=InvestigatorIteration,
-            prompt_template_id=PROMPT_TEMPLATE_ID,
-            prompt_template_version=PROMPT_TEMPLATE_VERSION,
-            prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
+                system_prompt=investigator_system,
+                user_prompt=f"{investigator_iteration}\n\n{prompt}",
+                schema=InvestigatorIteration,
+                prompt_template_id=PROMPT_TEMPLATE_ID,
+                prompt_template_version=PROMPT_TEMPLATE_VERSION,
+                prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
             )
         )
         if llm_result is not None:
@@ -155,11 +171,26 @@ class InvestigatorAgent:
             questions.append(
                 "How should contradictory analyzer findings affect the recommendation?"
             )
+        reasoning_steps: list[str] = [
+            f"Assessed {len(evidence)} evidence records across available channels.",
+            f"Evaluated hypothesis: '{statement}' (confidence: {int(confidence * 100)}%).",
+        ]
+        if supporting:
+            reasoning_steps.append(f"Found {len(supporting)} supporting evidence factors.")
+        if contradicting:
+            reasoning_steps.append(
+                f"Identified {len(contradicting)} contradicting factors: "
+                "customer history stability vs activity risk."
+            )
+        thought_process = " ".join(reasoning_steps)
+
         return InvestigatorIteration(
             summary=(
                 f"Investigated dispute {dispute.case_code} "
                 f"with {len(evidence)} evidence items."
             ),
+            thought_process=thought_process,
+            reasoning_steps=reasoning_steps,
             hypotheses=[
                 InvestigationHypothesis(
                     statement=statement,

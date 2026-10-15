@@ -49,6 +49,7 @@ async def resume_investigation(
         role=sorted(role.value for role in principal.roles)[0],
         decision=decision.decision,
         comment=decision.comment,
+        guidance=decision.guidance,
         timestamp=datetime.now(UTC),
         dispute_id=record.dispute_id,
         investigation_id=record.id,

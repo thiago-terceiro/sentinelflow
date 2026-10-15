@@ -109,8 +109,12 @@ def calculate_risk(evidence: list[Evidence], analyzers: list[AnalyzerSummary]) -
             )
         )
 
-    total = sum(factor.score * factor.weight for factor in factors)
-    score = max(0.0, min(total, 1.0))
+    total_weight = sum(factor.weight for factor in factors)
+    if total_weight > 0:
+        raw_score = sum(factor.score * factor.weight for factor in factors) / total_weight
+    else:
+        raw_score = 0.0
+    score = max(0.0, min(raw_score, 1.0))
     level = _level(score)
     return RiskAssessment(
         score=score,

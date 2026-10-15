@@ -11,19 +11,41 @@ REDACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "[REDACTED_EMAIL]",
     ),
     (
-        re.compile(r"(?<!\w)\+?\d[\d\s().-]{7,}\d(?!\w)"),
-        "[REDACTED_PHONE]",
+        re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
+        "[REDACTED_SSN]",
+    ),
+    (
+        re.compile(r"\b[A-Za-z]{2}\d{2}(?:[ -]?[A-Za-z0-9]){11,30}\b"),
+        "[REDACTED_IBAN]",
+    ),
+    (
+        re.compile(
+            r"\b(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}\b|\b(?:[A-Fa-f0-9]{1,4}:){1,7}:|:(?::[A-Fa-f0-9]{1,4}){1,7}\b"
+        ),
+        "[REDACTED_IP]",
+    ),
+    (
+        re.compile(
+            r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
+        ),
+        "[REDACTED_IP]",
     ),
     (
         re.compile(r"\b(?:\d[ -]*?){13,19}\b"),
         "[REDACTED_CARDLIKE]",
     ),
     (
+        re.compile(r"(?<!\w)\+?\d[\d\s().-]{7,}\d(?!\w)"),
+        "[REDACTED_PHONE]",
+    ),
+    (
         re.compile(r"\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b"),
         "[REDACTED_JWT]",
     ),
     (
-        re.compile(r"\b(?:sk|pk)_[A-Za-z0-9_-]{12,}\b"),
+        re.compile(
+            r"\b(?:sk|pk)[-_][A-Za-z0-9_-]{12,}\b|\b(?:sk-proj|sk-ant)-[A-Za-z0-9_-]{20,}\b|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{36}\b"
+        ),
         "[REDACTED_API_KEY]",
     ),
 )
@@ -78,22 +100,31 @@ def redact_text(value: str) -> tuple[str, bool]:
 def redact_value(value: Any) -> tuple[Any, bool]:
     if isinstance(value, str):
         return redact_text(value)
-    if isinstance(value, list):
-        items = cast(list[object], value)
+    if isinstance(value, (list, tuple, set)):
+        items = cast(list[object], list(value))
         redacted_items: list[Any] = []
         changed = False
         for item in items:
             redacted_item, item_changed = redact_value(item)
             redacted_items.append(redacted_item)
             changed = changed or item_changed
+        if isinstance(value, tuple):
+            return tuple(redacted_items), changed
+        if isinstance(value, set):
+            return set(redacted_items), changed
         return redacted_items, changed
     if isinstance(value, dict):
         value_dict = cast(dict[str, object], value)
         redacted_dict: dict[str, Any] = {}
         changed = False
         for key, item in value_dict.items():
+            redacted_key = key
+            if isinstance(key, str):
+                redacted_key_text, key_changed = redact_text(key)
+                redacted_key = redacted_key_text
+                changed = changed or key_changed
             redacted_item, item_changed = redact_value(item)
-            redacted_dict[key] = redacted_item
+            redacted_dict[redacted_key] = redacted_item
             changed = changed or item_changed
         return redacted_dict, changed
     return value, False

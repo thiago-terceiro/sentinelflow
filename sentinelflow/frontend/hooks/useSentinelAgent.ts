@@ -15,7 +15,7 @@ import {
 } from "@/lib/investigationState";
 import { shouldReconnectInvestigation, streamReconnectDelayMs } from "@/lib/investigationStream";
 import { openInvestigationStream } from "@/lib/sse";
-import { ConsoleState } from "@/lib/types";
+import { ApprovalDecision, ConsoleState } from "@/lib/types";
 
 type StreamHandle = {
     close: () => void;
@@ -176,13 +176,13 @@ export const useSentinelAgent = (disputeId: string) => {
         }
     };
 
-    const review = async (decision: "approve" | "deny", comment: string) => {
+    const review = async (decision: ApprovalDecision, comment: string, guidance?: string) => {
         if (!state.investigationId || isReviewing) {
             return;
         }
         setIsReviewing(true);
         try {
-            const run = await resumeInvestigation(state.investigationId, decision, comment);
+            const run = await resumeInvestigation(state.investigationId, decision, comment, guidance);
             setState((current) => applyRunToConsoleState(current, run));
             connectStream(run.id);
         } catch (error) {

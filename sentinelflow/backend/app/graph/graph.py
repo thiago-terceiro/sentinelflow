@@ -8,7 +8,11 @@ from app.agents.investigator import InvestigatorAgent
 from app.agents.synthesizer import SynthesizerAgent
 from app.config import get_settings
 from app.graph.nodes import InvestigationNodes
-from app.graph.routing import route_after_investigator, route_after_recommendation
+from app.graph.routing import (
+    route_after_approval,
+    route_after_investigator,
+    route_after_recommendation,
+)
 from app.graph.state import DisputeState
 from app.services.model_gateway import ModelGateway
 from langgraph.checkpoint.memory import MemorySaver
@@ -93,6 +97,13 @@ def build_graph(session: AsyncSession) -> Any:
             "finalize": "finalize",
         },
     )
-    workflow.add_edge("approval", "finalize")
+    workflow.add_conditional_edges(
+        "approval",
+        route_after_approval,
+        {
+            "investigate": "investigate",
+            "finalize": "finalize",
+        },
+    )
     workflow.add_edge("finalize", END)
     return workflow.compile(checkpointer=_build_checkpointer())

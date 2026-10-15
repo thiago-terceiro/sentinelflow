@@ -86,7 +86,7 @@ const eventBadge = (event: StreamEvent): string => {
     return "Agent";
 };
 
-export function InvestigationTimeline({ status, events }: Props) {
+export const InvestigationTimeline = ({ status, events }: Props) => {
     return (
         <section
             className="shell-card"
@@ -115,7 +115,7 @@ export function InvestigationTimeline({ status, events }: Props) {
                                 stage: {String(event.data.stage)}
                             </div>
                         ) : null}
-                        <div style={{ color: "var(--muted)", marginTop: 4 }}>
+                        <div style={{ color: "var(--muted)", marginTop: 4 }} suppressHydrationWarning>
                             {new Date(event.timestamp).toLocaleTimeString()}
                         </div>
                     </li>
@@ -123,4 +123,4 @@ export function InvestigationTimeline({ status, events }: Props) {
             </ul>
         </section>
     );
-}
+};

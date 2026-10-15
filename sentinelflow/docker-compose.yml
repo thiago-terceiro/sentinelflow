@@ -29,6 +29,15 @@ services:
       retries: 10
       start_period: 10s
 
+  telemetry:
+    image: jaegertracing/all-in-one:1.60
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
   backend-init:
     build:
       context: ./backend
@@ -75,6 +84,9 @@ services:
       AUTH_AUDIENCE: sentinelflow-api
       AUTH_JWT_SECRET: change-me
       AUTH_ALLOW_DEV_TOKENS: "true"
+      OTEL_SERVICE_NAME: sentinelflow-agent-engine
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://telemetry:4318}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -86,6 +98,9 @@ services:
         restart: true
       backend-init:
         condition: service_completed_successfully
+      telemetry:
+        condition: service_started
+        restart: true
     healthcheck:
       test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/api/v1/ready').read()"]
       interval: 15s
@@ -107,6 +122,9 @@ services:
       AUTH_AUDIENCE: sentinelflow-api
       AUTH_JWT_SECRET: change-me
       AUTH_ALLOW_DEV_TOKENS: "true"
+      OTEL_SERVICE_NAME: sentinelflow-worker
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://telemetry:4318}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,6 +134,9 @@ services:
         restart: true
       backend-init:
         condition: service_completed_successfully
+      telemetry:
+        condition: service_started
+        restart: true
 
   frontend:
     build:

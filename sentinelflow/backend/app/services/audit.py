@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 from dataclasses import dataclass
@@ -49,8 +50,22 @@ def _trace_correlation() -> tuple[str | None, str | None]:
     return format(context.trace_id, "032x"), format(context.span_id, "016x")
 
 
+_investigation_audit_locks: dict[str, asyncio.Lock] = {}
+_global_audit_lock = asyncio.Lock()
+
+
+def _get_audit_lock(investigation_id: str | None) -> asyncio.Lock:
+    if not investigation_id:
+        return _global_audit_lock
+    if investigation_id not in _investigation_audit_locks:
+        _investigation_audit_locks[investigation_id] = asyncio.Lock()
+    return _investigation_audit_locks[investigation_id]
+
+
 def _canonical_payload(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True, default=str
+    )
 
 
 def _artifact_cipher() -> tuple[Fernet | None, str | None]:
@@ -112,6 +127,7 @@ def compute_row_hash(
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,
+        default=str,
     )
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
@@ -188,50 +204,52 @@ async def record_audit_event(
         "trace_id": trace_id,
         "span_id": span_id,
     }
-    sequence_no, prev_hash = await _next_sequence_and_prev_hash(session, investigation_id)
-    actor_role = sorted(role.value for role in actor.roles)[0]
-    row_hash = compute_row_hash(
-        investigation_id=investigation_id,
-        dispute_id=dispute_id,
-        sequence_no=sequence_no,
-        prev_hash=prev_hash,
-        actor_id=actor.user_id,
-        actor_role=actor_role,
-        event_name=event_name,
-        payload=payload_with_context,
-    )
-    record_id = str(uuid4())
-    record = AuditRecord(
-        id=record_id,
-        actor_id=actor.user_id,
-        actor_role=actor_role,
-        event_name=event_name,
-        payload=payload_with_context,
-        dispute_id=dispute_id,
-        investigation_id=investigation_id,
-        sequence_no=sequence_no,
-        prev_hash=prev_hash,
-        row_hash=row_hash,
-    )
-    session.add(record)
-    if raw_artifact is not None and fernet is not None and artifact_id is not None and key_id:
-        ciphertext = fernet.encrypt(_canonical_payload(raw_artifact).encode("utf-8")).decode(
-            "utf-8"
-        )
-        session.add(
-            AuditArtifactRecord(
-                id=artifact_id,
-                audit_record_id=record_id,
-                investigation_id=investigation_id,
-                dispute_id=dispute_id,
-                key_id=key_id,
-                ciphertext=ciphertext,
-            )
-        )
+    actor_role = sorted(role.value for role in actor.roles)[0] if actor.roles else "unassigned"
 
-    await session.commit()
-    await session.refresh(record)
-    return record
+    async with _get_audit_lock(investigation_id):
+        sequence_no, prev_hash = await _next_sequence_and_prev_hash(session, investigation_id)
+        row_hash = compute_row_hash(
+            investigation_id=investigation_id,
+            dispute_id=dispute_id,
+            sequence_no=sequence_no,
+            prev_hash=prev_hash,
+            actor_id=actor.user_id,
+            actor_role=actor_role,
+            event_name=event_name,
+            payload=payload_with_context,
+        )
+        record_id = str(uuid4())
+        record = AuditRecord(
+            id=record_id,
+            actor_id=actor.user_id,
+            actor_role=actor_role,
+            event_name=event_name,
+            payload=payload_with_context,
+            dispute_id=dispute_id,
+            investigation_id=investigation_id,
+            sequence_no=sequence_no,
+            prev_hash=prev_hash,
+            row_hash=row_hash,
+        )
+        session.add(record)
+        if raw_artifact is not None and fernet is not None and artifact_id is not None and key_id:
+            ciphertext = fernet.encrypt(_canonical_payload(raw_artifact).encode("utf-8")).decode(
+                "utf-8"
+            )
+            session.add(
+                AuditArtifactRecord(
+                    id=artifact_id,
+                    audit_record_id=record_id,
+                    investigation_id=investigation_id,
+                    dispute_id=dispute_id,
+                    key_id=key_id,
+                    ciphertext=ciphertext,
+                )
+            )
+
+        await session.commit()
+        await session.refresh(record)
+        return record
 
 
 async def get_raw_audit_artifact(
@@ -294,6 +312,27 @@ async def list_audit_records(session: AsyncSession, investigation_id: str) -> li
         .where(AuditRecord.investigation_id == investigation_id)
         .order_by(AuditRecord.sequence_no.asc(), AuditRecord.created_at.asc())
     )
+    return list(result.scalars())
+
+
+async def query_audit_records(
+    session: AsyncSession,
+    *,
+    dispute_id: str | None = None,
+    investigation_id: str | None = None,
+    event_name: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[AuditRecord]:
+    stmt = select(AuditRecord)
+    if dispute_id:
+        stmt = stmt.where(AuditRecord.dispute_id == dispute_id)
+    if investigation_id:
+        stmt = stmt.where(AuditRecord.investigation_id == investigation_id)
+    if event_name:
+        stmt = stmt.where(AuditRecord.event_name == event_name)
+    stmt = stmt.order_by(AuditRecord.created_at.desc()).limit(min(limit, 500)).offset(offset)
+    result = await session.execute(stmt)
     return list(result.scalars())
 
 

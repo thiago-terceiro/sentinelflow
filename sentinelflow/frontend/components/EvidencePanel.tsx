@@ -17,7 +17,7 @@ const sourceLabel = (origin: Evidence["origin"]) => {
     return "Observed fact";
 };
 
-export function EvidencePanel({ evidence, isLoading }: Props) {
+export const EvidencePanel = ({ evidence, isLoading }: Props) => {
     return (
         <section className="shell-card" style={{ padding: 24, minHeight: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

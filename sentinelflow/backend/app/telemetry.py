@@ -36,8 +36,12 @@ def _configure_trace_provider() -> None:
         resource=Resource.create({"service.name": settings.OTEL_SERVICE_NAME}),
     )
     if settings.OTEL_EXPORTER_OTLP_ENDPOINT:
-        # SDK uses endpoint as-is when given explicitly; append signal path manually.
-        traces_url = settings.OTEL_EXPORTER_OTLP_ENDPOINT.rstrip("/") + "/v1/traces"
+        raw_endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT.rstrip("/")
+        traces_url = (
+            raw_endpoint
+            if raw_endpoint.endswith("/v1/traces")
+            else f"{raw_endpoint}/v1/traces"
+        )
         provider.add_span_processor(
             BatchSpanProcessor(
                 OTLPSpanExporter(

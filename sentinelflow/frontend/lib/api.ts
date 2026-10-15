@@ -1,63 +1,133 @@
-import type { DisputeSummary, InvestigationRun } from "@/lib/types";
+import type {
+    ApprovalDecision,
+    AuditCorrectionRequest,
+    AuditCorrectionResponse,
+    AuditIntegrity,
+    AuditRecord,
+    DisputeSummary,
+    InvestigationRun,
+} from "@/lib/types";
 
 const CLIENT_PROXY_BASE_URL = "/app-api";
 
-function isServerRuntime(): boolean {
+const isServerRuntime = (): boolean => {
     return typeof window === "undefined";
-}
+};
 
-function resolveApiBaseUrl(): string {
+const resolveApiBaseUrl = (): string => {
     return CLIENT_PROXY_BASE_URL;
-}
+};
 
-function resolveClientProxyBaseUrl(): string {
+export const resolveClientProxyBaseUrl = (): string => {
     if (isServerRuntime()) {
         return CLIENT_PROXY_BASE_URL;
     }
     return `${window.location.origin}${CLIENT_PROXY_BASE_URL}`;
-}
+};
 
-async function request<T>(
+const request = async <T>(
     path: string,
     init?: RequestInit,
-): Promise<T> {
+): Promise<T> => {
     const headers = new Headers(init?.headers ?? {});
     headers.set("Content-Type", "application/json");
+
     const response = await fetch(`${resolveApiBaseUrl()}${path}`, {
         ...init,
         headers,
         cache: "no-store",
     });
+
     if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
-        throw new Error(payload?.error?.message ?? `Request failed with status ${response.status}`);
+        let errorMessage: string | null = null;
+        try {
+            const payload = (await response.json()) as { error?: { message?: string } } | null;
+            errorMessage = payload?.error?.message ?? null;
+        } catch {
+            errorMessage = null;
+        }
+        throw new Error(errorMessage ?? `Request failed with status ${response.status}`);
     }
+
     return response.json() as Promise<T>;
-}
+};
 
-export function listDisputes(): Promise<DisputeSummary[]> {
+export const listDisputes = async (): Promise<DisputeSummary[]> => {
     return request<DisputeSummary[]>("/disputes");
-}
+};
 
-export function startInvestigation(disputeId: string): Promise<InvestigationRun> {
+export const startInvestigation = async (disputeId: string): Promise<InvestigationRun> => {
     return request<InvestigationRun>(`/disputes/${disputeId}/investigations`, { method: "POST" });
-}
+};
 
-export function getInvestigation(investigationId: string): Promise<InvestigationRun> {
+export const getInvestigation = async (investigationId: string): Promise<InvestigationRun> => {
     return request<InvestigationRun>(`/investigations/${investigationId}`);
-}
+};
 
-export function investigationStreamEndpoint(investigationId: string): string {
+export const investigationStreamEndpoint = (investigationId: string): string => {
     return `${resolveClientProxyBaseUrl()}/investigations/${investigationId}/stream`;
-}
+};
 
-export function resumeInvestigation(
+export const resumeInvestigation = async (
     investigationId: string,
-    decision: "approve" | "deny",
-    comment: string,
-): Promise<InvestigationRun> {
+    decision: ApprovalDecision,
+    comment?: string,
+    guidance?: string,
+): Promise<InvestigationRun> => {
+    const payload: { decision: ApprovalDecision; comment: string; guidance?: string } = {
+        decision,
+        comment: comment ?? "",
+    };
+    if (guidance !== undefined) {
+        payload.guidance = guidance;
+    }
     return request<InvestigationRun>(`/investigations/${investigationId}/resume`, {
         method: "POST",
-        body: JSON.stringify({ decision, comment }),
+        body: JSON.stringify(payload),
     });
-}
+};
+
+export const getAuditRecords = async (params?: {
+    dispute_id?: string;
+    investigation_id?: string;
+    event_name?: string;
+    limit?: number;
+}): Promise<AuditRecord[]> => {
+    const searchParams = new URLSearchParams();
+    if (params?.dispute_id) {
+        searchParams.set("dispute_id", params.dispute_id);
+    }
+    if (params?.investigation_id) {
+        searchParams.set("investigation_id", params.investigation_id);
+    }
+    if (params?.event_name) {
+        searchParams.set("event_name", params.event_name);
+    }
+    if (params?.limit) {
+        searchParams.set("limit", String(params.limit));
+    }
+    const query = searchParams.toString();
+    const endpoint = query ? `/audit/records?${query}` : "/audit/records";
+    return request<AuditRecord[]>(endpoint);
+};
+
+export const getAuditIntegrity = async (investigationId: string): Promise<AuditIntegrity> => {
+    return request<AuditIntegrity>(`/investigations/${investigationId}/audit/integrity`);
+};
+
+export const createAuditCorrection = async (
+    investigationId: string,
+    correction: AuditCorrectionRequest,
+): Promise<AuditCorrectionResponse> => {
+    return request<AuditCorrectionResponse>(`/investigations/${investigationId}/audit/corrections`, {
+        method: "POST",
+        body: JSON.stringify(correction),
+    });
+};
+
+export const getAuditArtifact = async (
+    investigationId: string,
+    artifactType: "sar" | "summary",
+): Promise<Record<string, unknown>> => {
+    return request<Record<string, unknown>>(`/investigations/${investigationId}/artifacts/${artifactType}`);
+};

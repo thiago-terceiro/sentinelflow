@@ -1,6 +1,6 @@
 "use client";
 
-export default function GlobalError({ reset }: { error: Error; reset: () => void }) {
+const GlobalError = ({ reset }: { error: Error; reset: () => void }) => {
     return (
         <main style={{ padding: "48px 0" }}>
             <section className="shell-card" style={{ padding: 28 }}>
@@ -15,4 +15,6 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
             </section>
         </main>
     );
-}
+};
+
+export default GlobalError;

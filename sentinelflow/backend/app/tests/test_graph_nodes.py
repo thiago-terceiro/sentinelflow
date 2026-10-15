@@ -48,6 +48,8 @@ def _build_state() -> DisputeState:
         "timeline_events": [],
         "approval_request": None,
         "approval_decision": None,
+        "reviewer_guidance": None,
+        "revision_count": 0,
         "checkpoint_ref": None,
     }
     return state
@@ -87,6 +89,10 @@ async def test_collect_keeps_successful_results_when_a_tool_fails(
     async def failing_tool(_session: AsyncSession, _dispute_id: str) -> Evidence:
         raise RuntimeError("customer service unavailable")
 
+    async def fake_audit_event(*args: object, **kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr("app.graph.nodes.record_audit_event", fake_audit_event)
     monkeypatch.setattr(
         "app.graph.nodes.fetch_transaction_history",
         ok_tool,
@@ -128,6 +134,10 @@ async def test_collect_keeps_successful_results_when_an_analyzer_fails(
             raise RuntimeError("analyzer timeout")
         return _build_analyzer_summary(name)
 
+    async def fake_audit_event(*args: object, **kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr("app.graph.nodes.record_audit_event", fake_audit_event)
     monkeypatch.setattr("app.graph.nodes.run_analyzer", fake_run_analyzer)
 
     state = _build_state()

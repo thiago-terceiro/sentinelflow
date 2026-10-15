@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { listDisputes } from "@/lib/api";
 import type { DisputeSummary } from "@/lib/types";
 
-export default function HomePage() {
+const HomePage = () => {
     const [disputes, setDisputes] = useState<DisputeSummary[]>([]);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -95,4 +95,6 @@ export default function HomePage() {
             </section>
         </main>
     );
-}
+};
+
+export default HomePage;

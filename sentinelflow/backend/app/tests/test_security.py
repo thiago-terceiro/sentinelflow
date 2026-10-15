@@ -4,7 +4,7 @@ from typing import Annotated
 import jwt
 import pytest
 from app.errors import install_error_handlers
-from app.security import DEV_TOKENS, Principal, get_principal
+from app.security import DEV_TOKENS, Principal, Role, get_principal
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
@@ -209,3 +209,12 @@ def test_get_principal_applies_role_mapping(
 
     assert response.status_code == 200
     assert response.json() == {"roles": ["auditor"]}
+
+
+def test_auditor_role_has_access_to_auditing_and_disputes() -> None:
+    principal = DEV_TOKENS["dev-auditor"]
+    assert Role.AUDITOR in principal.roles
+    principal.require_any(
+        Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.REVIEWER, Role.AUDITOR, Role.ADMIN
+    )
+

@@ -49,8 +49,11 @@ from app.tools.merchant import fetch_merchant_profile
 from app.tools.transactions import fetch_transaction_history
 from langchain_core.messages import AIMessage
 from langgraph.types import interrupt
+from opentelemetry import trace
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+tracer = trace.get_tracer("sentinelflow.graph")
 
 ToolFunc = Callable[[AsyncSession, str], Awaitable[Evidence]]
 
@@ -259,393 +262,535 @@ class InvestigationNodes:
         return state
 
     async def investigate(self, state: DisputeState) -> DisputeState:
-        dispute = state["dispute"]
-        if dispute is None:
-            raise NotFoundError("DISPUTE_NOT_FOUND", "Dispute was not found.")
-        _append_agent_message(
-            state,
-            actor="orchestrator",
-            message="Calling investigator agent for hypothesis update.",
-            stage="investigate",
-            details={
-                "evidence_count": len(state["evidence"]),
-                "analyzer_count": len(state["analyzer_summaries"]),
+        with tracer.start_as_current_span(
+            "investigation.node.investigate",
+            attributes={
+                "dispute.id": state["dispute_id"],
+                "investigation.id": state["investigation_id"],
+                "iteration.count": state["iteration_count"],
             },
-        )
-        iteration, llm_meta = await self.investigator.run_iteration(
-            dispute=dispute,
-            evidence=state["evidence"],
-            analyzers=state["analyzer_summaries"],
-            failed_tools=state["failed_tools"],
-            failed_analyzers=state["failed_analyzers"],
-        )
-        _append_agent_message(
-            state,
-            actor="investigator",
-            message="Returned hypothesis update to orchestrator.",
-            stage="investigate",
-            details={
-                "tool_requests": len(iteration.tool_requests),
-                "analyzer_requests": len(iteration.analyzer_requests),
-                "used_heuristic": llm_meta is None,
-            },
-        )
-        state["iteration_count"] += 1
-        state["hypotheses"] = iteration.hypotheses
-        state["unresolved_questions"] = iteration.unresolved_questions
-        state["pending_tools"] = [item.model_dump() for item in iteration.tool_requests]
-        state["pending_analyzers"] = [item.model_dump() for item in iteration.analyzer_requests]
-        state["messages"].append(AIMessage(content=iteration.summary))
-        await record_audit_event(
-            self.session,
-            actor=_actor_from_state(state),
-            event_name="investigation.llm_iteration",
-            payload=_llm_trace_payload(
-                llm_meta=llm_meta,
-                base_payload={
-                    "iteration": state["iteration_count"],
-                    "hypothesis_count": len(iteration.hypotheses),
+        ) as span:
+            dispute = state["dispute"]
+            if dispute is None:
+                raise NotFoundError("DISPUTE_NOT_FOUND", "Dispute was not found.")
+            _append_agent_message(
+                state,
+                actor="orchestrator",
+                message="Calling investigator agent for hypothesis update.",
+                stage="investigate",
+                details={
+                    "evidence_count": len(state["evidence"]),
+                    "analyzer_count": len(state["analyzer_summaries"]),
+                },
+            )
+            iteration_kwargs: dict[str, Any] = {
+                "dispute": dispute,
+                "evidence": state["evidence"],
+                "analyzers": state["analyzer_summaries"],
+                "failed_tools": state["failed_tools"],
+                "failed_analyzers": state["failed_analyzers"],
+            }
+            if state.get("reviewer_guidance") is not None:
+                iteration_kwargs["reviewer_guidance"] = state["reviewer_guidance"]
+                state["reviewer_guidance"] = None
+            iteration, llm_meta = await self.investigator.run_iteration(**iteration_kwargs)
+            if llm_meta is not None:
+                span.set_attribute("gen_ai.system", llm_meta.provider)
+                span.set_attribute("gen_ai.request.model", llm_meta.model_used)
+                span.set_attribute("gen_ai.usage.input_tokens", llm_meta.input_tokens)
+                span.set_attribute("gen_ai.usage.output_tokens", llm_meta.output_tokens)
+            _append_agent_message(
+                state,
+                actor="investigator",
+                message="Returned hypothesis update to orchestrator.",
+                stage="investigate",
+                details={
                     "tool_requests": len(iteration.tool_requests),
                     "analyzer_requests": len(iteration.analyzer_requests),
+                    "used_heuristic": llm_meta is None,
+                    "thought_process": getattr(iteration, "thought_process", ""),
+                    "reasoning_steps": getattr(iteration, "reasoning_steps", []),
                 },
-                template_id=INVESTIGATOR_PROMPT_TEMPLATE_ID,
-                template_version=INVESTIGATOR_PROMPT_TEMPLATE_VERSION,
-                template_sha256=INVESTIGATOR_PROMPT_TEMPLATE_SHA256,
-            ),
-            investigation_id=state["investigation_id"],
-            dispute_id=state["dispute_id"],
-        )
-        _append_event(
-            state,
-            "hypothesis_updated",
-            {
-                "iteration": state["iteration_count"],
-                "hypotheses": [item.model_dump(mode="json") for item in iteration.hypotheses],
-                "unresolved_questions": iteration.unresolved_questions,
-            },
-            event_id=f"hypothesis_{state['investigation_id']}_{state['iteration_count']}",
-        )
-        _append_event(
-            state,
-            "agent_status_updated",
-            {
-                "phase": "investigate",
-                "message": (
-                    "Gathering authoritative evidence"
-                    if state["pending_tools"] or state["pending_analyzers"]
-                    else "Preparing final recommendation"
+            )
+            state["iteration_count"] += 1
+            state["hypotheses"] = iteration.hypotheses
+            state["unresolved_questions"] = iteration.unresolved_questions
+            state["pending_tools"] = [item.model_dump() for item in iteration.tool_requests]
+            state["pending_analyzers"] = [item.model_dump() for item in iteration.analyzer_requests]
+            state["messages"].append(AIMessage(content=iteration.summary))
+            await record_audit_event(
+                self.session,
+                actor=_actor_from_state(state),
+                event_name="investigation.llm_iteration",
+                payload=_llm_trace_payload(
+                    llm_meta=llm_meta,
+                    base_payload={
+                        "iteration": state["iteration_count"],
+                        "hypothesis_count": len(iteration.hypotheses),
+                        "tool_requests": len(iteration.tool_requests),
+                        "analyzer_requests": len(iteration.analyzer_requests),
+                        "thought_process": getattr(iteration, "thought_process", ""),
+                    },
+                    template_id=INVESTIGATOR_PROMPT_TEMPLATE_ID,
+                    template_version=INVESTIGATOR_PROMPT_TEMPLATE_VERSION,
+                    template_sha256=INVESTIGATOR_PROMPT_TEMPLATE_SHA256,
                 ),
-                "investigation_id": state["investigation_id"],
-                "iteration": state["iteration_count"],
-            },
-        )
-        return state
+                investigation_id=state["investigation_id"],
+                dispute_id=state["dispute_id"],
+            )
+            _append_event(
+                state,
+                "hypothesis_updated",
+                {
+                    "iteration": state["iteration_count"],
+                    "hypotheses": [item.model_dump(mode="json") for item in iteration.hypotheses],
+                    "unresolved_questions": iteration.unresolved_questions,
+                    "thought_process": getattr(iteration, "thought_process", ""),
+                    "reasoning_steps": getattr(iteration, "reasoning_steps", []),
+                },
+                event_id=f"hypothesis_{state['investigation_id']}_{state['iteration_count']}",
+            )
+            _append_event(
+                state,
+                "agent_status_updated",
+                {
+                    "phase": "investigate",
+                    "message": (
+                        "Gathering authoritative evidence"
+                        if state["pending_tools"] or state["pending_analyzers"]
+                        else "Preparing final recommendation"
+                    ),
+                    "investigation_id": state["investigation_id"],
+                    "iteration": state["iteration_count"],
+                },
+            )
+            return state
 
     async def collect(self, state: DisputeState) -> DisputeState:
-        tools: dict[str, ToolFunc] = {
-            "transactions": fetch_transaction_history,
-            "customer": fetch_customer_profile,
-            "device": fetch_device_context,
-            "merchant": fetch_merchant_profile,
-        }
-        if state["pending_tools"]:
-            _append_agent_message(
-                state,
-                actor="orchestrator",
-                message="Calling evidence tools for investigator requests.",
-                stage="collect",
-                details={"tool_request_count": len(state["pending_tools"])},
-            )
-        for index, tool_request in enumerate(state["pending_tools"], start=1):
-            tool = tools.get(tool_request["name"])
-            if tool is None:
-                self._record_failure(
+        with tracer.start_as_current_span(
+            "investigation.node.collect",
+            attributes={
+                "dispute.id": state["dispute_id"],
+                "investigation.id": state["investigation_id"],
+            },
+        ):
+            tools: dict[str, ToolFunc] = {
+                "transactions": fetch_transaction_history,
+                "customer": fetch_customer_profile,
+                "device": fetch_device_context,
+                "merchant": fetch_merchant_profile,
+            }
+            if state["pending_tools"]:
+                _append_agent_message(
                     state,
-                    target="tools",
-                    name=tool_request["name"],
-                    error="Unsupported tool request.",
-                    event_payload={
-                        "phase": "collect",
-                        "kind": "tool",
-                        "tool_name": tool_request["name"],
-                        "error": "Unsupported tool request.",
-                    },
+                    actor="orchestrator",
+                    message="Calling evidence tools for investigator requests.",
+                    stage="collect",
+                    details={"tool_request_count": len(state["pending_tools"])},
                 )
-                continue
-            tool_call_id = _tool_call_id(state, tool_request["name"], index)
-            _append_event(
-                state,
-                "tool_started",
-                {
-                    "tool_call_id": tool_call_id,
-                    "tool_name": tool_request["name"],
-                    "label": _tool_label(tool_request["name"]),
-                },
-                event_id=f"tool_started_{tool_call_id}",
-            )
-            state["tool_call_count"] += 1
-            try:
-                evidence = await tool(self.session, state["dispute_id"])
-            except Exception as exc:
-                self._record_failure(
+            for index, tool_request in enumerate(state["pending_tools"], start=1):
+                tool = tools.get(tool_request["name"])
+                if tool is None:
+                    self._record_failure(
+                        state,
+                        target="tools",
+                        name=tool_request["name"],
+                        error="Unsupported tool request.",
+                        event_payload={
+                            "phase": "collect",
+                            "kind": "tool",
+                            "tool_name": tool_request["name"],
+                            "error": "Unsupported tool request.",
+                        },
+                    )
+                    continue
+                tool_call_id = _tool_call_id(state, tool_request["name"], index)
+                with tracer.start_as_current_span(
+                    f"investigation.tool.{tool_request['name']}",
+                    attributes={
+                        "tool.name": tool_request["name"],
+                        "tool.call_id": tool_call_id,
+                        "dispute.id": state["dispute_id"],
+                        "investigation.id": state["investigation_id"],
+                    },
+                ) as tool_span:
+                    _append_event(
+                        state,
+                        "tool_started",
+                        {
+                            "tool_call_id": tool_call_id,
+                            "tool_name": tool_request["name"],
+                            "label": _tool_label(tool_request["name"]),
+                        },
+                        event_id=f"tool_started_{tool_call_id}",
+                    )
+                    state["tool_call_count"] += 1
+                    try:
+                        evidence = await tool(self.session, state["dispute_id"])
+                        tool_span.set_attribute("evidence.id", evidence.id)
+                    except Exception as exc:
+                        tool_span.record_exception(exc)
+                        tool_span.set_status(trace.StatusCode.ERROR, str(exc))
+                        self._record_failure(
+                            state,
+                            target="tools",
+                            name=tool_request["name"],
+                            error=str(exc),
+                            event_payload={
+                                "phase": "collect",
+                                "kind": "tool",
+                                "tool_name": tool_request["name"],
+                                "tool_call_id": tool_call_id,
+                                "error": str(exc),
+                            },
+                        )
+                        continue
+                    state["evidence"].append(evidence)
+                    await record_audit_event(
+                        self.session,
+                        actor=_actor_from_state(state),
+                        event_name="investigation.tool_executed",
+                        payload={
+                            "tool_name": tool_request["name"],
+                            "tool_call_id": tool_call_id,
+                            "evidence_id": evidence.id,
+                            "status": "success",
+                        },
+                        investigation_id=state["investigation_id"],
+                        dispute_id=state["dispute_id"],
+                    )
+                    _append_event(
+                        state,
+                        "tool_completed",
+                        {
+                            "tool_call_id": tool_call_id,
+                            "tool_name": tool_request["name"],
+                            "label": _tool_label(tool_request["name"]),
+                            "evidence_id": evidence.id,
+                        },
+                        event_id=f"tool_completed_{tool_call_id}",
+                    )
+                    _append_event(
+                        state,
+                        "evidence_added",
+                        {
+                            **evidence.model_dump(mode="json"),
+                            "tool_call_id": tool_call_id,
+                        },
+                        event_id=f"evidence_{evidence.id}",
+                    )
+            existing = state["evidence"][:]
+            if state["pending_analyzers"]:
+                _append_agent_message(
                     state,
-                    target="tools",
-                    name=tool_request["name"],
-                    error=str(exc),
-                    event_payload={
-                        "phase": "collect",
-                        "kind": "tool",
-                        "tool_name": tool_request["name"],
-                        "tool_call_id": tool_call_id,
-                        "error": str(exc),
-                    },
+                    actor="orchestrator",
+                    message="Calling analyzer agents for specialized interpretation.",
+                    stage="collect",
+                    details={"analyzer_request_count": len(state["pending_analyzers"])},
                 )
-                continue
-            state["evidence"].append(evidence)
-            _append_event(
-                state,
-                "tool_completed",
-                {
-                    "tool_call_id": tool_call_id,
-                    "tool_name": tool_request["name"],
-                    "label": _tool_label(tool_request["name"]),
-                    "evidence_id": evidence.id,
-                },
-                event_id=f"tool_completed_{tool_call_id}",
-            )
-            _append_event(
-                state,
-                "evidence_added",
-                {
-                    **evidence.model_dump(mode="json"),
-                    "tool_call_id": tool_call_id,
-                },
-                event_id=f"evidence_{evidence.id}",
-            )
-        existing = state["evidence"][:]
-        if state["pending_analyzers"]:
-            _append_agent_message(
-                state,
-                actor="orchestrator",
-                message="Calling analyzer agents for specialized interpretation.",
-                stage="collect",
-                details={"analyzer_request_count": len(state["pending_analyzers"])},
-            )
-        for index, analyzer_request in enumerate(state["pending_analyzers"], start=1):
-            analyzer_id = _analyzer_call_id(state, analyzer_request["name"], index)
-            _append_agent_message(
-                state,
-                actor="orchestrator",
-                message=f"Calling analyzer agent {analyzer_request['name']}.",
-                stage="collect",
-                details={"analyzer_id": analyzer_id},
-            )
-            _append_event(
-                state,
-                "analyzer_started",
-                {
-                    "analyzer_id": analyzer_id,
-                    "analyzer_name": analyzer_request["name"],
-                    "label": _analyzer_label(analyzer_request["name"]),
-                },
-                event_id=f"analyzer_started_{analyzer_id}",
-            )
-            state["analyzer_call_count"] += 1
-            try:
-                summary = await run_analyzer(analyzer_request["name"], existing)
-            except Exception as exc:
-                self._record_failure(
-                    state,
-                    target="analyzers",
-                    name=analyzer_request["name"],
-                    error=str(exc),
-                    event_payload={
-                        "phase": "collect",
-                        "kind": "analyzer",
-                        "analyzer_name": analyzer_request["name"],
-                        "analyzer_id": analyzer_id,
-                        "error": str(exc),
+            for index, analyzer_request in enumerate(state["pending_analyzers"], start=1):
+                analyzer_id = _analyzer_call_id(state, analyzer_request["name"], index)
+                with tracer.start_as_current_span(
+                    f"investigation.analyzer.{analyzer_request['name']}",
+                    attributes={
+                        "analyzer.name": analyzer_request["name"],
+                        "analyzer.id": analyzer_id,
+                        "dispute.id": state["dispute_id"],
+                        "investigation.id": state["investigation_id"],
                     },
-                )
-                continue
-            state["analyzer_summaries"].append(summary)
-            _append_agent_message(
-                state,
-                actor=analyzer_request["name"],
-                message="Analyzer returned findings to orchestrator.",
-                stage="collect",
-                details={
-                    "finding_count": len(summary.findings),
-                    "contradiction_count": len(summary.contradictions),
-                },
-            )
-            _append_event(
-                state,
-                "analyzer_completed",
-                {
-                    **summary.model_dump(mode="json"),
-                    "analyzer_id": analyzer_id,
-                    "analyzer_name": analyzer_request["name"],
-                },
-                event_id=f"analyzer_completed_{analyzer_id}",
-            )
-        state["pending_tools"] = []
-        state["pending_analyzers"] = []
-        return state
+                ) as analyzer_span:
+                    _append_agent_message(
+                        state,
+                        actor="orchestrator",
+                        message=f"Calling analyzer agent {analyzer_request['name']}.",
+                        stage="collect",
+                        details={"analyzer_id": analyzer_id},
+                    )
+                    _append_event(
+                        state,
+                        "analyzer_started",
+                        {
+                            "analyzer_id": analyzer_id,
+                            "analyzer_name": analyzer_request["name"],
+                            "label": _analyzer_label(analyzer_request["name"]),
+                        },
+                        event_id=f"analyzer_started_{analyzer_id}",
+                    )
+                    state["analyzer_call_count"] += 1
+                    try:
+                        summary = await run_analyzer(analyzer_request["name"], existing)
+                        analyzer_span.set_attribute("analyzer.confidence", summary.confidence)
+                    except Exception as exc:
+                        analyzer_span.record_exception(exc)
+                        analyzer_span.set_status(trace.StatusCode.ERROR, str(exc))
+                        self._record_failure(
+                            state,
+                            target="analyzers",
+                            name=analyzer_request["name"],
+                            error=str(exc),
+                            event_payload={
+                                "phase": "collect",
+                                "kind": "analyzer",
+                                "analyzer_name": analyzer_request["name"],
+                                "analyzer_id": analyzer_id,
+                                "error": str(exc),
+                            },
+                        )
+                        continue
+                    state["analyzer_summaries"].append(summary)
+                    await record_audit_event(
+                        self.session,
+                        actor=_actor_from_state(state),
+                        event_name="investigation.analyzer_executed",
+                        payload={
+                            "analyzer_name": analyzer_request["name"],
+                            "analyzer_id": analyzer_id,
+                            "finding_count": len(summary.findings),
+                            "confidence": summary.confidence,
+                            "status": "success",
+                        },
+                        investigation_id=state["investigation_id"],
+                        dispute_id=state["dispute_id"],
+                    )
+                    _append_agent_message(
+                        state,
+                        actor=analyzer_request["name"],
+                        message="Analyzer returned findings to orchestrator.",
+                        stage="collect",
+                        details={
+                            "finding_count": len(summary.findings),
+                            "contradiction_count": len(summary.contradictions),
+                        },
+                    )
+                    _append_event(
+                        state,
+                        "analyzer_completed",
+                        {
+                            **summary.model_dump(mode="json"),
+                            "analyzer_id": analyzer_id,
+                            "analyzer_name": analyzer_request["name"],
+                        },
+                        event_id=f"analyzer_completed_{analyzer_id}",
+                    )
+            state["pending_tools"] = []
+            state["pending_analyzers"] = []
+            return state
 
     async def synthesize(self, state: DisputeState) -> DisputeState:
-        _append_agent_message(
-            state,
-            actor="orchestrator",
-            message="Calling risk engine and synthesizer.",
-            stage="synthesize",
-            details={"evidence_count": len(state["evidence"])},
-        )
-        _append_event(
-            state,
-            "agent_status_updated",
-            {
-                "phase": "synthesize",
-                "message": "Scoring risk and drafting recommendation",
-                "investigation_id": state["investigation_id"],
+        with tracer.start_as_current_span(
+            "investigation.node.synthesize",
+            attributes={
+                "dispute.id": state["dispute_id"],
+                "investigation.id": state["investigation_id"],
             },
-        )
-        state["risk_assessment"] = calculate_risk(state["evidence"], state["analyzer_summaries"])
-        _append_agent_message(
-            state,
-            actor="risk_engine",
-            message="Returned deterministic risk assessment.",
-            stage="synthesize",
-            details={
-                "risk_level": state["risk_assessment"].level,
-                "risk_score": state["risk_assessment"].score,
-            },
-        )
-        state["compliance_findings"] = evaluate_compliance(state["evidence"])
-        _append_agent_message(
-            state,
-            actor="compliance_engine",
-            message="Returned compliance findings to orchestrator.",
-            stage="synthesize",
-            details={"finding_count": len(state["compliance_findings"])},
-        )
-        state["investigation_report"], llm_meta = await self.synthesizer.build_report(
-            hypotheses=state["hypotheses"],
-            risk=state["risk_assessment"],
-            compliance=state["compliance_findings"],
-            evidence_ids=[item.id for item in state["evidence"]],
-            unresolved_questions=state["unresolved_questions"],
-        )
-        _append_agent_message(
-            state,
-            actor="synthesizer",
-            message="Returned recommendation draft to orchestrator.",
-            stage="synthesize",
-            details={
-                "recommendation": state["investigation_report"].recommendation,
-                "used_heuristic": llm_meta is None,
-            },
-        )
-        await record_audit_event(
-            self.session,
-            actor=_actor_from_state(state),
-            event_name="investigation.synthesis",
-            payload=_llm_trace_payload(
-                llm_meta=llm_meta,
-                base_payload={
-                    "recommendation": state["investigation_report"].recommendation
-                    if state["investigation_report"]
-                    else None,
-                    "confidence": state["investigation_report"].confidence
-                    if state["investigation_report"]
-                    else None,
+        ) as span:
+            _append_agent_message(
+                state,
+                actor="orchestrator",
+                message="Calling risk engine and synthesizer.",
+                stage="synthesize",
+                details={"evidence_count": len(state["evidence"])},
+            )
+            _append_event(
+                state,
+                "agent_status_updated",
+                {
+                    "phase": "synthesize",
+                    "message": "Scoring risk and drafting recommendation",
+                    "investigation_id": state["investigation_id"],
                 },
-                template_id=SYNTHESIS_PROMPT_TEMPLATE_ID,
-                template_version=SYNTHESIS_PROMPT_TEMPLATE_VERSION,
-                template_sha256=SYNTHESIS_PROMPT_TEMPLATE_SHA256,
-            ),
-            investigation_id=state["investigation_id"],
-            dispute_id=state["dispute_id"],
-        )
-        _append_event(
-            state,
-            "risk_updated",
-            state["risk_assessment"].model_dump(mode="json"),
-            event_id=f"risk_{state['investigation_id']}_{state['iteration_count']}",
-        )
-        _append_event(
-            state,
-            "final_report_ready",
-            state["investigation_report"].model_dump(mode="json"),
-            event_id=f"report_{state['investigation_id']}",
-        )
-        return state
+            )
+            state["risk_assessment"] = calculate_risk(
+                state["evidence"], state["analyzer_summaries"]
+            )
+            if state["risk_assessment"]:
+                span.set_attribute("risk.score", state["risk_assessment"].score)
+                span.set_attribute("risk.level", state["risk_assessment"].level)
+            _append_agent_message(
+                state,
+                actor="risk_engine",
+                message="Returned deterministic risk assessment.",
+                stage="synthesize",
+                details={
+                    "risk_level": state["risk_assessment"].level,
+                    "risk_score": state["risk_assessment"].score,
+                },
+            )
+            state["compliance_findings"] = evaluate_compliance(state["evidence"])
+            _append_agent_message(
+                state,
+                actor="compliance_engine",
+                message="Returned compliance findings to orchestrator.",
+                stage="synthesize",
+                details={"finding_count": len(state["compliance_findings"])},
+            )
+            state["investigation_report"], llm_meta = await self.synthesizer.build_report(
+                hypotheses=state["hypotheses"],
+                risk=state["risk_assessment"],
+                compliance=state["compliance_findings"],
+                evidence_ids=[item.id for item in state["evidence"]],
+                unresolved_questions=state["unresolved_questions"],
+            )
+            if llm_meta is not None:
+                span.set_attribute("gen_ai.system", llm_meta.provider)
+                span.set_attribute("gen_ai.request.model", llm_meta.model_used)
+                span.set_attribute("gen_ai.usage.input_tokens", llm_meta.input_tokens)
+                span.set_attribute("gen_ai.usage.output_tokens", llm_meta.output_tokens)
+            _append_agent_message(
+                state,
+                actor="synthesizer",
+                message="Returned recommendation draft to orchestrator.",
+                stage="synthesize",
+                details={
+                    "recommendation": state["investigation_report"].recommendation,
+                    "used_heuristic": llm_meta is None,
+                },
+            )
+            await record_audit_event(
+                self.session,
+                actor=_actor_from_state(state),
+                event_name="investigation.synthesis",
+                payload=_llm_trace_payload(
+                    llm_meta=llm_meta,
+                    base_payload={
+                        "recommendation": state["investigation_report"].recommendation
+                        if state["investigation_report"]
+                        else None,
+                        "confidence": state["investigation_report"].confidence
+                        if state["investigation_report"]
+                        else None,
+                    },
+                    template_id=SYNTHESIS_PROMPT_TEMPLATE_ID,
+                    template_version=SYNTHESIS_PROMPT_TEMPLATE_VERSION,
+                    template_sha256=SYNTHESIS_PROMPT_TEMPLATE_SHA256,
+                ),
+                investigation_id=state["investigation_id"],
+                dispute_id=state["dispute_id"],
+            )
+            _append_event(
+                state,
+                "risk_updated",
+                state["risk_assessment"].model_dump(mode="json"),
+                event_id=f"risk_{state['investigation_id']}_{state['iteration_count']}",
+            )
+            _append_event(
+                state,
+                "final_report_ready",
+                state["investigation_report"].model_dump(mode="json"),
+                event_id=f"report_{state['investigation_id']}",
+            )
+            return state
 
     async def approval(self, state: DisputeState) -> DisputeState:
-        approval_payload: dict[str, Any] = {
-            "investigation_id": state["investigation_id"],
-            "report": state["investigation_report"].model_dump(mode="json")
-            if state["investigation_report"]
-            else None,
-            "risk": (
-                state["risk_assessment"].model_dump(mode="json")
-                if state["risk_assessment"]
-                else None
-            ),
-            "evidence": [item.model_dump(mode="json") for item in state["evidence"]],
-        }
-        _append_event(
-            state,
-            "agent_status_updated",
-            {
-                "phase": "approval",
-                "message": "Awaiting reviewer approval",
-                "investigation_id": state["investigation_id"],
+        with tracer.start_as_current_span(
+            "investigation.node.approval",
+            attributes={
+                "dispute.id": state["dispute_id"],
+                "investigation.id": state["investigation_id"],
             },
-        )
-        _append_event(
-            state,
-            "approval_required",
-            approval_payload,
-            event_id=f"approval_{state['investigation_id']}",
-        )
-        decision = interrupt(
-            {
-                "type": "human_approval",
-                "dispute_id": state["dispute_id"],
-                "recommendation": state["investigation_report"].model_dump()
-                if state["investigation_report"]
-                else None,
-                "risk": state["risk_assessment"].model_dump() if state["risk_assessment"] else None,
-                "evidence": [item.model_dump() for item in state["evidence"]],
-            }
-        )
-        state["approval_decision"] = decision
-        report = state["investigation_report"]
-        if report and decision.get("decision") == "deny":
-            state["investigation_report"] = report.model_copy(update={"recommendation": "deny"})
-        return state
-
-    async def finalize(self, state: DisputeState) -> DisputeState:
-        state["status"] = "completed"
-        _append_event(
-            state,
-            "agent_status_updated",
-            {
-                "phase": "finalize",
-                "message": "Investigation complete",
-                "investigation_id": state["investigation_id"],
-            },
-        )
-        _append_event(
-            state,
-            "run_completed",
-            {
+        ):
+            approval_payload: dict[str, Any] = {
                 "investigation_id": state["investigation_id"],
                 "report": state["investigation_report"].model_dump(mode="json")
                 if state["investigation_report"]
                 else None,
+                "risk": (
+                    state["risk_assessment"].model_dump(mode="json")
+                    if state["risk_assessment"]
+                    else None
+                ),
+                "evidence": [item.model_dump(mode="json") for item in state["evidence"]],
+            }
+            _append_event(
+                state,
+                "agent_status_updated",
+                {
+                    "phase": "approval",
+                    "message": "Awaiting reviewer approval",
+                    "investigation_id": state["investigation_id"],
+                },
+            )
+            _append_event(
+                state,
+                "approval_required",
+                approval_payload,
+                event_id=f"approval_{state['investigation_id']}",
+            )
+            decision = interrupt(
+                {
+                    "type": "human_approval",
+                    "dispute_id": state["dispute_id"],
+                    "recommendation": (
+                        state["investigation_report"].model_dump()
+                        if state["investigation_report"]
+                        else None
+                    ),
+                    "risk": (
+                        state["risk_assessment"].model_dump()
+                        if state["risk_assessment"]
+                        else None
+                    ),
+                    "evidence": [item.model_dump() for item in state["evidence"]],
+                }
+            )
+            state["approval_decision"] = decision
+            report = state["investigation_report"]
+            decision_val = decision.get("decision")
+            if report and decision_val == "deny":
+                state["investigation_report"] = report.model_copy(update={"recommendation": "deny"})
+            elif decision_val == "request_revision":
+                state["revision_count"] = state.get("revision_count", 0) + 1
+                guidance = (
+                    decision.get("guidance")
+                    or decision.get("comment")
+                    or "Reviewer requested revision."
+                )
+                state["reviewer_guidance"] = guidance
+                _append_agent_message(
+                    state,
+                    actor="reviewer",
+                    message=f"Reviewer requested re-investigation: {guidance}",
+                    stage="approval",
+                    details={"guidance": guidance},
+                )
+                _append_event(
+                    state,
+                    "agent_status_updated",
+                    {
+                        "phase": "investigate",
+                        "message": f"Reviewer requested revision: {guidance}",
+                        "investigation_id": state["investigation_id"],
+                    },
+                )
+            return state
+
+    async def finalize(self, state: DisputeState) -> DisputeState:
+        with tracer.start_as_current_span(
+            "investigation.node.finalize",
+            attributes={
+                "dispute.id": state["dispute_id"],
+                "investigation.id": state["investigation_id"],
             },
-            event_id=f"run_completed_{state['investigation_id']}",
-        )
-        return state
+        ):
+            state["status"] = "completed"
+            _append_event(
+                state,
+                "agent_status_updated",
+                {
+                    "phase": "finalize",
+                    "message": "Investigation complete",
+                    "investigation_id": state["investigation_id"],
+                },
+            )
+            _append_event(
+                state,
+                "run_completed",
+                {
+                    "investigation_id": state["investigation_id"],
+                    "report": state["investigation_report"].model_dump(mode="json")
+                    if state["investigation_report"]
+                    else None,
+                },
+                event_id=f"run_completed_{state['investigation_id']}",
+            )
+            return state

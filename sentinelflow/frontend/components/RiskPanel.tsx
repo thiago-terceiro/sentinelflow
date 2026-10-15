@@ -4,7 +4,7 @@ type Props = {
     risk: RiskAssessment | null;
 };
 
-export function RiskPanel({ risk }: Props) {
+export const RiskPanel = ({ risk }: Props) => {
     const meter = risk ? `${Math.round(risk.score * 100)}%` : "0%";
     return (
         <section className="shell-card" style={{ padding: 24 }}>

@@ -26,6 +26,7 @@ from app.security import Principal
 from arq import create_pool
 from arq.connections import RedisSettings
 from langgraph.types import Command
+from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 settings = get_settings()
@@ -189,6 +190,8 @@ def initial_state(record: InvestigationRecord, principal: PrincipalContext) -> d
         ],
         "approval_request": None,
         "approval_decision": None,
+        "reviewer_guidance": None,
+        "revision_count": 0,
         "checkpoint_ref": None,
     }
 
@@ -362,43 +365,67 @@ async def _run_new_investigation(
     investigation_id: str,
     principal: PrincipalContext,
 ) -> None:
-    try:
-        async with SessionLocal() as session:
-            record = await session.get(InvestigationRecord, investigation_id)
-            if record is None or record.status in TERMINAL_STATUSES:
-                return
-            record.status = "running"
-            await session.commit()
-            await session.refresh(record)
+    tracer = trace.get_tracer("sentinelflow.investigations")
+    with tracer.start_as_current_span(
+        "investigation.workflow",
+        attributes={
+            "investigation.id": investigation_id,
+            "principal.id": principal.user_id,
+        },
+    ) as span:
+        try:
+            async with SessionLocal() as session:
+                record = await session.get(InvestigationRecord, investigation_id)
+                if record is None or record.status in TERMINAL_STATUSES:
+                    return
+                span.set_attribute("dispute.id", record.dispute_id)
+                span.set_attribute("thread.id", record.thread_id)
+                record.status = "running"
+                await session.commit()
+                await session.refresh(record)
 
-            graph = build_graph(session)
-            config = thread_config(record.thread_id)
-            snapshot = await graph.aget_state(config)
-            snapshot_values = _snapshot_values(snapshot) if snapshot is not None else {}
-            graph_input = None if snapshot_values else initial_state(record, principal)
-            await _run_graph(session, record, graph_input)
-    except Exception:
-        await _mark_failed_with_reason(investigation_id, "Investigation execution failed.")
-        raise
+                graph = build_graph(session)
+                config = thread_config(record.thread_id)
+                snapshot = await graph.aget_state(config)
+                snapshot_values = _snapshot_values(snapshot) if snapshot is not None else {}
+                graph_input = None if snapshot_values else initial_state(record, principal)
+                await _run_graph(session, record, graph_input)
+        except Exception as exc:
+            span.record_exception(exc)
+            span.set_status(trace.StatusCode.ERROR, str(exc))
+            await _mark_failed_with_reason(investigation_id, "Investigation execution failed.")
+            raise
 
 
 async def _run_resume_investigation(
     investigation_id: str,
     decision: dict[str, Any],
 ) -> None:
-    try:
-        async with SessionLocal() as session:
-            record = await session.get(InvestigationRecord, investigation_id)
-            if record is None:
-                return
-            record.status = "running"
-            await session.commit()
-            await session.refresh(record)
-            resume_command: Command[tuple[()]] = Command(resume=decision)
-            await _run_graph(session, record, resume_command)
-    except Exception:
-        await _mark_failed_with_reason(investigation_id, "Investigation resume failed.")
-        raise
+    tracer = trace.get_tracer("sentinelflow.investigations")
+    with tracer.start_as_current_span(
+        "investigation.resume_workflow",
+        attributes={
+            "investigation.id": investigation_id,
+            "decision.action": str(decision.get("decision", "unknown")),
+        },
+    ) as span:
+        try:
+            async with SessionLocal() as session:
+                record = await session.get(InvestigationRecord, investigation_id)
+                if record is None:
+                    return
+                span.set_attribute("dispute.id", record.dispute_id)
+                span.set_attribute("thread.id", record.thread_id)
+                record.status = "running"
+                await session.commit()
+                await session.refresh(record)
+                resume_command: Command[tuple[()]] = Command(resume=decision)
+                await _run_graph(session, record, resume_command)
+        except Exception as exc:
+            span.record_exception(exc)
+            span.set_status(trace.StatusCode.ERROR, str(exc))
+            await _mark_failed_with_reason(investigation_id, "Investigation resume failed.")
+            raise
 
 
 async def run_investigation_job(_ctx: dict[str, Any], payload: dict[str, Any]) -> None:

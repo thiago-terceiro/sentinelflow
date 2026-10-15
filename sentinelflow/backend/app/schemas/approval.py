@@ -7,15 +7,17 @@ from pydantic import BaseModel, Field
 
 
 class ApprovalDecision(BaseModel):
-    decision: Literal["approve", "deny"]
+    decision: Literal["approve", "deny", "request_revision"]
     comment: str = Field(min_length=1, max_length=4000)
+    guidance: str | None = Field(default=None, max_length=4000)
 
 
 class ApprovalRecord(BaseModel):
     user_id: str
     role: str
-    decision: Literal["approve", "deny"]
+    decision: Literal["approve", "deny", "request_revision"]
     comment: str
+    guidance: str | None = None
     timestamp: datetime
     dispute_id: str
     investigation_id: str

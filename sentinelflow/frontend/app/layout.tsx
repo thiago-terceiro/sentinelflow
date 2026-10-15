@@ -12,10 +12,10 @@ const body = IBM_Plex_Mono({ subsets: ["latin"], variable: "--font-body", weight
 
 export const metadata: Metadata = {
     title: "SentinelFlow",
-    description: "AI dispute investigation console",
+    description: "AI dispute investigation console and audit log system",
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>) => {
     const cookieStore = await cookies();
     const hasSession = Boolean(cookieStore.get(ACCESS_TOKEN_COOKIE_NAME)?.value);
     const userInfo = cookieStore.get(TEST_USER_COOKIE_NAME)?.value ?? "";
@@ -29,19 +29,79 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     <div
                         className="shell-card"
                         style={{
-                            padding: "12px 16px",
+                            padding: "14px 20px",
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
                         }}
                     >
-                        <strong>SentinelFlow Console</strong>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            {hasSession && sessionLabel ? <span style={{ color: "var(--muted)" }}>{sessionLabel}</span> : null}
+                        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                            <Link
+                                href="/"
+                                style={{
+                                    fontWeight: 700,
+                                    fontSize: 16,
+                                    textDecoration: "none",
+                                    color: "var(--foreground)",
+                                    letterSpacing: "-0.02em",
+                                }}
+                            >
+                                ⚡ SentinelFlow
+                            </Link>
+
+                            <nav style={{ display: "flex", gap: 14, fontSize: 13 }}>
+                                <Link
+                                    href="/"
+                                    style={{
+                                        color: "var(--muted)",
+                                        textDecoration: "none",
+                                        fontWeight: 500,
+                                    }}
+                                >
+                                    Disputes
+                                </Link>
+                                <Link
+                                    href="/audit"
+                                    style={{
+                                        color: "var(--accent)",
+                                        textDecoration: "none",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    🛡️ Auditor Portal
+                                </Link>
+                            </nav>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                            {hasSession && sessionLabel ? (
+                                <span
+                                    style={{
+                                        fontSize: 12,
+                                        padding: "3px 8px",
+                                        borderRadius: 999,
+                                        background: "rgba(255,255,255,0.06)",
+                                        color: "var(--foreground)",
+                                    }}
+                                >
+                                    {sessionLabel}
+                                </span>
+                            ) : null}
                             {hasSession ? (
-                                <Link href="/auth/logout" prefetch={false} style={{ color: "var(--muted)" }}>Sign out</Link>
+                                <Link
+                                    href="/auth/logout"
+                                    prefetch={false}
+                                    style={{ color: "var(--muted)", fontSize: 13, textDecoration: "none" }}
+                                >
+                                    Sign out
+                                </Link>
                             ) : (
-                                <Link href="/login" style={{ color: "var(--muted)" }}>Sign in</Link>
+                                <Link
+                                    href="/login"
+                                    style={{ color: "var(--accent)", fontSize: 13, textDecoration: "none", fontWeight: 600 }}
+                                >
+                                    Sign in
+                                </Link>
                             )}
                         </div>
                     </div>
@@ -50,4 +110,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </body>
         </html>
     );
-}
+};
+
+export default RootLayout;

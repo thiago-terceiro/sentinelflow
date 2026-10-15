@@ -70,6 +70,10 @@ export const initialConsoleState: ConsoleState = {
     reconnectAttempt: 0,
     nextReconnectDelayMs: null,
     error: null,
+    activeThoughtProcess: null,
+    reasoningSteps: [],
+    currentPhase: "intake",
+    reviewerGuidance: null,
 };
 
 export const applyRunToConsoleState = (state: ConsoleState, run: InvestigationRun): ConsoleState => {
@@ -98,11 +102,25 @@ export const applyRunToConsoleState = (state: ConsoleState, run: InvestigationRu
 
 export const applyStreamEventToConsoleState = (state: ConsoleState, event: StreamEvent): ConsoleState => {
     const nextTimeline = mergeUniqueById(state.timeline, event);
+    if (event.type === "agent_message") {
+        const stage = typeof event.data.stage === "string" ? (event.data.stage as ConsoleState["currentPhase"]) : state.currentPhase;
+        const guidance = typeof event.data.guidance === "string" ? event.data.guidance : state.reviewerGuidance;
+        return {
+            ...state,
+            agentStatus: String(event.data.message ?? state.agentStatus ?? "Investigator thinking"),
+            currentPhase: stage ?? state.currentPhase,
+            reviewerGuidance: guidance ?? state.reviewerGuidance,
+            timeline: nextTimeline,
+            streamConnection: "connected",
+            error: null,
+        };
+    }
     if (event.type === "evidence_added") {
         const nextEvidence = event.data as ConsoleState["evidence"][number];
         return {
             ...state,
             evidence: mergeUniqueById(state.evidence, nextEvidence),
+            currentPhase: "collect",
             timeline: nextTimeline,
             streamConnection: "connected",
             error: null,
@@ -122,6 +140,7 @@ export const applyStreamEventToConsoleState = (state: ConsoleState, event: Strea
         return {
             ...state,
             agentStatus: payload.label,
+            currentPhase: "collect",
             toolLogs: upsertToolLog(state.toolLogs, { ...payload, status: "started" }),
             timeline: nextTimeline,
             streamConnection: "connected",
@@ -132,6 +151,7 @@ export const applyStreamEventToConsoleState = (state: ConsoleState, event: Strea
         const payload = toolEventPayload(event.data);
         return {
             ...state,
+            currentPhase: "collect",
             toolLogs: upsertToolLog(state.toolLogs, { ...payload, status: "completed" }),
             timeline: nextTimeline,
             streamConnection: "connected",
@@ -142,6 +162,7 @@ export const applyStreamEventToConsoleState = (state: ConsoleState, event: Strea
         return {
             ...state,
             agentStatus: String(event.data.label ?? event.data.analyzer_name ?? "Running analyzer"),
+            currentPhase: "collect",
             timeline: nextTimeline,
             streamConnection: "connected",
             error: null,
@@ -151,6 +172,7 @@ export const applyStreamEventToConsoleState = (state: ConsoleState, event: Strea
         const nextAnalyzer = analyzerSummaryFromEvent(event.data);
         return {
             ...state,
+            currentPhase: "collect",
             analyzerSummaries: mergeUniqueByKey(
                 state.analyzerSummaries,
                 nextAnalyzer,
@@ -162,9 +184,16 @@ export const applyStreamEventToConsoleState = (state: ConsoleState, event: Strea
         };
     }
     if (event.type === "hypothesis_updated") {
+        const thought = typeof event.data.thought_process === "string" ? event.data.thought_process : state.activeThoughtProcess;
+        const steps = Array.isArray(event.data.reasoning_steps)
+            ? (event.data.reasoning_steps as string[])
+            : state.reasoningSteps;
         return {
             ...state,
             hypotheses: (event.data.hypotheses as ConsoleState["hypotheses"]) ?? state.hypotheses,
+            activeThoughtProcess: thought,
+            reasoningSteps: steps,
+            currentPhase: "investigate",
             timeline: nextTimeline,
             streamConnection: "connected",
             error: null,
@@ -183,6 +212,7 @@ export const applyStreamEventToConsoleState = (state: ConsoleState, event: Strea
         return {
             ...state,
             agentStatus: "Drafted final recommendation",
+            currentPhase: "synthesize",
             report: event.data as ConsoleState["report"],
             isReportUnlocked: false,
             timeline: nextTimeline,
@@ -194,6 +224,7 @@ export const applyStreamEventToConsoleState = (state: ConsoleState, event: Strea
         return {
             ...state,
             agentStatus: "Awaiting reviewer approval",
+            currentPhase: "approval",
             requiresApproval: true,
             status: "APPROVAL_REQUIRED",
             report: (event.data.report as ConsoleState["report"]) ?? state.report,
@@ -209,6 +240,7 @@ export const applyStreamEventToConsoleState = (state: ConsoleState, event: Strea
         return {
             ...state,
             agentStatus: "Investigation complete",
+            currentPhase: "finalize",
             status: "COMPLETED",
             requiresApproval: false,
             report: (event.data.report as ConsoleState["report"]) ?? state.report,

@@ -4,7 +4,7 @@ type Props = {
     analyzers: AnalyzerSummary[];
 };
 
-export function AnalyzerPanel({ analyzers }: Props) {
+export const AnalyzerPanel = ({ analyzers }: Props) => {
     return (
         <section className="shell-card" style={{ padding: 24 }}>
             <h2>Analyzer findings</h2>

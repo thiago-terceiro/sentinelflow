@@ -6,7 +6,7 @@ type Props = {
     params: Promise<{ disputeId: string }>;
 };
 
-export default async function DisputePage({ params }: Props) {
+const DisputePage = async ({ params }: Props) => {
     const { disputeId } = await params;
     return (
         <main style={{ padding: "32px 0 80px" }}>
@@ -16,4 +16,6 @@ export default async function DisputePage({ params }: Props) {
             <InvestigationConsole disputeId={disputeId} />
         </main>
     );
-}
+};
+
+export default DisputePage;

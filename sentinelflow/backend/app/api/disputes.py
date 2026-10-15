@@ -25,6 +25,7 @@ from app.services.audit import (
     get_raw_audit_artifact,
     list_audit_records,
     project_payload_for_roles,
+    query_audit_records,
     record_audit_event,
     verify_audit_integrity,
 )
@@ -43,7 +44,13 @@ async def list_disputes(
     session: DBSessionDep,
     principal: PrincipalDep,
 ) -> list[DisputeSummary]:
-    principal.require_any(Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.REVIEWER, Role.ADMIN)
+    principal.require_any(
+        Role.INVESTIGATOR,
+        Role.SENIOR_INVESTIGATOR,
+        Role.REVIEWER,
+        Role.AUDITOR,
+        Role.ADMIN,
+    )
     result = await session.execute(select(DisputeRecord).order_by(DisputeRecord.created_at.desc()))
     return [
         DisputeSummary(
@@ -149,7 +156,13 @@ async def get_investigation(
     session: DBSessionDep,
     principal: PrincipalDep,
 ) -> InvestigationRun:
-    principal.require_any(Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.REVIEWER, Role.ADMIN)
+    principal.require_any(
+        Role.INVESTIGATOR,
+        Role.SENIOR_INVESTIGATOR,
+        Role.REVIEWER,
+        Role.AUDITOR,
+        Role.ADMIN,
+    )
     record = await session.get(InvestigationRecord, investigation_id)
     if record is None:
         raise NotFoundError("INVESTIGATION_NOT_FOUND", "Investigation was not found.")
@@ -162,11 +175,54 @@ async def get_evidence(
     session: DBSessionDep,
     principal: PrincipalDep,
 ) -> list[dict[str, Any]]:
-    principal.require_any(Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.REVIEWER, Role.ADMIN)
+    principal.require_any(
+        Role.INVESTIGATOR,
+        Role.SENIOR_INVESTIGATOR,
+        Role.REVIEWER,
+        Role.AUDITOR,
+        Role.ADMIN,
+    )
     record = await session.get(InvestigationRecord, investigation_id)
     if record is None:
         raise NotFoundError("INVESTIGATION_NOT_FOUND", "Investigation was not found.")
     return record.evidence
+
+
+@router.get("/audit/records")
+async def list_global_audit_records(
+    session: DBSessionDep,
+    principal: PrincipalDep,
+    dispute_id: str | None = None,
+    investigation_id: str | None = None,
+    event_name: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    principal.require_any(Role.SENIOR_INVESTIGATOR, Role.REVIEWER, Role.AUDITOR, Role.ADMIN)
+    records = await query_audit_records(
+        session,
+        dispute_id=dispute_id,
+        investigation_id=investigation_id,
+        event_name=event_name,
+        limit=limit,
+        offset=offset,
+    )
+    return [
+        {
+            "id": item.id,
+            "dispute_id": item.dispute_id,
+            "investigation_id": item.investigation_id,
+            "event_name": item.event_name,
+            "payload": project_payload_for_roles(item.payload, principal.roles),
+            "actor_id": item.actor_id,
+            "actor_role": item.actor_role,
+            "sequence_no": item.sequence_no,
+            "prev_hash": item.prev_hash,
+            "row_hash": item.row_hash,
+            "created_at": item.created_at,
+        }
+        for item in records
+    ]
 
 
 @router.get("/investigations/{investigation_id}/audit")
@@ -281,7 +337,13 @@ async def stream_investigation(
     investigation_id: str,
     principal: PrincipalDep,
 ) -> StreamingResponse:
-    principal.require_any(Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.REVIEWER, Role.ADMIN)
+    principal.require_any(
+        Role.INVESTIGATOR,
+        Role.SENIOR_INVESTIGATOR,
+        Role.REVIEWER,
+        Role.AUDITOR,
+        Role.ADMIN,
+    )
     return StreamingResponse(
         stream_graph_events(investigation_id),
         media_type="text/event-stream",

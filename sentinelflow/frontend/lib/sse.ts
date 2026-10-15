@@ -4,7 +4,7 @@ type InvestigationStream = {
     close: () => void;
 };
 
-function parseEventChunk(chunk: string): StreamEvent[] {
+const parseEventChunk = (chunk: string): StreamEvent[] => {
     return chunk
         .split("\n\n")
         .map((eventBlock) => {
@@ -22,14 +22,14 @@ function parseEventChunk(chunk: string): StreamEvent[] {
             }
         })
         .filter((event): event is StreamEvent => event !== null);
-}
+};
 
-export function openInvestigationStream(
+export const openInvestigationStream = (
     url: string,
     onEvent: (event: StreamEvent) => void,
     onError: (message: string) => void,
     onClose?: () => void,
-): InvestigationStream {
+): InvestigationStream => {
     const controller = new AbortController();
     const decoder = new TextDecoder();
     let closedByCaller = false;
@@ -100,4 +100,4 @@ export function openInvestigationStream(
             controller.abort();
         },
     };
-}
+};

@@ -41,4 +41,6 @@ class DisputeState(TypedDict):
     timeline_events: list[dict[str, Any]]
     approval_request: dict[str, Any] | None
     approval_decision: dict[str, Any] | None
+    reviewer_guidance: str | None
+    revision_count: int
     checkpoint_ref: str | None

@@ -19,7 +19,7 @@ const fallbackMessage = (status: Props["status"]) => {
     return "Ready to start";
 };
 
-export function AgentMessageStrip({ message, status }: Props) {
+export const AgentMessageStrip = ({ message, status }: Props) => {
     const isActive = status === "RUNNING" || status === "APPROVAL_REQUIRED";
 
     return (
