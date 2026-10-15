@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - main
+      - master
     paths:
       - "sentinelflow/**"
       - ".github/workflows/ci.yml"
@@ -23,49 +24,89 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
 
-      - name: Run backend validation
+      - name: Run backend validation (lint, test, evals)
         run: bash .github/scripts/validate-sentinelflow.sh backend
 
-  frontend-build:
-    name: frontend-build
+  frontend-validate:
+    name: frontend-validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
+        uses: actions/checkout@v4
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: "10"
+          run_install: false
 
-      - name: Run frontend validation
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: "sentinelflow/frontend/pnpm-lock.yaml"
+
+      - name: Run frontend validation (test, build)
         run: bash .github/scripts/validate-sentinelflow.sh frontend
 
-  # TODO: migrations should follow expand → migrate → contract.
+  contract-drift-check:
+    name: contract-drift-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: "sentinelflow/frontend/pnpm-lock.yaml"
+
+      - name: Install dependencies
+        run: |
+          cd sentinelflow/backend && uv sync --extra dev
+          cd ../frontend && pnpm install
+
+      - name: Verify OpenAPI & TypeScript schema synchronization
+        run: bash .github/scripts/validate-sentinelflow.sh contract
+
+  # Continuous delivery database migrations
   database-migrate:
     name: database-migrate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: backend-validate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: [backend-validate, frontend-validate, contract-drift-check]
     runs-on: ubuntu-latest
 
     environment: production
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
 
       - name: Verify database URL is configured
         env:

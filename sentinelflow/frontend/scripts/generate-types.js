@@ -11,7 +11,7 @@ const outputFile = resolve(frontendDir, "lib/types/api.generated.ts");
 
 const exportBackendOpenApi = () => {
     console.log("[codegen] 1/2 Exporting OpenAPI schema from FastAPI backend...");
-    const pythonCommand = `uv run python -c "import json; from app.main import app; open(r'${schemaFile}', 'w', encoding='utf-8').write(json.dumps(app.openapi(), indent=2))"`;
+    const pythonCommand = `uv run python -c "import json; from app.main import app; open(r'${schemaFile}', 'w', encoding='utf-8', newline='\\n').write(json.dumps(app.openapi(), indent=2) + '\\n')"`;
     try {
         execSync(pythonCommand, {
             cwd: backendDir,
