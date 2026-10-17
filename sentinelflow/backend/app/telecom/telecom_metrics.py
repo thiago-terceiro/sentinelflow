@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 # Prometheus Metrics
 TELECOM_REQUESTS_TOTAL = Counter(
@@ -37,6 +37,21 @@ TELECOM_CACHE_HITS = Counter(
 TELECOM_CACHE_MISSES = Counter(
     "telecom_cache_misses_total",
     "Total cache / reputation misses in velocity store",
+)
+
+TELECOM_DRIFT_PSI = Gauge(
+    "telecom_drift_psi",
+    "Population Stability Index (PSI) of live fraud scores versus baseline",
+)
+
+TELECOM_DRIFT_KS_PVALUE = Gauge(
+    "telecom_drift_ks_pvalue",
+    "Two-sample Kolmogorov-Smirnov p-value comparing live message lengths against baseline",
+)
+
+TELECOM_DRIFT_STATUS = Gauge(
+    "telecom_drift_status",
+    "Categorical MLOps drift status (0=Healthy, 1=Moderate Drift, 2=Critical Drift)",
 )
 
 
@@ -177,4 +192,8 @@ def get_metrics_tracker() -> TelecomMetricsTracker:
 
 def export_prometheus_metrics() -> tuple[bytes, str]:
     """Generates Prometheus format bytes and the correct Content-Type."""
+    from app.telecom.drift_monitor import get_drift_monitor
+
+    # Automatically refresh drift metrics gauges on each Prometheus scrape
+    get_drift_monitor().evaluate_drift()
     return generate_latest(), CONTENT_TYPE_LATEST

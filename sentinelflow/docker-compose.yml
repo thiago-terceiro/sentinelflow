@@ -211,6 +211,8 @@ services:
       context: ./backend
     restart: "no"
     profiles: ["simulator"]
+    volumes:
+      - ./ops:/app/ops:ro
     command: ["python", "-m", "ops.telecom_simulator", "--url", "http://backend:8000/v1/classify", "--events", "1000", "--rps", "100"]
     depends_on:
       backend:

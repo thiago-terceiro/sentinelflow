@@ -163,6 +163,9 @@ async def test_telecom_metrics_and_prometheus() -> None:
         body = prom_resp.text
         assert "telecom_requests_total" in body
         assert "telecom_latency_seconds" in body
+        assert "telecom_drift_psi" in body
+        assert "telecom_drift_ks_pvalue" in body
+        assert "telecom_drift_status" in body
 
         # Verify JSON summary endpoint
         summary_resp = await client.get("/api/v1/telecom/metrics/summary")

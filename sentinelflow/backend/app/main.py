@@ -21,6 +21,7 @@ from app.api.telecom import (
 from app.config import get_settings
 from app.db.session import engine
 from app.errors import install_error_handlers
+from app.graph.graph import close_checkpointer
 from app.http import install_http_middleware
 from app.logging import configure_logging
 from app.services.investigations import close_redis_pool
@@ -36,6 +37,7 @@ async def lifespan(_app: FastAPI):
     yield
     await get_velocity_store().close()
     await close_redis_pool()
+    await close_checkpointer()
     await engine.dispose()
     provider = trace.get_tracer_provider()
     if hasattr(provider, "shutdown"):

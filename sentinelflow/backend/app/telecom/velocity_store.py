@@ -107,6 +107,15 @@ class RedisVelocityStore:
         v60s = sum(1 for ts in sender_deque if ts >= now - 60.0)
         v1h = len(sender_deque)
 
+        # Bound memory growth under heavy continuous fallback traffic
+        if len(self._in_memory_sender_history) > 10000:
+            stale = [
+                k for k, dq in self._in_memory_sender_history.items()
+                if not dq or dq[-1] < now - 3600.0
+            ]
+            for k in stale[:2000]:
+                self._in_memory_sender_history.pop(k, None)
+
         # Clean & record IP history
         ip_count = 0
         if ip:

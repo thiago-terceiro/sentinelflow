@@ -210,7 +210,23 @@ class DataDriftMonitor:
 
     def evaluate_drift(self) -> DriftReport:
         """Runs Kolmogorov-Smirnov test and Population Stability Index against baseline."""
+        try:
+            from app.telecom.telecom_metrics import (
+                TELECOM_DRIFT_KS_PVALUE,
+                TELECOM_DRIFT_PSI,
+                TELECOM_DRIFT_STATUS,
+            )
+        except ImportError:
+            TELECOM_DRIFT_KS_PVALUE = None  # type: ignore[assignment]
+            TELECOM_DRIFT_PSI = None  # type: ignore[assignment]
+            TELECOM_DRIFT_STATUS = None  # type: ignore[assignment]
+
         if len(self._message_lengths) < 15:
+            if TELECOM_DRIFT_PSI is not None:
+                TELECOM_DRIFT_PSI.set(0.0)
+                TELECOM_DRIFT_KS_PVALUE.set(1.0)
+                TELECOM_DRIFT_STATUS.set(0.0)
+
             return DriftReport(
                 status="HEALTHY",
                 ks_statistic=0.0,
@@ -265,6 +281,17 @@ class DataDriftMonitor:
             recommendation = (
                 "Traffic distribution is aligned with baseline training data. Operating stably."
             )
+
+        # 4. Set Prometheus Gauges
+        if TELECOM_DRIFT_PSI is not None:
+            TELECOM_DRIFT_PSI.set(round(psi_val, 4))
+            TELECOM_DRIFT_KS_PVALUE.set(round(ks_p, 4))
+            status_code = (
+                2.0
+                if status == "CRITICAL_DRIFT"
+                else (1.0 if status == "MODERATE_DRIFT" else 0.0)
+            )
+            TELECOM_DRIFT_STATUS.set(status_code)
 
         return DriftReport(
             status=status,

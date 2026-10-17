@@ -135,3 +135,55 @@ def test_build_graph_passes_checkpointer_to_workflow_compile(
     compiled = graph_module.build_graph(cast(AsyncSession, SimpleNamespace()))
 
     assert compiled == {"checkpointer": sentinel}
+
+
+@pytest.mark.asyncio
+async def test_postgres_checkpointer_handles_context_manager_and_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(graph_module, "_postgres_checkpointer_instance", None)
+    monkeypatch.setattr(graph_module, "_checkpointer_pool", None)
+
+    class _FakeContextManager:
+        def __aenter__(self) -> object:
+            return self
+
+        def __aexit__(self, *args: object) -> None:
+            return None
+
+    class _FakeAsyncPostgresSaver:
+        def __init__(self, conn: object) -> None:
+            self.conn = conn
+
+        def aget(self) -> None:
+            return None
+
+        @classmethod
+        def from_conn_string(cls, conn_string: str) -> object:
+            _ = conn_string
+            return _FakeContextManager()
+
+    from unittest.mock import AsyncMock
+
+    fake_pool = SimpleNamespace(close=AsyncMock())
+
+    def _fake_pool_cls(*args: object, **kwargs: object) -> object:
+        return fake_pool
+
+    module = ModuleType("langgraph.checkpoint.postgres.aio")
+    module_any = cast(Any, module)
+    module_any.AsyncPostgresSaver = _FakeAsyncPostgresSaver
+    monkeypatch.setitem(sys.modules, "langgraph.checkpoint.postgres.aio", module)
+
+    pool_module = ModuleType("psycopg_pool")
+    pool_module_any = cast(Any, pool_module)
+    pool_module_any.AsyncConnectionPool = _fake_pool_cls
+    monkeypatch.setitem(sys.modules, "psycopg_pool", pool_module)
+
+    saver = graph_module._postgres_checkpointer("postgresql://fake:5432/db")
+    assert isinstance(saver, _FakeAsyncPostgresSaver)
+    assert saver.conn is fake_pool
+
+    await graph_module.close_checkpointer()
+    assert fake_pool.close.awaited
+

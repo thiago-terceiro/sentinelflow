@@ -49,11 +49,44 @@ def validate_production_checkpointer() -> None:
         raise RuntimeError("Invalid LANGGRAPH_CHECKPOINT_URL for production checkpointer.") from exc
 
 
-@lru_cache(maxsize=1)
+_checkpointer_pool: Any = None
+_postgres_checkpointer_instance: Any = None
+
+
 def _postgres_checkpointer(conn_string: str) -> Any:
+    global _checkpointer_pool, _postgres_checkpointer_instance
+    if _postgres_checkpointer_instance is not None:
+        return _postgres_checkpointer_instance
+
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-    return AsyncPostgresSaver.from_conn_string(conn_string)
+    saver_or_cm = AsyncPostgresSaver.from_conn_string(conn_string)
+    # When real AsyncPostgresSaver.from_conn_string returns an async context manager,
+    # construct the actual AsyncPostgresSaver instance using AsyncConnectionPool.
+    if hasattr(saver_or_cm, "__aenter__") and not hasattr(saver_or_cm, "aget"):
+        from psycopg.rows import dict_row
+        from psycopg_pool import AsyncConnectionPool
+
+        if _checkpointer_pool is None:
+            _checkpointer_pool = AsyncConnectionPool(
+                conn_string,
+                max_size=20,
+                kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+            )
+        _postgres_checkpointer_instance = AsyncPostgresSaver(conn=_checkpointer_pool)
+        return _postgres_checkpointer_instance
+
+    _postgres_checkpointer_instance = saver_or_cm
+    return _postgres_checkpointer_instance
+
+
+async def close_checkpointer() -> None:
+    """Closes the checkpointer connection pool during application shutdown."""
+    global _checkpointer_pool, _postgres_checkpointer_instance
+    if _checkpointer_pool is not None:
+        await _checkpointer_pool.close()
+        _checkpointer_pool = None
+    _postgres_checkpointer_instance = None
 
 
 def _build_checkpointer() -> Any:

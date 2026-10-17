@@ -175,10 +175,13 @@ async def batch_classify_telecom_messages(request: TelecomBatchRequest) -> Telec
     """High-throughput batch ingestion endpoint for bulk SMS stream evaluation."""
     t_batch_start = time.perf_counter()
 
-    results: list[TelecomClassifyResponse] = []
-    for item in request.events:
-        res = await _process_single_message(item)
-        results.append(res)
+    sem = asyncio.Semaphore(50)
+
+    async def _bounded_classify(item: TelecomClassifyRequest) -> TelecomClassifyResponse:
+        async with sem:
+            return await _process_single_message(item)
+
+    results = list(await asyncio.gather(*[_bounded_classify(item) for item in request.events]))
 
     batch_latency = round((time.perf_counter() - t_batch_start) * 1000.0, 2)
     return TelecomBatchResponse(

@@ -128,10 +128,15 @@ class OnnxInferenceEngine:
                 sess_options=opts,
                 providers=["CPUExecutionProvider"],
             )
-            logger.info("Initialized ONNX Runtime CPU session from %s", self.model_path)
+            # Cold-start warmup: run 1 dummy inference to prime threadpools & memory allocations
+            warmup_tensor = np.array([["warmup text"]], dtype=object)
+            self.session.run(None, {"text": warmup_tensor})
+            logger.info(
+                "Initialized ONNX Runtime CPU session from %s (warmup complete)",
+                self.model_path,
+            )
         except Exception as err:
             logger.error("Failed to load ONNX model from %s: %s", self.model_path, err)
-
             self.session = None
 
     def evaluate_heuristics(self, text: str) -> tuple[float, list[str]]:
