@@ -100,10 +100,25 @@ def score_steering_compliance(
     if not reviewer_guidance:
         return 1.0  # N/A: no steering requested
 
+    redacted_guidance, _ = redact_text(reviewer_guidance)
     guidance_words = [
         word.lower()
-        for word in re.findall(r"\b[a-zA-Z]{4,}\b", reviewer_guidance)
-        if word.lower() not in {"please", "focus", "check", "with", "from", "that", "this"}
+        for word in re.findall(r"\b[a-zA-Z]{4,}\b", redacted_guidance)
+        if word.lower()
+        not in {
+            "please",
+            "focus",
+            "check",
+            "with",
+            "from",
+            "that",
+            "this",
+            "redacted",
+            "card",
+            "email",
+            "phone",
+            "iban",
+        }
     ]
     if not guidance_words:
         return 1.0

@@ -52,6 +52,7 @@ class SynthesizerAgent:
             prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
         )
         if llm_result is None:
+            recommendation: Recommendation
             if risk.score >= 0.65 or risk.threshold_triggered:
                 recommendation = "deny"
             elif risk.score >= 0.40:

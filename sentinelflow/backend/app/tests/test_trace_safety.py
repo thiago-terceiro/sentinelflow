@@ -50,4 +50,3 @@ def test_redact_value_recurses_into_structures() -> None:
 def test_sha256_text_is_stable() -> None:
     assert sha256_text("abc") == sha256_text("abc")
     assert sha256_text("abc") != sha256_text("abcd")
-

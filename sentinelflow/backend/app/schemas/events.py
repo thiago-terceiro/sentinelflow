@@ -18,6 +18,8 @@ StreamEventType = Literal[
     "risk_updated",
     "final_report_ready",
     "approval_required",
+    "guardrail_triggered",
+    "hallucination_detected",
     "run_completed",
     "run_failed",
     "heartbeat",

@@ -8,11 +8,13 @@ and start the arq worker as an asyncio task in the lifespan.
 Start command (set in render.yaml dockerCommand):
     uvicorn app.worker_server:app --host 0.0.0.0 --port 8000
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from arq.worker import create_worker
 from fastapi import FastAPI
@@ -26,7 +28,7 @@ logger = logging.getLogger("sentinelflow.worker_server")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    worker = create_worker(WorkerSettings)
+    worker = create_worker(cast(Any, WorkerSettings))
     task = asyncio.create_task(worker.async_run())
     logger.info("arq worker started")
     try:

@@ -141,6 +141,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit/export/tuning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Tuning Data
+         * @description Exports human-reviewed and auditor-corrected cases for SFT or DPO fine-tuning.
+         */
+        get: operations["export_tuning_data_api_v1_audit_export_tuning_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investigations/{investigation_id}/audit": {
         parameters: {
             query?: never;
@@ -277,6 +297,186 @@ export interface paths {
          * @description Trigger an on-demand AI evaluation benchmark run across golden test cases.
          */
         post: operations["trigger_evaluation_run_api_v1_evals_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telecom/classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Classify Telecom Message
+         * @description Real-time synchronous classification gateway with <15ms p95 latency SLA.
+         */
+        post: operations["classify_telecom_message_api_v1_telecom_classify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telecom/events/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Batch Classify Telecom Messages
+         * @description High-throughput batch ingestion endpoint for bulk SMS stream evaluation.
+         */
+        post: operations["batch_classify_telecom_messages_api_v1_telecom_events_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telecom/metrics/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Telecom Metrics Summary
+         * @description Returns rolling real-time telemetry: throughput (EPS), p50/p95/p99 latency, fraud rates.
+         */
+        get: operations["get_telecom_metrics_summary_api_v1_telecom_metrics_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telecom/drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Telecom Drift Status
+         * @description Returns Kolmogorov-Smirnov and Population Stability Index (PSI) drift reports.
+         */
+        get: operations["get_telecom_drift_status_api_v1_telecom_drift_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telecom/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Telecom Events
+         * @description Server-Sent Events (SSE) feed for real-time dashboard live inspection.
+         */
+        get: operations["stream_telecom_events_api_v1_telecom_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Prometheus Metrics
+         * @description Prometheus telemetry exposition endpoint.
+         */
+        get: operations["get_prometheus_metrics_api_v1_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Classify Telecom Message
+         * @description Real-time synchronous classification gateway with <15ms p95 latency SLA.
+         */
+        post: operations["classify_telecom_message_v1_classify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/events/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Batch Classify Telecom Messages
+         * @description High-throughput batch ingestion endpoint for bulk SMS stream evaluation.
+         */
+        post: operations["batch_classify_telecom_messages_v1_events_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Prometheus Metrics
+         * @description Prometheus telemetry exposition endpoint.
+         */
+        get: operations["get_prometheus_metrics_metrics_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -599,6 +799,39 @@ export interface components {
             /** Cases */
             cases: components["schemas"]["CaseEvalResult"][];
         };
+        /** Evidence */
+        Evidence: {
+            /** Id */
+            id: string;
+            /** Source */
+            source: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "transaction" | "customer" | "device" | "network" | "merchant" | "compliance" | "analyzer";
+            /**
+             * Origin
+             * @default observed_fact
+             * @enum {string}
+             */
+            origin: "observed_fact" | "agent_inference" | "analyzer_interpretation";
+            /** Summary */
+            summary: string;
+            /** Facts */
+            facts: {
+                [key: string]: unknown;
+            };
+            /** Confidence */
+            confidence: number;
+            /**
+             * Collected At
+             * Format: date-time
+             */
+            collected_at: string;
+            /** Provenance */
+            provenance: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -707,6 +940,68 @@ export interface components {
             explanation: string;
             /** Evidence Ids */
             evidence_ids: string[];
+        };
+        /** TelecomBatchRequest */
+        TelecomBatchRequest: {
+            /** Events */
+            events: components["schemas"]["TelecomClassifyRequest"][];
+        };
+        /** TelecomBatchResponse */
+        TelecomBatchResponse: {
+            /** Total Processed */
+            total_processed: number;
+            /** Batch Latency Ms */
+            batch_latency_ms: number;
+            /** Results */
+            results: components["schemas"]["TelecomClassifyResponse"][];
+        };
+        /** TelecomClassifyRequest */
+        TelecomClassifyRequest: {
+            /**
+             * Sender
+             * @description Originating phone number (E.164 format, e.g. +15551234567)
+             */
+            sender: string;
+            /**
+             * Recipient
+             * @description Destination phone number (E.164 format)
+             */
+            recipient: string;
+            /**
+             * Message
+             * @description SMS text content
+             */
+            message: string;
+            /**
+             * Ip
+             * @description Originating client or carrier gateway IP
+             */
+            ip?: string | null;
+            /**
+             * Carrier
+             * @description Originating network carrier
+             */
+            carrier?: string | null;
+        };
+        /** TelecomClassifyResponse */
+        TelecomClassifyResponse: {
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "ALLOW" | "BLOCK" | "FLAG";
+            /** Fraud Score */
+            fraud_score: number;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Signals */
+            signals: string[];
+            /** Velocity */
+            velocity: {
+                [key: string]: unknown;
+            };
+            /** Model Version */
+            model_version: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -928,9 +1223,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["Evidence"][];
                 };
             };
             /** @description Validation Error */
@@ -966,6 +1259,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditRecordItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_tuning_data_api_v1_audit_export_tuning_get: {
+        parameters: {
+            query?: {
+                export_type?: string;
+                format?: string;
+                limit?: number;
+                min_confidence?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -1212,6 +1539,242 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvalSuiteReport"];
+                };
+            };
+        };
+    };
+    classify_telecom_message_api_v1_telecom_classify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelecomClassifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelecomClassifyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    batch_classify_telecom_messages_api_v1_telecom_events_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelecomBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelecomBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_telecom_metrics_summary_api_v1_telecom_metrics_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    get_telecom_drift_status_api_v1_telecom_drift_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    stream_telecom_events_api_v1_telecom_stream_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_prometheus_metrics_api_v1_metrics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    classify_telecom_message_v1_classify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelecomClassifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelecomClassifyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    batch_classify_telecom_messages_v1_events_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelecomBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelecomBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_prometheus_metrics_metrics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

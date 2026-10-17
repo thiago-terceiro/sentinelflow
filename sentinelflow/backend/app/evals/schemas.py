@@ -6,12 +6,8 @@ from pydantic import BaseModel, Field
 
 
 class CaseScoreDetail(BaseModel):
-    decision_score: float = Field(
-        ..., description="Score from 0.0 to 1.0 for decision accuracy"
-    )
-    risk_score: float = Field(
-        ..., description="Score from 0.0 to 1.0 for risk calibration"
-    )
+    decision_score: float = Field(..., description="Score from 0.0 to 1.0 for decision accuracy")
+    risk_score: float = Field(..., description="Score from 0.0 to 1.0 for risk calibration")
     grounding_score: float = Field(
         ..., description="Score from 0.0 to 1.0 for evidence citation validity"
     )
@@ -21,15 +17,9 @@ class CaseScoreDetail(BaseModel):
     steering_score: float = Field(
         ..., description="Score from 0.0 to 1.0 for reviewer steering compliance"
     )
-    pii_safety_score: float = Field(
-        ..., description="1.0 if clean, 0.0 if unredacted PII detected"
-    )
-    overall_case_score: float = Field(
-        ..., description="Weighted composite score"
-    )
-    passed: bool = Field(
-        ..., description="Whether the case met the passing criteria"
-    )
+    pii_safety_score: float = Field(..., description="1.0 if clean, 0.0 if unredacted PII detected")
+    overall_case_score: float = Field(..., description="Weighted composite score")
+    passed: bool = Field(..., description="Whether the case met the passing criteria")
 
 
 class CaseEvalResult(BaseModel):

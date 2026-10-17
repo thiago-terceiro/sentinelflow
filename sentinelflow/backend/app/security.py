@@ -56,12 +56,8 @@ def _as_mapping(value: object) -> dict[str, Any]:
 def _extract_strings(value: object) -> list[str]:
     if isinstance(value, str):
         return [item for item in value.split(" ") if item]
-    if isinstance(value, list):
-        items = cast(list[object], value)
-        return [item for item in items if isinstance(item, str)]
-    if isinstance(value, tuple):
-        items = cast(tuple[object, ...], value)
-        return [item for item in items if isinstance(item, str)]
+    if isinstance(value, (list, tuple)):
+        return [item for item in value if isinstance(item, str)]
     return []
 
 

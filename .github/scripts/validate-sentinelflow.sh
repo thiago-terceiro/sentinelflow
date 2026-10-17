@@ -71,24 +71,42 @@ if [[ -z "$NODE_BIN" ]]; then
   fi
 fi
 
+resolve_pnpm_bin() {
+  if command -v pnpm >/dev/null 2>&1 && pnpm --version >/dev/null 2>&1; then
+    echo "pnpm"
+    return 0
+  fi
+  echo "npx --yes pnpm"
+}
+
+PNPM_BIN="${PNPM_BIN:-$(resolve_pnpm_bin)}"
+
 run_backend() {
-  echo "[sentinelflow] backend: uv sync --extra dev && uv run --no-sync ruff check app && uv run --no-sync pytest && uv run --no-sync python -m app.evals.run"
+  echo "[sentinelflow] backend: uv sync --extra dev && ruff check && ruff format --check && bandit && pip-audit && mypy && pytest && evals"
   (
     cd "$app_root/backend"
     "$UV_BIN" sync --extra dev
     "$UV_BIN" run --no-sync ruff check app
+    "$UV_BIN" run --no-sync ruff format --check app
+    "$UV_BIN" run --no-sync bandit -c pyproject.toml -x app/tests -r app -q
+    "$UV_BIN" run --no-sync pip-audit --skip-editable
+    "$UV_BIN" run --no-sync mypy app
     "$UV_BIN" run --no-sync pytest
     "$UV_BIN" run --no-sync python -m app.evals.run
   )
 }
 
 run_frontend() {
-  echo "[sentinelflow] frontend: pnpm install && pnpm test && pnpm build"
+  echo "[sentinelflow] frontend: pnpm install && check-rules && eslint && prettier && pnpm audit && pnpm test && pnpm build"
   (
     cd "$app_root/frontend"
-    pnpm install
-    pnpm test
-    pnpm build
+    $PNPM_BIN install
+    "$NODE_BIN" scripts/check-rules.js
+    npx eslint .
+    npx prettier --check .
+    $PNPM_BIN audit --audit-level=high
+    $PNPM_BIN test
+    $PNPM_BIN build
   )
 }
 
@@ -104,6 +122,14 @@ run_contract_check() {
   )
 }
 
+run_security_check() {
+  echo "[sentinelflow] security: running OWASP Top 10, LLM Top 10 & CWE/CVE compliance suite"
+  (
+    cd "$app_root/backend"
+    "$UV_BIN" run --no-sync python ../ops/security_compliance_scan.py
+  )
+}
+
 case "$slice" in
   backend)
     run_backend
@@ -114,13 +140,16 @@ case "$slice" in
   contract|contracts)
     run_contract_check
     ;;
+  security)
+    run_security_check
+    ;;
   all|cross-stack|crossstack)
     run_backend
     run_contract_check
     run_frontend
     ;;
   *)
-    echo "Usage: $0 [backend|frontend|contract|all]" >&2
+    echo "Usage: $0 [backend|frontend|contract|security|all]" >&2
     exit 2
     ;;
 esac

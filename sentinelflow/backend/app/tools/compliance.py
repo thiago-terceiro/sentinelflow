@@ -18,8 +18,7 @@ def evaluate_compliance(evidence: list[Evidence]) -> list[ComplianceFinding]:
                 passed=amount < 2500,
                 requires_review=amount >= 2500,
                 explanation=(
-                    "Transactions above 2500 require manual review "
-                    "under the demo policy set."
+                    "Transactions above 2500 require manual review under the demo policy set."
                 ),
                 evidence_ids=[item.id],
                 policy_version=POLICY_VERSION,
@@ -33,8 +32,7 @@ def evaluate_compliance(evidence: list[Evidence]) -> list[ComplianceFinding]:
                 passed=False,
                 requires_review=True,
                 explanation=(
-                    "Transaction evidence was unavailable, "
-                    "so compliance could not be completed."
+                    "Transaction evidence was unavailable, so compliance could not be completed."
                 ),
                 evidence_ids=[],
                 policy_version=POLICY_VERSION,

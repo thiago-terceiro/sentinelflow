@@ -156,9 +156,7 @@ async def test_collect_keeps_successful_results_when_an_analyzer_fails(
 
     assert updated["analyzer_call_count"] == 2
     assert [item.analyzer for item in updated["analyzer_summaries"]] == ["device_fingerprint"]
-    assert updated["failed_analyzers"] == [
-        {"name": "fraud_pattern", "error": "analyzer timeout"}
-    ]
+    assert updated["failed_analyzers"] == [{"name": "fraud_pattern", "error": "analyzer timeout"}]
     assert any(
         event["type"] == "agent_message"
         and event["data"].get("message")

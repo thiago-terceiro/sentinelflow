@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-    getInvestigation,
-    listDisputes,
-    resumeInvestigation,
-    startInvestigation,
+  getInvestigation,
+  listDisputes,
+  resumeInvestigation,
+  startInvestigation,
 } from "../lib/api.ts";
 
 test("listDisputes uses app proxy path", async () => {
@@ -15,9 +15,8 @@ test("listDisputes uses app proxy path", async () => {
 
   globalThis.fetch = async (url, init) => {
     capturedUrl = String(url);
-    capturedAuthorization = (init?.headers instanceof Headers)
-      ? init.headers.get("Authorization") ?? ""
-      : "";
+    capturedAuthorization =
+      init?.headers instanceof Headers ? (init.headers.get("Authorization") ?? "") : "";
     return new Response("[]", {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -63,7 +62,7 @@ test("startInvestigation posts to the expected endpoint", async () => {
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   };
 
@@ -105,7 +104,7 @@ test("resumeInvestigation sends decision payload", async () => {
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   };
 
@@ -124,13 +123,11 @@ test("resumeInvestigation sends decision payload", async () => {
 test("getInvestigation surfaces API error message", async () => {
   const originalFetch = globalThis.fetch;
 
-  globalThis.fetch = async () => new Response(
-    JSON.stringify({ error: { message: "Forbidden" } }),
-    {
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ error: { message: "Forbidden" } }), {
       status: 403,
       headers: { "Content-Type": "application/json" },
-    },
-  );
+    });
 
   try {
     await assert.rejects(() => getInvestigation("inv_missing"), /Forbidden/);

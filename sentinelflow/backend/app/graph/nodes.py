@@ -38,6 +38,7 @@ from app.schemas.events import StreamEvent, StreamEventType
 from app.schemas.investigation import Evidence
 from app.security import Principal, Role
 from app.services.audit import record_audit_event
+from app.services.guardrails import inspect_prompt_safety, validate_evidence_grounding
 from app.services.model_gateway import LLMCallResult
 from app.services.risk import calculate_risk
 from app.services.trace_safety import redact_text, sha256_text
@@ -221,7 +222,12 @@ class InvestigationNodes:
         error: str,
         event_payload: dict[str, Any],
     ) -> None:
-        failures = cast(list[dict[str, str]], state[f"failed_{target}"])
+        if target == "tools":
+            failures = state["failed_tools"]
+        elif target == "analyzers":
+            failures = state["failed_analyzers"]
+        else:
+            failures = cast(list[dict[str, str]], state.get(f"failed_{target}", []))
         if not any(item["name"] == name for item in failures):
             failures.append({"name": name, "error": error})
         state["messages"].append(AIMessage(content=_failure_message(target[:-1], name, error)))
@@ -235,6 +241,47 @@ class InvestigationNodes:
         if dispute is None:
             raise NotFoundError("DISPUTE_NOT_FOUND", "Dispute was not found.")
         dispute_status: DisputeStatus = cast(DisputeStatus, dispute.status)
+        raw_narrative = dispute.narrative or ""
+        guard_result = inspect_prompt_safety(raw_narrative)
+        if not guard_result.passed:
+            _append_agent_message(
+                state,
+                actor="guardrail",
+                message=(
+                    f"Prompt injection pattern intercepted in dispute narrative: "
+                    f"{', '.join(guard_result.violations)}"
+                ),
+                stage="intake",
+                details={
+                    "violations": guard_result.violations,
+                    "risk_score": guard_result.risk_score,
+                },
+            )
+            _append_event(
+                state,
+                "guardrail_triggered",
+                {
+                    "phase": "intake",
+                    "violations": guard_result.violations,
+                    "risk_score": guard_result.risk_score,
+                    "details": guard_result.details,
+                },
+                event_id=f"guardrail_intake_{state['investigation_id']}",
+            )
+            await record_audit_event(
+                self.session,
+                actor=_actor_from_state(state),
+                event_name="security.prompt_injection_intercepted",
+                payload={
+                    "phase": "intake",
+                    "violations": guard_result.violations,
+                    "risk_score": guard_result.risk_score,
+                },
+                investigation_id=state["investigation_id"],
+                dispute_id=state["dispute_id"],
+            )
+
+        sanitized_narrative, _ = redact_text(guard_result.sanitized_text)
         state["dispute"] = DisputeDetail(
             id=dispute.id,
             case_code=dispute.case_code,
@@ -245,7 +292,7 @@ class InvestigationNodes:
             created_at=dispute.created_at,
             customer_id=dispute.customer_id,
             merchant_id=dispute.merchant_id,
-            narrative=dispute.narrative,
+            narrative=sanitized_narrative,
             tags=list(dispute.attributes.get("tags", [])),
         )
         state["status"] = "running"
@@ -291,7 +338,34 @@ class InvestigationNodes:
                 "failed_analyzers": state["failed_analyzers"],
             }
             if state.get("reviewer_guidance") is not None:
-                iteration_kwargs["reviewer_guidance"] = state["reviewer_guidance"]
+                guidance_str = str(state["reviewer_guidance"])
+                guidance_guard = inspect_prompt_safety(guidance_str)
+                if not guidance_guard.passed:
+                    _append_agent_message(
+                        state,
+                        actor="guardrail",
+                        message=(
+                            f"Prompt injection intercepted in reviewer guidance: "
+                            f"{', '.join(guidance_guard.violations)}"
+                        ),
+                        stage="investigate",
+                        details={
+                            "violations": guidance_guard.violations,
+                            "risk_score": guidance_guard.risk_score,
+                        },
+                    )
+                    _append_event(
+                        state,
+                        "guardrail_triggered",
+                        {
+                            "phase": "investigate",
+                            "violations": guidance_guard.violations,
+                            "risk_score": guidance_guard.risk_score,
+                            "details": guidance_guard.details,
+                        },
+                        event_id=f"guardrail_guidance_{state['investigation_id']}_{state['iteration_count']}",
+                    )
+                iteration_kwargs["reviewer_guidance"] = guidance_guard.sanitized_text
                 state["reviewer_guidance"] = None
             iteration, llm_meta = await self.investigator.run_iteration(**iteration_kwargs)
             if llm_meta is not None:
@@ -600,20 +674,18 @@ class InvestigationNodes:
                     "investigation_id": state["investigation_id"],
                 },
             )
-            state["risk_assessment"] = calculate_risk(
-                state["evidence"], state["analyzer_summaries"]
-            )
-            if state["risk_assessment"]:
-                span.set_attribute("risk.score", state["risk_assessment"].score)
-                span.set_attribute("risk.level", state["risk_assessment"].level)
+            risk_assessment = calculate_risk(state["evidence"], state["analyzer_summaries"])
+            state["risk_assessment"] = risk_assessment
+            span.set_attribute("risk.score", risk_assessment.score)
+            span.set_attribute("risk.level", risk_assessment.level)
             _append_agent_message(
                 state,
                 actor="risk_engine",
                 message="Returned deterministic risk assessment.",
                 stage="synthesize",
                 details={
-                    "risk_level": state["risk_assessment"].level,
-                    "risk_score": state["risk_assessment"].score,
+                    "risk_level": risk_assessment.level,
+                    "risk_score": risk_assessment.score,
                 },
             )
             state["compliance_findings"] = evaluate_compliance(state["evidence"])
@@ -624,13 +696,58 @@ class InvestigationNodes:
                 stage="synthesize",
                 details={"finding_count": len(state["compliance_findings"])},
             )
-            state["investigation_report"], llm_meta = await self.synthesizer.build_report(
+            report, llm_meta = await self.synthesizer.build_report(
                 hypotheses=state["hypotheses"],
-                risk=state["risk_assessment"],
+                risk=risk_assessment,
                 compliance=state["compliance_findings"],
                 evidence_ids=[item.id for item in state["evidence"]],
                 unresolved_questions=state["unresolved_questions"],
             )
+            grounding = validate_evidence_grounding(report.conclusion, state["evidence"])
+            if not grounding.grounded:
+                _append_agent_message(
+                    state,
+                    actor="guardrail",
+                    message=(
+                        f"Evidence grounding check flagged ungrounded entities: "
+                        f"{', '.join(grounding.hallucinated_entities)}"
+                    ),
+                    stage="synthesize",
+                    details={
+                        "hallucinated_entities": grounding.hallucinated_entities,
+                        "confidence_penalty": grounding.confidence_penalty,
+                    },
+                )
+                _append_event(
+                    state,
+                    "hallucination_detected",
+                    {
+                        "phase": "synthesize",
+                        "hallucinated_entities": grounding.hallucinated_entities,
+                        "confidence_penalty": grounding.confidence_penalty,
+                        "details": grounding.details,
+                    },
+                    event_id=f"hallucination_{state['investigation_id']}_{state['iteration_count']}",
+                )
+                await record_audit_event(
+                    self.session,
+                    actor=_actor_from_state(state),
+                    event_name="audit.evidence_hallucination_flagged",
+                    payload={
+                        "hallucinated_entities": grounding.hallucinated_entities,
+                        "confidence_penalty": grounding.confidence_penalty,
+                    },
+                    investigation_id=state["investigation_id"],
+                    dispute_id=state["dispute_id"],
+                )
+                if grounding.confidence_penalty > 0.0:
+                    adjusted_conf = max(
+                        0.10,
+                        round(report.confidence - grounding.confidence_penalty, 2),
+                    )
+                    report = report.model_copy(update={"confidence": adjusted_conf})
+
+            state["investigation_report"] = report
             if llm_meta is not None:
                 span.set_attribute("gen_ai.system", llm_meta.provider)
                 span.set_attribute("gen_ai.request.model", llm_meta.model_used)
@@ -642,7 +759,7 @@ class InvestigationNodes:
                 message="Returned recommendation draft to orchestrator.",
                 stage="synthesize",
                 details={
-                    "recommendation": state["investigation_report"].recommendation,
+                    "recommendation": report.recommendation,
                     "used_heuristic": llm_meta is None,
                 },
             )
@@ -653,12 +770,8 @@ class InvestigationNodes:
                 payload=_llm_trace_payload(
                     llm_meta=llm_meta,
                     base_payload={
-                        "recommendation": state["investigation_report"].recommendation
-                        if state["investigation_report"]
-                        else None,
-                        "confidence": state["investigation_report"].confidence
-                        if state["investigation_report"]
-                        else None,
+                        "recommendation": report.recommendation,
+                        "confidence": report.confidence,
                     },
                     template_id=SYNTHESIS_PROMPT_TEMPLATE_ID,
                     template_version=SYNTHESIS_PROMPT_TEMPLATE_VERSION,
@@ -670,13 +783,13 @@ class InvestigationNodes:
             _append_event(
                 state,
                 "risk_updated",
-                state["risk_assessment"].model_dump(mode="json"),
+                risk_assessment.model_dump(mode="json"),
                 event_id=f"risk_{state['investigation_id']}_{state['iteration_count']}",
             )
             _append_event(
                 state,
                 "final_report_ready",
-                state["investigation_report"].model_dump(mode="json"),
+                report.model_dump(mode="json"),
                 event_id=f"report_{state['investigation_id']}",
             )
             return state
@@ -726,9 +839,7 @@ class InvestigationNodes:
                         else None
                     ),
                     "risk": (
-                        state["risk_assessment"].model_dump()
-                        if state["risk_assessment"]
-                        else None
+                        state["risk_assessment"].model_dump() if state["risk_assessment"] else None
                     ),
                     "evidence": [item.model_dump() for item in state["evidence"]],
                 }
@@ -740,7 +851,7 @@ class InvestigationNodes:
                 state["investigation_report"] = report.model_copy(update={"recommendation": "deny"})
             elif decision_val == "request_revision":
                 state["revision_count"] = state.get("revision_count", 0) + 1
-                guidance = (
+                guidance, _ = redact_text(
                     decision.get("guidance")
                     or decision.get("comment")
                     or "Reviewer requested revision."

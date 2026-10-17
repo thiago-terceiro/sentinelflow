@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     APP_ENV: Literal["development", "test", "production"] = "development"
-    API_HOST: str = "0.0.0.0"
+    API_HOST: str = "127.0.0.1"
     API_PORT: int = 8000
     API_V1_PREFIX: str = "/api/v1"
     ENABLE_API_DOCS: bool = True
@@ -85,9 +85,7 @@ class Settings(BaseSettings):
                 missing.append("OPENAI_API_KEY")
             has_shared_secret = bool(self.AUTH_JWT_SECRET)
             has_oidc_config = bool(
-                self.AUTH_OIDC_ISSUER
-                or self.AUTH_OIDC_DISCOVERY_URL
-                or self.AUTH_JWKS_URL
+                self.AUTH_OIDC_ISSUER or self.AUTH_OIDC_DISCOVERY_URL or self.AUTH_JWKS_URL
             )
             if not has_shared_secret and not has_oidc_config:
                 missing.append(

@@ -27,8 +27,8 @@ GOLDEN_BENCHMARK_CASES: tuple[BenchmarkCase, ...] = (
         case_code="EVAL-001",
         title="Account Takeover High Velocity Fraud",
         narrative=(
-            "Customer disputes $4,899 charge from unfamiliar device located "
-            "6800km away with 3DS OTP bypass."
+            "Customer (victim.alert@example.com) disputes $4,899 charge on card "
+            "4532-0151-1283-0366 from unfamiliar device located 6800km away with 3DS OTP bypass."
         ),
         amount=4899.0,
         currency="USD",
@@ -135,7 +135,7 @@ GOLDEN_BENCHMARK_CASES: tuple[BenchmarkCase, ...] = (
         expected_evidence_categories=("merchant", "device", "transaction"),
         reviewer_guidance=(
             "Focus specifically on merchant chargeback rate and cross-reference "
-            "with the customer geo distance anomaly."
+            "with the customer geo distance anomaly for SSN 123-45-6789."
         ),
         evaluation_category="human_steering",
     ),

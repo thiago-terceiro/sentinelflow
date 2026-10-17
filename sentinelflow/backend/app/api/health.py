@@ -38,17 +38,21 @@ async def check_redis_connectivity(redis_url: str) -> None:
 async def ready(session: DBSessionDep) -> dict[str, str]:
     await session.execute(text("SELECT 1"))
     schema_row = (
-        await session.execute(
-            text(
-                """
+        (
+            await session.execute(
+                text(
+                    """
                 SELECT
                     to_regclass('public.disputes') AS disputes,
                     to_regclass('public.investigations') AS investigations,
                     to_regclass('public.audit_records') AS audit_records
                 """
+                )
             )
         )
-    ).mappings().one()
+        .mappings()
+        .one()
+    )
     missing = _missing_tables(dict(schema_row))
     if missing:
         logger.error(

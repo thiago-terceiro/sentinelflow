@@ -102,7 +102,6 @@ async def test_resume_investigation_rejects_duplicate_or_running_resume(
     assert fake_session.committed is False
 
 
-
 async def test_resume_investigation_requires_awaiting_approval_state() -> None:
     decision = ApprovalDecision(decision="approve", comment="looks good")
     record = _record()
@@ -120,6 +119,7 @@ async def test_resume_investigation_requires_awaiting_approval_state() -> None:
     assert captured.value.code == "INVESTIGATION_NOT_AWAITING_APPROVAL"
     assert captured.value.status_code == 409
     assert fake_session.committed is False
+
 
 @pytest.mark.parametrize("decision_value", ["approve", "deny"])
 async def test_resume_investigation_schedules_and_audits_decision(

@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "SentinelFlow API",
+    "title": "SentinelFlow & SentinelPulse API",
     "version": "0.1.0"
   },
   "paths": {
@@ -282,8 +282,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "additionalProperties": true
+                    "$ref": "#/components/schemas/Evidence"
                   },
                   "title": "Response Get Evidence Api V1 Investigations  Investigation Id  Evidence Get"
                 }
@@ -398,6 +397,84 @@
                   },
                   "title": "Response List Global Audit Records Api V1 Audit Records Get"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit/export/tuning": {
+      "get": {
+        "tags": [
+          "disputes",
+          "investigations"
+        ],
+        "summary": "Export Tuning Data",
+        "description": "Exports human-reviewed and auditor-corrected cases for SFT or DPO fine-tuning.",
+        "operationId": "export_tuning_data_api_v1_audit_export_tuning_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "export_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dpo",
+              "title": "Export Type"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "jsonl",
+              "title": "Format"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "min_confidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0.0,
+              "title": "Min Confidence"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -785,6 +862,282 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/telecom/classify": {
+      "post": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Classify Telecom Message",
+        "description": "Real-time synchronous classification gateway with <15ms p95 latency SLA.",
+        "operationId": "classify_telecom_message_api_v1_telecom_classify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelecomClassifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelecomClassifyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/telecom/events/batch": {
+      "post": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Batch Classify Telecom Messages",
+        "description": "High-throughput batch ingestion endpoint for bulk SMS stream evaluation.",
+        "operationId": "batch_classify_telecom_messages_api_v1_telecom_events_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelecomBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelecomBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/telecom/metrics/summary": {
+      "get": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Get Telecom Metrics Summary",
+        "description": "Returns rolling real-time telemetry: throughput (EPS), p50/p95/p99 latency, fraud rates.",
+        "operationId": "get_telecom_metrics_summary_api_v1_telecom_metrics_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Telecom Metrics Summary Api V1 Telecom Metrics Summary Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/telecom/drift": {
+      "get": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Get Telecom Drift Status",
+        "description": "Returns Kolmogorov-Smirnov and Population Stability Index (PSI) drift reports.",
+        "operationId": "get_telecom_drift_status_api_v1_telecom_drift_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Telecom Drift Status Api V1 Telecom Drift Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/telecom/stream": {
+      "get": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Stream Telecom Events",
+        "description": "Server-Sent Events (SSE) feed for real-time dashboard live inspection.",
+        "operationId": "stream_telecom_events_api_v1_telecom_stream_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Get Prometheus Metrics",
+        "description": "Prometheus telemetry exposition endpoint.",
+        "operationId": "get_prometheus_metrics_api_v1_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/classify": {
+      "post": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Classify Telecom Message",
+        "description": "Real-time synchronous classification gateway with <15ms p95 latency SLA.",
+        "operationId": "classify_telecom_message_v1_classify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelecomClassifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelecomClassifyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/events/batch": {
+      "post": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Batch Classify Telecom Messages",
+        "description": "High-throughput batch ingestion endpoint for bulk SMS stream evaluation.",
+        "operationId": "batch_classify_telecom_messages_v1_events_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelecomBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelecomBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Get Prometheus Metrics",
+        "description": "Prometheus telemetry exposition endpoint.",
+        "operationId": "get_prometheus_metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -1556,6 +1909,77 @@
         ],
         "title": "EvalSuiteReport"
       },
+      "Evidence": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "transaction",
+              "customer",
+              "device",
+              "network",
+              "merchant",
+              "compliance",
+              "analyzer"
+            ],
+            "title": "Category"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "observed_fact",
+              "agent_inference",
+              "analyzer_interpretation"
+            ],
+            "title": "Origin",
+            "default": "observed_fact"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "facts": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Facts"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "collected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Collected At"
+          },
+          "provenance": {
+            "type": "string",
+            "title": "Provenance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "category",
+          "summary",
+          "facts",
+          "confidence",
+          "collected_at",
+          "provenance"
+        ],
+        "title": "Evidence"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1866,6 +2290,149 @@
           "evidence_ids"
         ],
         "title": "RiskFactor"
+      },
+      "TelecomBatchRequest": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TelecomClassifyRequest"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events"
+        ],
+        "title": "TelecomBatchRequest"
+      },
+      "TelecomBatchResponse": {
+        "properties": {
+          "total_processed": {
+            "type": "integer",
+            "title": "Total Processed"
+          },
+          "batch_latency_ms": {
+            "type": "number",
+            "title": "Batch Latency Ms"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TelecomClassifyResponse"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_processed",
+          "batch_latency_ms",
+          "results"
+        ],
+        "title": "TelecomBatchResponse"
+      },
+      "TelecomClassifyRequest": {
+        "properties": {
+          "sender": {
+            "type": "string",
+            "title": "Sender",
+            "description": "Originating phone number (E.164 format, e.g. +15551234567)"
+          },
+          "recipient": {
+            "type": "string",
+            "title": "Recipient",
+            "description": "Destination phone number (E.164 format)"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1600,
+            "minLength": 1,
+            "title": "Message",
+            "description": "SMS text content"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip",
+            "description": "Originating client or carrier gateway IP"
+          },
+          "carrier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrier",
+            "description": "Originating network carrier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sender",
+          "recipient",
+          "message"
+        ],
+        "title": "TelecomClassifyRequest"
+      },
+      "TelecomClassifyResponse": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "BLOCK",
+              "FLAG"
+            ],
+            "title": "Verdict"
+          },
+          "fraud_score": {
+            "type": "number",
+            "title": "Fraud Score"
+          },
+          "latency_ms": {
+            "type": "number",
+            "title": "Latency Ms"
+          },
+          "signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Signals"
+          },
+          "velocity": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Velocity"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict",
+          "fraud_score",
+          "latency_ms",
+          "signals",
+          "velocity",
+          "model_version"
+        ],
+        "title": "TelecomClassifyResponse"
       },
       "ValidationError": {
         "properties": {

@@ -37,8 +37,7 @@ class InMemoryRateLimiter:
 
     def _prune(self, now: float) -> None:
         stale_keys = [
-            k for k, b in self.requests.items()
-            if not b or now - b[-1] > self.window_seconds
+            k for k, b in self.requests.items() if not b or now - b[-1] > self.window_seconds
         ]
         for k in stale_keys:
             self.requests.pop(k, None)

@@ -1,0 +1,6 @@
+.next
+node_modules
+playwright-report
+test-results
+lib/types/api.generated.ts
+pnpm-lock.yaml

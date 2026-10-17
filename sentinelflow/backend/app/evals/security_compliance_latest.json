@@ -1,0 +1,155 @@
+{
+  "timestamp": "2026-10-17T21:12:28.456612+00:00",
+  "suite": "SentinelFlow OWASP Top 10 & CWE/CVE Compliance Suite",
+  "stack_policy": "100% Free & Open-Source Resources",
+  "total_controls": 11,
+  "passed_controls": 11,
+  "compliance_rate": 1.0,
+  "all_passed": true,
+  "controls": [
+    {
+      "control_id": "SAST-PY-RUFF-S",
+      "standard": "OWASP A03:2021 / A05:2021",
+      "cwe_ids": [
+        "CWE-78",
+        "CWE-89",
+        "CWE-259",
+        "CWE-327",
+        "CWE-605",
+        "CWE-703"
+      ],
+      "title": "Python AST Security Linter (Ruff flake8-bandit)",
+      "mechanism": "uv run ruff check --select S app",
+      "passed": true,
+      "details": "0 Bandit S-rule violations across 62 backend files"
+    },
+    {
+      "control_id": "SAST-PY-BANDIT",
+      "standard": "OWASP Top 10 / CWE Top 25",
+      "cwe_ids": [
+        "CWE-20",
+        "CWE-78",
+        "CWE-89",
+        "CWE-327",
+        "CWE-502"
+      ],
+      "title": "PyCQA Bandit Deep AST Security Scanner",
+      "mechanism": "uv run bandit -c pyproject.toml -x app/tests -r app",
+      "passed": true,
+      "details": "0 Low/Medium/High severity issues in production backend"
+    },
+    {
+      "control_id": "SCA-PY-PIP-AUDIT",
+      "standard": "OWASP A06:2021 (Vulnerable Components)",
+      "cwe_ids": [
+        "CWE-1104",
+        "CWE-1395"
+      ],
+      "title": "Python Supply-Chain CVE Audit (PyPA / OSV Database)",
+      "mechanism": "uv run pip-audit --skip-editable",
+      "passed": true,
+      "details": "0 known CVEs / PYSEC advisories in Python lockfile"
+    },
+    {
+      "control_id": "SAST-TS-SONARJS",
+      "standard": "OWASP A03:2021 / A04:2021",
+      "cwe_ids": [
+        "CWE-79",
+        "CWE-95",
+        "CWE-798",
+        "CWE-1333"
+      ],
+      "title": "Frontend AST Security & Cognitive Complexity (ESLint 10 + SonarJS)",
+      "mechanism": "npx eslint .",
+      "passed": true,
+      "details": "0 security hotspots, ReDoS, or AST guardrail violations"
+    },
+    {
+      "control_id": "SCA-TS-PNPM-AUDIT",
+      "standard": "OWASP A06:2021 (Vulnerable Components)",
+      "cwe_ids": [
+        "CWE-1104",
+        "CWE-1395"
+      ],
+      "title": "Frontend Supply-Chain CVE Audit (GitHub Advisory DB)",
+      "mechanism": "pnpm audit --audit-level=high",
+      "passed": true,
+      "details": "0 high/critical CVEs across Node.js dependency tree"
+    },
+    {
+      "control_id": "OWASP-A01-RBAC",
+      "standard": "OWASP A01:2021 Broken Access Control",
+      "cwe_ids": [
+        "CWE-284",
+        "CWE-862"
+      ],
+      "title": "Role-Based Access Control & Production Dev-Token Lockout",
+      "mechanism": "app/security.py + app/config.py",
+      "passed": true,
+      "details": "Strict RBAC roles enforced; dev tokens blocked in production mode"
+    },
+    {
+      "control_id": "OWASP-A02-CRYPTO-PII",
+      "standard": "OWASP A02:2021 Cryptographic Failures & LLM02:2025",
+      "cwe_ids": [
+        "CWE-312",
+        "CWE-327",
+        "CWE-359"
+      ],
+      "title": "Pre-LLM PII Scrubbing (PCI-DSS/GDPR) & Fernet Vault Encryption",
+      "mechanism": "app/services/trace_safety.py + app/services/audit.py",
+      "passed": true,
+      "details": "Redacts Credit Cards, SSN, IBAN, Emails, Phones, IPs, and API Keys before storage/LLM"
+    },
+    {
+      "control_id": "OWASP-A04-AGENT-GOVERNANCE",
+      "standard": "OWASP A04:2021 Insecure Design & LLM06:2025 Excessive Agency",
+      "cwe_ids": [
+        "CWE-841",
+        "CWE-400"
+      ],
+      "title": "LangGraph Execution Budgets & Mandatory Human-in-the-Loop Interrupt",
+      "mechanism": "app/graph/nodes.py + app/graph/routing.py",
+      "passed": true,
+      "details": "Bounded agent iterations + native LangGraph interrupt() approval before settlement"
+    },
+    {
+      "control_id": "OWASP-A05-HTTP-HARDENING",
+      "standard": "OWASP A05:2021 Security Misconfiguration",
+      "cwe_ids": [
+        "CWE-16",
+        "CWE-605",
+        "CWE-693"
+      ],
+      "title": "HTTP Security Headers, CSP, TrustedHost & Rate Limiting",
+      "mechanism": "app/http.py + app/config.py",
+      "passed": true,
+      "details": "CSP, X-Frame-Options DENY, nosniff, TrustedHost, 1MB payload cap, and rate limiter active"
+    },
+    {
+      "control_id": "OWASP-A07-AUTH-PKCE",
+      "standard": "OWASP A07:2021 Identification & Authentication Failures",
+      "cwe_ids": [
+        "CWE-287",
+        "CWE-347",
+        "CWE-601"
+      ],
+      "title": "OIDC PKCE (S256), JWT JWKS Verification & Open-Redirect Sanitization",
+      "mechanism": "frontend/lib/oidc.ts + backend/app/security.py",
+      "passed": true,
+      "details": "S256 PKCE challenge, asymmetric JWKS token validation, and strict returnTo sanitization"
+    },
+    {
+      "control_id": "OWASP-A08-LEDGER-INTEGRITY",
+      "standard": "OWASP A08:2021 Software & Data Integrity Failures (EU AI Act Art. 12)",
+      "cwe_ids": [
+        "CWE-353",
+        "CWE-494"
+      ],
+      "title": "SHA-256 Cryptographic Hash Chain & Append-Only Audit Ledger",
+      "mechanism": "app/services/audit.py + migrations/0003_audit_immutability_triggers.py",
+      "passed": true,
+      "details": "Tamper-evident prev_hash -> row_hash chain with DB-level UPDATE/DELETE triggers"
+    }
+  ]
+}

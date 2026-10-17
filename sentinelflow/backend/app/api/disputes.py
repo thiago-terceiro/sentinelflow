@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 from uuid import uuid4
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -19,7 +19,7 @@ from app.schemas.audit import (
     AuditRecordItem,
 )
 from app.schemas.disputes import DisputeCreateRequest, DisputeDetail, DisputeStatus, DisputeSummary
-from app.schemas.investigation import InvestigationRun
+from app.schemas.investigation import Evidence, InvestigationRun
 from app.security import Role
 from app.services.audit import (
     create_audit_correction,
@@ -36,6 +36,7 @@ from app.services.investigations import (
     stream_graph_events,
     to_run,
 )
+from app.services.tuning_export import export_tuning_dataset, serialize_samples_to_jsonl
 
 router = APIRouter(tags=["disputes", "investigations"])
 
@@ -170,7 +171,7 @@ async def get_investigation(
     return to_run(record)
 
 
-@router.get("/investigations/{investigation_id}/evidence")
+@router.get("/investigations/{investigation_id}/evidence", response_model=list[Evidence])
 async def get_evidence(
     investigation_id: str,
     session: DBSessionDep,
@@ -224,6 +225,55 @@ async def list_global_audit_records(
         }
         for item in records
     ]
+
+
+@router.get("/audit/export/tuning")
+async def export_tuning_data(
+    session: DBSessionDep,
+    principal: PrincipalDep,
+    export_type: str = "dpo",
+    format: str = "jsonl",
+    limit: int = 100,
+    min_confidence: float = 0.0,
+) -> Response:
+    """Exports human-reviewed and auditor-corrected cases for SFT or DPO fine-tuning."""
+    principal.require_any(Role.AUDITOR, Role.ADMIN)
+    samples = await export_tuning_dataset(
+        session,
+        export_type=export_type,
+        limit=limit,
+        min_confidence=min_confidence,
+    )
+    if format.lower() == "json":
+        import json
+
+        return Response(
+            content=json.dumps(
+                {
+                    "total_samples": len(samples),
+                    "export_type": export_type,
+                    "samples": [s.model_dump() for s in samples],
+                },
+                indent=2,
+            ),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": (
+                    f"attachment; filename=sentinelflow_{export_type}_dataset.json"
+                )
+            },
+        )
+
+    jsonl_content = serialize_samples_to_jsonl(samples)
+    return Response(
+        content=jsonl_content,
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=sentinelflow_{export_type}_dataset.jsonl"
+            )
+        },
+    )
 
 
 @router.get("/investigations/{investigation_id}/audit")

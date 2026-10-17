@@ -1,5 +1,6 @@
-from __future__ import annotations
+from pathlib import Path
 
+import httpx
 import pytest
 from app.evals.runner import run_evaluation_suite
 from app.evals.scorers import (
@@ -11,7 +12,6 @@ from app.evals.scorers import (
     score_tool_efficiency,
 )
 from app.main import app
-from fastapi.testclient import TestClient
 
 AUDITOR_HEADERS = {"Authorization": "Bearer dev-auditor"}
 INVESTIGATOR_HEADERS = {"Authorization": "Bearer dev-investigator"}
@@ -50,19 +50,12 @@ def test_scorers_decision_and_risk_calibration() -> None:
 def test_scorers_pii_safety_zero_tolerance() -> None:
     # Text with unredacted PII must score 0.0
     assert (
-        score_pii_safety(
-            "Customer email is alice.smith@example.com and phone is 555-123-4567"
-        )
+        score_pii_safety("Customer email is alice.smith@example.com and phone is 555-123-4567")
         == 0.0
     )
 
     # Clean text with no PII must score 1.0
-    assert (
-        score_pii_safety(
-            "Customer has 7 years tenure and zero prior disputes on record."
-        )
-        == 1.0
-    )
+    assert score_pii_safety("Customer has 7 years tenure and zero prior disputes on record.") == 1.0
 
 
 def test_scorers_evidence_grounding_and_tool_efficiency() -> None:
@@ -93,19 +86,14 @@ def test_scorers_evidence_grounding_and_tool_efficiency() -> None:
     }
     assert score_evidence_grounding(hallucinated_report, evidence_list) == 0.0
 
-    assert (
-        score_tool_efficiency(evidence_list, ("transaction", "device"))
-        == 1.0
-    )
+    assert score_tool_efficiency(evidence_list, ("transaction", "device")) == 1.0
 
 
 def test_scorers_steering_compliance() -> None:
     guidance = "Focus specifically on merchant chargeback rate and customer geo distance anomaly."
     hypotheses = [
         {
-            "statement": (
-                "Evaluated merchant chargeback rate and customer geo distance anomaly."
-            ),
+            "statement": ("Evaluated merchant chargeback rate and customer geo distance anomaly."),
             "thought_process": "Checked merchant risk profile.",
         }
     ]
@@ -115,24 +103,48 @@ def test_scorers_steering_compliance() -> None:
     assert score_steering_compliance(None, hypotheses, report) == 1.0
 
 
-def test_evals_api_endpoints() -> None:
-    client = TestClient(app)
+@pytest.mark.asyncio
+async def test_evals_api_endpoints(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    temp_report_file = tmp_path / "eval_report_test.json"
+    import app.api.evals as api_evals_module
+    import app.evals.runner as runner_module
 
-    # Unauthorized access check
-    unauth_resp = client.get("/api/v1/evals/latest")
-    assert unauth_resp.status_code == 401
+    orig_persist = runner_module.persist_evaluation_report
+    orig_load = runner_module.load_latest_evaluation_report
 
-    # Authorized Auditor query
-    latest_resp = client.get("/api/v1/evals/latest", headers=AUDITOR_HEADERS)
-    assert latest_resp.status_code == 200
-    latest_data = latest_resp.json()
-    assert latest_data["status"] == "passed"
-    assert latest_data["total_cases"] == 4
-    assert len(latest_data["cases"]) == 4
+    monkeypatch.setattr(
+        runner_module,
+        "persist_evaluation_report",
+        lambda report, filepath=None: orig_persist(report, filepath=temp_report_file),
+    )
+    monkeypatch.setattr(
+        api_evals_module,
+        "persist_evaluation_report",
+        lambda report, filepath=None: orig_persist(report, filepath=temp_report_file),
+    )
+    monkeypatch.setattr(
+        api_evals_module,
+        "load_latest_evaluation_report",
+        lambda filepath=None: orig_load(filepath=temp_report_file),
+    )
 
-    # Authorized trigger run
-    run_resp = client.post("/api/v1/evals/run", headers=INVESTIGATOR_HEADERS)
-    assert run_resp.status_code == 200
-    run_data = run_resp.json()
-    assert run_data["status"] == "passed"
-    assert run_data["passed_cases"] == 4
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # Unauthorized access check
+        unauth_resp = await client.get("/api/v1/evals/latest")
+        assert unauth_resp.status_code == 401
+
+        # Authorized trigger run (populates test report)
+        run_resp = await client.post("/api/v1/evals/run", headers=INVESTIGATOR_HEADERS)
+        assert run_resp.status_code == 200
+        run_data = run_resp.json()
+        assert run_data["status"] == "passed"
+        assert run_data["passed_cases"] == 4
+
+        # Authorized Auditor query
+        latest_resp = await client.get("/api/v1/evals/latest", headers=AUDITOR_HEADERS)
+        assert latest_resp.status_code == 200
+        latest_data = latest_resp.json()
+        assert latest_data["status"] == "passed"
+        assert latest_data["total_cases"] == 4
+        assert len(latest_data["cases"]) == 4

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 from uuid import uuid4
 
 from app.agents.investigator import InvestigatorAgent
@@ -21,6 +22,7 @@ from app.evals.scorers import (
     score_tool_efficiency,
 )
 from app.graph.nodes import InvestigationNodes
+from app.graph.routing import route_after_investigator
 from app.graph.state import DisputeState
 from app.services.model_gateway import ModelGateway
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -131,11 +133,11 @@ async def evaluate_single_case(
     # 1. Intake
     state = await nodes.intake(state)
 
-    # 2. ReAct loop: investigate -> collect -> investigate
+    # 2. ReAct loop driven by graph routing
     max_loops = 5
     loop_count = 0
     state = await nodes.investigate(state)
-    while (state.get("pending_tools") or state.get("pending_analyzers")) and loop_count < max_loops:
+    while route_after_investigator(state) == "collect" and loop_count < max_loops:
         state = await nodes.collect(state)
         state = await nodes.investigate(state)
         loop_count += 1
@@ -148,6 +150,11 @@ async def evaluate_single_case(
         state["revision_count"] = 1
         state["reviewer_guidance"] = case.reviewer_guidance
         state = await nodes.investigate(state)
+        steering_loops = 0
+        while route_after_investigator(state) == "collect" and steering_loops < max_loops:
+            state = await nodes.collect(state)
+            state = await nodes.investigate(state)
+            steering_loops += 1
         state = await nodes.synthesize(state)
 
     # 5. Finalize
@@ -158,16 +165,18 @@ async def evaluate_single_case(
     risk = state.get("risk_assessment")
     evidence = state.get("evidence", [])
     hypotheses = state.get("hypotheses", [])
+    dispute_state = state.get("dispute")
 
     predicted_rec = report.recommendation if report else "unknown"
     predicted_risk = risk.score if risk else 0.0
 
-    # Build corpus for PII leakage verification
+    # Build corpus from post-intake state, hypotheses, report, and timeline events
     corpus_parts = [
-        case.narrative,
+        dispute_state.narrative if dispute_state else "",
         *(h.statement for h in hypotheses),
         *(getattr(h, "thought_process", "") for h in hypotheses),
         report.conclusion if report else "",
+        json.dumps(state.get("timeline_events", [])),
     ]
     corpus = " ".join(part for part in corpus_parts if part)
 
@@ -242,10 +251,9 @@ async def run_evaluation_suite(
     eval_id = f"eval_{uuid4().hex[:8]}"
     run_at = datetime.now(UTC).isoformat()
 
-    case_results: list[CaseEvalResult] = []
-    for case in cases:
-        result = await evaluate_single_case(case, gateway=gateway)
-        case_results.append(result)
+    case_results = list(
+        await asyncio.gather(*(evaluate_single_case(case, gateway=gateway) for case in cases))
+    )
 
     total = len(case_results)
     passed_count = sum(1 for c in case_results if c.passed)
@@ -260,7 +268,7 @@ async def run_evaluation_suite(
 
     # Suite passes if overall score is >= 0.75, decision accuracy >= 0.75, and 100% PII safety
     suite_passed = overall_score >= 0.75 and decision_acc >= 0.75 and pii_safety == 1.0
-    suite_status = "passed" if suite_passed else "failed"
+    suite_status: Literal["passed", "failed"] = "passed" if suite_passed else "failed"
 
     return EvalSuiteReport(
         evaluation_id=eval_id,

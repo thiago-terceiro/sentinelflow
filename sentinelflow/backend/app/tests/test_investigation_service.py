@@ -231,6 +231,7 @@ async def test_persist_graph_state_sets_awaiting_approval_when_snapshot_has_next
     assert fake_session.committed is True
     assert fake_session.refreshed is True
 
+
 async def test_schedule_investigation_uses_active_job_id_and_payload(
     monkeypatch: Any,
 ) -> None:
@@ -695,3 +696,86 @@ async def test_stream_graph_events_receives_live_broadcaster_events(monkeypatch:
     assert "evidence_added" in types
     assert "run_completed" in types
 
+
+async def test_cross_process_redis_pubsub_bridge_delivers_events_to_stream(
+    monkeypatch: Any,
+) -> None:
+    import json as _json
+    from contextlib import asynccontextmanager
+
+    from app.services.investigations import InvestigationBroadcaster
+
+    inv_id = "inv_redis_bridge"
+    record = _stream_record(status="running", timeline_events=[], investigation_id=inv_id)
+
+    @asynccontextmanager
+    async def _fake_session() -> Any:
+        yield _FakeStreamSession(record)
+
+    class _FakePubSub:
+        def __init__(self, channel_queues: dict[str, list[asyncio.Queue[str]]]) -> None:
+            self._channel_queues = channel_queues
+            self._queue: asyncio.Queue[str] = asyncio.Queue()
+            self._subscribed_channel: str | None = None
+
+        async def __aenter__(self) -> _FakePubSub:
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            if self._subscribed_channel and self._subscribed_channel in self._channel_queues:
+                self._channel_queues[self._subscribed_channel].remove(self._queue)
+
+        async def subscribe(self, channel: str) -> None:
+            self._subscribed_channel = channel
+            self._channel_queues.setdefault(channel, []).append(self._queue)
+
+        async def listen(self) -> Any:
+            while True:
+                data = await self._queue.get()
+                yield {"type": "message", "data": data.encode("utf-8")}
+
+    class _FakeRedisBroker:
+        def __init__(self) -> None:
+            self.channels: dict[str, list[asyncio.Queue[str]]] = {}
+
+        async def publish(self, channel: str, payload: str) -> None:
+            for q in list(self.channels.get(channel, [])):
+                q.put_nowait(payload)
+
+        def pubsub(self) -> _FakePubSub:
+            return _FakePubSub(self.channels)
+
+    fake_redis = _FakeRedisBroker()
+    monkeypatch.setattr("app.services.investigations.SessionLocal", _fake_session)
+    monkeypatch.setattr("app.services.investigations.build_graph", lambda _s: _FakeStreamGraph([]))
+    monkeypatch.setattr("app.services.investigations._shared_redis_pool", fake_redis)
+
+    collected: list[dict[str, Any]] = []
+
+    async def consume_stream() -> None:
+        async for chunk in stream_graph_events(inv_id):
+            raw = chunk.removeprefix("data: ").strip()
+            if raw:
+                collected.append(_json.loads(raw))
+
+    consumer_task = asyncio.create_task(consume_stream())
+    await asyncio.sleep(0.05)
+
+    # Simulate an isolated worker process with its own separate InvestigationBroadcaster instance
+    worker_broadcaster = InvestigationBroadcaster()
+    await worker_broadcaster.publish(
+        inv_id,
+        {
+            "id": "redis_ev_1",
+            "type": "hypothesis_updated",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "data": {"iteration": 1},
+        },
+    )
+    await worker_broadcaster.publish_terminal(inv_id)
+
+    await asyncio.wait_for(consumer_task, timeout=2.0)
+
+    assert len(collected) == 1
+    assert collected[0]["id"] == "redis_ev_1"
+    assert collected[0]["type"] == "hypothesis_updated"

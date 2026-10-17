@@ -217,4 +217,3 @@ def test_auditor_role_has_access_to_auditing_and_disputes() -> None:
     principal.require_any(
         Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.REVIEWER, Role.AUDITOR, Role.ADMIN
     )
-

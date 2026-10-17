@@ -12,7 +12,7 @@ from pydantic import BaseModel, SecretStr
 try:
     from langchain_openai import ChatOpenAI
 except ImportError:  # pragma: no cover
-    ChatOpenAI = None
+    ChatOpenAI = None  # type: ignore[assignment,misc]
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 logger = logging.getLogger("sentinelflow.model_gateway")
@@ -175,9 +175,8 @@ class ModelGateway:
                         },
                     )
                     return None
-                await asyncio.sleep(
-                    self.settings.MODEL_RETRY_BACKOFF_SECONDS * (2**attempt)
-                )
+                await asyncio.sleep(self.settings.MODEL_RETRY_BACKOFF_SECONDS * (2**attempt))
+        return None
 
     def metadata(self) -> dict[str, Any]:
         return {

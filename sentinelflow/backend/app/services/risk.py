@@ -52,8 +52,7 @@ def calculate_risk(evidence: list[Evidence], analyzers: list[AnalyzerSummary]) -
                     score=geo_anomaly,
                     weight=0.12,
                     explanation=(
-                        "Transaction location was inconsistent "
-                        "with prior customer behavior."
+                        "Transaction location was inconsistent with prior customer behavior."
                     )
                     if geo_anomaly
                     else "No geographic anomaly was detected.",
@@ -114,7 +113,7 @@ def calculate_risk(evidence: list[Evidence], analyzers: list[AnalyzerSummary]) -
         raw_score = sum(factor.score * factor.weight for factor in factors) / total_weight
     else:
         raw_score = 0.0
-    score = max(0.0, min(raw_score, 1.0))
+    score = round(max(0.0, min(raw_score, 1.0)), 4)
     level = _level(score)
     return RiskAssessment(
         score=score,

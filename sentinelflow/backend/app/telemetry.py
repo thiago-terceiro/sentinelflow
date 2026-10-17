@@ -38,9 +38,7 @@ def _configure_trace_provider() -> None:
     if settings.OTEL_EXPORTER_OTLP_ENDPOINT:
         raw_endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT.rstrip("/")
         traces_url = (
-            raw_endpoint
-            if raw_endpoint.endswith("/v1/traces")
-            else f"{raw_endpoint}/v1/traces"
+            raw_endpoint if raw_endpoint.endswith("/v1/traces") else f"{raw_endpoint}/v1/traces"
         )
         provider.add_span_processor(
             BatchSpanProcessor(

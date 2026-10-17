@@ -50,8 +50,7 @@ async def main() -> int:
     print(f" * Suite ID:                  {report.evaluation_id}")
     print(f" * Timestamp:                 {report.run_at}")
     print(
-        f" * Benchmark Cases:           {report.total_cases} total "
-        f"({report.passed_cases} passed)"
+        f" * Benchmark Cases:           {report.total_cases} total ({report.passed_cases} passed)"
     )
     print(f" * Overall Composite Score:   {report.overall_score * 100:.1f}%")
     print(f" * Decision Accuracy:         {report.decision_accuracy * 100:.1f}%")
@@ -66,8 +65,7 @@ async def main() -> int:
 
     if report.status == "passed":
         print(
-            "\n>>> AI EVALUATION SUITE PASSED -- "
-            "Model meets all production governance criteria.\n"
+            "\n>>> AI EVALUATION SUITE PASSED -- Model meets all production governance criteria.\n"
         )
         return 0
     else:

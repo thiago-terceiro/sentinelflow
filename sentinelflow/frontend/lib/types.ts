@@ -9,8 +9,8 @@ export type RiskAssessment = NonNullable<ApiSchemas["InvestigationRun"]["risk_as
 export type RiskFactor = ApiSchemas["RiskFactor"];
 export type InvestigationBudget = ApiSchemas["InvestigationBudget"];
 export type InvestigationHypothesis = ApiSchemas["InvestigationHypothesis"] & {
-    thought_process?: string;
-    reasoning_steps?: string[];
+  thought_process?: string;
+  reasoning_steps?: string[];
 };
 export type InvestigationReport = NonNullable<ApiSchemas["InvestigationRun"]["report"]>;
 export type InvestigationRun = ApiSchemas["InvestigationRun"];
@@ -23,39 +23,29 @@ export type EvalSuiteReport = ApiSchemas["EvalSuiteReport"];
 export type CaseEvalResult = ApiSchemas["CaseEvalResult"];
 export type CaseScoreDetail = ApiSchemas["CaseScoreDetail"];
 export type AuditRecord = ApiSchemas["AuditRecordItem"] & {
-    actor?: string;
-    is_redacted?: boolean;
-    redaction_policy?: string | null;
-    trace_id?: string | null;
-    span_id?: string | null;
+  actor?: string;
+  is_redacted?: boolean;
+  redaction_policy?: string | null;
+  trace_id?: string | null;
+  span_id?: string | null;
 };
 
-export type Evidence = {
-    id: string;
-    source: string;
-    category: "transaction" | "customer" | "device" | "network" | "merchant" | "compliance" | "analyzer";
-    origin: "observed_fact" | "agent_inference" | "analyzer_interpretation";
-    summary: string;
-    facts: Record<string, unknown>;
-    confidence: number;
-    collected_at: string;
-    provenance: string;
-};
+export type Evidence = ApiSchemas["Evidence"];
 
 export type AnalyzerSummary = {
-    analyzer: string;
-    origin: "observed_fact" | "agent_inference" | "analyzer_interpretation";
-    summary: string;
-    findings: string[];
-    confidence: number;
-    evidence_ids: string[];
-    contradictions: string[];
-    recommended_followups: string[];
+  analyzer: string;
+  origin: "observed_fact" | "agent_inference" | "analyzer_interpretation";
+  summary: string;
+  findings: string[];
+  confidence: number;
+  evidence_ids: string[];
+  contradictions: string[];
+  recommended_followups: string[];
 };
 
 export type StreamEvent = {
-    id: string;
-    type:
+  id: string;
+  type:
     | "run_started"
     | "agent_message"
     | "agent_status_updated"
@@ -71,37 +61,37 @@ export type StreamEvent = {
     | "run_completed"
     | "run_failed"
     | "heartbeat";
-    timestamp: string;
-    data: Record<string, unknown>;
+  timestamp: string;
+  data: Record<string, unknown>;
 };
 
 export type ToolLog = {
-    callId: string;
-    label: string;
-    status: "started" | "completed";
-    output?: string;
+  callId: string;
+  label: string;
+  status: "started" | "completed";
+  output?: string;
 };
 
 export type ConsoleState = {
-    investigationId: string;
-    evidence: Evidence[];
-    analyzerSummaries: AnalyzerSummary[];
-    hypotheses: InvestigationHypothesis[];
-    riskAssessment: RiskAssessment | null;
-    report: InvestigationReport | null;
-    isReportUnlocked: boolean;
-    timeline: StreamEvent[];
-    agentStatus: string | null;
-    toolLogs: ToolLog[];
-    status: "IDLE" | "RUNNING" | "APPROVAL_REQUIRED" | "COMPLETED" | "FAILED";
-    requiresApproval: boolean;
-    isStreaming: boolean;
-    streamConnection: "idle" | "connected" | "reconnecting" | "disconnected";
-    reconnectAttempt: number;
-    nextReconnectDelayMs: number | null;
-    error: string | null;
-    activeThoughtProcess?: string | null;
-    reasoningSteps?: string[];
-    currentPhase?: "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
-    reviewerGuidance?: string | null;
+  investigationId: string;
+  evidence: Evidence[];
+  analyzerSummaries: AnalyzerSummary[];
+  hypotheses: InvestigationHypothesis[];
+  riskAssessment: RiskAssessment | null;
+  report: InvestigationReport | null;
+  isReportUnlocked: boolean;
+  timeline: StreamEvent[];
+  agentStatus: string | null;
+  toolLogs: ToolLog[];
+  status: "IDLE" | "RUNNING" | "APPROVAL_REQUIRED" | "COMPLETED" | "FAILED";
+  requiresApproval: boolean;
+  isStreaming: boolean;
+  streamConnection: "idle" | "connected" | "reconnecting" | "disconnected";
+  reconnectAttempt: number;
+  nextReconnectDelayMs: number | null;
+  error: string | null;
+  activeThoughtProcess?: string | null;
+  reasoningSteps?: string[];
+  currentPhase?: "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
+  reviewerGuidance?: string | null;
 };

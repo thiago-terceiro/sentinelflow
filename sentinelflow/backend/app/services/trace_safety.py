@@ -31,11 +31,13 @@ REDACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "[REDACTED_IP]",
     ),
     (
-        re.compile(r"\b(?:\d[ -]*?){13,19}\b"),
+        re.compile(r"(?<![.\d])\b(?:\d[ -]*?){13,19}\b(?![.\d])"),
         "[REDACTED_CARDLIKE]",
     ),
     (
-        re.compile(r"(?<!\w)\+?\d[\d\s().-]{7,}\d(?!\w)"),
+        re.compile(
+            r"(?<![\w:+])(?:\+\d{1,3}[\s.-]?(?:\(\d{2,4}\)[\s.-]?|\d{2,4}[\s.-]?)\d{3,4}[\s.-]?\d{3,4}|(?:\(\d{3}\)[\s.-]?|\d{3}[\s.-])\d{3}[\s.-]\d{4})(?![\w:+])"
+        ),
         "[REDACTED_PHONE]",
     ),
     (

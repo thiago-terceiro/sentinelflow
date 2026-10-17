@@ -51,3 +51,19 @@ class AuditRecordItem(BaseModel):
     row_hash: str | None = None
     created_at: datetime
 
+
+class TuningExportSample(BaseModel):
+    id: str
+    investigation_id: str
+    dispute_id: str
+    prompt: str
+    chosen: str
+    rejected: str | None = None
+    export_type: str
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class TuningExportResponse(BaseModel):
+    total_samples: int
+    export_type: str
+    samples: list[TuningExportSample]

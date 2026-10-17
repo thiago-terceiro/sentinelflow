@@ -240,12 +240,16 @@ async def test_investigation_creation_and_audit_event_logged_real_db(
 
     # 3. Assert audit record was written to the database with sequence 1 and None prev_hash
     audit_rows = (
-        await real_db_session.execute(
-            select(AuditRecord)
-            .where(AuditRecord.investigation_id == investigation_id)
-            .order_by(AuditRecord.sequence_no.asc())
+        (
+            await real_db_session.execute(
+                select(AuditRecord)
+                .where(AuditRecord.investigation_id == investigation_id)
+                .order_by(AuditRecord.sequence_no.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert len(audit_rows) == 1
     start_event = audit_rows[0]
@@ -279,7 +283,7 @@ async def test_audit_chain_monotonicity_and_integrity_verification_real_db(
     dispute_id = str(uuid4())
     actor = Principal(user_id="agent-007", roles={Role.INVESTIGATOR})
 
-    events_to_record = [
+    events_to_record: list[tuple[str, dict[str, Any]]] = [
         ("investigation.evidence_collected", {"evidence_id": "ev_1", "category": "device"}),
         (
             "investigation.hypothesis_updated",
@@ -301,12 +305,16 @@ async def test_audit_chain_monotonicity_and_integrity_verification_real_db(
 
     # Fetch rows from real SQLite
     rows = (
-        await real_db_session.execute(
-            select(AuditRecord)
-            .where(AuditRecord.investigation_id == investigation_id)
-            .order_by(AuditRecord.sequence_no.asc())
+        (
+            await real_db_session.execute(
+                select(AuditRecord)
+                .where(AuditRecord.investigation_id == investigation_id)
+                .order_by(AuditRecord.sequence_no.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert len(rows) == 4
     # Check sequence monotonicity and cryptographic chaining
@@ -380,8 +388,7 @@ async def test_tamper_detection_on_mutated_payload_and_sequence_gap_real_db(
     # 1. Tamper: mutate payload in row 2 directly in SQLite without updating row_hash
     row_2 = (
         await real_db_session.execute(
-            select(AuditRecord)
-            .where(
+            select(AuditRecord).where(
                 AuditRecord.investigation_id == investigation_id,
                 AuditRecord.sequence_no == 2,
             )
@@ -486,8 +493,7 @@ async def test_auditor_correction_append_only_real_db(
     # 2. A new record with sequence_no 3 was appended
     persisted_correction = (
         await real_db_session.execute(
-            select(AuditRecord)
-            .where(
+            select(AuditRecord).where(
                 AuditRecord.investigation_id == investigation_id,
                 AuditRecord.sequence_no == 3,
             )
@@ -532,12 +538,16 @@ async def test_concurrent_audit_writes_sequence_consistency(
     # Query all records
     async with real_db_session_factory() as verify_session:
         rows = (
-            await verify_session.execute(
-                select(AuditRecord)
-                .where(AuditRecord.investigation_id == investigation_id)
-                .order_by(AuditRecord.sequence_no.asc())
+            (
+                await verify_session.execute(
+                    select(AuditRecord)
+                    .where(AuditRecord.investigation_id == investigation_id)
+                    .order_by(AuditRecord.sequence_no.asc())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         assert len(rows) == 8
         sequences = [row.sequence_no for row in rows]
@@ -562,6 +572,7 @@ async def test_encrypted_audit_artifacts_real_db(
 
     # Reload settings mock
     from app.config import get_settings
+
     get_settings.cache_clear()
 
     investigation_id = str(uuid4())
@@ -632,14 +643,17 @@ async def test_encrypted_audit_artifacts_real_db(
 
     # 3. Verify access was automatically audited in the ledger
     audit_rows = (
-        await real_db_session.execute(
-            select(AuditRecord)
-            .where(
-                AuditRecord.investigation_id == investigation_id,
-                AuditRecord.event_name == "investigation.audit_artifact_read",
+        (
+            await real_db_session.execute(
+                select(AuditRecord).where(
+                    AuditRecord.investigation_id == investigation_id,
+                    AuditRecord.event_name == "investigation.audit_artifact_read",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(audit_rows) == 1
     assert audit_rows[0].payload["artifact_id"] == artifact_id
 

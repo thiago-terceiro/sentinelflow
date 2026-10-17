@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -28,6 +29,7 @@ from langgraph.types import Command
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 STREAM_POLL_INTERVAL_SECONDS = 0.25
 STREAM_HEARTBEAT_SECONDS = 10.0
@@ -44,8 +46,15 @@ VALID_INVESTIGATION_STATUSES = {
 }
 
 
+STREAM_REDIS_CHANNEL_PREFIX = "sentinelflow:stream:"
+
+
+def _stream_redis_channel(investigation_id: str) -> str:
+    return f"{STREAM_REDIS_CHANNEL_PREFIX}{investigation_id}"
+
+
 class InvestigationBroadcaster:
-    """In-memory event hub for real-time SSE streaming without polling the database."""
+    """Event hub for real-time SSE streaming across in-memory queues and Redis Pub/Sub."""
 
     def __init__(self) -> None:
         self._subscribers: dict[str, set[asyncio.Queue[dict[str, Any] | None]]] = {}
@@ -74,7 +83,15 @@ class InvestigationBroadcaster:
             try:
                 q.put_nowait(event)
             except asyncio.QueueFull:
-                pass
+                logger.debug("Dropped live SSE event for full queue: %s", investigation_id)
+        if _shared_redis_pool is not None and hasattr(_shared_redis_pool, "publish"):
+            try:
+                await _shared_redis_pool.publish(
+                    _stream_redis_channel(investigation_id),
+                    json.dumps(event),
+                )
+            except Exception as exc:
+                logger.debug("Redis stream publish skipped for %s: %s", investigation_id, exc)
 
     async def publish_terminal(self, investigation_id: str) -> None:
         async with self._lock:
@@ -83,7 +100,15 @@ class InvestigationBroadcaster:
             try:
                 q.put_nowait(None)
             except asyncio.QueueFull:
-                pass
+                logger.debug("Dropped terminal SSE signal for full queue: %s", investigation_id)
+        if _shared_redis_pool is not None and hasattr(_shared_redis_pool, "publish"):
+            try:
+                await _shared_redis_pool.publish(
+                    _stream_redis_channel(investigation_id),
+                    json.dumps({"__terminal__": True}),
+                )
+            except Exception as exc:
+                logger.debug("Redis terminal publish skipped for %s: %s", investigation_id, exc)
 
 
 investigation_broadcaster = InvestigationBroadcaster()
@@ -157,8 +182,7 @@ def to_run(record: InvestigationRecord) -> InvestigationRun:
         else None
     )
     compliance_findings = [
-        ComplianceFinding.model_validate(item)
-        for item in record.compliance_findings
+        ComplianceFinding.model_validate(item) for item in record.compliance_findings
     ]
     report = (
         InvestigationReport.model_validate(record.report)
@@ -327,9 +351,7 @@ async def persist_graph_state(
     record.hypotheses = [item.model_dump(mode="json") for item in values["hypotheses"]]
     record.unresolved_questions = values["unresolved_questions"]
     record.risk_assessment = (
-        values["risk_assessment"].model_dump(mode="json")
-        if values["risk_assessment"]
-        else None
+        values["risk_assessment"].model_dump(mode="json") if values["risk_assessment"] else None
     )
     record.compliance_findings = [
         item.model_dump(mode="json") for item in values["compliance_findings"]
@@ -357,8 +379,10 @@ async def _run_graph(
     graph = build_graph(session)
     config = thread_config(record.thread_id)
     seen_ids: set[str] = set()
+    accumulated_events: list[dict[str, Any]] = []
     if record.timeline_events:
         for ev in record.timeline_events:
+            accumulated_events.append(ev)
             eid = ev.get("id")
             if eid:
                 seen_ids.add(eid)
@@ -367,13 +391,19 @@ async def _run_graph(
         async for chunk in graph.astream(graph_input, config=config, stream_mode="updates"):
             if isinstance(chunk, dict):
                 new_events = extract_timeline_events(chunk)
+                chunk_added = False
                 for event in new_events:
                     eid = event.get("id")
                     if eid and eid in seen_ids:
                         continue
                     if eid:
                         seen_ids.add(eid)
+                    accumulated_events.append(event)
+                    chunk_added = True
                     await investigation_broadcaster.publish(record.id, event)
+                if chunk_added:
+                    record.timeline_events = list(accumulated_events)
+                    await session.commit()
     elif hasattr(graph, "ainvoke"):
         await graph.ainvoke(graph_input, config=config)
 
@@ -435,6 +465,7 @@ async def _enqueue_job(
 
 
 async def _mark_failed_with_reason(investigation_id: str, reason: str) -> None:
+    failure_event: dict[str, Any] | None = None
     async with SessionLocal() as session:
         record = await session.get(InvestigationRecord, investigation_id)
         if record is None:
@@ -443,18 +474,21 @@ async def _mark_failed_with_reason(investigation_id: str, reason: str) -> None:
         record.failure_reason = reason[:512]
         timeline_events = list(record.timeline_events or [])
         if not any(item.get("type") == "run_failed" for item in timeline_events):
-            timeline_events.append(
-                build_stream_event(
-                    "run_failed",
-                    {
-                        "investigation_id": investigation_id,
-                        "message": "Investigation failed. Retry or contact operations.",
-                    },
-                    event_id=f"run_failed_{investigation_id}",
-                )
+            failure_event = build_stream_event(
+                "run_failed",
+                {
+                    "investigation_id": investigation_id,
+                    "message": "Investigation failed. Retry or contact operations.",
+                    "failure_reason": record.failure_reason,
+                },
+                event_id=f"run_failed_{investigation_id}",
             )
+            timeline_events.append(failure_event)
             record.timeline_events = timeline_events
         await session.commit()
+    if failure_event is not None:
+        await investigation_broadcaster.publish(investigation_id, failure_event)
+    await investigation_broadcaster.publish_terminal(investigation_id)
 
 
 async def _run_new_investigation(
@@ -525,6 +559,9 @@ async def _run_resume_investigation(
 
 
 async def run_investigation_job(_ctx: dict[str, Any], payload: dict[str, Any]) -> None:
+    global _shared_redis_pool
+    if _shared_redis_pool is None and _ctx.get("redis") is not None:
+        _shared_redis_pool = _ctx["redis"]
     principal = PrincipalContext(
         user_id=str(payload["principal_id"]),
         roles=[str(role) for role in payload.get("principal_roles", [])],
@@ -533,6 +570,9 @@ async def run_investigation_job(_ctx: dict[str, Any], payload: dict[str, Any]) -
 
 
 async def run_resume_investigation_job(_ctx: dict[str, Any], payload: dict[str, Any]) -> None:
+    global _shared_redis_pool
+    if _shared_redis_pool is None and _ctx.get("redis") is not None:
+        _shared_redis_pool = _ctx["redis"]
     await _run_resume_investigation(
         str(payload["investigation_id"]),
         payload.get("decision", {}),
@@ -568,8 +608,43 @@ async def schedule_resume(
     )
 
 
+async def _forward_redis_pubsub(
+    investigation_id: str,
+    queue: asyncio.Queue[dict[str, Any] | None],
+) -> None:
+    if _shared_redis_pool is None or not hasattr(_shared_redis_pool, "pubsub"):
+        return
+    channel = _stream_redis_channel(investigation_id)
+    try:
+        async with _shared_redis_pool.pubsub() as pubsub:
+            await pubsub.subscribe(channel)
+            async for message in pubsub.listen():
+                if not isinstance(message, dict) or message.get("type") != "message":
+                    continue
+                raw_data = message.get("data")
+                if isinstance(raw_data, bytes):
+                    raw_data = raw_data.decode("utf-8")
+                if not isinstance(raw_data, str):
+                    continue
+                parsed = json.loads(raw_data)
+                if isinstance(parsed, dict):
+                    if parsed.get("__terminal__") is True:
+                        try:
+                            queue.put_nowait(None)
+                        except asyncio.QueueFull:
+                            pass
+                        break
+                    try:
+                        queue.put_nowait(parsed)
+                    except asyncio.QueueFull:
+                        pass
+    except (asyncio.CancelledError, Exception):
+        return
+
+
 async def stream_graph_events(investigation_id: str) -> AsyncIterator[str]:
     queue = await investigation_broadcaster.subscribe(investigation_id)
+    redis_listener_task = asyncio.create_task(_forward_redis_pubsub(investigation_id, queue))
     emitted_ids: set[str] = set()
 
     try:
@@ -626,9 +701,10 @@ async def stream_graph_events(investigation_id: str) -> AsyncIterator[str]:
 
         while True:
             try:
-                event = await asyncio.wait_for(queue.get(), timeout=STREAM_HEARTBEAT_SECONDS)
-                if event is None:
+                stream_item = await asyncio.wait_for(queue.get(), timeout=STREAM_HEARTBEAT_SECONDS)
+                if stream_item is None:
                     break
+                event = stream_item
                 eid = event.get("id")
                 if eid and eid in emitted_ids:
                     continue
@@ -647,12 +723,20 @@ async def stream_graph_events(investigation_id: str) -> AsyncIterator[str]:
                 )
                 async with SessionLocal() as session:
                     rec = await session.get(InvestigationRecord, investigation_id)
-                    if rec and rec.status in TERMINAL_STATUSES:
-                        for ev in replay_events(rec):
+                    if rec is not None:
+                        for ev in _as_timeline_events(getattr(rec, "timeline_events", None)):
                             ev_id = ev.get("id")
                             if ev_id and ev_id not in emitted_ids:
                                 emitted_ids.add(ev_id)
                                 yield serialize_event(ev)
-                        break
+                        if rec.status in TERMINAL_STATUSES:
+                            for ev in replay_events(rec):
+                                ev_id = ev.get("id")
+                                if ev_id and ev_id not in emitted_ids:
+                                    emitted_ids.add(ev_id)
+                                    yield serialize_event(ev)
+                            break
     finally:
+        redis_listener_task.cancel()
+        await asyncio.gather(redis_listener_task, return_exceptions=True)
         await investigation_broadcaster.unsubscribe(investigation_id, queue)

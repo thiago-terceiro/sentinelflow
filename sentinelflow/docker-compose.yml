@@ -194,5 +194,28 @@ services:
       retries: 8
       start_period: 10s
 
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+        restart: true
+
+  simulator:
+    build:
+      context: ./backend
+    restart: "no"
+    profiles: ["simulator"]
+    command: ["python", "-m", "ops.telecom_simulator", "--url", "http://backend:8000/v1/classify", "--events", "1000", "--rps", "100"]
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+

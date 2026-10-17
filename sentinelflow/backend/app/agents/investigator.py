@@ -65,9 +65,12 @@ class InvestigatorAgent:
 
     @staticmethod
     def _failure_note(failures: Iterable[dict[str, str]]) -> str:
-        return "\n".join(
-            f"- {item['name']}: {item['error']}" for item in failures if item.get("error")
-        ) or "none"
+        return (
+            "\n".join(
+                f"- {item['name']}: {item['error']}" for item in failures if item.get("error")
+            )
+            or "none"
+        )
 
     async def run_iteration(
         self,
@@ -87,18 +90,20 @@ class InvestigatorAgent:
             f"Failed tools:\n{self._failure_note(failed_tools)}",
             f"Failed analyzers:\n{self._failure_note(failed_analyzers)}",
         ]
+        sanitized_guidance: str | None = None
         if reviewer_guidance:
-            prompt_parts.append(f"Reviewer Steering Guidance:\n{reviewer_guidance}")
+            sanitized_guidance, _ = redact_text(reviewer_guidance)
+            prompt_parts.append(f"Reviewer Steering Guidance:\n{sanitized_guidance}")
         prompt = "\n".join(prompt_parts)
-        llm_result: LLMCallResult[InvestigatorIteration] | None = (
-            await self.gateway.generate_structured(
-                system_prompt=investigator_system,
-                user_prompt=f"{investigator_iteration}\n\n{prompt}",
-                schema=InvestigatorIteration,
-                prompt_template_id=PROMPT_TEMPLATE_ID,
-                prompt_template_version=PROMPT_TEMPLATE_VERSION,
-                prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
-            )
+        llm_result: (
+            LLMCallResult[InvestigatorIteration] | None
+        ) = await self.gateway.generate_structured(
+            system_prompt=investigator_system,
+            user_prompt=f"{investigator_iteration}\n\n{prompt}",
+            schema=InvestigatorIteration,
+            prompt_template_id=PROMPT_TEMPLATE_ID,
+            prompt_template_version=PROMPT_TEMPLATE_VERSION,
+            prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
         )
         if llm_result is not None:
             return llm_result.value, llm_result
@@ -108,7 +113,7 @@ class InvestigatorAgent:
             analyzers=analyzers,
             failed_tools=failed_tools,
             failed_analyzers=failed_analyzers,
-            reviewer_guidance=reviewer_guidance,
+            reviewer_guidance=sanitized_guidance,
         ), None
 
     def _heuristic_iteration(
@@ -196,8 +201,7 @@ class InvestigatorAgent:
 
         return InvestigatorIteration(
             summary=(
-                f"Investigated dispute {dispute.case_code} "
-                f"with {len(evidence)} evidence items."
+                f"Investigated dispute {dispute.case_code} with {len(evidence)} evidence items."
             ),
             thought_process=thought_process,
             reasoning_steps=reasoning_steps,
