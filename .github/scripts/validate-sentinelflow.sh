@@ -91,7 +91,7 @@ run_backend() {
     "$UV_BIN" run --no-sync bandit -c pyproject.toml -x app/tests -r app -q
     "$UV_BIN" run --no-sync pip-audit --skip-editable
     "$UV_BIN" run --no-sync mypy app
-    "$UV_BIN" run --no-sync pytest
+    "$UV_BIN" run --no-sync pytest --cov=app --cov-report=term-missing --cov-fail-under=80
     "$UV_BIN" run --no-sync python -m app.evals.run
   )
 }

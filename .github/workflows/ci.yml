@@ -81,6 +81,24 @@ jobs:
           path: sentinelflow/backend/app/evals/security_compliance_latest.json
           retention-days: 30
 
+      - name: Publish Security & Compliance Summary to Job Summary
+        if: always()
+        run: |
+          if [ -f sentinelflow/backend/app/evals/security_compliance_latest.json ]; then
+            echo "### 🛡️ OWASP Top 10 & CWE/CVE Security Compliance Gate" >> $GITHUB_STEP_SUMMARY
+            echo "| Control ID | Standard / Rule | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "| :--- | :--- | :---: |" >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+          import json
+          with open('sentinelflow/backend/app/evals/security_compliance_latest.json') as f:
+              data = json.load(f)
+          for c in data.get('controls', []):
+              status = '✅ PASS' if c.get('passed') else '❌ FAIL'
+              print(f'| {c.get(\"control_id\")} | {c.get(\"standard\")} - {c.get(\"title\")} | {status} |')
+          print(f'\n**Overall Compliance Score**: {data.get(\"compliance_score\", 0)}/11 ({data.get(\"compliance_percentage\", 0.0)}%)')
+          " >> $GITHUB_STEP_SUMMARY
+          fi
+
   backend-validate:
     name: backend-validate
     runs-on: ubuntu-latest
@@ -96,6 +114,27 @@ jobs:
 
       - name: Run backend validation (lint, format, mypy, test, evals)
         run: bash .github/scripts/validate-sentinelflow.sh backend
+
+      - name: Publish AI Evals Scorecard to Job Summary
+        if: always()
+        run: |
+          if [ -f sentinelflow/backend/app/evals/eval_report_latest.json ]; then
+            echo "### 🤖 LangGraph AI Evaluation & Guardrails Benchmark" >> $GITHUB_STEP_SUMMARY
+            echo "| Benchmark Metric | Target SLA | Measured | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "| :--- | :---: | :---: | :---: |" >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+          import json
+          with open('sentinelflow/backend/app/evals/eval_report_latest.json') as f:
+              data = json.load(f)
+          summary = data.get('summary', {})
+          acc = summary.get('recommendation_accuracy', 0) * 100
+          grnd = summary.get('mean_evidence_groundedness', 0) * 100
+          grd = summary.get('mean_guardrail_pass_rate', 0) * 100
+          print(f'| Recommendation Accuracy | >= 90.0% | {acc:.1f}% | {\"✅ PASS\" if acc >= 90 else \"❌ FAIL\"} |')
+          print(f'| Evidence Groundedness | >= 90.0% | {grnd:.1f}% | {\"✅ PASS\" if grnd >= 90 else \"❌ FAIL\"} |')
+          print(f'| Safety Guardrail Pass Rate | 100.0% | {grd:.1f}% | {\"✅ PASS\" if grd == 100 else \"❌ FAIL\"} |')
+          " >> $GITHUB_STEP_SUMMARY
+          fi
 
   frontend-validate:
     name: frontend-validate
@@ -192,11 +231,50 @@ jobs:
           path: sentinelflow/frontend/playwright-report/
           retention-days: 7
 
+  sandbox-container-smoke:
+    name: sandbox-container-smoke
+    runs-on: ubuntu-latest
+    needs: [backend-validate, frontend-validate]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Spin up full ephemeral stack (Postgres, Redis, Backend, Frontend, Nginx, Jaeger)
+        run: |
+          docker compose -f sentinelflow/docker-compose.yml up -d --build --wait
+          docker compose -f sentinelflow/docker-compose.yml ps
+
+      - name: Probe Reverse Proxy & Service Health (Sandbox Smoke)
+        run: |
+          curl --fail --retry 10 --retry-delay 3 http://localhost:8080/healthz
+          curl --fail --retry 10 --retry-delay 3 http://localhost:8080/api/v1/ready
+          curl --fail --retry 5 http://localhost:8080/api/v1/health
+
+      - name: Execute Live Gateway Transaction in Sandbox
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8080/v1/classify \
+            -H "Content-Type: application/json" \
+            -d '{"sender": "+14155552671", "recipient": "+14155559876", "message": "Your verification code is 492018. It expires in 5 minutes.", "carrier": "Verizon Wireless"}')
+          echo "Sandbox Live Classification Response: $RESPONSE"
+          echo "$RESPONSE" | grep -q '"verdict":"ALLOW"'
+
+      - name: Run Ephemeral Traffic Load Smoke & Verify Latency SLA
+        run: |
+          docker compose -f sentinelflow/docker-compose.yml --profile simulator up simulator
+
+      - name: Teardown Sandbox Stack
+        if: always()
+        run: |
+          docker compose -f sentinelflow/docker-compose.yml down -v
+
   # Continuous delivery database migrations
   database-migrate:
     name: database-migrate
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    needs: [backend-validate, frontend-validate, contract-drift-check, security-and-secrets]
+    needs: [backend-validate, frontend-validate, contract-drift-check, security-and-secrets, sandbox-container-smoke]
     runs-on: ubuntu-latest
 
     environment: production
