@@ -14,6 +14,7 @@ from fastapi import APIRouter, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.services.trace_safety import redact_text
 from app.telecom.drift_monitor import get_drift_monitor
 from app.telecom.onnx_engine import get_inference_engine
 from app.telecom.telecom_metrics import export_prometheus_metrics, get_metrics_tracker
@@ -22,6 +23,13 @@ from app.telecom.velocity_store import get_velocity_store
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["telecom-intelligence"])
+
+
+def _mask_phone(phone: str) -> str:
+    """Masks central digits of phone numbers for public dashboard display."""
+    if len(phone) <= 6:
+        return phone
+    return f"{phone[:4]}***{phone[-4:]}"
 
 # In-memory SSE subscriber queues for the real-time live dashboard
 _subscribers: set[asyncio.Queue[dict[str, Any]]] = set()
@@ -112,12 +120,16 @@ async def _process_single_message(
     t_end = time.perf_counter()
     total_latency_ms = round((t_end - t_start) * 1000.0, 3)
 
-    # 5. Record telemetry in Prometheus, rolling dashboard buffer, and drift monitor
+    # 5. Redact PII & mask phone numbers for telemetry and public live dashboard
+    safe_message, _ = redact_text(req.message)
+    masked_sender = _mask_phone(req.sender)
+    masked_recipient = _mask_phone(req.recipient)
+
     metrics.record_event(
         event_id=eid,
-        sender=req.sender,
-        recipient=req.recipient,
-        message=req.message,
+        sender=masked_sender,
+        recipient=masked_recipient,
+        message=safe_message,
         verdict=verdict,
         fraud_score=composite_score,
         latency_ms=total_latency_ms,
@@ -145,13 +157,13 @@ async def _process_single_message(
         model_version=inference_result.model_version,
     )
 
-    # 6. Stream live event to connected frontend dashboard
+    # 6. Stream live event to connected frontend dashboard (with PII redacted)
     stream_payload = {
         "id": eid,
         "timestamp": time.time(),
-        "sender": req.sender,
-        "recipient": req.recipient,
-        "message": req.message,
+        "sender": masked_sender,
+        "recipient": masked_recipient,
+        "message": safe_message,
         "verdict": verdict,
         "fraud_score": round(composite_score, 4),
         "latency_ms": total_latency_ms,

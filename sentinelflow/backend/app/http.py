@@ -69,13 +69,15 @@ def install_http_middleware(app: FastAPI, settings: Settings) -> None:
                 status_code=413,
             )
 
-        client_host = request.headers.get("x-forwarded-for")
-        if client_host:
-            client_host = client_host.split(",", maxsplit=1)[0].strip()
-        elif request.client is not None:
-            client_host = request.client.host
-        else:
-            client_host = "unknown"
+        client_host = request.headers.get("x-real-ip")
+        if not client_host:
+            forwarded = request.headers.get("x-forwarded-for")
+            if forwarded:
+                client_host = forwarded.split(",")[-1].strip()
+            elif request.client is not None:
+                client_host = request.client.host
+            else:
+                client_host = "unknown"
         if not limiter.allow(client_host):
             return error_response(
                 code="RATE_LIMITED",
@@ -90,6 +92,6 @@ def install_http_middleware(app: FastAPI, settings: Settings) -> None:
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
-        if request.url.path.endswith("/stream"):
+        if str(request.scope.get("path", "")).endswith("/stream"):
             response.headers["X-Accel-Buffering"] = "no"
         return response

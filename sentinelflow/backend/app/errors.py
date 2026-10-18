@@ -66,7 +66,7 @@ def install_error_handlers(app: FastAPI) -> None:
             extra={
                 "event": "app_error",
                 "request_id": request.state.request_id,
-                "path": request.url.path,
+                "path": str(request.scope.get("path", "")),
                 "method": request.method,
                 "error_code": exc.code,
                 "status_code": exc.status_code,
@@ -85,7 +85,7 @@ def install_error_handlers(app: FastAPI) -> None:
             extra={
                 "event": "validation_error",
                 "request_id": request.state.request_id,
-                "path": request.url.path,
+                "path": str(request.scope.get("path", "")),
                 "method": request.method,
                 "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
                 "error_count": len(exc.errors()),
@@ -107,7 +107,7 @@ def install_error_handlers(app: FastAPI) -> None:
             extra={
                 "event": "unhandled_exception",
                 "request_id": request.state.request_id,
-                "path": request.url.path,
+                "path": str(request.scope.get("path", "")),
                 "method": request.method,
                 "principal_id": getattr(request.state, "principal_id", None),
                 "principal_roles": getattr(request.state, "principal_roles", None),
