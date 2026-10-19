@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 type Props = {
   message: string | null;
   status: "IDLE" | "RUNNING" | "APPROVAL_REQUIRED" | "COMPLETED" | "FAILED";
@@ -19,7 +21,7 @@ const fallbackMessage = (status: Props["status"]) => {
   return "Ready to start";
 };
 
-export const AgentMessageStrip = ({ message, status }: Props) => {
+export const AgentMessageStrip = memo(({ message, status }: Props) => {
   const isActive = status === "RUNNING" || status === "APPROVAL_REQUIRED";
 
   return (
@@ -57,4 +59,6 @@ export const AgentMessageStrip = ({ message, status }: Props) => {
       </strong>
     </section>
   );
-};
+});
+
+AgentMessageStrip.displayName = "AgentMessageStrip";

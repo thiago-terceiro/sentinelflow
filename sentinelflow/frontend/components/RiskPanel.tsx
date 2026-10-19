@@ -1,10 +1,11 @@
+import { memo } from "react";
 import { RiskAssessment } from "@/lib/types";
 
 type Props = {
   risk: RiskAssessment | null;
 };
 
-export const RiskPanel = ({ risk }: Props) => {
+export const RiskPanel = memo(({ risk }: Props) => {
   const meter = risk ? `${Math.round(risk.score * 100)}%` : "0%";
   return (
     <section className="shell-card" style={{ padding: 24 }}>
@@ -38,4 +39,6 @@ export const RiskPanel = ({ risk }: Props) => {
       </ul>
     </section>
   );
-};
+});
+
+RiskPanel.displayName = "RiskPanel";

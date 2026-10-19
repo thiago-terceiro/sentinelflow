@@ -1,10 +1,11 @@
+import { memo } from "react";
 import { AnalyzerSummary } from "@/lib/types";
 
 type Props = {
   analyzers: AnalyzerSummary[];
 };
 
-export const AnalyzerPanel = ({ analyzers }: Props) => {
+export const AnalyzerPanel = memo(({ analyzers }: Props) => {
   return (
     <section className="shell-card" style={{ padding: 24 }}>
       <h2>Analyzer findings</h2>
@@ -27,4 +28,6 @@ export const AnalyzerPanel = ({ analyzers }: Props) => {
       </div>
     </section>
   );
-};
+});
+
+AnalyzerPanel.displayName = "AnalyzerPanel";

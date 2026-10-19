@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+
 import { AgentMessageStrip } from "@/components/AgentMessageStrip";
 import { AgentReasoningPanel } from "@/components/AgentReasoningPanel";
 import { AnalyzerPanel } from "@/components/AnalyzerPanel";
@@ -10,6 +12,7 @@ import { InvestigationTimeline } from "@/components/InvestigationTimeline";
 import { LangGraphProgress } from "@/components/LangGraphProgress";
 import { RiskPanel } from "@/components/RiskPanel";
 import { useSentinelAgent } from "@/hooks/useSentinelAgent";
+import type { ApprovalDecision } from "@/lib/types";
 
 type Props = {
   disputeId: string;
@@ -17,6 +20,13 @@ type Props = {
 
 export const InvestigationConsole = ({ disputeId }: Props) => {
   const { state, isLaunching, isReviewing, launch, review } = useSentinelAgent(disputeId);
+
+  const handleDecision = useCallback(
+    (decision: ApprovalDecision, comment: string, guidance?: string) => {
+      void review(decision, comment, guidance);
+    },
+    [review]
+  );
 
   const getLaunchButtonLabel = () => {
     if (isLaunching) {
@@ -235,7 +245,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
         <ApprovalPanel
           requiresApproval={state.requiresApproval}
           isSubmitting={isReviewing}
-          onDecision={(decision, comment, guidance) => review(decision, comment, guidance)}
+          onDecision={handleDecision}
         />
 
         {/* Final Synthesis Recommendation */}

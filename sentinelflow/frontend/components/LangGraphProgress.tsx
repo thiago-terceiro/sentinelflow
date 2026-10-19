@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 type StageKey = "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
 
 type StageConfig = {
@@ -23,7 +25,7 @@ type Props = {
   reviewerGuidance?: string | null;
 };
 
-export const LangGraphProgress = ({ currentPhase = "intake", status, reviewerGuidance }: Props) => {
+export const LangGraphProgress = memo(({ currentPhase = "intake", status, reviewerGuidance }: Props) => {
   const stageOrder: Record<StageKey, number> = {
     intake: 0,
     investigate: 1,
@@ -175,4 +177,6 @@ export const LangGraphProgress = ({ currentPhase = "intake", status, reviewerGui
       ) : null}
     </div>
   );
-};
+});
+
+LangGraphProgress.displayName = "LangGraphProgress";

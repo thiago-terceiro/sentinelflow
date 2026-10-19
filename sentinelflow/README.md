@@ -32,6 +32,7 @@ The local stack is now wired to run as a production-like image-based deployment 
 
 ## Repository layout
 
+- `OVERVIEW.md`: Comprehensive 7-stage CI/CD pipeline, automated verification gates, and architectural FAQ
 - `backend/`: FastAPI, LangGraph, DB models, seeded tools, tests
 - `frontend/`: Next.js 16 App Router console in strict TypeScript
 - `.env.example`: local development configuration

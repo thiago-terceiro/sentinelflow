@@ -305,3 +305,67 @@ export const applyStreamEventToConsoleState = (
     timeline: nextTimeline,
   };
 };
+
+export type Listener = () => void;
+
+export class InvestigationStore {
+  private state: ConsoleState;
+  private listeners: Set<Listener> = new Set();
+
+  constructor(initialState: ConsoleState = initialConsoleState) {
+    this.state = initialState;
+  }
+
+  getState = (): ConsoleState => {
+    return this.state;
+  };
+
+  setState = (next: ConsoleState | ((prev: ConsoleState) => ConsoleState)): void => {
+    const nextState = typeof next === "function" ? next(this.state) : next;
+    if (nextState !== this.state) {
+      this.state = nextState;
+      this.notify();
+    }
+  };
+
+  subscribe = (listener: Listener): (() => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  private notify = (): void => {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  };
+}
+
+export const createInvestigationStore = (initialState?: ConsoleState): InvestigationStore => {
+  return new InvestigationStore(initialState);
+};
+
+export const selectTimeline = (state: ConsoleState) => state.timeline;
+export const selectEvidence = (state: ConsoleState) => state.evidence;
+export const selectRisk = (state: ConsoleState) => state.riskAssessment;
+export const selectAnalyzers = (state: ConsoleState) => state.analyzerSummaries;
+export const selectHypotheses = (state: ConsoleState) => state.hypotheses;
+export const selectReasoning = (state: ConsoleState) => ({
+  thoughtProcess: state.activeThoughtProcess,
+  reasoningSteps: state.reasoningSteps,
+  hypotheses: state.hypotheses,
+});
+export const selectPipelineStage = (state: ConsoleState) => ({
+  currentPhase: state.currentPhase,
+  status: state.status,
+  reviewerGuidance: state.reviewerGuidance,
+});
+export const selectAgentMessage = (state: ConsoleState) => ({
+  message: state.agentStatus,
+  status: state.status,
+});
+export const selectApproval = (state: ConsoleState) => ({
+  requiresApproval: state.requiresApproval,
+  status: state.status,
+});

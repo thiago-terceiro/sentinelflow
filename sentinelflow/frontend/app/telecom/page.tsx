@@ -20,6 +20,8 @@ type TelecomFeedItem = {
     velocity_60s: number;
     velocity_1h: number;
   };
+  escalated_dispute_id?: string | null;
+  escalated_dispute_url?: string | null;
 };
 
 type MetricsSummary = {
@@ -215,6 +217,70 @@ const TelemetryCards = ({
   );
 };
 
+const EscalationAction = ({
+  item,
+  isEscalating,
+  escalated,
+  onEscalate,
+}: {
+  item: TelecomFeedItem;
+  isEscalating: boolean;
+  escalated?: { id: string; case_code?: string; url: string };
+  onEscalate: () => void;
+}) => {
+  if (item.verdict !== "FLAG" && item.verdict !== "BLOCK") {
+    return null;
+  }
+
+  const effectiveEscalated =
+    escalated ||
+    (item.escalated_dispute_id
+      ? {
+          id: item.escalated_dispute_id,
+          url: item.escalated_dispute_url || `/disputes/${item.escalated_dispute_id}`,
+        }
+      : undefined);
+
+  if (effectiveEscalated) {
+    return (
+      <a
+        href={effectiveEscalated.url}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          fontSize: 11,
+          color: "var(--accent)",
+          textDecoration: "none",
+          fontWeight: 700,
+        }}
+      >
+        🔍 View Case in SentinelFlow {effectiveEscalated.case_code ? `(${effectiveEscalated.case_code})` : ""} →
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={isEscalating}
+      onClick={onEscalate}
+      style={{
+        fontSize: 11,
+        padding: "3px 8px",
+        borderRadius: 4,
+        background: "rgba(201, 243, 106, 0.12)",
+        color: "var(--accent)",
+        border: "1px solid rgba(201, 243, 106, 0.3)",
+        cursor: isEscalating ? "wait" : "pointer",
+        fontWeight: 600,
+      }}
+    >
+      {isEscalating ? "Escalating..." : "⚡ Escalate to SentinelFlow"}
+    </button>
+  );
+};
+
 const TelecomDashboardPage = () => {
   const formId = useId();
   const [metrics, setMetrics] = useState<MetricsSummary>({
@@ -241,6 +307,52 @@ const TelecomDashboardPage = () => {
   );
   const [isClassifying, setIsClassifying] = useState<boolean>(false);
   const [classificationResult, setClassificationResult] = useState<TelecomFeedItem | null>(null);
+  const [autoEscalate, setAutoEscalate] = useState<boolean>(false);
+  const [escalatingIds, setEscalatingIds] = useState<Record<string, boolean>>({});
+  const [escalatedDisputes, setEscalatedDisputes] = useState<
+    Record<string, { id: string; case_code?: string; url: string }>
+  >({});
+
+  const handleEscalate = async (item: TelecomFeedItem) => {
+    const itemKey = item.id || `${item.sender}-${item.timestamp}`;
+    setEscalatingIds((prev) => ({ ...prev, [itemKey]: true }));
+    try {
+      const res = await fetch("/app-api/telecom/escalate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: item.sender,
+          recipient: item.recipient,
+          message: item.message,
+          carrier: item.carrier,
+          verdict: item.verdict,
+          fraud_score: item.fraud_score,
+          signals: item.signals,
+          velocity: item.velocity || {},
+          event_id: item.id,
+        }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          dispute_id: string;
+          case_code: string;
+          dispute_url: string;
+        };
+        setEscalatedDisputes((prev) => ({
+          ...prev,
+          [itemKey]: {
+            id: data.dispute_id,
+            case_code: data.case_code,
+            url: data.dispute_url,
+          },
+        }));
+      }
+    } catch (err) {
+      console.error("Escalation failed", err);
+    } finally {
+      setEscalatingIds((prev) => ({ ...prev, [itemKey]: false }));
+    }
+  };
 
   // Fetch metrics summary
   const fetchMetrics = async () => {
@@ -348,12 +460,23 @@ const TelecomDashboardPage = () => {
           recipient: testRecipient,
           message: testMessage,
           carrier: testCarrier,
+          escalate: autoEscalate,
         }),
       });
 
       if (res.ok) {
         const data = (await res.json()) as TelecomFeedItem;
         setClassificationResult(data);
+        if (data.escalated_dispute_id) {
+          const itemKey = data.id || "test-result";
+          setEscalatedDisputes((prev) => ({
+            ...prev,
+            [itemKey]: {
+              id: data.escalated_dispute_id!,
+              url: data.escalated_dispute_url || `/disputes/${data.escalated_dispute_id}`,
+            },
+          }));
+        }
         void fetchMetrics();
       }
     } catch (err) {
@@ -564,6 +687,22 @@ const TelecomDashboardPage = () => {
               />
             </div>
 
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <input
+                id={`${formId}-auto-escalate`}
+                type="checkbox"
+                checked={autoEscalate}
+                onChange={(e) => setAutoEscalate(e.target.checked)}
+                style={{ accentColor: "var(--accent)", cursor: "pointer", width: 16, height: 16 }}
+              />
+              <label
+                htmlFor={`${formId}-auto-escalate`}
+                style={{ fontSize: 12, color: "var(--foreground)", cursor: "pointer" }}
+              >
+                ⚡ Auto-escalate FLAG / BLOCK anomalies to SentinelFlow Investigation
+              </label>
+            </div>
+
             <button
               type="submit"
               disabled={isClassifying}
@@ -651,6 +790,40 @@ const TelecomDashboardPage = () => {
                   </strong>{" "}
                   · <span>{classificationResult.velocity.velocity_60s} msgs/60s</span> ·{" "}
                   <span>Carrier: {classificationResult.carrier}</span>
+                </div>
+              ) : null}
+
+              {/* Two-Tier Escalation Action */}
+              {classificationResult.verdict === "FLAG" || classificationResult.verdict === "BLOCK" ? (
+                <div
+                  style={{
+                    marginTop: 12,
+                    paddingTop: 10,
+                    borderTop: "1px solid rgba(255,255,255,0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: "var(--muted)" }}>Two-Tier Escalation:</span>
+                  <EscalationAction
+                    item={classificationResult}
+                    isEscalating={Boolean(escalatingIds[classificationResult.id || "test-result"])}
+                    escalated={
+                      escalatedDisputes[classificationResult.id || "test-result"] ||
+                      (classificationResult.escalated_dispute_id
+                        ? {
+                            id: classificationResult.escalated_dispute_id,
+                            url:
+                              classificationResult.escalated_dispute_url ||
+                              `/disputes/${classificationResult.escalated_dispute_id}`,
+                          }
+                        : undefined)
+                    }
+                    onEscalate={() => {
+                      void handleEscalate(classificationResult);
+                    }}
+                  />
                 </div>
               ) : null}
             </div>
@@ -791,6 +964,36 @@ const TelecomDashboardPage = () => {
                           {sig}
                         </span>
                       ))}
+                    </div>
+                  ) : null}
+
+                  {/* Two-Tier Escalation Action for Feed Card */}
+                  {ev.verdict === "FLAG" || ev.verdict === "BLOCK" ? (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        paddingTop: 6,
+                        borderTop: "1px solid rgba(255,255,255,0.06)",
+                        display: "flex",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <EscalationAction
+                        item={ev}
+                        isEscalating={Boolean(escalatingIds[ev.id || `${ev.sender}-${ev.timestamp}`])}
+                        escalated={
+                          escalatedDisputes[ev.id || `${ev.sender}-${ev.timestamp}`] ||
+                          (ev.escalated_dispute_id
+                            ? {
+                                id: ev.escalated_dispute_id,
+                                url: ev.escalated_dispute_url || `/disputes/${ev.escalated_dispute_id}`,
+                              }
+                            : undefined)
+                        }
+                        onEscalate={() => {
+                          void handleEscalate(ev);
+                        }}
+                      />
                     </div>
                   ) : null}
                 </div>

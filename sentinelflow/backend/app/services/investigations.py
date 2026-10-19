@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -12,7 +13,6 @@ from uuid import uuid4
 from app.config import get_settings
 from app.db.models import InvestigationRecord
 from app.db.session import SessionLocal
-from app.graph.graph import build_graph
 from app.schemas.events import StreamEvent, StreamEventType
 from app.schemas.investigation import (
     ComplianceFinding,
@@ -31,20 +31,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-STREAM_POLL_INTERVAL_SECONDS = 0.25
-STREAM_HEARTBEAT_SECONDS = 10.0
-TERMINAL_STATUSES = {"awaiting_approval", "completed", "failed"}
-RUN_JOB = "run_investigation_job"
-RESUME_JOB = "run_resume_investigation_job"
-ACTIVE_JOB_ID_TEMPLATE = "investigation:{investigation_id}:active"
-VALID_INVESTIGATION_STATUSES = {
-    "pending",
-    "running",
-    "awaiting_approval",
-    "completed",
-    "failed",
-}
-
 
 STREAM_REDIS_CHANNEL_PREFIX = "sentinelflow:stream:"
 
@@ -53,11 +39,62 @@ def _stream_redis_channel(investigation_id: str) -> str:
     return f"{STREAM_REDIS_CHANNEL_PREFIX}{investigation_id}"
 
 
+def _redis_settings() -> RedisSettings:
+    return RedisSettings.from_dsn(settings.QUEUE_REDIS_URL)
+
+
+_shared_redis_pool: Any = None
+_redis_pool_lock: asyncio.Lock | None = None
+_redis_unavailable_until: float = 0.0
+
+
+def _get_redis_pool_lock() -> asyncio.Lock:
+    global _redis_pool_lock
+    if _redis_pool_lock is None:
+        _redis_pool_lock = asyncio.Lock()
+    return _redis_pool_lock
+
+
+async def get_redis_pool() -> Any:
+    global _shared_redis_pool, _redis_unavailable_until
+    if _shared_redis_pool is not None:
+        return _shared_redis_pool
+    now = time.monotonic()
+    if now < _redis_unavailable_until:
+        return None
+    async with _get_redis_pool_lock():
+        if _shared_redis_pool is not None:
+            return _shared_redis_pool
+        now = time.monotonic()
+        if now < _redis_unavailable_until:
+            return None
+        try:
+            _shared_redis_pool = await asyncio.wait_for(
+                create_pool(_redis_settings()),
+                timeout=0.5,
+            )
+            return _shared_redis_pool
+        except Exception as exc:
+            _redis_unavailable_until = time.monotonic() + 5.0
+            logger.debug("Redis pool unavailable, backing off: %s", exc)
+            return None
+
+
+async def close_redis_pool() -> None:
+    global _shared_redis_pool, _redis_unavailable_until
+    async with _get_redis_pool_lock():
+        if _shared_redis_pool is not None:
+            await _shared_redis_pool.aclose()
+            _shared_redis_pool = None
+        _redis_unavailable_until = 0.0
+
+
 class InvestigationBroadcaster:
     """Event hub for real-time SSE streaming across in-memory queues and Redis Pub/Sub."""
 
     def __init__(self) -> None:
         self._subscribers: dict[str, set[asyncio.Queue[dict[str, Any] | None]]] = {}
+        self._published_event_ids: dict[str, set[str]] = {}
         self._lock = asyncio.Lock()
 
     async def subscribe(self, investigation_id: str) -> asyncio.Queue[dict[str, Any] | None]:
@@ -77,41 +114,71 @@ class InvestigationBroadcaster:
                     self._subscribers.pop(investigation_id, None)
 
     async def publish(self, investigation_id: str, event: dict[str, Any]) -> None:
+        eid = event.get("id")
         async with self._lock:
+            if eid:
+                published = self._published_event_ids.setdefault(investigation_id, set())
+                if eid in published:
+                    return
+                published.add(eid)
             subs = list(self._subscribers.get(investigation_id, ()))
         for q in subs:
             try:
                 q.put_nowait(event)
             except asyncio.QueueFull:
                 logger.debug("Dropped live SSE event for full queue: %s", investigation_id)
-        if _shared_redis_pool is not None and hasattr(_shared_redis_pool, "publish"):
-            try:
-                await _shared_redis_pool.publish(
+        try:
+            pool = await get_redis_pool()
+            if pool is not None and hasattr(pool, "publish"):
+                await pool.publish(
                     _stream_redis_channel(investigation_id),
                     json.dumps(event),
                 )
-            except Exception as exc:
-                logger.debug("Redis stream publish skipped for %s: %s", investigation_id, exc)
+        except Exception as exc:
+            logger.debug("Redis stream publish skipped for %s: %s", investigation_id, exc)
 
     async def publish_terminal(self, investigation_id: str) -> None:
         async with self._lock:
             subs = list(self._subscribers.get(investigation_id, ()))
+            self._published_event_ids.pop(investigation_id, None)
         for q in subs:
             try:
                 q.put_nowait(None)
             except asyncio.QueueFull:
                 logger.debug("Dropped terminal SSE signal for full queue: %s", investigation_id)
-        if _shared_redis_pool is not None and hasattr(_shared_redis_pool, "publish"):
-            try:
-                await _shared_redis_pool.publish(
+        try:
+            pool = await get_redis_pool()
+            if pool is not None and hasattr(pool, "publish"):
+                await pool.publish(
                     _stream_redis_channel(investigation_id),
                     json.dumps({"__terminal__": True}),
                 )
-            except Exception as exc:
-                logger.debug("Redis terminal publish skipped for %s: %s", investigation_id, exc)
+        except Exception as exc:
+            logger.debug("Redis terminal publish skipped for %s: %s", investigation_id, exc)
 
 
 investigation_broadcaster = InvestigationBroadcaster()
+
+
+def build_graph(session: Any) -> Any:
+    from app.graph.graph import build_graph as _build_graph
+
+    return _build_graph(session)
+
+
+STREAM_POLL_INTERVAL_SECONDS = 0.25
+STREAM_HEARTBEAT_SECONDS = 10.0
+TERMINAL_STATUSES = {"awaiting_approval", "completed", "failed"}
+RUN_JOB = "run_investigation_job"
+RESUME_JOB = "run_resume_investigation_job"
+ACTIVE_JOB_ID_TEMPLATE = "investigation:{investigation_id}:active"
+VALID_INVESTIGATION_STATUSES = {
+    "pending",
+    "running",
+    "awaiting_approval",
+    "completed",
+    "failed",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -416,39 +483,6 @@ async def _run_graph(
     await investigation_broadcaster.publish_terminal(record.id)
 
 
-def _redis_settings() -> RedisSettings:
-    return RedisSettings.from_dsn(settings.QUEUE_REDIS_URL)
-
-
-_shared_redis_pool: Any = None
-_redis_pool_lock: asyncio.Lock | None = None
-
-
-def _get_redis_pool_lock() -> asyncio.Lock:
-    global _redis_pool_lock
-    if _redis_pool_lock is None:
-        _redis_pool_lock = asyncio.Lock()
-    return _redis_pool_lock
-
-
-async def get_redis_pool() -> Any:
-    global _shared_redis_pool
-    if _shared_redis_pool is not None:
-        return _shared_redis_pool
-    async with _get_redis_pool_lock():
-        if _shared_redis_pool is None:
-            _shared_redis_pool = await create_pool(_redis_settings())
-        return _shared_redis_pool
-
-
-async def close_redis_pool() -> None:
-    global _shared_redis_pool
-    async with _get_redis_pool_lock():
-        if _shared_redis_pool is not None:
-            await _shared_redis_pool.aclose()
-            _shared_redis_pool = None
-
-
 def _active_job_id(investigation_id: str) -> str:
     return ACTIVE_JOB_ID_TEMPLATE.format(investigation_id=investigation_id)
 
@@ -612,11 +646,16 @@ async def _forward_redis_pubsub(
     investigation_id: str,
     queue: asyncio.Queue[dict[str, Any] | None],
 ) -> None:
-    if _shared_redis_pool is None or not hasattr(_shared_redis_pool, "pubsub"):
+    try:
+        pool = await get_redis_pool()
+    except Exception as exc:
+        logger.debug("Redis pool unavailable for pubsub forwarder: %s", exc)
+        return
+    if pool is None or not hasattr(pool, "pubsub"):
         return
     channel = _stream_redis_channel(investigation_id)
     try:
-        async with _shared_redis_pool.pubsub() as pubsub:
+        async with pool.pubsub() as pubsub:
             await pubsub.subscribe(channel)
             async for message in pubsub.listen():
                 if not isinstance(message, dict) or message.get("type") != "message":

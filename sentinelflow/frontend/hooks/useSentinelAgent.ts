@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 
 import {
   getInvestigation,
@@ -25,6 +25,12 @@ export const useSentinelAgent = (disputeId: string) => {
   const [state, setState] = useState<ConsoleState>(initialConsoleState);
   const [isLaunching, setIsLaunching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const isLaunchingRef = useRef(isLaunching);
+  isLaunchingRef.current = isLaunching;
+  const isReviewingRef = useRef(isReviewing);
+  isReviewingRef.current = isReviewing;
   const streamRef = useRef<StreamHandle | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -42,13 +48,20 @@ export const useSentinelAgent = (disputeId: string) => {
   };
 
   useEffect(() => {
+    clearReconnectTimeout();
+    streamRef.current?.close();
+    streamRef.current = null;
+    resetReconnectState();
+    setState(initialConsoleState);
+
     return () => {
       clearReconnectTimeout();
       streamRef.current?.close();
+      streamRef.current = null;
     };
-  }, []);
+  }, [disputeId]);
 
-  const refresh = async (investigationId: string, reconnectIfRunning = false) => {
+  const refresh = useCallback(async (investigationId: string, reconnectIfRunning = false) => {
     try {
       const run = await getInvestigation(investigationId);
       setState((current) => applyRunToConsoleState(current, run));
@@ -63,7 +76,7 @@ export const useSentinelAgent = (disputeId: string) => {
         error: error instanceof Error ? error.message : "Refresh failed.",
       }));
     }
-  };
+  }, []);
 
   const scheduleReconnect = (investigationId: string, message: string) => {
     streamRef.current = null;
@@ -154,8 +167,8 @@ export const useSentinelAgent = (disputeId: string) => {
     );
   };
 
-  const launch = async () => {
-    if (isLaunching) {
+  const launch = useCallback(async () => {
+    if (isLaunchingRef.current) {
       return;
     }
     setIsLaunching(true);
@@ -179,28 +192,32 @@ export const useSentinelAgent = (disputeId: string) => {
     } finally {
       setIsLaunching(false);
     }
-  };
+  }, [disputeId]);
 
-  const review = async (decision: ApprovalDecision, comment: string, guidance?: string) => {
-    if (!state.investigationId || isReviewing) {
-      return;
-    }
-    setIsReviewing(true);
-    try {
-      const run = await resumeInvestigation(state.investigationId, decision, comment, guidance);
-      setState((current) => applyRunToConsoleState(current, run));
-      connectStream(run.id);
-    } catch (error) {
-      setState((current) => ({
-        ...current,
-        streamConnection: "disconnected",
-        nextReconnectDelayMs: null,
-        error: error instanceof Error ? error.message : "Approval failed.",
-      }));
-    } finally {
-      setIsReviewing(false);
-    }
-  };
+  const review = useCallback(
+    async (decision: ApprovalDecision, comment: string, guidance?: string) => {
+      const investigationId = stateRef.current.investigationId;
+      if (!investigationId || isReviewingRef.current) {
+        return;
+      }
+      setIsReviewing(true);
+      try {
+        const run = await resumeInvestigation(investigationId, decision, comment, guidance);
+        setState((current) => applyRunToConsoleState(current, run));
+        connectStream(run.id);
+      } catch (error) {
+        setState((current) => ({
+          ...current,
+          streamConnection: "disconnected",
+          nextReconnectDelayMs: null,
+          error: error instanceof Error ? error.message : "Approval failed.",
+        }));
+      } finally {
+        setIsReviewing(false);
+      }
+    },
+    []
+  );
 
   return {
     state,

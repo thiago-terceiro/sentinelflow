@@ -39,6 +39,7 @@ from app.schemas.investigation import Evidence
 from app.security import Principal, Role
 from app.services.audit import record_audit_event
 from app.services.guardrails import inspect_prompt_safety, validate_evidence_grounding
+from app.services.investigations import investigation_broadcaster
 from app.services.model_gateway import LLMCallResult
 from app.services.risk import calculate_risk
 from app.services.trace_safety import redact_text, sha256_text
@@ -77,15 +78,15 @@ def _append_event(
     data: dict[str, Any],
     *,
     event_id: str | None = None,
-) -> None:
-    state["timeline_events"].append(
-        StreamEvent(
-            id=event_id or f"evt_{uuid4().hex[:10]}",
-            type=event_type,
-            timestamp=datetime.now(UTC),
-            data=data,
-        ).model_dump(mode="json")
-    )
+) -> dict[str, Any]:
+    event = StreamEvent(
+        id=event_id or f"evt_{uuid4().hex[:10]}",
+        type=event_type,
+        timestamp=datetime.now(UTC),
+        data=data,
+    ).model_dump(mode="json")
+    state["timeline_events"].append(event)
+    return event
 
 
 def _append_agent_message(
@@ -488,7 +489,7 @@ class InvestigationNodes:
                         "investigation.id": state["investigation_id"],
                     },
                 ) as tool_span:
-                    _append_event(
+                    ev_tool_started = _append_event(
                         state,
                         "tool_started",
                         {
@@ -497,6 +498,9 @@ class InvestigationNodes:
                             "label": _tool_label(tool_request["name"]),
                         },
                         event_id=f"tool_started_{tool_call_id}",
+                    )
+                    await investigation_broadcaster.publish(
+                        state["investigation_id"], ev_tool_started
                     )
                     state["tool_call_count"] += 1
                     try:
@@ -533,7 +537,7 @@ class InvestigationNodes:
                         investigation_id=state["investigation_id"],
                         dispute_id=state["dispute_id"],
                     )
-                    _append_event(
+                    ev_tool_completed = _append_event(
                         state,
                         "tool_completed",
                         {
@@ -544,7 +548,10 @@ class InvestigationNodes:
                         },
                         event_id=f"tool_completed_{tool_call_id}",
                     )
-                    _append_event(
+                    await investigation_broadcaster.publish(
+                        state["investigation_id"], ev_tool_completed
+                    )
+                    ev_evidence = _append_event(
                         state,
                         "evidence_added",
                         {
@@ -552,6 +559,9 @@ class InvestigationNodes:
                             "tool_call_id": tool_call_id,
                         },
                         event_id=f"evidence_{evidence.id}",
+                    )
+                    await investigation_broadcaster.publish(
+                        state["investigation_id"], ev_evidence
                     )
             existing = state["evidence"][:]
             if state["pending_analyzers"]:
@@ -580,7 +590,7 @@ class InvestigationNodes:
                         stage="collect",
                         details={"analyzer_id": analyzer_id},
                     )
-                    _append_event(
+                    ev_analyzer_started = _append_event(
                         state,
                         "analyzer_started",
                         {
@@ -589,6 +599,9 @@ class InvestigationNodes:
                             "label": _analyzer_label(analyzer_request["name"]),
                         },
                         event_id=f"analyzer_started_{analyzer_id}",
+                    )
+                    await investigation_broadcaster.publish(
+                        state["investigation_id"], ev_analyzer_started
                     )
                     state["analyzer_call_count"] += 1
                     try:
@@ -636,7 +649,7 @@ class InvestigationNodes:
                             "contradiction_count": len(summary.contradictions),
                         },
                     )
-                    _append_event(
+                    ev_analyzer_completed = _append_event(
                         state,
                         "analyzer_completed",
                         {
@@ -645,6 +658,9 @@ class InvestigationNodes:
                             "analyzer_name": analyzer_request["name"],
                         },
                         event_id=f"analyzer_completed_{analyzer_id}",
+                    )
+                    await investigation_broadcaster.publish(
+                        state["investigation_id"], ev_analyzer_completed
                     )
             state["pending_tools"] = []
             state["pending_analyzers"] = []

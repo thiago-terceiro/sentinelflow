@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { ApprovalDecision } from "@/lib/types";
 
 type Props = {
@@ -13,7 +13,7 @@ type Props = {
   ) => Promise<void> | void;
 };
 
-export const ApprovalPanel = ({ requiresApproval, isSubmitting, onDecision }: Props) => {
+export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, onDecision }: Props) => {
   const [comment, setComment] = useState("Risk threshold crossed; reviewer confirmation required.");
   const [guidance, setGuidance] = useState("");
   const [isSteeringOpen, setIsSteeringOpen] = useState(false);
@@ -194,4 +194,6 @@ export const ApprovalPanel = ({ requiresApproval, isSubmitting, onDecision }: Pr
       </div>
     </section>
   );
-};
+});
+
+ApprovalPanel.displayName = "ApprovalPanel";

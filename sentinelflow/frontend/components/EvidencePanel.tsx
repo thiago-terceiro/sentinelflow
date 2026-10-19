@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Evidence } from "@/lib/types";
 
 type Props = {
@@ -17,7 +18,7 @@ const sourceLabel = (origin: Evidence["origin"]) => {
   return "Observed fact";
 };
 
-export const EvidencePanel = ({ evidence, isLoading }: Props) => {
+export const EvidencePanel = memo(({ evidence, isLoading }: Props) => {
   return (
     <section className="shell-card" style={{ padding: 24, minHeight: 0 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -104,4 +105,6 @@ export const EvidencePanel = ({ evidence, isLoading }: Props) => {
       </div>
     </section>
   );
-};
+});
+
+EvidencePanel.displayName = "EvidencePanel";

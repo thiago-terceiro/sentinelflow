@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { StreamEvent } from "@/lib/types";
 
 type Props = {
@@ -88,7 +89,7 @@ const eventBadge = (event: StreamEvent): string => {
   return "Agent";
 };
 
-export const InvestigationTimeline = ({ status, events }: Props) => {
+export const InvestigationTimeline = memo(({ status, events }: Props) => {
   return (
     <section
       className="shell-card"
@@ -150,4 +151,6 @@ export const InvestigationTimeline = ({ status, events }: Props) => {
       </ul>
     </section>
   );
-};
+});
+
+InvestigationTimeline.displayName = "InvestigationTimeline";

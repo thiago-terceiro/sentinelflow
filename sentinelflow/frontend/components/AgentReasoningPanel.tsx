@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { InvestigationHypothesis } from "@/lib/types";
 
 type Props = {
@@ -9,7 +10,7 @@ type Props = {
   isLoading?: boolean;
 };
 
-export const AgentReasoningPanel = ({
+export const AgentReasoningPanel = memo(({
   thoughtProcess,
   reasoningSteps = [],
   hypotheses = [],
@@ -238,4 +239,6 @@ export const AgentReasoningPanel = ({
       </div>
     </section>
   );
-};
+});
+
+AgentReasoningPanel.displayName = "AgentReasoningPanel";

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from typing import Any
+
 import httpx
 import pytest
+from app.db.models import Base
 from app.main import app
 from app.telecom.drift_monitor import calculate_psi, get_drift_monitor
 from app.telecom.onnx_engine import get_inference_engine
 from app.telecom.velocity_store import get_velocity_store
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 
 def test_onnx_inference_engine_benign_and_fraud() -> None:
@@ -203,3 +209,79 @@ def test_mlops_data_drift_monitor() -> None:
     assert report.status in {"HEALTHY", "MODERATE_DRIFT", "CRITICAL_DRIFT"}
     assert report.ks_p_value >= 0.0
     assert report.psi_score >= 0.0
+
+
+@pytest.fixture
+async def telecom_db_session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    test_engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        future=True,
+    )
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
+    try:
+        yield factory
+    finally:
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        await test_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_escalate_telecom_anomaly_creates_dispute(
+    monkeypatch: Any,
+    telecom_db_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """Verifies that escalating a flagged SMS creates a DisputeRecord with anomaly metadata."""
+    monkeypatch.setattr("app.api.telecom.SessionLocal", telecom_db_session_factory)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        payload = {
+            "sender": "+15559998877",
+            "recipient": "+14155551234",
+            "message": "URGENT: Your bank account is locked! Click http://scam.link to verify.",
+            "carrier": "Bandwidth.com",
+            "verdict": "BLOCK",
+            "fraud_score": 0.95,
+            "signals": ["RULE:HIGH_RISK_SHORTLINK", "ML:HIGH_FRAUD_PROBABILITY"],
+            "velocity": {"velocity_10s": 15},
+            "event_id": "evt_test_esc_1",
+        }
+        res = await client.post("/api/v1/telecom/escalate", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert "dispute_id" in data
+        assert data["case_code"].startswith("TEL-")
+        assert data["dispute_url"] == f"/disputes/{data['dispute_id']}"
+        assert data["status"] == "open"
+
+
+@pytest.mark.asyncio
+async def test_classify_with_auto_escalate(
+    monkeypatch: Any,
+    telecom_db_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """Verifies that setting escalate=True auto-creates a DisputeRecord on BLOCK or FLAG."""
+    monkeypatch.setattr("app.api.telecom.SessionLocal", telecom_db_session_factory)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        payload = {
+            "sender": "+15551112233",
+            "recipient": "+14155554321",
+            "message": (
+                "URGENT: Chase Bank alert. Account suspended! Verify immediately: "
+                "http://bit.ly/chase-verify-now"
+            ),
+            "carrier": "TextNow",
+            "escalate": True,
+        }
+        res = await client.post("/api/v1/telecom/classify", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["verdict"] == "BLOCK"
+        assert data["escalated_dispute_id"] is not None
+        assert data["escalated_dispute_url"] == f"/disputes/{data['escalated_dispute_id']}"
+

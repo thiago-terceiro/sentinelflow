@@ -13,7 +13,10 @@ from uuid import uuid4
 from fastapi import APIRouter, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models import DisputeRecord
+from app.db.session import SessionLocal
 from app.services.trace_safety import redact_text
 from app.telecom.drift_monitor import get_drift_monitor
 from app.telecom.onnx_engine import get_inference_engine
@@ -57,6 +60,10 @@ class TelecomClassifyRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=1600, description="SMS text content")
     ip: str | None = Field(default=None, description="Originating client or carrier gateway IP")
     carrier: str | None = Field(default=None, description="Originating network carrier")
+    escalate: bool = Field(
+        default=False,
+        description="Automatically escalate FLAG/BLOCK verdicts to a SentinelFlow dispute",
+    )
 
 
 class TelecomClassifyResponse(BaseModel):
@@ -66,6 +73,27 @@ class TelecomClassifyResponse(BaseModel):
     signals: list[str]
     velocity: dict[str, Any]
     model_version: str
+    escalated_dispute_id: str | None = None
+    escalated_dispute_url: str | None = None
+
+
+class TelecomEscalateRequest(BaseModel):
+    sender: str = Field(..., description="Originating phone number")
+    recipient: str = Field(..., description="Destination phone number")
+    message: str = Field(..., description="SMS text content")
+    carrier: str | None = Field(default=None, description="Network carrier")
+    verdict: Literal["ALLOW", "BLOCK", "FLAG"] = Field(..., description="Classification verdict")
+    fraud_score: float = Field(..., description="Computed composite fraud score")
+    signals: list[str] = Field(default_factory=list, description="Triggered fraud signals")
+    velocity: dict[str, Any] = Field(default_factory=dict, description="Velocity signals")
+    event_id: str | None = Field(default=None, description="Telecom feed event ID")
+
+
+class TelecomEscalateResponse(BaseModel):
+    dispute_id: str
+    case_code: str
+    dispute_url: str
+    status: str
 
 
 class TelecomBatchRequest(BaseModel):
@@ -76,6 +104,61 @@ class TelecomBatchResponse(BaseModel):
     total_processed: int
     batch_latency_ms: float
     results: list[TelecomClassifyResponse]
+
+
+async def _create_escalated_dispute(
+    session: AsyncSession,
+    *,
+    sender: str,
+    recipient: str,
+    message: str,
+    carrier: str | None,
+    verdict: str,
+    fraud_score: float,
+    signals: list[str],
+    velocity: dict[str, Any],
+    event_id: str | None = None,
+) -> DisputeRecord:
+    case_code = f"TEL-{uuid4().hex[:8].upper()}"
+    title = f"SMS Anomaly: {sender} -> {recipient} ({verdict})"
+    narrative = (
+        f"SentinelPulse Telecom Gateway Anomaly Alert:\n"
+        f"Verdict: {verdict}\n"
+        f"Fraud Score: {fraud_score}\n"
+        f"Sender: {sender}\n"
+        f"Recipient: {recipient}\n"
+        f"Carrier: {carrier or 'Unknown'}\n"
+        f"Signals: {', '.join(signals) if signals else 'None'}\n"
+        f"Message Content: {message}\n"
+        f"Velocity Details: {json.dumps(velocity)}"
+    )
+    dispute = DisputeRecord(
+        case_code=case_code,
+        title=title,
+        narrative=narrative,
+        customer_id=f"tel_{sender.replace('+', '')}",
+        merchant_id=(
+            f"carrier_{carrier.lower().replace(' ', '_')}" if carrier else "carrier_unknown"
+        ),
+        amount=0.0,
+        currency="USD",
+        status="open",
+        attributes={
+            "source": "sentinelpulse",
+            "telecom_anomaly": True,
+            "verdict": verdict,
+            "fraud_score": fraud_score,
+            "signals": signals,
+            "carrier": carrier,
+            "velocity": velocity,
+            "event_id": event_id,
+            "tags": ["telecom_anomaly", verdict.lower(), "sentinelpulse"],
+        },
+    )
+    session.add(dispute)
+    await session.commit()
+    await session.refresh(dispute)
+    return dispute
 
 
 async def _process_single_message(
@@ -148,6 +231,28 @@ async def _process_single_message(
         "ip_count_60s": velocity_metrics.ip_count_60s,
     }
 
+    escalated_dispute_id: str | None = None
+    escalated_dispute_url: str | None = None
+    if req.escalate and verdict in ("FLAG", "BLOCK"):
+        try:
+            async with SessionLocal() as db_session:
+                dispute = await _create_escalated_dispute(
+                    db_session,
+                    sender=req.sender,
+                    recipient=req.recipient,
+                    message=req.message,
+                    carrier=velocity_metrics.carrier,
+                    verdict=verdict,
+                    fraud_score=round(composite_score, 4),
+                    signals=combined_signals,
+                    velocity=velocity_dict,
+                    event_id=eid,
+                )
+                escalated_dispute_id = dispute.id
+                escalated_dispute_url = f"/disputes/{dispute.id}"
+        except Exception as exc:
+            logger.warning("Failed to auto-escalate telecom anomaly: %s", exc)
+
     response_payload = TelecomClassifyResponse(
         verdict=verdict,
         fraud_score=round(composite_score, 4),
@@ -155,6 +260,8 @@ async def _process_single_message(
         signals=combined_signals,
         velocity=velocity_dict,
         model_version=inference_result.model_version,
+        escalated_dispute_id=escalated_dispute_id,
+        escalated_dispute_url=escalated_dispute_url,
     )
 
     # 6. Stream live event to connected frontend dashboard (with PII redacted)
@@ -170,6 +277,8 @@ async def _process_single_message(
         "signals": combined_signals,
         "carrier": velocity_metrics.carrier,
         "velocity": velocity_dict,
+        "escalated_dispute_id": escalated_dispute_id,
+        "escalated_dispute_url": escalated_dispute_url,
     }
     await broadcast_telecom_event(stream_payload)
 
@@ -180,6 +289,30 @@ async def _process_single_message(
 async def classify_telecom_message(request: TelecomClassifyRequest) -> TelecomClassifyResponse:
     """Real-time synchronous classification gateway with <15ms p95 latency SLA."""
     return await _process_single_message(request)
+
+
+@router.post("/telecom/escalate", response_model=TelecomEscalateResponse)
+async def escalate_telecom_anomaly(request: TelecomEscalateRequest) -> TelecomEscalateResponse:
+    """Escalates a telecom anomaly to a SentinelFlow dispute for LangGraph investigation."""
+    async with SessionLocal() as session:
+        dispute = await _create_escalated_dispute(
+            session,
+            sender=request.sender,
+            recipient=request.recipient,
+            message=request.message,
+            carrier=request.carrier,
+            verdict=request.verdict,
+            fraud_score=request.fraud_score,
+            signals=request.signals,
+            velocity=request.velocity,
+            event_id=request.event_id,
+        )
+        return TelecomEscalateResponse(
+            dispute_id=dispute.id,
+            case_code=dispute.case_code,
+            dispute_url=f"/disputes/{dispute.id}",
+            status=dispute.status,
+        )
 
 
 @router.post("/telecom/events/batch", response_model=TelecomBatchResponse)
