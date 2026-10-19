@@ -19,7 +19,7 @@
     "codegen:types": "node scripts/generate-types.js"
   },
   "dependencies": {
-    "next": "^16.4.1",
+    "next": "^16.4.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
