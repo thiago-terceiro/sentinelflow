@@ -34,20 +34,18 @@ const HomePage = () => {
   }, []);
 
   return (
-    <main style={{ padding: "40px 0 80px" }}>
-      <section className="shell-card" style={{ padding: 32, marginBottom: 22 }}>
-        <p
-          style={{
-            margin: 0,
-            color: "var(--muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-          }}
-        >
-          Operations console
-        </p>
-        <h1 style={{ marginBottom: 12, fontSize: "clamp(2.6rem, 5vw, 5rem)" }}>SentinelFlow</h1>
-        <p style={{ maxWidth: 700, color: "var(--muted)" }}>
+    <main
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
+      }}
+    >
+      <section className="shell-card" style={{ padding: "28px 32px", width: "100%", margin: 0 }}>
+        <h1 style={{ margin: "8px 0 12px", fontSize: "clamp(2.4rem, 4.5vw, 4rem)" }}>
+          SentinelFlow
+        </h1>
+        <p style={{ maxWidth: 700, margin: 0, color: "var(--muted)", lineHeight: 1.6 }}>
           Evidence-grounded dispute investigations with deterministic risk scoring and reviewer
           approval for high-impact outcomes.
         </p>
@@ -57,10 +55,11 @@ const HomePage = () => {
         <section
           className="shell-card"
           style={{
-            padding: 18,
+            padding: "18px 24px",
             borderColor: "rgba(158,47,40,0.25)",
             color: "var(--danger)",
-            marginBottom: 22,
+            width: "100%",
+            margin: 0,
           }}
         >
           Authentication failed: {authError}
@@ -70,7 +69,13 @@ const HomePage = () => {
       {fetchError ? (
         <section
           className="shell-card"
-          style={{ padding: 18, borderColor: "rgba(158,47,40,0.25)", color: "var(--danger)" }}
+          style={{
+            padding: "18px 24px",
+            borderColor: "rgba(158,47,40,0.25)",
+            color: "var(--danger)",
+            width: "100%",
+            margin: 0,
+          }}
         >
           {fetchError}
           {fetchError.toLowerCase().includes("authentication") ||
@@ -84,38 +89,49 @@ const HomePage = () => {
         </section>
       ) : null}
 
-      <section className="shell-card" style={{ padding: 28 }}>
+      <section className="shell-card" style={{ padding: "28px 32px", width: "100%", margin: 0 }}>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             gap: 12,
+            marginBottom: 20,
           }}
         >
-          <h2>Seeded disputes</h2>
-          <span style={{ color: "var(--muted)" }}>{disputes.length} cases</span>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Seeded disputes</h2>
+          <span style={{ color: "var(--muted)", fontSize: 13 }}>{disputes.length} cases</span>
         </div>
-        <div style={{ display: "grid", gap: 16 }}>
-          {isLoading ? <p>Loading disputes...</p> : null}
-          {!isLoading && disputes.length === 0 ? <p>No disputes available.</p> : null}
+        <div style={{ display: "grid", gap: 14, width: "100%" }}>
+          {isLoading ? <p style={{ margin: 0, color: "var(--muted)" }}>Loading disputes...</p> : null}
+          {!isLoading && disputes.length === 0 ? (
+            <p style={{ margin: 0, color: "var(--muted)" }}>No disputes available.</p>
+          ) : null}
           {disputes.map((dispute) => (
             <Link
               key={dispute.id}
               href={`/disputes/${dispute.id}`}
-              className="shell-card"
-              style={{ padding: 20, display: "block" }}
+              className="shell-card dispute-card-item"
+              style={{
+                padding: "18px 24px",
+                display: "block",
+                width: "100%",
+                textDecoration: "none",
+                margin: 0,
+              }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
                 <div>
-                  <strong>{dispute.case_code}</strong>
-                  <p style={{ marginBottom: 0 }}>{dispute.title}</p>
+                  <strong style={{ fontSize: 15 }}>{dispute.case_code}</strong>
+                  <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                    {dispute.title}
+                  </p>
                 </div>
-                <div style={{ textAlign: "right", color: "var(--muted)" }}>
-                  <div>
+                <div style={{ textAlign: "right", color: "var(--muted)", fontSize: 13 }}>
+                  <div style={{ fontWeight: 600, color: "var(--foreground)" }}>
                     {dispute.currency} {dispute.amount.toFixed(2)}
                   </div>
-                  <div>{dispute.status}</div>
+                  <div style={{ marginTop: 4 }}>{dispute.status}</div>
                 </div>
               </div>
             </Link>

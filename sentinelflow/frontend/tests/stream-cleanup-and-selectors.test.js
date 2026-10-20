@@ -5,12 +5,9 @@ import {
   applyStreamEventToConsoleState,
   createInvestigationStore,
   initialConsoleState,
-  selectAgentMessage,
   selectAnalyzers,
-  selectApproval,
   selectEvidence,
   selectHypotheses,
-  selectPipelineStage,
   selectRisk,
   selectTimeline,
 } from "../lib/investigationState.ts";

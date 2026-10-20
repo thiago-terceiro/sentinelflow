@@ -17,6 +17,26 @@ export const AuditPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"ledger" | "evals">("ledger");
+  const [authRole, setAuthRole] = useState<string | null>(null);
+  const [hasAuthChecked, setHasAuthChecked] = useState(false);
+
+  useEffect(() => {
+    let role: string | null = null;
+    try {
+      const match = document.cookie.match(/(?:^|;\s*)sentinelflow_test_user=([^;]+)/);
+      if (match) {
+        const decoded = decodeURIComponent(match[1]);
+        const parts = decoded.split(":", 2);
+        role = parts[1] ?? null;
+      }
+    } catch {
+      role = null;
+    }
+    setAuthRole(role);
+    setHasAuthChecked(true);
+  }, []);
+
+  const isAuthorized = authRole === "auditor" || authRole === "admin";
 
   // Filters
   const [disputeIdInput, setDisputeIdInput] = useState("");
@@ -61,8 +81,10 @@ export const AuditPage = () => {
   };
 
   useEffect(() => {
-    void loadAuditData();
-  }, [eventFilter, limit]);
+    if (hasAuthChecked && isAuthorized) {
+      void loadAuditData();
+    }
+  }, [hasAuthChecked, isAuthorized, eventFilter, limit]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,8 +137,84 @@ export const AuditPage = () => {
     }
   };
 
+  if (!hasAuthChecked) {
+    return (
+      <main>
+        <div className="shell-card" style={{ padding: 48, textAlign: "center", color: "var(--muted)" }}>
+          Checking authorization permissions...
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <main>
+        <div
+          className="shell-card"
+          style={{
+            padding: "48px 32px",
+            textAlign: "center",
+            border: "1px solid rgba(158,47,40,0.25)",
+          }}
+        >
+          <h2 style={{ margin: "0 0 12px", color: "var(--danger)", fontSize: 24, fontWeight: 700 }}>
+            Access Restricted: Auditor or Admin Role Required
+          </h2>
+          <p
+            style={{
+              color: "var(--muted)",
+              maxWidth: 560,
+              margin: "0 auto 24px",
+              fontSize: 14,
+              lineHeight: 1.6,
+            }}
+          >
+            The SentinelFlow Audit Ledger and AI Governance Portal contain sensitive compliance traces
+            and can only be accessed by users authenticated with the Auditor or Admin role.
+          </p>
+          <div style={{ display: "inline-flex", gap: 12 }}>
+            <Link
+              href="/login?returnTo=/audit"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "10px 24px",
+                background: "var(--accent)",
+                color: "white",
+                fontWeight: 600,
+                fontSize: 13,
+                textDecoration: "none",
+                borderRadius: "var(--card-radius, 8px)",
+              }}
+            >
+              Sign In as Auditor
+            </Link>
+            <Link
+              href="/"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "10px 24px",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid var(--panel-border)",
+                color: "var(--ink)",
+                fontWeight: 600,
+                fontSize: 13,
+                textDecoration: "none",
+                borderRadius: "var(--card-radius, 8px)",
+              }}
+            >
+              Return to Disputes
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main style={{ width: "min(1150px, calc(100vw - 2rem))", margin: "24px auto 48px" }}>
+    <main>
       {/* Header section */}
       <div
         className="shell-card"
@@ -160,44 +258,56 @@ export const AuditPage = () => {
             AI Act & SOC 2.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <button
             type="button"
             onClick={() => handleExportFinetuningDataset("dpo")}
+            className="audit-export-btn"
             style={{
-              border: "1px solid rgba(255,255,255,0.15)",
+              border: "1px solid var(--panel-border)",
               borderRadius: 999,
-              padding: "10px 18px",
+              padding: "10px 22px",
+              minWidth: 200,
               background: "rgba(255,255,255,0.05)",
-              color: "var(--foreground)",
+              color: "inherit",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
+              whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            📥 Export DPO Pairs (JSONL)
+            <span className="page-icon">📥 </span>Export DPO Pairs (JSONL)
           </button>
           <button
             type="button"
             onClick={() => handleExportFinetuningDataset("sft")}
+            className="audit-export-btn"
             style={{
-              border: "1px solid rgba(255,255,255,0.15)",
+              border: "1px solid var(--panel-border)",
               borderRadius: 999,
-              padding: "10px 18px",
+              padding: "10px 22px",
+              minWidth: 180,
               background: "rgba(255,255,255,0.05)",
-              color: "var(--foreground)",
+              color: "inherit",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
+              whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            📥 Export SFT Dataset
+            <span className="page-icon">📥 </span>Export SFT Dataset
           </button>
           <Link
             href="/"
             style={{
               borderRadius: 999,
-              padding: "10px 18px",
+              padding: "10px 20px",
               background: "var(--accent)",
               color: "white",
               fontSize: 13,
@@ -205,6 +315,8 @@ export const AuditPage = () => {
               textDecoration: "none",
               display: "inline-flex",
               alignItems: "center",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             ← Back to Disputes
@@ -214,41 +326,45 @@ export const AuditPage = () => {
 
       {/* Navigation Tabs */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        <button
-          onClick={() => setActiveTab("ledger")}
-          style={{
-            padding: "10px 18px",
-            borderRadius: 999,
-            fontSize: 13,
-            fontWeight: 600,
-            border:
-              activeTab === "ledger"
-                ? "1px solid var(--accent)"
-                : "1px solid rgba(255,255,255,0.1)",
-            background: activeTab === "ledger" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
-            color: activeTab === "ledger" ? "var(--foreground)" : "var(--muted)",
-            cursor: "pointer",
-          }}
-        >
-          📋 Audit Ledger & Traces
-        </button>
-        <button
-          onClick={() => setActiveTab("evals")}
-          style={{
-            padding: "10px 18px",
-            borderRadius: 999,
-            fontSize: 13,
-            fontWeight: 600,
-            border:
-              activeTab === "evals" ? "1px solid var(--accent)" : "1px solid rgba(255,255,255,0.1)",
-            background: activeTab === "evals" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
-            color: activeTab === "evals" ? "var(--foreground)" : "var(--muted)",
-            cursor: "pointer",
-          }}
-        >
-          🎯 AI Model Evaluations & Continuous Improvement
-        </button>
-      </div>
+            <button
+              onClick={() => setActiveTab("ledger")}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 999,
+                fontSize: 13,
+                fontWeight: 600,
+                border:
+                  activeTab === "ledger"
+                    ? "1px solid var(--accent)"
+                    : "1px solid rgba(255,255,255,0.1)",
+                background:
+                  activeTab === "ledger" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+                color: activeTab === "ledger" ? "var(--foreground)" : "var(--muted)",
+                cursor: "pointer",
+              }}
+            >
+              <span className="page-icon">📋 </span>Audit Ledger & Traces
+            </button>
+            <button
+              onClick={() => setActiveTab("evals")}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 999,
+                fontSize: 13,
+                fontWeight: 600,
+                border:
+                  activeTab === "evals"
+                    ? "1px solid var(--accent)"
+                    : "1px solid rgba(255,255,255,0.1)",
+                background:
+                  activeTab === "evals" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+                color: activeTab === "evals" ? "var(--foreground)" : "var(--muted)",
+                cursor: "pointer",
+              }}
+            >
+              <span className="page-icon">🎯 </span>AI Model Evaluations & Continuous Improvement
+            </button>
+          </div>
 
       {activeTab === "evals" ? (
         <AiEvaluationBenchmarkPanel />
@@ -283,7 +399,7 @@ export const AuditPage = () => {
                   padding: "8px 14px",
                   borderRadius: 8,
                   border: "1px solid var(--panel-border)",
-                  background: "rgba(0,0,0,0.2)",
+                  background: "var(--input-bg, #ffffff)",
                   color: "inherit",
                   flex: 1,
                   fontSize: 13,
@@ -291,9 +407,10 @@ export const AuditPage = () => {
               />
               <button
                 type="submit"
+                className="audit-search-btn"
                 style={{
                   padding: "8px 16px",
-                  borderRadius: 8,
+                  borderRadius: "var(--card-radius, 8px)",
                   border: 0,
                   background: "var(--accent)",
                   color: "white",
@@ -315,7 +432,7 @@ export const AuditPage = () => {
                   padding: "8px 12px",
                   borderRadius: 8,
                   border: "1px solid var(--panel-border)",
-                  background: "rgba(0,0,0,0.3)",
+                  background: "var(--input-bg, #ffffff)",
                   color: "inherit",
                   fontSize: 13,
                 }}
@@ -336,7 +453,7 @@ export const AuditPage = () => {
                   padding: "8px 12px",
                   borderRadius: 8,
                   border: "1px solid var(--panel-border)",
-                  background: "rgba(0,0,0,0.3)",
+                  background: "var(--input-bg, #ffffff)",
                   color: "inherit",
                   fontSize: 13,
                 }}

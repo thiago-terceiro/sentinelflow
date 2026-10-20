@@ -22,7 +22,9 @@ export const AuditComplianceCards = ({ integrity, recordCount }: Props) => {
       {/* Cryptographic hash chain */}
       <div className="shell-card" style={{ padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>🔒</span>
+          <span className="page-icon" style={{ fontSize: 16 }}>
+            🔒
+          </span>
           <h4 style={{ margin: 0, fontSize: 14 }}>SHA-256 Tamper-Evidence</h4>
         </div>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 10px 0" }}>
@@ -47,7 +49,9 @@ export const AuditComplianceCards = ({ integrity, recordCount }: Props) => {
       {/* PII Governance */}
       <div className="shell-card" style={{ padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>🛡️</span>
+          <span className="page-icon" style={{ fontSize: 16 }}>
+            🛡️
+          </span>
           <h4 style={{ margin: 0, fontSize: 14 }}>PII Scrubbing & PCI-DSS</h4>
         </div>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 10px 0" }}>
@@ -71,7 +75,9 @@ export const AuditComplianceCards = ({ integrity, recordCount }: Props) => {
       {/* EU AI Act / SOC 2 */}
       <div className="shell-card" style={{ padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>📜</span>
+          <span className="page-icon" style={{ fontSize: 16 }}>
+            📜
+          </span>
           <h4 style={{ margin: 0, fontSize: 14 }}>EU AI Act Article 12 Logging</h4>
         </div>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 10px 0" }}>

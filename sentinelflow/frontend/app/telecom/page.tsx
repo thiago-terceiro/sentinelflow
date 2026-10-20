@@ -84,6 +84,20 @@ const PRESETS = [
   },
 ];
 
+const BASELINE_DRIFT: DriftReport = {
+  status: "HEALTHY",
+  ks_statistic: 0.0,
+  ks_p_value: 1.0,
+  ks_drift_detected: false,
+  psi_score: 0.0,
+  psi_status: "STABLE",
+  sample_count: 0,
+  baseline_sample_count: 1000,
+  mean_live_length: 0,
+  mean_baseline_length: 64.0,
+  recommendation: "Baseline calibrated. Distribution healthy.",
+};
+
 const getVerdictColor = (verdict: TelecomVerdict): string => {
   if (verdict === "BLOCK") {
     return "#ef4444";
@@ -119,50 +133,60 @@ const TelemetryCards = ({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16, marginBottom: 24 }}>
       {/* Throughput Card */}
-      <div className="shell-card" style={{ padding: "20px 22px" }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--muted)", textTransform: "uppercase" }}>
-          Traffic Throughput
-        </span>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 10 }}>
-          <span style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.04em", color: "var(--accent)" }}>
-            {metrics.throughput_eps}
+      <div className="shell-card" style={{ padding: "20px 22px", minHeight: 170, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--muted)", textTransform: "uppercase" }}>
+            Traffic Throughput
           </span>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>events / sec</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 10 }}>
+            <span style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.04em", color: "var(--accent)" }}>
+              {metrics.throughput_eps}
+            </span>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>events / sec</span>
+          </div>
         </div>
         <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
           Total processed: <strong style={{ color: "var(--foreground)" }}>{metrics.total_requests.toLocaleString()}</strong> messages
         </div>
       </div>
 
-      {/* Latency Percentiles Card */}
-      <div className="shell-card" style={{ padding: "20px 22px" }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--muted)", textTransform: "uppercase" }}>
-          Inference Latency SLA
-        </span>
-        <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-          <div>
-            <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p50</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: "#22c55e" }}>
-              {metrics.latency.p50_ms.toFixed(2)}ms
-            </span>
-          </div>
-          <div>
-            <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p90</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: "#22c55e" }}>
-              {metrics.latency.p90_ms.toFixed(2)}ms
-            </span>
-          </div>
-          <div>
-            <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p95</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: p95Color }}>
-              {metrics.latency.p95_ms.toFixed(2)}ms
-            </span>
-          </div>
-          <div>
-            <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p99</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: p99Color }}>
-              {metrics.latency.p99_ms.toFixed(2)}ms
-            </span>
+      {/* Latency Percentiles Card - 2 Lines to prevent number overflow */}
+      <div className="shell-card" style={{ padding: "20px 22px", minHeight: 170, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--muted)", textTransform: "uppercase" }}>
+            Inference Latency SLA
+          </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+            {/* Line 1: p50 & p90 */}
+            <div style={{ display: "flex", gap: 24 }}>
+              <div>
+                <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p50</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>
+                  {metrics.latency.p50_ms.toFixed(2)}ms
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p90</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>
+                  {metrics.latency.p90_ms.toFixed(2)}ms
+                </span>
+              </div>
+            </div>
+            {/* Line 2: p95 & p99 */}
+            <div style={{ display: "flex", gap: 24 }}>
+              <div>
+                <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p95</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: p95Color }}>
+                  {metrics.latency.p95_ms.toFixed(2)}ms
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p99</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: p99Color }}>
+                  {metrics.latency.p99_ms.toFixed(2)}ms
+                </span>
+              </div>
+            </div>
           </div>
         </div>
         <div style={{ marginTop: 8, fontSize: 12, color: "#22c55e" }}>
@@ -171,15 +195,17 @@ const TelemetryCards = ({
       </div>
 
       {/* Fraud Rate Card */}
-      <div className="shell-card" style={{ padding: "20px 22px" }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--muted)", textTransform: "uppercase" }}>
-          Fraud & Threat Rate
-        </span>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 10 }}>
-          <span style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.04em", color: fraudRateColor }}>
-            {metrics.fraud_rate_pct.toFixed(1)}%
+      <div className="shell-card" style={{ padding: "20px 22px", minHeight: 170, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--muted)", textTransform: "uppercase" }}>
+            Fraud & Threat Rate
           </span>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>threat ratio</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 10 }}>
+            <span style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.04em", color: fraudRateColor }}>
+              {metrics.fraud_rate_pct.toFixed(1)}%
+            </span>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>threat ratio</span>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 11 }}>
           <span style={{ color: "#22c55e" }}>Allow: {metrics.verdicts.allow}</span>
@@ -189,24 +215,26 @@ const TelemetryCards = ({
       </div>
 
       {/* MLOps Drift Health Card */}
-      <div className="shell-card" style={{ padding: "20px 22px" }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--muted)", textTransform: "uppercase" }}>
-          MLOps Data Drift
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              padding: "4px 10px",
-              borderRadius: 6,
-              background: driftStyle.bg,
-              color: driftStyle.color,
-              border: "1px solid currentColor",
-            }}
-          >
-            {drift ? drift.status : "INITIALIZING"}
+      <div className="shell-card" style={{ padding: "20px 22px", minHeight: 170, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--muted)", textTransform: "uppercase" }}>
+            MLOps Data Drift
           </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                padding: "4px 10px",
+                borderRadius: 6,
+                background: driftStyle.bg,
+                color: driftStyle.color,
+                border: "1px solid currentColor",
+              }}
+            >
+              {drift?.status ?? "HEALTHY"}
+            </span>
+          </div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 11, color: "var(--muted)" }}>
           <span>KS p-val: {drift ? drift.ks_p_value.toFixed(3) : "1.000"}</span>
@@ -255,7 +283,7 @@ const EscalationAction = ({
           fontWeight: 700,
         }}
       >
-        🔍 View Case in SentinelFlow {effectiveEscalated.case_code ? `(${effectiveEscalated.case_code})` : ""} →
+        <span className="page-icon">🔍 </span>View Case in SentinelFlow {effectiveEscalated.case_code ? `(${effectiveEscalated.case_code})` : ""} →
       </a>
     );
   }
@@ -276,7 +304,7 @@ const EscalationAction = ({
         fontWeight: 600,
       }}
     >
-      {isEscalating ? "Escalating..." : "⚡ Escalate to SentinelFlow"}
+      {isEscalating ? "Escalating..." : <><span className="page-icon">⚡ </span>Escalate to SentinelFlow</>}
     </button>
   );
 };
@@ -292,7 +320,7 @@ const TelecomDashboardPage = () => {
     recent_feed: [],
   });
 
-  const [drift, setDrift] = useState<DriftReport | null>(null);
+  const [drift, setDrift] = useState<DriftReport>(BASELINE_DRIFT);
   const [liveFeed, setLiveFeed] = useState<TelecomFeedItem[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
   const [filterVerdict, setFilterVerdict] = useState<string>("ALL");
@@ -501,7 +529,7 @@ const TelecomDashboardPage = () => {
   });
 
   return (
-    <main style={{ width: "min(1200px, calc(100vw - 2rem))", margin: "24px auto 60px" }}>
+    <main>
       {/* Header Banner */}
       <div
         className="shell-card"
@@ -529,10 +557,10 @@ const TelecomDashboardPage = () => {
                 {connected ? "LIVE GATEWAY STREAM ACTIVE" : "GATEWAY RECONNECTING"}
               </span>
             </div>
-            <h1 style={{ margin: "0 0 6px", fontSize: 28, letterSpacing: "-0.03em" }}>
-              📡 SentinelPulse: SMS Intelligence Gateway
+            <h1 style={{ margin: "8px 0 12px", fontSize: "clamp(2.4rem, 4.5vw, 4rem)" }}>
+              <span className="page-icon">📡 </span>SentinelPulse: SMS Intelligence Gateway
             </h1>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 14, maxWidth: 850 }}>
+            <p style={{ maxWidth: 700, margin: 0, color: "var(--muted)", lineHeight: 1.6 }}>
               Production-grade, sub-15ms telecom fraud & smishing detection engine for high-throughput messaging
               gateways (Global CPaaS Traffic Intelligence & Messaging Anti-Abuse). Powered by optimized ONNX Runtime CPU inference and Redis sliding-window velocity counters.
             </p>
@@ -540,12 +568,13 @@ const TelecomDashboardPage = () => {
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <span
+              className="sla-pill"
               style={{
                 fontSize: 12,
                 padding: "6px 12px",
-                borderRadius: 8,
-                background: "rgba(0,0,0,0.3)",
-                border: "1px solid var(--border)",
+                borderRadius: "var(--card-radius, 8px)",
+                background: "var(--input-bg, #ffffff)",
+                border: "1px solid var(--panel-border)",
                 color: "var(--foreground)",
                 fontFamily: "monospace",
               }}
@@ -560,11 +589,11 @@ const TelecomDashboardPage = () => {
       <TelemetryCards metrics={metrics} drift={drift} />
 
       {/* Main Two-Column Layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 20 }}>
+      <div className="telecom-two-cards-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}>
         {/* Interactive Simulator Section */}
         <div className="shell-card" style={{ padding: "24px 26px" }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 20, letterSpacing: "-0.02em" }}>
-            🧪 Interactive SMS Gateway Tester
+            <span className="page-icon">🧪 </span>Interactive SMS Gateway Tester
           </h2>
           <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
             Submit arbitrary SMS payloads to inspect the live decision path, model probability, rule signals, and sliding-window velocity calculations.
@@ -699,7 +728,7 @@ const TelecomDashboardPage = () => {
                 htmlFor={`${formId}-auto-escalate`}
                 style={{ fontSize: 12, color: "var(--foreground)", cursor: "pointer" }}
               >
-                ⚡ Auto-escalate FLAG / BLOCK anomalies to SentinelFlow Investigation
+                <span className="page-icon">⚡ </span>Auto-escalate FLAG / BLOCK anomalies to SentinelFlow Investigation
               </label>
             </div>
 
@@ -709,7 +738,7 @@ const TelecomDashboardPage = () => {
               style={{
                 width: "100%",
                 padding: "10px 16px",
-                borderRadius: 8,
+                borderRadius: "var(--card-radius, 8px)",
                 background: "var(--accent)",
                 color: "#10231e",
                 fontWeight: 700,
@@ -718,7 +747,7 @@ const TelecomDashboardPage = () => {
                 cursor: isClassifying ? "wait" : "pointer",
               }}
             >
-              {isClassifying ? "Classifying..." : "⚡ Run Real-Time Classification (<15ms)"}
+              {isClassifying ? "Classifying..." : <><span className="page-icon">⚡ </span>Run Real-Time Classification (&lt;15ms)</>}
             </button>
           </form>
 
@@ -753,7 +782,7 @@ const TelecomDashboardPage = () => {
                 </div>
 
                 <span style={{ fontSize: 12, fontFamily: "monospace", color: "#22c55e" }}>
-                  ⏱ {classificationResult.latency_ms} ms
+                  <span className="page-icon">⏱ </span>{classificationResult.latency_ms} ms
                 </span>
               </div>
 
@@ -835,7 +864,7 @@ const TelecomDashboardPage = () => {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div>
               <h2 style={{ margin: "0 0 4px", fontSize: 20, letterSpacing: "-0.02em" }}>
-                🛰️ Real-Time Inspection Feed
+                <span className="page-icon">🛰️ </span>Real-Time Inspection Feed
               </h2>
               <span style={{ fontSize: 12, color: "var(--muted)" }}>
                 Live incoming telecom messages ({filteredFeed.length} buffered)
@@ -849,14 +878,14 @@ const TelecomDashboardPage = () => {
                 style={{
                   fontSize: 11,
                   padding: "4px 8px",
-                  borderRadius: 6,
+                  borderRadius: "var(--card-radius, 6px)",
                   border: "1px solid var(--border)",
                   background: isPaused ? "#ef4444" : "rgba(255,255,255,0.06)",
                   color: isPaused ? "#fff" : "var(--foreground)",
                   cursor: "pointer",
                 }}
               >
-                {isPaused ? "▶ Resume" : "⏸ Pause"}
+                {isPaused ? <><span className="page-icon">▶ </span>Resume</> : <><span className="page-icon">⏸ </span>Pause</>}
               </button>
             </div>
           </div>
