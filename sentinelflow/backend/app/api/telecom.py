@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, BackgroundTasks, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -109,6 +109,8 @@ class TelecomBatchResponse(BaseModel):
 async def _create_escalated_dispute(
     session: AsyncSession,
     *,
+    dispute_id: str | None = None,
+    case_code: str | None = None,
     sender: str,
     recipient: str,
     message: str,
@@ -119,7 +121,8 @@ async def _create_escalated_dispute(
     velocity: dict[str, Any],
     event_id: str | None = None,
 ) -> DisputeRecord:
-    case_code = f"TEL-{uuid4().hex[:8].upper()}"
+    assigned_code = case_code or f"TEL-{uuid4().hex[:8].upper()}"
+    assigned_id = dispute_id or str(uuid4())
     title = f"SMS Anomaly: {sender} -> {recipient} ({verdict})"
     narrative = (
         f"SentinelPulse Telecom Gateway Anomaly Alert:\n"
@@ -133,7 +136,8 @@ async def _create_escalated_dispute(
         f"Velocity Details: {json.dumps(velocity)}"
     )
     dispute = DisputeRecord(
-        case_code=case_code,
+        id=assigned_id,
+        case_code=assigned_code,
         title=title,
         narrative=narrative,
         customer_id=f"tel_{sender.replace('+', '')}",
@@ -161,9 +165,45 @@ async def _create_escalated_dispute(
     return dispute
 
 
+async def _persist_escalated_dispute(
+    *,
+    dispute_id: str,
+    case_code: str,
+    sender: str,
+    recipient: str,
+    message: str,
+    carrier: str | None,
+    verdict: str,
+    fraud_score: float,
+    signals: list[str],
+    velocity: dict[str, Any],
+    event_id: str | None = None,
+) -> None:
+    """Background task to commit escalated dispute record without blocking HTTP response."""
+    try:
+        async with SessionLocal() as db_session:
+            await _create_escalated_dispute(
+                db_session,
+                dispute_id=dispute_id,
+                case_code=case_code,
+                sender=sender,
+                recipient=recipient,
+                message=message,
+                carrier=carrier,
+                verdict=verdict,
+                fraud_score=fraud_score,
+                signals=signals,
+                velocity=velocity,
+                event_id=event_id,
+            )
+    except Exception as exc:
+        logger.warning("Failed to persist background escalated dispute %s: %s", dispute_id, exc)
+
+
 async def _process_single_message(
     req: TelecomClassifyRequest,
     event_id: str | None = None,
+    background_tasks: BackgroundTasks | None = None,
 ) -> TelecomClassifyResponse:
     """Executes the dual-layer detection pipeline (velocity counters + ONNX inference)."""
     t_start = time.perf_counter()
@@ -234,10 +274,30 @@ async def _process_single_message(
     escalated_dispute_id: str | None = None
     escalated_dispute_url: str | None = None
     if req.escalate and verdict in ("FLAG", "BLOCK"):
-        try:
-            async with SessionLocal() as db_session:
-                dispute = await _create_escalated_dispute(
-                    db_session,
+        new_dispute_id = str(uuid4())
+        new_case_code = f"TEL-{uuid4().hex[:8].upper()}"
+        escalated_dispute_id = new_dispute_id
+        escalated_dispute_url = f"/disputes/{new_dispute_id}"
+        if background_tasks is not None:
+            background_tasks.add_task(
+                _persist_escalated_dispute,
+                dispute_id=new_dispute_id,
+                case_code=new_case_code,
+                sender=req.sender,
+                recipient=req.recipient,
+                message=req.message,
+                carrier=velocity_metrics.carrier,
+                verdict=verdict,
+                fraud_score=round(composite_score, 4),
+                signals=combined_signals,
+                velocity=velocity_dict,
+                event_id=eid,
+            )
+        else:
+            asyncio.create_task(
+                _persist_escalated_dispute(
+                    dispute_id=new_dispute_id,
+                    case_code=new_case_code,
                     sender=req.sender,
                     recipient=req.recipient,
                     message=req.message,
@@ -248,10 +308,7 @@ async def _process_single_message(
                     velocity=velocity_dict,
                     event_id=eid,
                 )
-                escalated_dispute_id = dispute.id
-                escalated_dispute_url = f"/disputes/{dispute.id}"
-        except Exception as exc:
-            logger.warning("Failed to auto-escalate telecom anomaly: %s", exc)
+            )
 
     response_payload = TelecomClassifyResponse(
         verdict=verdict,
@@ -286,9 +343,12 @@ async def _process_single_message(
 
 
 @router.post("/telecom/classify", response_model=TelecomClassifyResponse)
-async def classify_telecom_message(request: TelecomClassifyRequest) -> TelecomClassifyResponse:
+async def classify_telecom_message(
+    request: TelecomClassifyRequest,
+    background_tasks: BackgroundTasks,
+) -> TelecomClassifyResponse:
     """Real-time synchronous classification gateway with <15ms p95 latency SLA."""
-    return await _process_single_message(request)
+    return await _process_single_message(request, background_tasks=background_tasks)
 
 
 @router.post("/telecom/escalate", response_model=TelecomEscalateResponse)
@@ -316,7 +376,10 @@ async def escalate_telecom_anomaly(request: TelecomEscalateRequest) -> TelecomEs
 
 
 @router.post("/telecom/events/batch", response_model=TelecomBatchResponse)
-async def batch_classify_telecom_messages(request: TelecomBatchRequest) -> TelecomBatchResponse:
+async def batch_classify_telecom_messages(
+    request: TelecomBatchRequest,
+    background_tasks: BackgroundTasks,
+) -> TelecomBatchResponse:
     """High-throughput batch ingestion endpoint for bulk SMS stream evaluation."""
     t_batch_start = time.perf_counter()
 
@@ -324,7 +387,7 @@ async def batch_classify_telecom_messages(request: TelecomBatchRequest) -> Telec
 
     async def _bounded_classify(item: TelecomClassifyRequest) -> TelecomClassifyResponse:
         async with sem:
-            return await _process_single_message(item)
+            return await _process_single_message(item, background_tasks=background_tasks)
 
     results = list(await asyncio.gather(*[_bounded_classify(item) for item in request.events]))
 
@@ -345,7 +408,7 @@ async def get_telecom_metrics_summary() -> dict[str, Any]:
 @router.get("/telecom/drift")
 async def get_telecom_drift_status() -> dict[str, Any]:
     """Returns Kolmogorov-Smirnov and Population Stability Index (PSI) drift reports."""
-    report = get_drift_monitor().evaluate_drift()
+    report = await get_drift_monitor().a_evaluate_drift()
     return {
         "status": report.status,
         "ks_statistic": report.ks_statistic,

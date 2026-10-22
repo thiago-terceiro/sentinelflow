@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import type { AuditRecord } from "@/lib/types";
 import { createAuditCorrection } from "@/lib/api";
 
@@ -16,9 +16,42 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const titleId = useId();
+  const descId = useId();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  // Initial focus on text area when modal opens
+  useEffect(() => {
+    if (isOpen && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [isOpen]);
+
   if (!isOpen || !target) {
     return null;
   }
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !isSubmitting) {
+      onClose();
+    }
+  };
 
   const handleSubmit = async () => {
     if (!target.investigation_id) {
@@ -48,6 +81,7 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
 
   return (
     <div
+      onClick={handleBackdropClick}
       style={{
         position: "fixed",
         inset: 0,
@@ -60,6 +94,10 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
         className="shell-card"
         style={{
           width: "min(520px, 90vw)",
@@ -67,17 +105,24 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
           background: "#0c1322",
         }}
       >
-        <h2 style={{ marginTop: 0, fontSize: 18 }}>Submit Auditor Correction (Append-Only)</h2>
-        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
+        <h2 id={titleId} style={{ marginTop: 0, fontSize: 18 }}>
+          Submit Auditor Correction (Append-Only)
+        </h2>
+        <p id={descId} style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
           Under strict regulatory audit rules, records are immutable. Submitting a correction will
           append a new audit record pointing to record #{target.sequence_no}.
         </p>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+          <label
+            htmlFor="audit-correction-reason"
+            style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}
+          >
             Reason for Flagging / Discrepancy
           </label>
           <textarea
+            ref={textareaRef}
+            id="audit-correction-reason"
             rows={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
@@ -108,6 +153,7 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button
+            type="button"
             onClick={onClose}
             disabled={isSubmitting}
             style={{
@@ -122,6 +168,7 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || !reason.trim()}
             style={{

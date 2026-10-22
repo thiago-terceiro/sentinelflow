@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, cast
+from uuid import uuid4
 
 import pytest
+from app.db.models import AuditRecord, Base, DisputeRecord, InvestigationRecord
 from app.errors import NotFoundError
 from app.security import Principal, Role
 from app.services.audit import (
     compute_row_hash,
     create_audit_correction,
+    record_audit_event,
     verify_audit_integrity,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import event, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 
 @dataclass
@@ -224,3 +230,92 @@ async def test_create_audit_correction_requires_existing_event() -> None:
         assert exc.code == "AUDIT_EVENT_NOT_FOUND"
     else:
         raise AssertionError("Expected NotFoundError for missing superseded event")
+
+
+async def test_concurrent_audit_events_maintain_contiguous_chain() -> None:
+    test_engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        future=True,
+    )
+
+    @event.listens_for(test_engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection: Any, _connection_record: Any) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
+
+    investigation_id = str(uuid4())
+    dispute_id = str(uuid4())
+
+    async with session_factory() as session:
+        dispute = DisputeRecord(
+            id=dispute_id,
+            case_code="DISP-CONC-001",
+            title="Concurrent Audit Test",
+            narrative="Testing parallel audit appends",
+            customer_id="cust_conc",
+            merchant_id="merch_conc",
+            amount=99.99,
+            currency="USD",
+            status="open",
+            attributes={},
+        )
+        session.add(dispute)
+        inv = InvestigationRecord(
+            id=investigation_id,
+            dispute_id=dispute_id,
+            thread_id="thread_conc",
+            status="running",
+            created_by="tester",
+        )
+        session.add(inv)
+        await session.commit()
+
+    actor = Principal(user_id="agent-concurrent", roles={Role.INVESTIGATOR})
+    num_events = 10
+
+    async def _append_event(index: int) -> None:
+        await asyncio.sleep(0.001 * (index % 3))
+        async with session_factory() as session:
+            await record_audit_event(
+                session,
+                actor=actor,
+                event_name=f"investigation.parallel_step_{index}",
+                payload={"step_index": index, "value": f"data_{index}"},
+                dispute_id=dispute_id,
+                investigation_id=investigation_id,
+            )
+
+    tasks = [_append_event(i) for i in range(num_events)]
+    await asyncio.gather(*tasks)
+
+    async with session_factory() as session:
+        records = (
+            (
+                await session.execute(
+                    select(AuditRecord)
+                    .where(AuditRecord.investigation_id == investigation_id)
+                    .order_by(AuditRecord.sequence_no.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        assert len(records) == num_events
+        sequences = [r.sequence_no for r in records]
+        assert sequences == list(range(1, num_events + 1))
+
+        result = await verify_audit_integrity(session, investigation_id)
+        assert result.valid is True
+        assert result.checked_records == num_events
+        assert result.issue_code is None
+
+    await test_engine.dispose()

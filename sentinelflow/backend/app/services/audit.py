@@ -3,18 +3,22 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, cast
 from uuid import uuid4
 
 from app.config import get_settings
-from app.db.models import AuditArtifactRecord, AuditRecord
+from app.db.models import AuditArtifactRecord, AuditRecord, InvestigationRecord
 from app.errors import AppError, NotFoundError
 from app.security import Principal, Role
 from cryptography.fernet import Fernet, InvalidToken
 from opentelemetry import trace
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 AUDITOR_RAW_KEYS = {
     "prompt_redacted",
@@ -206,52 +210,100 @@ async def record_audit_event(
     }
     actor_role = sorted(role.value for role in actor.roles)[0] if actor.roles else "unassigned"
 
-    async with _get_audit_lock(investigation_id):
-        sequence_no, prev_hash = await _next_sequence_and_prev_hash(session, investigation_id)
-        row_hash = compute_row_hash(
-            investigation_id=investigation_id,
-            dispute_id=dispute_id,
-            sequence_no=sequence_no,
-            prev_hash=prev_hash,
-            actor_id=actor.user_id,
-            actor_role=actor_role,
-            event_name=event_name,
-            payload=payload_with_context,
-        )
-        record_id = str(uuid4())
-        record = AuditRecord(
-            id=record_id,
-            actor_id=actor.user_id,
-            actor_role=actor_role,
-            event_name=event_name,
-            payload=payload_with_context,
-            dispute_id=dispute_id,
-            investigation_id=investigation_id,
-            sequence_no=sequence_no,
-            prev_hash=prev_hash,
-            row_hash=row_hash,
-        )
-        session.add(record)
-        if raw_artifact is not None and fernet is not None and artifact_id is not None and key_id:
-            if hasattr(session, "flush"):
-                await session.flush()
-            ciphertext = fernet.encrypt(_canonical_payload(raw_artifact).encode("utf-8")).decode(
-                "utf-8"
-            )
-            session.add(
-                AuditArtifactRecord(
-                    id=artifact_id,
-                    audit_record_id=record_id,
+    max_retries = 4
+    for attempt in range(max_retries):
+        async with _get_audit_lock(investigation_id):
+            try:
+                if investigation_id and hasattr(session, "execute"):
+                    try:
+                        await session.execute(
+                            select(InvestigationRecord.id)
+                            .where(InvestigationRecord.id == investigation_id)
+                            .with_for_update()
+                        )
+                    except Exception as lock_err:
+                        logger.debug(
+                            "Row lock bypassed for investigation %s: %s",
+                            investigation_id,
+                            lock_err,
+                        )
+
+                sequence_no, prev_hash = await _next_sequence_and_prev_hash(
+                    session, investigation_id
+                )
+                row_hash = compute_row_hash(
                     investigation_id=investigation_id,
                     dispute_id=dispute_id,
-                    key_id=key_id,
-                    ciphertext=ciphertext,
+                    sequence_no=sequence_no,
+                    prev_hash=prev_hash,
+                    actor_id=actor.user_id,
+                    actor_role=actor_role,
+                    event_name=event_name,
+                    payload=payload_with_context,
                 )
-            )
+                record_id = str(uuid4())
+                record = AuditRecord(
+                    id=record_id,
+                    actor_id=actor.user_id,
+                    actor_role=actor_role,
+                    event_name=event_name,
+                    payload=payload_with_context,
+                    dispute_id=dispute_id,
+                    investigation_id=investigation_id,
+                    sequence_no=sequence_no,
+                    prev_hash=prev_hash,
+                    row_hash=row_hash,
+                )
+                session.add(record)
+                if (
+                    raw_artifact is not None
+                    and fernet is not None
+                    and artifact_id is not None
+                    and key_id
+                ):
+                    if hasattr(session, "flush"):
+                        await session.flush()
+                    ciphertext = fernet.encrypt(
+                        _canonical_payload(raw_artifact).encode("utf-8")
+                    ).decode("utf-8")
+                    session.add(
+                        AuditArtifactRecord(
+                            id=artifact_id,
+                            audit_record_id=record_id,
+                            investigation_id=investigation_id,
+                            dispute_id=dispute_id,
+                            key_id=key_id,
+                            ciphertext=ciphertext,
+                        )
+                    )
 
-        await session.commit()
-        await session.refresh(record)
-        return record
+                await session.commit()
+                if hasattr(session, "refresh"):
+                    await session.refresh(record)
+                return record
+            except IntegrityError as exc:
+                if hasattr(session, "rollback"):
+                    await session.rollback()
+                if attempt == max_retries - 1:
+                    logger.error(
+                        "Failed to record audit event due to persistent integrity conflict: %s",
+                        exc,
+                    )
+                    raise
+                logger.warning(
+                    "Audit event sequence race condition detected for investigation %s, "
+                    "retrying (attempt %d/%d)...",
+                    investigation_id,
+                    attempt + 1,
+                    max_retries,
+                )
+                await asyncio.sleep(0.05 * (2**attempt))
+
+    raise AppError(
+        code="AUDIT_RECORD_FAILED",
+        message="Failed to commit audit record after retries.",
+        status_code=500,
+    )
 
 
 async def get_raw_audit_artifact(

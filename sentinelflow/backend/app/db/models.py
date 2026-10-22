@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text, func
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 JsonDict = dict[str, Any]
@@ -60,6 +60,13 @@ class InvestigationRecord(Base):
 
 class AuditRecord(Base):
     __tablename__ = "audit_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "investigation_id",
+            "sequence_no",
+            name="uq_audit_records_investigation_sequence",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     investigation_id: Mapped[str | None] = mapped_column(String(36), index=True, default=None)

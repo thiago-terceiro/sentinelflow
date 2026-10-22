@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useId, useRef } from "react";
 import type { AuditRecord } from "@/lib/types";
 
 type Props = {
@@ -8,6 +9,33 @@ type Props = {
 };
 
 export const AuditDetailDrawer = ({ record, onClose }: Props) => {
+  const titleId = useId();
+  const descId = useId();
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!record) {
+      return;
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [record, onClose]);
+
+  // Initial focus management
+  useEffect(() => {
+    if (record && drawerRef.current) {
+      drawerRef.current.focus();
+    }
+  }, [record]);
+
   if (!record) {
     return null;
   }
@@ -15,8 +43,15 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
   const { payload } = record;
   const hasLlmTelemetry = Boolean(payload.prompt_text || payload.output_text);
 
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
     <div
+      onClick={handleBackdropClick}
       style={{
         position: "fixed",
         inset: 0,
@@ -28,6 +63,12 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
       }}
     >
       <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        tabIndex={-1}
         style={{
           width: "min(680px, 90vw)",
           height: "100%",
@@ -38,6 +79,7 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
           display: "flex",
           flexDirection: "column",
           gap: 20,
+          outline: "none",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -52,10 +94,14 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
             >
               Record #{record.sequence_no}
             </span>
-            <h2 style={{ margin: "4px 0 0 0" }}>{record.event_name}</h2>
+            <h2 id={titleId} style={{ margin: "4px 0 0 0" }}>
+              {record.event_name}
+            </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close audit record drawer"
             style={{
               background: "transparent",
               border: 0,
@@ -70,6 +116,7 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
 
         {/* Cryptographic Row Details */}
         <div
+          id={descId}
           style={{
             padding: 14,
             borderRadius: 8,

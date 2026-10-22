@@ -64,7 +64,19 @@ class RedisVelocityStore:
         self._in_memory_ip_history: dict[str, collections.deque[float]] = collections.defaultdict(
             collections.deque
         )
-        self._use_in_memory_fallback = False
+        self._circuit_cooldown_seconds: float = 30.0
+        self._fallback_until: float = 0.0
+
+    @property
+    def _use_in_memory_fallback(self) -> bool:
+        return time.monotonic() < self._fallback_until
+
+    @_use_in_memory_fallback.setter
+    def _use_in_memory_fallback(self, value: bool) -> None:
+        if value:
+            self._fallback_until = time.monotonic() + self._circuit_cooldown_seconds
+        else:
+            self._fallback_until = 0.0
 
     def _get_client(self) -> aioredis.Redis:
         if self._client is None:
@@ -177,7 +189,9 @@ class RedisVelocityStore:
 
             except Exception as exc:
                 logger.warning(
-                    "Redis velocity pipeline failed (%s). Falling back to in-memory store.", exc
+                    "Redis velocity pipeline failed (%s). Activating in-memory cooldown (%.1fs).",
+                    exc,
+                    self._circuit_cooldown_seconds,
                 )
                 self._use_in_memory_fallback = True
                 v10s, v60s, v1h, ip_count = self._record_in_memory(sender, ip, now)

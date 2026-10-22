@@ -7,8 +7,10 @@ Index (PSI) on fraud score distributions against the training baseline.
 
 from __future__ import annotations
 
+import asyncio
 import collections
 import logging
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -202,14 +204,25 @@ class DataDriftMonitor:
         self._fraud_scores: collections.deque[float] = collections.deque(maxlen=window_size)
         self._baseline_lengths = np.array(BASELINE_LENGTHS, dtype=float)
         self._baseline_scores = np.array(BASELINE_FRAUD_SCORES, dtype=float)
+        self._cached_report: DriftReport | None = None
+        self._cached_at: float = 0.0
+        self._cache_ttl_seconds: float = 5.0
 
     def record_observation(self, message: str, fraud_score: float) -> None:
         """Records an incoming message's length and resulting fraud score."""
         self._message_lengths.append(len(message))
         self._fraud_scores.append(float(fraud_score))
 
-    def evaluate_drift(self) -> DriftReport:
+    def evaluate_drift(self, force: bool = False) -> DriftReport:
         """Runs Kolmogorov-Smirnov test and Population Stability Index against baseline."""
+        now = time.monotonic()
+        if (
+            not force
+            and self._cached_report is not None
+            and (now - self._cached_at) < self._cache_ttl_seconds
+            and self._cached_report.sample_count == len(self._message_lengths)
+        ):
+            return self._cached_report
         try:
             from app.telecom.telecom_metrics import (
                 TELECOM_DRIFT_KS_PVALUE,
@@ -227,7 +240,7 @@ class DataDriftMonitor:
                 TELECOM_DRIFT_KS_PVALUE.set(1.0)
                 TELECOM_DRIFT_STATUS.set(0.0)
 
-            return DriftReport(
+            report = DriftReport(
                 status="HEALTHY",
                 ks_statistic=0.0,
                 ks_p_value=1.0,
@@ -244,6 +257,9 @@ class DataDriftMonitor:
                     "Collecting initial production baseline sample (minimum 15 requests required)."
                 ),
             )
+            self._cached_report = report
+            self._cached_at = time.monotonic()
+            return report
 
         live_lengths = np.array(self._message_lengths, dtype=float)
         live_scores = np.array(self._fraud_scores, dtype=float)
@@ -293,7 +309,7 @@ class DataDriftMonitor:
             )
             TELECOM_DRIFT_STATUS.set(status_code)
 
-        return DriftReport(
+        report = DriftReport(
             status=status,
             ks_statistic=round(ks_stat, 4),
             ks_p_value=round(ks_p, 4),
@@ -306,6 +322,21 @@ class DataDriftMonitor:
             mean_baseline_length=round(float(np.mean(self._baseline_lengths)), 1),
             recommendation=recommendation,
         )
+        self._cached_report = report
+        self._cached_at = time.monotonic()
+        return report
+
+    async def a_evaluate_drift(self, force: bool = False) -> DriftReport:
+        """Runs drift analysis in a worker thread to prevent event-loop latency spikes."""
+        now = time.monotonic()
+        if (
+            not force
+            and self._cached_report is not None
+            and (now - self._cached_at) < self._cache_ttl_seconds
+            and self._cached_report.sample_count == len(self._message_lengths)
+        ):
+            return self._cached_report
+        return await asyncio.to_thread(self.evaluate_drift, force=force)
 
 
 # Global drift monitor singleton
