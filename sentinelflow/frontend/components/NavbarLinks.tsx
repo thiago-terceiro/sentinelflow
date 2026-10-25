@@ -40,9 +40,9 @@ export const NavbarLinks = ({ hasSession, userRole }: Props) => {
       <Link
         href="/telecom"
         style={{
-          color: isTelecomActive ? "var(--foreground)" : "var(--accent)",
+          color: isTelecomActive ? "var(--foreground)" : "var(--muted)",
           textDecoration: "none",
-          fontWeight: isTelecomActive ? 700 : 600,
+          fontWeight: isTelecomActive ? 600 : 500,
           display: "inline-flex",
           flexDirection: "column",
           alignItems: "center",

@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getInvestigation,
@@ -11,11 +11,14 @@ import {
 import {
   applyRunToConsoleState,
   applyStreamEventToConsoleState,
+  computeIterationDiff,
+  deriveConsoleStateAtStep,
+  extractIterationSnapshots,
   initialConsoleState,
 } from "@/lib/investigationState";
 import { shouldReconnectInvestigation, streamReconnectDelayMs } from "@/lib/investigationStream";
 import { openInvestigationStream } from "@/lib/sse";
-import { ApprovalDecision, ConsoleState } from "@/lib/types";
+import { ApprovalDecision, ConsoleState, InvestigationRun, StreamEvent } from "@/lib/types";
 
 type StreamHandle = {
   close: () => void;
@@ -23,6 +26,10 @@ type StreamHandle = {
 
 export const useSentinelAgent = (disputeId: string) => {
   const [state, setState] = useState<ConsoleState>(initialConsoleState);
+  const [rawEvents, setRawEvents] = useState<StreamEvent[]>([]);
+  const [baseRun, setBaseRun] = useState<InvestigationRun | null>(null);
+  const [selectedEventIndex, setSelectedEventIndex] = useState<number | null>(null);
+
   const [isLaunching, setIsLaunching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const stateRef = useRef(state);
@@ -52,6 +59,9 @@ export const useSentinelAgent = (disputeId: string) => {
     streamRef.current?.close();
     streamRef.current = null;
     resetReconnectState();
+    setRawEvents([]);
+    setBaseRun(null);
+    setSelectedEventIndex(null);
     setState(initialConsoleState);
 
     return () => {
@@ -64,6 +74,7 @@ export const useSentinelAgent = (disputeId: string) => {
   const refresh = useCallback(async (investigationId: string, reconnectIfRunning = false) => {
     try {
       const run = await getInvestigation(investigationId);
+      setBaseRun(run);
       setState((current) => applyRunToConsoleState(current, run));
       if (reconnectIfRunning && shouldReconnectInvestigation(run, reconnectAttemptRef.current)) {
         connectStream(run.id, false);
@@ -124,6 +135,7 @@ export const useSentinelAgent = (disputeId: string) => {
           streamRef.current = null;
         }
         startTransition(() => {
+          setRawEvents((prev) => [...prev, event]);
           setState((current) =>
             applyStreamEventToConsoleState(
               {
@@ -172,6 +184,8 @@ export const useSentinelAgent = (disputeId: string) => {
       return;
     }
     setIsLaunching(true);
+    setRawEvents([]);
+    setSelectedEventIndex(null);
     setState((current) => ({
       ...current,
       status: "RUNNING",
@@ -180,6 +194,7 @@ export const useSentinelAgent = (disputeId: string) => {
     }));
     try {
       const run = await startInvestigation(disputeId);
+      setBaseRun(run);
       setState((current) => applyRunToConsoleState(current, run));
       connectStream(run.id);
     } catch (error) {
@@ -203,6 +218,7 @@ export const useSentinelAgent = (disputeId: string) => {
       setIsReviewing(true);
       try {
         const run = await resumeInvestigation(investigationId, decision, comment, guidance);
+        setBaseRun(run);
         setState((current) => applyRunToConsoleState(current, run));
         connectStream(run.id);
       } catch (error) {
@@ -219,8 +235,84 @@ export const useSentinelAgent = (disputeId: string) => {
     []
   );
 
+  // Time-travel derived console state
+  const displayState = useMemo(() => {
+    if (selectedEventIndex === null || rawEvents.length === 0) {
+      return state;
+    }
+    return deriveConsoleStateAtStep(rawEvents, baseRun, selectedEventIndex);
+  }, [selectedEventIndex, rawEvents, baseRun, state]);
+
+  const goToStep = useCallback(
+    (index: number | null) => {
+      if (index === null || index >= rawEvents.length - 1) {
+        setSelectedEventIndex(null);
+      } else {
+        setSelectedEventIndex(Math.max(0, index));
+      }
+    },
+    [rawEvents.length]
+  );
+
+  const goToPreviousStep = useCallback(() => {
+    if (rawEvents.length === 0) {
+      return;
+    }
+    setSelectedEventIndex((prev) => {
+      if (prev === null) {
+        return Math.max(0, rawEvents.length - 2);
+      }
+      return Math.max(0, prev - 1);
+    });
+  }, [rawEvents.length]);
+
+  const goToNextStep = useCallback(() => {
+    if (rawEvents.length === 0) {
+      return;
+    }
+    setSelectedEventIndex((prev) => {
+      if (prev === null) {
+        return null;
+      }
+      if (prev >= rawEvents.length - 2) {
+        return null; // Snap back to live head on reaching latest
+      }
+      return prev + 1;
+    });
+  }, [rawEvents.length]);
+
+  const goToLiveHead = useCallback(() => {
+    setSelectedEventIndex(null);
+  }, []);
+
+  const iterationSnapshots = useMemo(() => {
+    return extractIterationSnapshots(rawEvents);
+  }, [rawEvents]);
+
+  const iterationDiffs = useMemo(() => {
+    if (iterationSnapshots.length < 2) {
+      return [];
+    }
+    const diffs = [];
+    for (let i = 1; i < iterationSnapshots.length; i += 1) {
+      diffs.push(computeIterationDiff(iterationSnapshots[i - 1], iterationSnapshots[i]));
+    }
+    return diffs;
+  }, [iterationSnapshots]);
+
   return {
-    state,
+    state: displayState,
+    liveState: state,
+    rawEvents,
+    selectedEventIndex,
+    setSelectedEventIndex,
+    isLive: selectedEventIndex === null,
+    goToStep,
+    goToPreviousStep,
+    goToNextStep,
+    goToLiveHead,
+    iterationSnapshots,
+    iterationDiffs,
     isLaunching,
     isReviewing,
     launch,

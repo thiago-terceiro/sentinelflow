@@ -1,4 +1,12 @@
-import type { ConsoleState, InvestigationRun, StreamEvent } from "./types";
+import type {
+  ConsoleState,
+  HypothesisConfidenceChange,
+  InvestigationHypothesis,
+  InvestigationRun,
+  IterationDiff,
+  IterationSnapshot,
+  StreamEvent,
+} from "./types";
 
 const mergeUniqueById = <T extends { id: string }>(items: T[], nextItem: T): T[] => {
   if (items.some((item) => item.id === nextItem.id)) {
@@ -369,3 +377,174 @@ export const selectApproval = (state: ConsoleState) => ({
   requiresApproval: state.requiresApproval,
   status: state.status,
 });
+
+export const deriveConsoleStateAtStep = (
+  events: StreamEvent[],
+  baseRun?: InvestigationRun | null,
+  selectedEventIndex?: number | null
+): ConsoleState => {
+  let state = baseRun
+    ? applyRunToConsoleState(initialConsoleState, baseRun)
+    : initialConsoleState;
+
+  if (events.length === 0) {
+    return state;
+  }
+
+  if (
+    selectedEventIndex !== null &&
+    selectedEventIndex !== undefined &&
+    selectedEventIndex < 0
+  ) {
+    return state;
+  }
+
+  const targetIndex =
+    selectedEventIndex === null || selectedEventIndex === undefined
+      ? events.length - 1
+      : Math.min(Math.max(0, selectedEventIndex), events.length - 1);
+
+  for (let i = 0; i <= targetIndex; i += 1) {
+    state = applyStreamEventToConsoleState(state, events[i]);
+  }
+
+  return state;
+};
+
+export const extractIterationSnapshots = (events: StreamEvent[]): IterationSnapshot[] => {
+  const snapshotsMap = new Map<number, IterationSnapshot>();
+  let activeGuidance: string | null = null;
+  let currentIteration = 1;
+
+  for (const event of events) {
+    if (event.type === "agent_message" && typeof event.data.guidance === "string") {
+      activeGuidance = event.data.guidance;
+    }
+    if (event.type === "hypothesis_updated") {
+      const iterNum = Number(event.data.iteration ?? currentIteration);
+      currentIteration = iterNum;
+      const rawHypotheses = Array.isArray(event.data.hypotheses)
+        ? (event.data.hypotheses as InvestigationHypothesis[])
+        : [];
+      const questions = Array.isArray(event.data.unresolved_questions)
+        ? (event.data.unresolved_questions as string[])
+        : [];
+      const thought =
+        typeof event.data.thought_process === "string" ? event.data.thought_process : null;
+      const steps = Array.isArray(event.data.reasoning_steps)
+        ? (event.data.reasoning_steps as string[])
+        : [];
+
+      const source: IterationSnapshot["source"] = activeGuidance
+        ? "Human Reviewer Steering"
+        : "AI Investigator";
+
+      const existing = snapshotsMap.get(iterNum);
+      snapshotsMap.set(iterNum, {
+        iteration: iterNum,
+        source: existing?.source ?? source,
+        timestamp: event.timestamp,
+        hypotheses: rawHypotheses,
+        unresolvedQuestions: questions,
+        riskAssessment: existing?.riskAssessment ?? null,
+        report: existing?.report ?? null,
+        thoughtProcess: thought,
+        reasoningSteps: steps,
+        reviewerGuidance: activeGuidance ?? existing?.reviewerGuidance,
+      });
+
+      activeGuidance = null;
+    }
+    if (event.type === "risk_updated") {
+      const risk = event.data as ConsoleState["riskAssessment"];
+      const existing = snapshotsMap.get(currentIteration);
+      if (existing) {
+        existing.riskAssessment = risk;
+      }
+    }
+    if (event.type === "final_report_ready" || event.type === "run_completed") {
+      const reportPayload = (event.data.report ?? event.data) as ConsoleState["report"];
+      const existing = snapshotsMap.get(currentIteration);
+      if (existing && reportPayload) {
+        existing.report = reportPayload;
+      }
+    }
+  }
+
+  return Array.from(snapshotsMap.values()).sort((a, b) => a.iteration - b.iteration);
+};
+
+export const computeIterationDiff = (
+  fromSnapshot: IterationSnapshot,
+  toSnapshot: IterationSnapshot
+): IterationDiff => {
+  const fromHypothesesMap = new Map<string, InvestigationHypothesis>(
+    fromSnapshot.hypotheses.map((h) => [h.statement, h])
+  );
+  const toHypothesesMap = new Map<string, InvestigationHypothesis>(
+    toSnapshot.hypotheses.map((h) => [h.statement, h])
+  );
+
+  const addedHypotheses: InvestigationHypothesis[] = [];
+  const confidenceChanges: HypothesisConfidenceChange[] = [];
+
+  for (const toH of toSnapshot.hypotheses) {
+    const fromH = fromHypothesesMap.get(toH.statement);
+    if (!fromH) {
+      addedHypotheses.push(toH);
+    } else {
+      const delta = Number((toH.confidence - fromH.confidence).toFixed(2));
+      if (Math.abs(delta) >= 0.01) {
+        confidenceChanges.push({
+          statement: toH.statement,
+          previousConfidence: fromH.confidence,
+          currentConfidence: toH.confidence,
+          delta,
+        });
+      }
+    }
+  }
+
+  const resolvedHypotheses: InvestigationHypothesis[] = [];
+  for (const fromH of fromSnapshot.hypotheses) {
+    if (!toHypothesesMap.has(fromH.statement)) {
+      resolvedHypotheses.push(fromH);
+    }
+  }
+
+  const fromQuestions = new Set(fromSnapshot.unresolvedQuestions);
+  const toQuestions = new Set(toSnapshot.unresolvedQuestions);
+
+  const addedQuestions = toSnapshot.unresolvedQuestions.filter((q) => !fromQuestions.has(q));
+  const resolvedQuestions = fromSnapshot.unresolvedQuestions.filter((q) => !toQuestions.has(q));
+
+  let riskDelta: IterationDiff["riskDelta"] = null;
+  if (fromSnapshot.riskAssessment || toSnapshot.riskAssessment) {
+    const prevScore = fromSnapshot.riskAssessment?.score ?? null;
+    const currScore = toSnapshot.riskAssessment?.score ?? null;
+    const scoreDelta =
+      prevScore !== null && currScore !== null
+        ? Number((currScore - prevScore).toFixed(2))
+        : null;
+
+    riskDelta = {
+      previousScore: prevScore,
+      currentScore: currScore,
+      scoreDelta,
+      previousLevel: fromSnapshot.riskAssessment?.level ?? null,
+      currentLevel: toSnapshot.riskAssessment?.level ?? null,
+    };
+  }
+
+  return {
+    fromIteration: fromSnapshot.iteration,
+    toIteration: toSnapshot.iteration,
+    source: toSnapshot.source,
+    addedHypotheses,
+    resolvedHypotheses,
+    confidenceChanges,
+    riskDelta,
+    addedQuestions,
+    resolvedQuestions,
+  };
+};

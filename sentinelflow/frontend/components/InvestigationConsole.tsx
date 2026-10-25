@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AgentMessageStrip } from "@/components/AgentMessageStrip";
 import { AgentReasoningPanel } from "@/components/AgentReasoningPanel";
@@ -11,6 +11,7 @@ import { EvidencePanel } from "@/components/EvidencePanel";
 import { InvestigationTimeline } from "@/components/InvestigationTimeline";
 import { LangGraphProgress } from "@/components/LangGraphProgress";
 import { RiskPanel } from "@/components/RiskPanel";
+import { TimeTravelScrubber } from "@/components/TimeTravelScrubber";
 import { useSentinelAgent } from "@/hooks/useSentinelAgent";
 import type { ApprovalDecision } from "@/lib/types";
 
@@ -19,7 +20,48 @@ type Props = {
 };
 
 export const InvestigationConsole = ({ disputeId }: Props) => {
-  const { state, isLaunching, isReviewing, launch, review } = useSentinelAgent(disputeId);
+  const {
+    state,
+    rawEvents,
+    selectedEventIndex,
+    goToStep,
+    goToPreviousStep,
+    goToNextStep,
+    goToLiveHead,
+    iterationSnapshots,
+    iterationDiffs,
+    isLaunching,
+    isReviewing,
+    launch,
+    review,
+  } = useSentinelAgent(disputeId);
+
+  const [highlightedEvidenceId, setHighlightedEvidenceId] = useState<string | null>(null);
+
+  // Keyboard navigation for Time-Travel Scrubber: [ / ] / L
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      if (tagName === "input" || tagName === "textarea" || target?.isContentEditable) {
+        return;
+      }
+      if (e.key === "[") {
+        e.preventDefault();
+        goToPreviousStep();
+      } else if (e.key === "]") {
+        e.preventDefault();
+        goToNextStep();
+      } else if (e.key === "l" || e.key === "L") {
+        e.preventDefault();
+        goToLiveHead();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [goToPreviousStep, goToNextStep, goToLiveHead]);
 
   const handleDecision = useCallback(
     (decision: ApprovalDecision, comment: string, guidance?: string) => {
@@ -141,6 +183,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <button
+              type="button"
               onClick={() => void launch()}
               disabled={isLaunching || state.status === "RUNNING"}
               style={{
@@ -157,6 +200,16 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
             </button>
           </div>
         </div>
+
+        {/* Time-Travel State Scrubber Bar */}
+        <TimeTravelScrubber
+          rawEvents={rawEvents}
+          selectedEventIndex={selectedEventIndex}
+          onSelectIndex={goToStep}
+          onPrevious={goToPreviousStep}
+          onNext={goToNextStep}
+          onReturnToLive={goToLiveHead}
+        />
 
         {/* LangGraph Pipeline Stage Indicator */}
         <LangGraphProgress
@@ -211,15 +264,19 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
 
         <AgentMessageStrip message={state.agentStatus} status={state.status} />
 
-        {/* Primary Agent Reasoning & Hypotheses Panel */}
+        {/* Primary Agent Reasoning & Hypotheses Panel with Iteration Diff Support */}
         <AgentReasoningPanel
           thoughtProcess={state.activeThoughtProcess}
           reasoningSteps={state.reasoningSteps}
           hypotheses={state.hypotheses}
           isLoading={state.status === "RUNNING"}
+          highlightedEvidenceId={highlightedEvidenceId}
+          onHighlightEvidence={setHighlightedEvidenceId}
+          iterationSnapshots={iterationSnapshots}
+          iterationDiffs={iterationDiffs}
         />
 
-        {/* Timeline and Evidence Panels */}
+        {/* Timeline and Evidence Panels with Cross-Panel Linking */}
         <div
           style={{
             display: "grid",
@@ -232,13 +289,19 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
           <EvidencePanel
             evidence={state.evidence}
             isLoading={state.status === "RUNNING" && state.evidence.length === 0}
+            highlightedEvidenceId={highlightedEvidenceId}
+            onSelectEvidence={setHighlightedEvidenceId}
           />
         </div>
 
-        {/* Risk and Analyzers */}
+        {/* Risk and Analyzers with Cross-Panel Linking */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20 }}>
           <RiskPanel risk={state.riskAssessment} />
-          <AnalyzerPanel analyzers={state.analyzerSummaries} />
+          <AnalyzerPanel
+            analyzers={state.analyzerSummaries}
+            highlightedEvidenceId={highlightedEvidenceId}
+            onHighlightEvidence={setHighlightedEvidenceId}
+          />
         </div>
 
         {/* Human in the loop Approval and Steering Panel */}

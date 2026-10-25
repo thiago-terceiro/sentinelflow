@@ -56,7 +56,7 @@ const LoginPage = () => {
   };
 
   return (
-    <main style={{ padding: "40px 0 80px" }}>
+    <main>
       <section className="shell-card" style={{ padding: 28, maxWidth: 720, margin: "0 auto" }}>
         <p
           style={{

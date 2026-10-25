@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -35,7 +36,7 @@ from app.errors import NotFoundError
 from app.graph.state import DisputeState
 from app.schemas.disputes import DisputeDetail, DisputeStatus
 from app.schemas.events import StreamEvent, StreamEventType
-from app.schemas.investigation import Evidence
+from app.schemas.investigation import AnalyzerSummary, Evidence
 from app.security import Principal, Role
 from app.services.audit import record_audit_event
 from app.services.guardrails import inspect_prompt_safety, validate_evidence_grounding
@@ -463,27 +464,32 @@ class InvestigationNodes:
                     stage="collect",
                     details={"tool_request_count": len(state["pending_tools"])},
                 )
-            for index, tool_request in enumerate(state["pending_tools"], start=1):
-                tool = tools.get(tool_request["name"])
+            session_lock = asyncio.Lock()
+
+            async def _run_single_tool(
+                index: int, tool_request: dict[str, Any]
+            ) -> Evidence | None:
+                tool_name = tool_request["name"]
+                tool = tools.get(tool_name)
                 if tool is None:
                     self._record_failure(
                         state,
                         target="tools",
-                        name=tool_request["name"],
+                        name=tool_name,
                         error="Unsupported tool request.",
                         event_payload={
                             "phase": "collect",
                             "kind": "tool",
-                            "tool_name": tool_request["name"],
+                            "tool_name": tool_name,
                             "error": "Unsupported tool request.",
                         },
                     )
-                    continue
-                tool_call_id = _tool_call_id(state, tool_request["name"], index)
+                    return None
+                tool_call_id = _tool_call_id(state, tool_name, index)
                 with tracer.start_as_current_span(
-                    f"investigation.tool.{tool_request['name']}",
+                    f"investigation.tool.{tool_name}",
                     attributes={
-                        "tool.name": tool_request["name"],
+                        "tool.name": tool_name,
                         "tool.call_id": tool_call_id,
                         "dispute.id": state["dispute_id"],
                         "investigation.id": state["investigation_id"],
@@ -494,17 +500,17 @@ class InvestigationNodes:
                         "tool_started",
                         {
                             "tool_call_id": tool_call_id,
-                            "tool_name": tool_request["name"],
-                            "label": _tool_label(tool_request["name"]),
+                            "tool_name": tool_name,
+                            "label": _tool_label(tool_name),
                         },
                         event_id=f"tool_started_{tool_call_id}",
                     )
                     await investigation_broadcaster.publish(
                         state["investigation_id"], ev_tool_started
                     )
-                    state["tool_call_count"] += 1
                     try:
-                        evidence = await tool(self.session, state["dispute_id"])
+                        async with session_lock:
+                            evidence = await tool(self.session, state["dispute_id"])
                         tool_span.set_attribute("evidence.id", evidence.id)
                     except Exception as exc:
                         tool_span.record_exception(exc)
@@ -512,38 +518,39 @@ class InvestigationNodes:
                         self._record_failure(
                             state,
                             target="tools",
-                            name=tool_request["name"],
+                            name=tool_name,
                             error=str(exc),
                             event_payload={
                                 "phase": "collect",
                                 "kind": "tool",
-                                "tool_name": tool_request["name"],
+                                "tool_name": tool_name,
                                 "tool_call_id": tool_call_id,
                                 "error": str(exc),
                             },
                         )
-                        continue
-                    state["evidence"].append(evidence)
-                    await record_audit_event(
-                        self.session,
-                        actor=_actor_from_state(state),
-                        event_name="investigation.tool_executed",
-                        payload={
-                            "tool_name": tool_request["name"],
-                            "tool_call_id": tool_call_id,
-                            "evidence_id": evidence.id,
-                            "status": "success",
-                        },
-                        investigation_id=state["investigation_id"],
-                        dispute_id=state["dispute_id"],
-                    )
+                        return None
+
+                    async with session_lock:
+                        await record_audit_event(
+                            self.session,
+                            actor=_actor_from_state(state),
+                            event_name="investigation.tool_executed",
+                            payload={
+                                "tool_name": tool_name,
+                                "tool_call_id": tool_call_id,
+                                "evidence_id": evidence.id,
+                                "status": "success",
+                            },
+                            investigation_id=state["investigation_id"],
+                            dispute_id=state["dispute_id"],
+                        )
                     ev_tool_completed = _append_event(
                         state,
                         "tool_completed",
                         {
                             "tool_call_id": tool_call_id,
-                            "tool_name": tool_request["name"],
-                            "label": _tool_label(tool_request["name"]),
+                            "tool_name": tool_name,
+                            "label": _tool_label(tool_name),
                             "evidence_id": evidence.id,
                         },
                         event_id=f"tool_completed_{tool_call_id}",
@@ -563,6 +570,31 @@ class InvestigationNodes:
                     await investigation_broadcaster.publish(
                         state["investigation_id"], ev_evidence
                     )
+                    return evidence
+
+            if state["pending_tools"]:
+                tool_tasks = [
+                    _run_single_tool(index, tool_req)
+                    for index, tool_req in enumerate(state["pending_tools"], start=1)
+                ]
+                tool_results = await asyncio.gather(*tool_tasks, return_exceptions=True)
+                state["tool_call_count"] += len(state["pending_tools"])
+                for result in tool_results:
+                    if isinstance(result, Evidence):
+                        state["evidence"].append(result)
+                    elif isinstance(result, Exception):
+                        self._record_failure(
+                            state,
+                            target="tools",
+                            name="unknown",
+                            error=str(result),
+                            event_payload={
+                                "phase": "collect",
+                                "kind": "tool",
+                                "error": str(result),
+                            },
+                        )
+
             existing = state["evidence"][:]
             if state["pending_analyzers"]:
                 _append_agent_message(
@@ -572,96 +604,123 @@ class InvestigationNodes:
                     stage="collect",
                     details={"analyzer_request_count": len(state["pending_analyzers"])},
                 )
-            for index, analyzer_request in enumerate(state["pending_analyzers"], start=1):
-                analyzer_id = _analyzer_call_id(state, analyzer_request["name"], index)
-                with tracer.start_as_current_span(
-                    f"investigation.analyzer.{analyzer_request['name']}",
-                    attributes={
-                        "analyzer.name": analyzer_request["name"],
-                        "analyzer.id": analyzer_id,
-                        "dispute.id": state["dispute_id"],
-                        "investigation.id": state["investigation_id"],
-                    },
-                ) as analyzer_span:
-                    _append_agent_message(
-                        state,
-                        actor="orchestrator",
-                        message=f"Calling analyzer agent {analyzer_request['name']}.",
-                        stage="collect",
-                        details={"analyzer_id": analyzer_id},
-                    )
-                    ev_analyzer_started = _append_event(
-                        state,
-                        "analyzer_started",
-                        {
-                            "analyzer_id": analyzer_id,
-                            "analyzer_name": analyzer_request["name"],
-                            "label": _analyzer_label(analyzer_request["name"]),
+
+                async def _run_single_analyzer(
+                    index: int, analyzer_request: dict[str, Any]
+                ) -> AnalyzerSummary | None:
+                    analyzer_name = analyzer_request["name"]
+                    analyzer_id = _analyzer_call_id(state, analyzer_name, index)
+                    with tracer.start_as_current_span(
+                        f"investigation.analyzer.{analyzer_name}",
+                        attributes={
+                            "analyzer.name": analyzer_name,
+                            "analyzer.id": analyzer_id,
+                            "dispute.id": state["dispute_id"],
+                            "investigation.id": state["investigation_id"],
                         },
-                        event_id=f"analyzer_started_{analyzer_id}",
-                    )
-                    await investigation_broadcaster.publish(
-                        state["investigation_id"], ev_analyzer_started
-                    )
-                    state["analyzer_call_count"] += 1
-                    try:
-                        summary = await run_analyzer(analyzer_request["name"], existing)
-                        analyzer_span.set_attribute("analyzer.confidence", summary.confidence)
-                    except Exception as exc:
-                        analyzer_span.record_exception(exc)
-                        analyzer_span.set_status(trace.StatusCode.ERROR, str(exc))
+                    ) as analyzer_span:
+                        _append_agent_message(
+                            state,
+                            actor="orchestrator",
+                            message=f"Calling analyzer agent {analyzer_name}.",
+                            stage="collect",
+                            details={"analyzer_id": analyzer_id},
+                        )
+                        ev_analyzer_started = _append_event(
+                            state,
+                            "analyzer_started",
+                            {
+                                "analyzer_id": analyzer_id,
+                                "analyzer_name": analyzer_name,
+                                "label": _analyzer_label(analyzer_name),
+                            },
+                            event_id=f"analyzer_started_{analyzer_id}",
+                        )
+                        await investigation_broadcaster.publish(
+                            state["investigation_id"], ev_analyzer_started
+                        )
+                        try:
+                            summary = await run_analyzer(analyzer_name, existing)
+                            analyzer_span.set_attribute("analyzer.confidence", summary.confidence)
+                        except Exception as exc:
+                            analyzer_span.record_exception(exc)
+                            analyzer_span.set_status(trace.StatusCode.ERROR, str(exc))
+                            self._record_failure(
+                                state,
+                                target="analyzers",
+                                name=analyzer_name,
+                                error=str(exc),
+                                event_payload={
+                                    "phase": "collect",
+                                    "kind": "analyzer",
+                                    "analyzer_name": analyzer_name,
+                                    "analyzer_id": analyzer_id,
+                                    "error": str(exc),
+                                },
+                            )
+                            return None
+
+                        async with session_lock:
+                            await record_audit_event(
+                                self.session,
+                                actor=_actor_from_state(state),
+                                event_name="investigation.analyzer_executed",
+                                payload={
+                                    "analyzer_name": analyzer_name,
+                                    "analyzer_id": analyzer_id,
+                                    "finding_count": len(summary.findings),
+                                    "confidence": summary.confidence,
+                                    "status": "success",
+                                },
+                                investigation_id=state["investigation_id"],
+                                dispute_id=state["dispute_id"],
+                            )
+                        _append_agent_message(
+                            state,
+                            actor=analyzer_name,
+                            message="Analyzer returned findings to orchestrator.",
+                            stage="collect",
+                            details={
+                                "finding_count": len(summary.findings),
+                                "contradiction_count": len(summary.contradictions),
+                            },
+                        )
+                        ev_analyzer_completed = _append_event(
+                            state,
+                            "analyzer_completed",
+                            {
+                                **summary.model_dump(mode="json"),
+                                "analyzer_id": analyzer_id,
+                                "analyzer_name": analyzer_name,
+                            },
+                            event_id=f"analyzer_completed_{analyzer_id}",
+                        )
+                        await investigation_broadcaster.publish(
+                            state["investigation_id"], ev_analyzer_completed
+                        )
+                        return summary
+
+                analyzer_tasks = [
+                    _run_single_analyzer(index, analyzer_req)
+                    for index, analyzer_req in enumerate(state["pending_analyzers"], start=1)
+                ]
+                analyzer_results = await asyncio.gather(*analyzer_tasks, return_exceptions=True)
+                state["analyzer_call_count"] += len(state["pending_analyzers"])
+                for analyzer_res in analyzer_results:
+                    if isinstance(analyzer_res, AnalyzerSummary):
+                        state["analyzer_summaries"].append(analyzer_res)
+                    elif isinstance(analyzer_res, Exception):
                         self._record_failure(
                             state,
                             target="analyzers",
-                            name=analyzer_request["name"],
-                            error=str(exc),
+                            name="unknown",
+                            error=str(analyzer_res),
                             event_payload={
                                 "phase": "collect",
                                 "kind": "analyzer",
-                                "analyzer_name": analyzer_request["name"],
-                                "analyzer_id": analyzer_id,
-                                "error": str(exc),
+                                "error": str(analyzer_res),
                             },
                         )
-                        continue
-                    state["analyzer_summaries"].append(summary)
-                    await record_audit_event(
-                        self.session,
-                        actor=_actor_from_state(state),
-                        event_name="investigation.analyzer_executed",
-                        payload={
-                            "analyzer_name": analyzer_request["name"],
-                            "analyzer_id": analyzer_id,
-                            "finding_count": len(summary.findings),
-                            "confidence": summary.confidence,
-                            "status": "success",
-                        },
-                        investigation_id=state["investigation_id"],
-                        dispute_id=state["dispute_id"],
-                    )
-                    _append_agent_message(
-                        state,
-                        actor=analyzer_request["name"],
-                        message="Analyzer returned findings to orchestrator.",
-                        stage="collect",
-                        details={
-                            "finding_count": len(summary.findings),
-                            "contradiction_count": len(summary.contradictions),
-                        },
-                    )
-                    ev_analyzer_completed = _append_event(
-                        state,
-                        "analyzer_completed",
-                        {
-                            **summary.model_dump(mode="json"),
-                            "analyzer_id": analyzer_id,
-                            "analyzer_name": analyzer_request["name"],
-                        },
-                        event_id=f"analyzer_completed_{analyzer_id}",
-                    )
-                    await investigation_broadcaster.publish(
-                        state["investigation_id"], ev_analyzer_completed
-                    )
             state["pending_tools"] = []
             state["pending_analyzers"] = []
             return state

@@ -54,6 +54,8 @@ html {
   margin: 0;
   padding: 0;
   min-height: 100%;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
   background:
     radial-gradient(circle at top left, rgba(181, 79, 45, 0.16), transparent 36%),
     linear-gradient(180deg, #f7f1e8 0%, #eef3f8 100%);
@@ -172,9 +174,21 @@ main {
 [data-style="style-2"] html,
 [data-style="style-2"] body {
   background: var(--style2-bg, #f1f5f9) !important;
+  background-color: var(--style2-bg, #f1f5f9) !important;
+  background-image: none !important;
   color: var(--ink);
   margin: 0 !important;
   padding: 0 !important;
+  min-height: 100vh;
+}
+
+[data-style="style-2"] body {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+[data-style="style-2"] main {
+  flex: 1 0 auto !important;
 }
 
 [data-style="style-2"] .app-header {
@@ -633,3 +647,36 @@ main {
   opacity: 0;
   cursor: pointer;
 }
+
+/* ========================================================
+   Dark Theme Overrides
+   ======================================================== */
+[data-theme="dark"],
+[data-style="style-2"][data-theme="dark"] {
+  --ink: #f8fafc;
+  --foreground: #f8fafc;
+  --muted: #94a3b8;
+  --panel: #1e293b;
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --input-bg: #1e293b;
+  --canvas: #0f172a;
+}
+
+[data-style="style-2"][data-theme="dark"] .shell-card {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-style="style-2"][data-theme="dark"] input,
+[data-style="style-2"][data-theme="dark"] select,
+[data-style="style-2"][data-theme="dark"] textarea {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-style="style-2"][data-theme="dark"] .app-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+

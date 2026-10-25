@@ -8,14 +8,26 @@ type Props = {
   onConnectionChange?: (connected: boolean) => void;
 };
 
-const getVerdictColor = (verdict: TelecomVerdict): string => {
+const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   if (verdict === "BLOCK") {
-    return "#ef4444";
+    return {
+      bg: "rgba(239, 68, 68, 0.12)",
+      color: "#dc2626",
+      border: "1px solid rgba(239, 68, 68, 0.25)",
+    };
   }
   if (verdict === "FLAG") {
-    return "#eab308";
+    return {
+      bg: "rgba(234, 179, 8, 0.15)",
+      color: "#b45309",
+      border: "1px solid rgba(234, 179, 8, 0.3)",
+    };
   }
-  return "#22c55e";
+  return {
+    bg: "rgba(34, 197, 94, 0.12)",
+    color: "#16a34a",
+    border: "1px solid rgba(34, 197, 94, 0.25)",
+  };
 };
 
 export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: Props) => {
@@ -25,10 +37,46 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
   const isPausedRef = useRef<boolean>(isPaused);
   isPausedRef.current = isPaused;
 
+  const [hasSession, setHasSession] = useState<boolean>(false);
   const [escalatingIds, setEscalatingIds] = useState<Record<string, boolean>>({});
   const [escalatedDisputes, setEscalatedDisputes] = useState<
     Record<string, { id: string; case_code?: string; url: string }>
   >({});
+
+  // Detect user session for escalation actions
+  useEffect(() => {
+    try {
+      const hasToken = Boolean(
+        document.cookie.match(/(?:^|;\s*)sentinelflow_access_token=([^;]+)/) ||
+        document.cookie.match(/(?:^|;\s*)sentinelflow_test_user=([^;]+)/)
+      );
+      setHasSession(hasToken);
+    } catch {
+      setHasSession(false);
+    }
+  }, []);
+
+  // Handle incoming query params and hash from the disputes page
+  useEffect(() => {
+    try {
+      const search = window.location.search;
+      const params = new URLSearchParams(search);
+      const filter = params.get("filter");
+      if (filter && ["ALL", "BLOCK", "FLAG", "ALLOW", "ESCALATED"].includes(filter.toUpperCase())) {
+        setFilterVerdict(filter.toUpperCase());
+      }
+      if (window.location.hash === "#inspection-feed" || filter === "ESCALATED") {
+        setTimeout(() => {
+          const el = document.getElementById("inspection-feed");
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 150);
+      }
+    } catch {
+      // In SSR or non-browser environments
+    }
+  }, []);
 
   // Sync initial feed when provided and liveFeed is empty
   useEffect(() => {
@@ -93,6 +141,10 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
   }, [onConnectionChange]);
 
   const handleEscalate = async (item: TelecomFeedItem) => {
+    if (!hasSession) {
+      window.location.href = "/login?returnTo=/telecom";
+      return;
+    }
     const itemKey = item.id || `${item.sender}-${item.timestamp}`;
     setEscalatingIds((prev) => ({ ...prev, [itemKey]: true }));
     try {
@@ -138,8 +190,8 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
       return true;
     }
     if (filterVerdict === "ESCALATED") {
-      const key = item.id || `${item.sender}-${item.timestamp}`;
-      return Boolean(escalatedDisputes[key] || item.escalated_dispute_id);
+      const itemKey = item.id || `${item.sender}-${item.timestamp}`;
+      return Boolean(escalatedDisputes[itemKey] || item.escalated_dispute_id);
     }
     return item.verdict === filterVerdict;
   });
@@ -147,9 +199,16 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
   return (
     <div
       className="shell-card"
-      style={{ padding: "24px 26px", display: "flex", flexDirection: "column" }}
+      style={{
+        padding: 24,
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 640,
+      }}
     >
+      {/* Feed Control Bar */}
       <div
+        id="inspection-feed"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -167,18 +226,39 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Reset / Clear feed button */}
+          <button
+            type="button"
+            onClick={() => setLiveFeed([])}
+            title="Clear all buffered messages"
+            aria-label="Clear all buffered messages"
+            style={{
+              fontSize: 11,
+              padding: "4px 10px",
+              borderRadius: "var(--card-radius, 6px)",
+              border: "1px solid var(--panel-border)",
+              background: "transparent",
+              color: "var(--muted)",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            <span className="page-icon">🗑️ </span>Reset
+          </button>
+
           <button
             type="button"
             aria-pressed={isPaused}
             onClick={() => setIsPaused((prev) => !prev)}
             style={{
               fontSize: 11,
-              padding: "4px 8px",
+              padding: "4px 10px",
               borderRadius: "var(--card-radius, 6px)",
-              border: "1px solid var(--border)",
-              background: isPaused ? "#ef4444" : "rgba(255,255,255,0.06)",
+              border: "1px solid var(--panel-border)",
+              background: isPaused ? "#ef4444" : "transparent",
               color: isPaused ? "#fff" : "var(--foreground)",
               cursor: "pointer",
+              fontWeight: 600,
             }}
           >
             {isPaused ? (
@@ -213,8 +293,8 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                 fontSize: 11,
                 padding: "3px 8px",
                 borderRadius: 4,
-                border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
-                background: isSelected ? "rgba(201,243,106,0.12)" : "transparent",
+                border: isSelected ? "1px solid var(--accent)" : "1px solid var(--panel-border)",
+                background: isSelected ? "var(--accent-soft, rgba(37, 99, 235, 0.1))" : "transparent",
                 color: isSelected ? "var(--accent)" : "var(--muted)",
                 cursor: "pointer",
                 fontWeight: 600,
@@ -269,15 +349,16 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                   }
                 : undefined);
             const isEscalatingThis = Boolean(escalatingIds[itemKey]);
+            const badgeStyle = getVerdictBadgeStyle(ev.verdict);
 
             return (
               <div
                 key={itemKey}
                 style={{
                   padding: "12px 14px",
-                  borderRadius: 8,
-                  background: "rgba(0,0,0,0.18)",
-                  border: "1px solid var(--border)",
+                  borderRadius: "var(--card-radius, 8px)",
+                  background: "var(--panel, #ffffff)",
+                  border: "1px solid var(--panel-border)",
                   fontSize: 12,
                 }}
               >
@@ -296,8 +377,9 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                         fontWeight: 800,
                         padding: "2px 6px",
                         borderRadius: 4,
-                        background: getVerdictColor(ev.verdict),
-                        color: "#10231e",
+                        background: badgeStyle.bg,
+                        color: badgeStyle.color,
+                        border: badgeStyle.border,
                       }}
                     >
                       {ev.verdict}
@@ -338,8 +420,8 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                           fontSize: 10,
                           padding: "1px 5px",
                           borderRadius: 3,
-                          background: "rgba(255,255,255,0.06)",
-                          color: sig.startsWith("RULE:") ? "#f87171" : "var(--muted)",
+                          background: "var(--panel-border, rgba(15, 23, 42, 0.08))",
+                          color: sig.startsWith("RULE:") ? "#ef4444" : "var(--muted)",
                         }}
                       >
                         {sig}
@@ -354,7 +436,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                     style={{
                       marginTop: 8,
                       paddingTop: 6,
-                      borderTop: "1px solid rgba(255,255,255,0.06)",
+                      borderTop: "1px solid var(--panel-border)",
                       display: "flex",
                       justifyContent: "flex-end",
                     }}
@@ -384,11 +466,11 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                         }}
                         style={{
                           fontSize: 11,
-                          padding: "3px 8px",
-                          borderRadius: 4,
-                          background: "rgba(201, 243, 106, 0.12)",
-                          color: "var(--accent)",
-                          border: "1px solid rgba(201, 243, 106, 0.3)",
+                          padding: "4px 10px",
+                          borderRadius: "var(--card-radius, 4px)",
+                          background: "var(--accent-soft, rgba(37, 99, 235, 0.1))",
+                          color: "var(--accent, #2563eb)",
+                          border: "1px solid var(--panel-border)",
                           cursor: isEscalatingThis ? "wait" : "pointer",
                           fontWeight: 600,
                         }}
@@ -397,7 +479,10 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                           "Escalating..."
                         ) : (
                           <>
-                            <span className="page-icon">⚡ </span>Escalate to SentinelFlow
+                            <span className="page-icon">⚡ </span>
+                            {hasSession
+                              ? "Escalate to SentinelFlow"
+                              : "Sign in to Escalate to SentinelFlow"}
                           </>
                         )}
                       </button>

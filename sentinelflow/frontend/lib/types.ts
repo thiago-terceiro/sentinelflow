@@ -95,3 +95,41 @@ export type ConsoleState = {
   currentPhase?: "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
   reviewerGuidance?: string | null;
 };
+
+export type IterationSnapshot = {
+  iteration: number;
+  source: "AI Investigator" | "Deterministic Engine" | "Human Reviewer Steering";
+  timestamp: string;
+  hypotheses: InvestigationHypothesis[];
+  unresolvedQuestions: string[];
+  riskAssessment: RiskAssessment | null;
+  report: InvestigationReport | null;
+  thoughtProcess?: string | null;
+  reasoningSteps?: string[];
+  reviewerGuidance?: string | null;
+};
+
+export type HypothesisConfidenceChange = {
+  statement: string;
+  previousConfidence: number;
+  currentConfidence: number;
+  delta: number;
+};
+
+export type IterationDiff = {
+  fromIteration: number;
+  toIteration: number;
+  source: "AI Investigator" | "Deterministic Engine" | "Human Reviewer Steering";
+  addedHypotheses: InvestigationHypothesis[];
+  resolvedHypotheses: InvestigationHypothesis[];
+  confidenceChanges: HypothesisConfidenceChange[];
+  riskDelta: {
+    previousScore: number | null;
+    currentScore: number | null;
+    scoreDelta: number | null;
+    previousLevel: string | null;
+    currentLevel: string | null;
+  } | null;
+  addedQuestions: string[];
+  resolvedQuestions: string[];
+};

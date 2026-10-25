@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useId, useState } from "react";
+import React, { memo, useEffect, useId, useState } from "react";
 import type { TelecomFeedItem, TelecomPreset, TelecomVerdict } from "./types";
 
 type Props = {
@@ -8,18 +8,44 @@ type Props = {
   onClassificationSuccess?: () => void;
 };
 
-const getVerdictColor = (verdict: TelecomVerdict): string => {
+const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   if (verdict === "BLOCK") {
-    return "#ef4444";
+    return {
+      bg: "rgba(239, 68, 68, 0.12)",
+      color: "#dc2626",
+      border: "1px solid rgba(239, 68, 68, 0.25)",
+    };
   }
   if (verdict === "FLAG") {
-    return "#eab308";
+    return {
+      bg: "rgba(234, 179, 8, 0.15)",
+      color: "#b45309",
+      border: "1px solid rgba(234, 179, 8, 0.3)",
+    };
   }
-  return "#22c55e";
+  return {
+    bg: "rgba(34, 197, 94, 0.12)",
+    color: "#16a34a",
+    border: "1px solid rgba(34, 197, 94, 0.25)",
+  };
 };
 
 export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }: Props) => {
   const formId = useId();
+
+  const [hasSession, setHasSession] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const hasToken = Boolean(
+        document.cookie.match(/(?:^|;\s*)sentinelflow_access_token=([^;]+)/) ||
+        document.cookie.match(/(?:^|;\s*)sentinelflow_test_user=([^;]+)/)
+      );
+      setHasSession(hasToken);
+    } catch {
+      setHasSession(false);
+    }
+  }, []);
 
   const [testSender, setTestSender] = useState<string>("+14155552671");
   const [testRecipient, setTestRecipient] = useState<string>("+14155559876");
@@ -87,6 +113,10 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
 
   const handleEscalateResult = async () => {
     if (!classificationResult) {
+      return;
+    }
+    if (!hasSession) {
+      window.location.href = "/login?returnTo=/telecom";
       return;
     }
     setIsEscalating(true);
@@ -304,7 +334,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
             padding: "10px 16px",
             borderRadius: "var(--card-radius, 8px)",
             background: "var(--accent)",
-            color: "#10231e",
+            color: "#ffffff",
             fontWeight: 700,
             fontSize: 14,
             border: "none",
@@ -327,9 +357,9 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           style={{
             marginTop: 20,
             padding: "18px 20px",
-            borderRadius: 10,
-            background: "rgba(0,0,0,0.25)",
-            border: `1px solid ${getVerdictColor(classificationResult.verdict)}`,
+            borderRadius: "var(--card-radius, 8px)",
+            background: "var(--panel, #ffffff)",
+            border: "1px solid var(--panel-border)",
           }}
         >
           <div
@@ -345,10 +375,11 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                 style={{
                   padding: "4px 10px",
                   borderRadius: 6,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 800,
-                  background: getVerdictColor(classificationResult.verdict),
-                  color: "#10231e",
+                  background: getVerdictBadgeStyle(classificationResult.verdict).bg,
+                  color: getVerdictBadgeStyle(classificationResult.verdict).color,
+                  border: getVerdictBadgeStyle(classificationResult.verdict).border,
                 }}
               >
                 {classificationResult.verdict}
@@ -455,11 +486,11 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   onClick={handleEscalateResult}
                   style={{
                     fontSize: 11,
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    background: "rgba(201, 243, 106, 0.12)",
-                    color: "var(--accent)",
-                    border: "1px solid rgba(201, 243, 106, 0.3)",
+                    padding: "4px 10px",
+                    borderRadius: "var(--card-radius, 4px)",
+                    background: "var(--accent-soft, rgba(37, 99, 235, 0.1))",
+                    color: "var(--accent, #2563eb)",
+                    border: "1px solid var(--panel-border)",
                     cursor: isEscalating ? "wait" : "pointer",
                     fontWeight: 600,
                   }}
@@ -468,7 +499,8 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                     "Escalating..."
                   ) : (
                     <>
-                      <span className="page-icon">⚡ </span>Escalate to SentinelFlow
+                      <span className="page-icon">⚡ </span>
+                      {hasSession ? "Escalate to SentinelFlow" : "Sign in to Escalate to SentinelFlow"}
                     </>
                   )}
                 </button>
