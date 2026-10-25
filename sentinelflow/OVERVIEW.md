@@ -9,7 +9,7 @@ An evolving technical reference detailing SentinelFlow and SentinelPulse's conti
 ```mermaid
 flowchart LR
     A["1. Security & Supply Chain\n(Trivy, Gitleaks, Bandit, SonarJS)"] --> B["2. Static Analysis & Guardrails\n(Mypy Strict, ESLint 10, Ruff)"]
-    B --> C["3. Deterministic Testing\n(101 Pytest @ 86% Cov, 22 Node Tests)"]
+    B --> C["3. Deterministic Testing\n(104 Pytest @ 86% Cov, 28 Node Tests)"]
     C --> D["4. Contract Integrity\n(OpenAPI ↔ TypeScript Drift Check)"]
     D --> E["5. MLOps & AI Evals\n(Grounding, Guardrails, Drift PSI)"]
     E --> F["6. Sandbox Container Smoke\n(Docker Compose Live E2E Stack)"]
@@ -45,12 +45,12 @@ flowchart LR
 
 ### 3. Test Coverage & Deterministic Verification
 - **Backend Test Suite**:
-  - **101 tests** execute in ~22 seconds via `pytest`.
+  - **104 tests** execute in ~22 seconds via `pytest`.
   - **Coverage Floor**: Integrated `pytest-cov` strictly enforces a **minimum 80% coverage threshold** (`--cov-fail-under=80`). Current measured codebase coverage is **86% across 4,949 statements**.
-  - Covers API contracts, state graph node transitions, human-in-the-loop approvals, ONNX inference bounds, velocity counters, and cryptographic ledger hash-chains.
+  - Covers API contracts, state graph node transitions, parallel tool execution with session locking, human-in-the-loop approvals, ONNX inference bounds, velocity counters, and cryptographic ledger hash-chains.
 - **Frontend Test Suite**:
-  - **22 unit tests** run in native Node.js (`node --experimental-strip-types --test`) in under 300ms.
-  - Validates authentication routes, PKCE challenge generation, state reducers, SSE chunk parsing, and reconnection backoff.
+  - **28 unit tests** run in native Node.js (`node --experimental-strip-types --test`) in under 300ms.
+  - Validates authentication routes, PKCE challenge generation, state reducers, SSE chunk parsing, reconnection backoff, deterministic time-travel state reconstruction (`deriveConsoleStateAtStep` benchmark: 100 derivations in <2.8ms), iteration diff computation, selector isolation, and stream lifecycle cleanup.
 - **End-to-End & Visual Regression**:
   - Headless Chromium tests via Playwright ([`app.spec.ts`](frontend/e2e/app.spec.ts)) verify unauthenticated redirect gates, login flows, and visual pixel diff snapshots (`maxDiffPixelRatio: 0.1`).
 
