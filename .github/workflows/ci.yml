@@ -74,7 +74,7 @@ jobs:
         run: bash .github/scripts/validate-sentinelflow.sh security
 
       - name: Upload OWASP & CWE/CVE Compliance Report Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: owasp-security-compliance-report
@@ -224,7 +224,7 @@ jobs:
         run: npx playwright test
 
       - name: Upload Playwright Test Report Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
