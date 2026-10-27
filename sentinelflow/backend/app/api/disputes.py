@@ -152,6 +152,37 @@ async def start_investigation(
     return to_run(record)
 
 
+@router.get(
+    "/disputes/{dispute_id}/investigations/latest",
+    response_model=InvestigationRun | None,
+)
+async def get_latest_dispute_investigation(
+    dispute_id: str,
+    session: DBSessionDep,
+    principal: PrincipalDep,
+) -> InvestigationRun | None:
+    principal.require_any(
+        Role.INVESTIGATOR,
+        Role.SENIOR_INVESTIGATOR,
+        Role.REVIEWER,
+        Role.AUDITOR,
+        Role.ADMIN,
+    )
+    dispute = await session.get(DisputeRecord, dispute_id)
+    if dispute is None:
+        raise NotFoundError("DISPUTE_NOT_FOUND", "Dispute was not found.")
+    result = await session.execute(
+        select(InvestigationRecord)
+        .where(InvestigationRecord.dispute_id == dispute_id)
+        .order_by(InvestigationRecord.created_at.desc())
+        .limit(1)
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        return None
+    return to_run(record)
+
+
 @router.get("/investigations/{investigation_id}", response_model=InvestigationRun)
 async def get_investigation(
     investigation_id: str,

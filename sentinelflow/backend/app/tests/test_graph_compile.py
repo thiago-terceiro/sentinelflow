@@ -186,4 +186,3 @@ async def test_postgres_checkpointer_handles_context_manager_and_cleanup(
 
     await graph_module.close_checkpointer()
     assert fake_pool.close.awaited
-

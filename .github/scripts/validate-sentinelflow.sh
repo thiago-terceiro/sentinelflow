@@ -144,6 +144,7 @@ case "$slice" in
     run_security_check
     ;;
   all|cross-stack|crossstack)
+    run_security_check
     run_backend
     run_contract_check
     run_frontend

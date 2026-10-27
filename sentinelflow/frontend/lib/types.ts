@@ -55,6 +55,10 @@ export type StreamEvent = {
     | "analyzer_completed"
     | "evidence_added"
     | "hypothesis_updated"
+    | "reasoning_delta"
+    | "synthesis_delta"
+    | "guardrail_triggered"
+    | "hallucination_detected"
     | "risk_updated"
     | "final_report_ready"
     | "approval_required"
@@ -94,6 +98,7 @@ export type ConsoleState = {
   reasoningSteps?: string[];
   currentPhase?: "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
   reviewerGuidance?: string | null;
+  streamingReasoningDelta?: string | null;
 };
 
 export type IterationSnapshot = {
@@ -107,6 +112,7 @@ export type IterationSnapshot = {
   thoughtProcess?: string | null;
   reasoningSteps?: string[];
   reviewerGuidance?: string | null;
+  streamingReasoningDelta?: string | null;
 };
 
 export type HypothesisConfidenceChange = {

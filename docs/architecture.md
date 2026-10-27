@@ -17,25 +17,27 @@ graph TB
 
     subgraph BACKEND["FastAPI Backend · Port 8000"]
         API["HTTP Routers<br/>/disputes  /investigations  /approvals  /health"]
+        PULSE["SentinelPulse Gateway<br/>/v1/classify  /v1/events/batch<br/>/api/v1/telecom/*  /metrics"]
         SEC["JWT / OIDC<br/>Auth + RBAC"]
-        SVC["Services Layer<br/>risk · compliance · audit · model-gateway"]
+        SVC["Services Layer<br/>risk · compliance · audit<br/>guardrails · model-gateway"]
         GRAPH["LangGraph<br/>Investigation Orchestrator"]
         WORKER["arq Worker<br/>(background jobs)"]
     end
 
     subgraph STORES["Data Stores"]
         PG[("PostgreSQL<br/>disputes · investigations<br/>audit · checkpoints")]
-        REDIS[("Redis<br/>Job Queue")]
+        REDIS[("Redis<br/>arq Queue · Pub/Sub Broadcaster<br/>ZSET Velocity Store")]
     end
 
-    subgraph EXTERNAL["External Services"]
+    subgraph EXTERNAL["External & Observability Services"]
         LLM["OpenAI-compatible<br/>LLM Gateway<br/>gpt-4.1-mini"]
         OIDC["OIDC Provider<br/>(Auth0 / Keycloak / AzureAD)"]
-        OTEL["OTEL Collector<br/>(optional telemetry)"]
+        OTEL["OTEL Collector / Jaeger<br/>+ Prometheus (/metrics)"]
     end
 
     %% FE → Backend
     FE -- "REST  GET/POST" --> API
+    FE -- "REST / SSE (/telecom)" --> PULSE
     FE -- "SSE stream<br/>/investigations/{id}/stream" --> API
     FE -- "PKCE auth flow" --> OIDC
 
@@ -43,12 +45,15 @@ graph TB
     API --> SEC
     API --> SVC
     API --> PG
-    API -- "enqueue job" --> REDIS
+    API -- "enqueue job / PubSub subscribe" --> REDIS
+    PULSE -- "ZSET velocity (<2ms)" --> REDIS
+    PULSE -. "BackgroundTasks escalation" .-> SVC
 
     %% Worker
     REDIS -- "dequeue job" --> WORKER
     WORKER --> GRAPH
     WORKER --> PG
+    GRAPH -- "publish live SSE events" --> REDIS
 
     %% Graph
     GRAPH --> SVC
@@ -198,9 +203,10 @@ graph TB
     end
 
     subgraph ROUTERS_DETAIL["Routers  (app/api/)"]
-        R_DISPUTES["disputes.py<br/>─────────────────<br/>GET  /disputes<br/>POST /disputes<br/>POST /disputes/{id}/investigations<br/>GET  /investigations/{id}<br/>GET  /investigations/{id}/stream"]
+        R_DISPUTES["disputes.py<br/>─────────────────<br/>GET  /disputes<br/>POST /disputes<br/>GET  /disputes/{id}/investigations/latest<br/>POST /disputes/{id}/investigations<br/>GET  /investigations/{id}<br/>GET  /investigations/{id}/stream"]
         R_APPROVALS["approvals.py<br/>─────────────────<br/>POST /investigations/{id}/resume"]
-        R_HEALTH["health.py<br/>─────────────────<br/>GET  /health"]
+        R_TELECOM["telecom.py<br/>─────────────────<br/>POST /v1/classify<br/>POST /v1/events/batch<br/>GET  /api/v1/telecom/drift<br/>GET  /api/v1/telecom/stream<br/>GET  /metrics"]
+        R_HEALTH["health.py<br/>─────────────────<br/>GET  /health  /ready"]
         DEPS["deps.py  (DI)<br/>─────────────────<br/>DBSessionDep<br/>PrincipalDep"]
     end
 
@@ -214,7 +220,7 @@ graph TB
     subgraph SCHEMAS["Request / Response Shapes  (app/schemas/)"]
         S_DISPUTE["disputes.py<br/>DisputeSummary · DisputeDetail<br/>DisputeCreateRequest · DisputeStatus"]
         S_INV["investigation.py<br/>Evidence · AnalyzerSummary<br/>RiskFactor · RiskAssessment<br/>ComplianceFinding · InvestigationReport<br/>InvestigationRun · InvestigationBudget"]
-        S_EVENTS["events.py<br/>StreamEvent · StreamEventType (×14)"]
+        S_EVENTS["events.py<br/>StreamEvent · StreamEventType (×19)"]
         S_APPROVAL["approval.py<br/>ApprovalDecision · ApprovalRecord"]
     end
 
@@ -222,9 +228,10 @@ graph TB
         SVC_INV["investigations.py<br/>budget() · to_run() · thread_config()<br/>schedule_investigation() [→ Redis]<br/>schedule_resume() [→ Redis]<br/>stream_graph_events() [SSE generator]"]
         SVC_RISK["risk.py  ← deterministic<br/>calculate_risk(evidence, analyzers)<br/>Factors: tx_amount(0.22) · velocity(0.14)<br/>geo(0.12) · device(0.18)<br/>customer(0.16) · merchant(0.12)<br/>→ RiskAssessment {score, level}"]
         SVC_COMP["compliance.py  ← deterministic<br/>evaluate_compliance(evidence)<br/>CN-001: amount > 2500 → review<br/>CN-000: missing evidence"]
-        SVC_AUDIT["audit.py<br/>record_audit_event() [HMAC chain]<br/>verify_audit_integrity()<br/>get_raw_audit_artifact()"]
-        SVC_MODEL["model_gateway.py<br/>ModelGateway.generate_structured()<br/>→ LLMCallResult {usage, sha256,<br/>   latency, redaction_flags}"]
-        SVC_TRACE["trace_safety.py<br/>redact_text() [emails, phones,<br/>cards, JWTs, API keys]<br/>sha256_text() [provenance hash]"]
+        SVC_AUDIT["audit.py<br/>record_audit_event() [SHA-256 chain]<br/>SELECT ... FOR UPDATE + unique seq<br/>verify_audit_integrity()<br/>get_raw_audit_artifact()"]
+        SVC_GUARD["guardrails.py<br/>check_prompt_injection()<br/>validate_evidence_grounding()<br/>validate_output_guardrails()"]
+        SVC_MODEL["model_gateway.py<br/>ModelGateway.generate_structured()<br/>streams via astream() + reasoning_delta<br/>→ LLMCallResult {usage, sha256,<br/>   latency, redaction_flags}"]
+        SVC_TRACE["trace_safety.py<br/>PATTERNS: emails, ssn, phones,<br/>cards, JWTs, API keys<br/>redact_text() · sha256_text()"]
     end
 
     subgraph DB["Database  (app/db/)"]
@@ -467,24 +474,23 @@ sequenceDiagram
     Worker->>Graph: resume(thread_id, inputs)
     Graph->>Graph: synthesize node
     Note over Graph: recommendation = "escalate"
-    Graph->>DB: checkpoint saved (status=pending_review)
-    Graph->>DB: timeline_event: approval_required
+    Graph->>DB: persist_graph_state() (status=awaiting_approval)
+    Graph->>API: InvestigationBroadcaster.publish(approval_required)
     Graph-->>Graph: interrupt()  ⏸  PAUSED
 
-    DB-->>API: stream_graph_events() polls checkpoint
     API-->>FE: SSE: { type: "approval_required", data: { risk, report } }
     FE-->>FE: render ApprovalPanel
 
-    FE->>API: POST /investigations/{id}/resume<br/>{ decision: "approve", comment: "..." }
+    FE->>API: POST /investigations/{id}/resume<br/>{ decision: "approve" | "request_revision", guidance: "..." }
     API->>API: require_any(REVIEWER, ADMIN)
     API->>DB: record_audit_event(approval)
     API->>Worker: schedule_resume(investigation_id, decision)
     Worker->>Graph: resume with ApprovalDecision injected into state
 
-    Graph->>Graph: approval node reads decision
+    Graph->>Graph: approval node reads decision (loops to investigate on request_revision)
     Graph->>Graph: finalize node
-    Graph->>DB: status = completed
-    Graph-->>API: timeline_event: run_completed
+    Graph->>DB: persist_graph_state(status = completed)
+    Graph-->>API: InvestigationBroadcaster.publish(run_completed)
     API-->>FE: SSE: { type: "run_completed" }
     FE-->>FE: render final report
 ```
@@ -527,12 +533,12 @@ graph LR
 | **LLM only for reasoning gaps** | The investigator and synthesizer agents handle analysis that requires natural language understanding. Evidence gathering uses deterministic tools. |
 | **Interrupt-based human approval** | LangGraph's `interrupt()` pauses graph execution at a checkpoint without blocking threads. The HTTP handler resumes the graph via the worker queue. |
 | **SSE over WebSocket** | Unidirectional server-push is sufficient and simpler to proxy/load-balance. Reconnect with state poll covers dropped connections. |
-| **HMAC audit chain** | Every audit event includes `prev_hash + row_hash` (HMAC-SHA256). Tampering breaks the chain and is detectable via `verify_audit_integrity()`. |
+| **Cryptographic SHA-256 audit chain** | Every audit event includes `prev_hash + row_hash` (canonical JSON SHA-256) linearized via PostgreSQL `SELECT ... FOR UPDATE` on the parent `InvestigationRecord` and enforced by `uq_audit_records_investigation_sequence`. Tampering breaks the chain and is detectable via `verify_audit_integrity()`. |
 | **arq worker decoupling** | Investigations can take minutes. The HTTP layer returns immediately after enqueueing. The worker handles all long-running graph execution. |
 | **Dev token fallback** | Hardcoded dev tokens (`dev-investigator`, `dev-reviewer`, etc.) allow local development without an OIDC provider. Disabled by env flag in production. |
-| **Client-Side Time-Travel State Scrubber** | Investigators can scrub backward through arbitrary historical events (`0..N-1`) via `deriveConsoleStateAtStep()` in `<0.03ms`. Background incoming SSE events continue appending to `rawEvents` without jumping or dropping state. |
-| **Iteration & Revision Diff Inspector** | Evaluates semantic state shifts between iterations (`IterationSnapshot` & `computeIterationDiff`) with clear attribution badges (`[AI Investigator]`, `[Human Reviewer Steering]`, `[Deterministic Engine]`), confidence deltas, and risk score tracking. |
-| **Cross-Panel Evidence Provenance Highlighting** | Clicking evidence citations in `AnalyzerPanel` or `AgentReasoningPanel` highlights evidence cards in `EvidencePanel` with a 2px accent ring, glow shadow, and smooth `scrollIntoView`. |
-| **Parallel Tool Execution with Session Locking** | Independent evidence gathering tools and analyzers execute concurrently inside `collect` using `asyncio.gather(*tasks, return_exceptions=True)`. Access to `self.session` for cryptographic audit records is serialized via `session_lock = asyncio.Lock()`, eliminating connection state collisions while slashing node duration from ~4s to ~1s. |
-| **Granular Intra-Node Streaming** | `tool_started`, `tool_completed`, `evidence_added`, `analyzer_started`, and `analyzer_completed` events publish immediately to Redis Pub/Sub as each tool/analyzer runs, providing live sub-second updates instead of batching until node exit. |
-| **Deterministic Verification Gates** | Production readiness verified via **104 backend tests** (`pytest`, 86% coverage floor) and **28 frontend tests** (`node --experimental-strip-types --test`, sub-millisecond replay benchmarks). |
+| **Client-Side Time-Travel State Scrubber** | Investigators can scrub backward through arbitrary historical events (`0..N-1`) via `deriveConsoleStateAtStep()` in `<0.03ms` with URL query-param sync (`?step=`). Background incoming SSE events continue appending to `rawEvents` without jumping or dropping state. |
+| **Iteration & Revision Diff Inspector** | Evaluates semantic state shifts between iterations (`IterationSnapshot` & `computeIterationDiff`, URL-synced via `?diff=1`) with clear attribution badges (`[AI Investigator]`, `[Human Reviewer Steering]`, `[Deterministic Engine]`), confidence deltas, and risk score tracking. |
+| **Cross-Panel Evidence Provenance Highlighting** | Clicking evidence citations in `AnalyzerPanel` or `AgentReasoningPanel` pins the citation (`?evidence=`), highlighting evidence cards in `EvidencePanel` with a 2px accent ring, glow shadow, and smooth `scrollIntoView`. |
+| **Parallel Tool Execution with Isolated Sessions & Locking** | Independent evidence gathering tools and analyzers execute concurrently inside `collect` using `asyncio.gather(*tasks, return_exceptions=True)` with isolated `AsyncSession(bind=bind)` instances when `isinstance(bind, AsyncEngine)` (falling back to `session_lock = asyncio.Lock()` on transactional test connections). Access to `self.session` for cryptographic audit records is serialized via `session_lock`, eliminating `asyncpg` connection state collisions while slashing node duration from ~4s to ~1s. |
+| **Granular Intra-Node & Token-by-Token Streaming** | `tool_started`, `tool_completed`, `evidence_added`, `analyzer_started`, `analyzer_completed`, and throttled `reasoning_delta` LLM token events publish immediately to Redis Pub/Sub (`InvestigationBroadcaster`), while `persist_graph_state()` syncs mid-run snapshots to PostgreSQL for F5 cold-hydration and W3C `traceparent` links HTTP ingress to `arq` worker spans. |
+| **Deterministic Verification Gates** | Production readiness verified via **112 backend tests** (`pytest`, 86% coverage floor), **8 AI Evals golden cases** (`app.evals.run`, 100% grounding & PII safety), and **32 frontend tests** (`node --experimental-strip-types --test`, sub-millisecond replay benchmarks). |

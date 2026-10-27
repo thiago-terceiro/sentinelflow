@@ -14,6 +14,7 @@ from app.api.telecom import (
     batch_classify_telecom_messages,
     classify_telecom_message,
     get_prometheus_metrics,
+    seed_telecom_warmup,
 )
 from app.api.telecom import (
     router as telecom_router,
@@ -34,6 +35,7 @@ configure_logging()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    seed_telecom_warmup()
     yield
     await get_velocity_store().close()
     await close_redis_pool()

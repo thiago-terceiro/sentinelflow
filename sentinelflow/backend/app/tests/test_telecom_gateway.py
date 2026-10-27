@@ -285,3 +285,17 @@ async def test_classify_with_auto_escalate(
         assert data["escalated_dispute_id"] is not None
         assert data["escalated_dispute_url"] == f"/disputes/{data['escalated_dispute_id']}"
 
+
+def test_onnx_predict_proba_batch_vectorized() -> None:
+    """Verifies vectorized batch probability inference returns calibrated probabilities."""
+    engine = get_inference_engine()
+    probs = engine.predict_proba_batch(
+        [
+            "Your verification code is 492018. Do not share this code.",
+            "URGENT: Chase Bank alert. Account suspended! Verify at http://bit.ly/chase-verify",
+        ]
+    )
+    assert len(probs) == 2
+    assert 0.0 <= probs[0] <= 1.0
+    assert 0.0 <= probs[1] <= 1.0
+    assert engine.predict_proba_batch([]) == []

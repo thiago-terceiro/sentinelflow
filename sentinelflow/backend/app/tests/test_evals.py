@@ -21,8 +21,8 @@ INVESTIGATOR_HEADERS = {"Authorization": "Bearer dev-investigator"}
 async def test_evaluation_runner_runs_benchmark_suite() -> None:
     report = await run_evaluation_suite()
 
-    assert report.total_cases == 4
-    assert report.passed_cases == 4
+    assert report.total_cases == 8
+    assert report.passed_cases == 8
     assert report.status == "passed"
     assert report.pii_safety_rate == 1.0
     assert report.grounding_rate == 1.0
@@ -97,10 +97,18 @@ def test_scorers_steering_compliance() -> None:
             "thought_process": "Checked merchant risk profile.",
         }
     ]
-    report = {"conclusion": "Merchant chargeback rate is elevated."}
+    report = {"conclusion": "Merchant chargeback rate is elevated.", "recommendation": "deny"}
 
     assert score_steering_compliance(guidance, hypotheses, report) == 1.0
     assert score_steering_compliance(None, hypotheses, report) == 1.0
+
+    # Polarity mismatch penalty: guidance explicitly asks to deny, but report approves
+    deny_guidance = "Deny claim after checking merchant chargeback rate and geo distance anomaly."
+    contradictory_report = {
+        "conclusion": "Merchant chargeback rate is elevated.",
+        "recommendation": "approve",
+    }
+    assert score_steering_compliance(deny_guidance, hypotheses, contradictory_report) < 0.5
 
 
 @pytest.mark.asyncio
@@ -139,12 +147,12 @@ async def test_evals_api_endpoints(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         assert run_resp.status_code == 200
         run_data = run_resp.json()
         assert run_data["status"] == "passed"
-        assert run_data["passed_cases"] == 4
+        assert run_data["passed_cases"] == 8
 
         # Authorized Auditor query
         latest_resp = await client.get("/api/v1/evals/latest", headers=AUDITOR_HEADERS)
         assert latest_resp.status_code == 200
         latest_data = latest_resp.json()
         assert latest_data["status"] == "passed"
-        assert latest_data["total_cases"] == 4
-        assert len(latest_data["cases"]) == 4
+        assert latest_data["total_cases"] == 8
+        assert len(latest_data["cases"]) == 8

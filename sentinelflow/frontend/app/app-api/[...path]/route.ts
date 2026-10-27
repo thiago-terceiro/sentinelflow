@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server.js";
 
+export const dynamic = "force-dynamic";
+
 const INTERNAL_API_BASE_URL =
   process.env.INTERNAL_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -16,12 +18,18 @@ const passthroughHeaders = (headers: Headers): Headers => {
     "etag",
     "last-modified",
     "x-request-id",
+    "x-accel-buffering",
   ];
   for (const headerName of allowList) {
     const value = headers.get(headerName);
     if (value) {
       nextHeaders.set(headerName, value);
     }
+  }
+  const contentType = headers.get("content-type") ?? "";
+  if (contentType.toLowerCase().includes("text/event-stream")) {
+    nextHeaders.set("Cache-Control", "no-cache, no-transform");
+    nextHeaders.set("X-Accel-Buffering", "no");
   }
   return nextHeaders;
 };
@@ -91,6 +99,10 @@ const proxy = async (request: NextRequest, parts: string[]): Promise<Response> =
   if (requestId) {
     requestHeaders.set("X-Request-Id", requestId);
   }
+  const lastEventId = request.headers.get("last-event-id");
+  if (lastEventId) {
+    requestHeaders.set("Last-Event-ID", lastEventId);
+  }
 
   try {
     const body = request.method === "GET" ? undefined : await request.text();
@@ -101,6 +113,7 @@ const proxy = async (request: NextRequest, parts: string[]): Promise<Response> =
         headers: requestHeaders,
         body,
         cache: "no-store",
+        signal: request.signal,
       }
     );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AgentMessageStrip } from "@/components/AgentMessageStrip";
 import { AgentReasoningPanel } from "@/components/AgentReasoningPanel";
@@ -13,6 +13,7 @@ import { LangGraphProgress } from "@/components/LangGraphProgress";
 import { RiskPanel } from "@/components/RiskPanel";
 import { TimeTravelScrubber } from "@/components/TimeTravelScrubber";
 import { useSentinelAgent } from "@/hooks/useSentinelAgent";
+import { resolveActiveEvidenceId } from "@/lib/investigationState";
 import type { ApprovalDecision } from "@/lib/types";
 
 type Props = {
@@ -24,6 +25,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
     state,
     rawEvents,
     selectedEventIndex,
+    isHydrated,
     goToStep,
     goToPreviousStep,
     goToNextStep,
@@ -36,7 +38,107 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
     review,
   } = useSentinelAgent(disputeId);
 
-  const [highlightedEvidenceId, setHighlightedEvidenceId] = useState<string | null>(null);
+  const [pinnedEvidenceId, setPinnedEvidenceId] = useState<string | null>(null);
+  const [hoveredEvidenceId, setHoveredEvidenceId] = useState<string | null>(null);
+  const [showDiff, setShowDiff] = useState<boolean>(false);
+  const initialStepHydratedRef = useRef<boolean>(false);
+  const initialStepTargetRef = useRef<number | null>(null);
+
+  const highlightedEvidenceId = resolveActiveEvidenceId(pinnedEvidenceId, hoveredEvidenceId);
+
+  // Hydrate initial URL query params (?step=, ?diff=, ?evidence=)
+  useEffect(() => {
+    initialStepHydratedRef.current = false;
+    initialStepTargetRef.current = null;
+    try {
+      if (typeof window === "undefined") {
+        return;
+      }
+      const params = new URLSearchParams(window.location.search);
+      const stepParam = params.get("step");
+      if (stepParam !== null) {
+        const parsed = Number.parseInt(stepParam, 10);
+        if (!Number.isNaN(parsed) && parsed >= 0) {
+          initialStepTargetRef.current = parsed;
+        }
+      }
+      const diffParam = params.get("diff");
+      setShowDiff(diffParam === "1" || diffParam === "true");
+      const evParam = params.get("evidence");
+      setPinnedEvidenceId(evParam || null);
+    } catch {
+      // Ignore malformed URL query parameters
+    }
+  }, [disputeId]);
+
+  // Apply hydrated step index once initial mount hydration completes
+  useEffect(() => {
+    if (!isHydrated || initialStepHydratedRef.current) {
+      return;
+    }
+    if (initialStepTargetRef.current !== null && rawEvents.length > 0) {
+      const clampedStep = Math.min(initialStepTargetRef.current, rawEvents.length - 1);
+      initialStepHydratedRef.current = true;
+      goToStep(clampedStep);
+      return;
+    }
+    if (initialStepTargetRef.current === null || rawEvents.length === 0) {
+      initialStepHydratedRef.current = true;
+    }
+  }, [isHydrated, rawEvents.length, goToStep]);
+
+  // Validate pinnedEvidenceId against loaded evidence items
+  useEffect(() => {
+    if (
+      isHydrated &&
+      pinnedEvidenceId !== null &&
+      state.evidence.length > 0 &&
+      !state.evidence.some((item) => item.id === pinnedEvidenceId)
+    ) {
+      setPinnedEvidenceId(null);
+    }
+  }, [isHydrated, pinnedEvidenceId, state.evidence]);
+
+  // Synchronize workbench state to URL search params (debounced 150ms to prevent slider thrashing)
+  useEffect(() => {
+    if (!isHydrated || !initialStepHydratedRef.current) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      try {
+        if (typeof window === "undefined") {
+          return;
+        }
+        const params = new URLSearchParams(window.location.search);
+        if (selectedEventIndex !== null) {
+          params.set("step", String(selectedEventIndex));
+        } else {
+          params.delete("step");
+        }
+        if (showDiff) {
+          params.set("diff", "1");
+        } else {
+          params.delete("diff");
+        }
+        if (pinnedEvidenceId) {
+          params.set("evidence", pinnedEvidenceId);
+        } else {
+          params.delete("evidence");
+        }
+        const query = params.toString();
+        const nextUrl = query
+          ? `${window.location.pathname}?${query}`
+          : window.location.pathname;
+        window.history.replaceState(null, "", nextUrl);
+      } catch {
+        // Ignore history API errors in restricted environments
+      }
+    }, 150);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isHydrated, selectedEventIndex, showDiff, pinnedEvidenceId]);
 
   // Keyboard navigation for Time-Travel Scrubber: [ / ] / L
   useEffect(() => {
@@ -267,13 +369,18 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
         {/* Primary Agent Reasoning & Hypotheses Panel with Iteration Diff Support */}
         <AgentReasoningPanel
           thoughtProcess={state.activeThoughtProcess}
+          streamingReasoningDelta={state.streamingReasoningDelta}
           reasoningSteps={state.reasoningSteps}
           hypotheses={state.hypotheses}
           isLoading={state.status === "RUNNING"}
           highlightedEvidenceId={highlightedEvidenceId}
-          onHighlightEvidence={setHighlightedEvidenceId}
+          pinnedEvidenceId={pinnedEvidenceId}
+          onHighlightEvidence={setPinnedEvidenceId}
+          onHoverEvidence={setHoveredEvidenceId}
           iterationSnapshots={iterationSnapshots}
           iterationDiffs={iterationDiffs}
+          showDiff={showDiff}
+          onToggleDiff={setShowDiff}
         />
 
         {/* Timeline and Evidence Panels with Cross-Panel Linking */}
@@ -290,7 +397,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
             evidence={state.evidence}
             isLoading={state.status === "RUNNING" && state.evidence.length === 0}
             highlightedEvidenceId={highlightedEvidenceId}
-            onSelectEvidence={setHighlightedEvidenceId}
+            onSelectEvidence={setPinnedEvidenceId}
           />
         </div>
 
@@ -300,7 +407,9 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
           <AnalyzerPanel
             analyzers={state.analyzerSummaries}
             highlightedEvidenceId={highlightedEvidenceId}
-            onHighlightEvidence={setHighlightedEvidenceId}
+            pinnedEvidenceId={pinnedEvidenceId}
+            onHighlightEvidence={setPinnedEvidenceId}
+            onHoverEvidence={setHoveredEvidenceId}
           />
         </div>
 

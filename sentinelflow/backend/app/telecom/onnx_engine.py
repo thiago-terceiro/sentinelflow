@@ -105,6 +105,8 @@ class OnnxInferenceEngine:
 
         self.model_path = Path(model_path)
         self.session: ort.InferenceSession | None = None
+        self._session: ort.InferenceSession | None = None
+        self._input_name: str = "text"
         self._init_session()
 
     def _init_session(self) -> None:
@@ -128,9 +130,10 @@ class OnnxInferenceEngine:
                 sess_options=opts,
                 providers=["CPUExecutionProvider"],
             )
+            self._session = self.session
             # Cold-start warmup: run 1 dummy inference to prime threadpools & memory allocations
             warmup_tensor = np.array([["warmup text"]], dtype=object)
-            self.session.run(None, {"text": warmup_tensor})
+            self.session.run(None, {self._input_name: warmup_tensor})
             logger.info(
                 "Initialized ONNX Runtime CPU session from %s (warmup complete)",
                 self.model_path,
@@ -138,6 +141,7 @@ class OnnxInferenceEngine:
         except Exception as err:
             logger.error("Failed to load ONNX model from %s: %s", self.model_path, err)
             self.session = None
+            self._session = None
 
     def evaluate_heuristics(self, text: str) -> tuple[float, list[str]]:
         """Fast regex pattern matching preceding the ML model."""
@@ -215,6 +219,64 @@ class OnnxInferenceEngine:
             heuristic_score=round(heuristic_score, 4),
         )
 
+    def predict_proba_batch(self, texts: list[str]) -> list[float]:
+        """Executes vectorized ONNX CPU inference across a batch of SMS messages."""
+        if not texts:
+            return []
+        active_session = self._session or self.session
+        if active_session is not None:
+            try:
+                input_tensor = np.array([[t] for t in texts], dtype=object)
+                raw_outputs = active_session.run(None, {self._input_name: input_tensor})
+                prob_maps = raw_outputs[1]
+                return [float(prob_map.get(1, 0.0)) for prob_map in prob_maps]
+            except Exception as err:
+                logger.error("ONNX batch inference failed: %s", err)
+        return [self.evaluate_heuristics(t)[0] for t in texts]
+
+    def predict_batch(self, texts: list[str]) -> list[InferenceResult]:
+        """Classifies a batch of SMS messages using a single vectorized ONNX session call."""
+        if not texts:
+            return []
+        t_start = time.perf_counter()
+        onnx_probs = self.predict_proba_batch(texts)
+        per_item_latency_ms = round(
+            ((time.perf_counter() - t_start) * 1000.0) / max(len(texts), 1), 3
+        )
+        results: list[InferenceResult] = []
+        active_session = self._session or self.session
+        for text, onnx_prob in zip(texts, onnx_probs, strict=False):
+            heuristic_score, signals = self.evaluate_heuristics(text)
+            if active_session is None:
+                signals.append("ENGINE:HEURISTIC_ONLY")
+            fraud_score = max(heuristic_score, onnx_prob)
+            if onnx_prob >= 0.75:
+                signals.append("ML:HIGH_FRAUD_PROBABILITY")
+            elif onnx_prob >= 0.40:
+                signals.append("ML:ELEVATED_FRAUD_PROBABILITY")
+            else:
+                signals.append("ML:BENIGN_CLASSIFICATION")
+            if fraud_score >= 0.75:
+                verdict = "BLOCK"
+            elif fraud_score >= 0.40:
+                verdict = "FLAG"
+            else:
+                verdict = "ALLOW"
+            results.append(
+                InferenceResult(
+                    verdict=verdict,
+                    fraud_score=round(fraud_score, 4),
+                    latency_ms=per_item_latency_ms,
+                    signals=signals,
+                    model_version="1.0.0",
+                    onnx_probability=round(onnx_prob, 4),
+                    heuristic_score=round(heuristic_score, 4),
+                )
+            )
+        return results
+
+
+OnnxSmsInferenceEngine = OnnxInferenceEngine
 
 # Global singleton instance
 _engine_instance: OnnxInferenceEngine | None = None

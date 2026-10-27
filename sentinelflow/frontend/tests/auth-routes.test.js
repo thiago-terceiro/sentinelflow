@@ -100,3 +100,51 @@ test("/auth/logout clears session cookies and redirects home", async () => {
   assert.equal(response.cookies.get("sentinelflow_id_token")?.value, "");
   assert.equal(response.cookies.get("sentinelflow_test_user")?.value, "");
 });
+
+test("/app-api/[...path] forwards signal, Last-Event-ID, and SSE anti-buffering headers", async () => {
+  const { GET, dynamic } = await import("../app/app-api/[...path]/route.ts");
+  assert.equal(dynamic, "force-dynamic");
+
+  const originalFetch = globalThis.fetch;
+  let capturedInit = null;
+  globalThis.fetch = async (_url, init) => {
+    capturedInit = init;
+    return new Response("data: {}\n\n", {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  };
+
+  try {
+    const controller = new AbortController();
+    const request = new NextRequest(
+      "https://console.example.com/app-api/investigations/inv_123/stream",
+      {
+        headers: {
+          cookie: "sentinelflow_access_token=dev-investigator",
+          "Last-Event-ID": "evt_42",
+          Accept: "text/event-stream",
+        },
+        signal: controller.signal,
+      }
+    );
+
+    const response = await GET(request, {
+      params: Promise.resolve({ path: ["investigations", "inv_123", "stream"] }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("Cache-Control"), "no-cache, no-transform");
+    assert.equal(response.headers.get("X-Accel-Buffering"), "no");
+    assert.ok(capturedInit);
+    assert.ok(capturedInit.signal);
+    const forwardedHeaders = new Headers(capturedInit.headers);
+    assert.equal(forwardedHeaders.get("Last-Event-ID"), "evt_42");
+    assert.equal(forwardedHeaders.get("Authorization"), "Bearer dev-investigator");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

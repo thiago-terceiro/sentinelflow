@@ -261,3 +261,75 @@ def validate_evidence_grounding(
         confidence_penalty=0.0,
         details="All factual entities in generated report verified against evidence.",
     )
+
+
+def validate_output_guardrails(
+    hypotheses: list[Any],
+    report: Any | None,
+    valid_evidence_ids: set[str],
+) -> tuple[list[Any], Any | None, list[str]]:
+    """Strips fabricated evidence_ids not in valid_evidence_ids from hypotheses and report."""
+    fabricated: list[str] = []
+
+    def _filter_ids(ids: list[str]) -> list[str]:
+        kept: list[str] = []
+        for eid in ids:
+            if eid in valid_evidence_ids:
+                kept.append(eid)
+            else:
+                if eid not in fabricated:
+                    fabricated.append(eid)
+        return kept
+
+    sanitized_hypotheses: list[Any] = []
+    for hyp in hypotheses:
+        supp = list(getattr(hyp, "supporting_evidence_ids", []) or [])
+        contra = list(getattr(hyp, "contradicting_evidence_ids", []) or [])
+        clean_supp = _filter_ids(supp)
+        clean_contra = _filter_ids(contra)
+        if (clean_supp != supp or clean_contra != contra) and hasattr(hyp, "model_copy"):
+            sanitized_hypotheses.append(
+                hyp.model_copy(
+                    update={
+                        "supporting_evidence_ids": clean_supp,
+                        "contradicting_evidence_ids": clean_contra,
+                    }
+                )
+            )
+        else:
+            sanitized_hypotheses.append(hyp)
+
+    sanitized_report = report
+    if report is not None:
+        rep_eids = list(getattr(report, "evidence_ids", []) or [])
+        clean_rep_eids = _filter_ids(rep_eids)
+        rep_hyps = list(getattr(report, "hypotheses", []) or [])
+        clean_rep_hyps: list[Any] = []
+        hyps_changed = False
+        for rh in rep_hyps:
+            r_supp = list(getattr(rh, "supporting_evidence_ids", []) or [])
+            r_contra = list(getattr(rh, "contradicting_evidence_ids", []) or [])
+            c_supp = _filter_ids(r_supp)
+            c_contra = _filter_ids(r_contra)
+            if (c_supp != r_supp or c_contra != r_contra) and hasattr(rh, "model_copy"):
+                hyps_changed = True
+                clean_rep_hyps.append(
+                    rh.model_copy(
+                        update={
+                            "supporting_evidence_ids": c_supp,
+                            "contradicting_evidence_ids": c_contra,
+                        }
+                    )
+                )
+            else:
+                clean_rep_hyps.append(rh)
+
+        if (clean_rep_eids != rep_eids or hyps_changed) and hasattr(report, "model_copy"):
+            sanitized_report = report.model_copy(
+                update={
+                    "evidence_ids": clean_rep_eids,
+                    "hypotheses": clean_rep_hyps,
+                }
+            )
+
+    return sanitized_hypotheses, sanitized_report, fabricated

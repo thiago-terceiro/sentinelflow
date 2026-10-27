@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useEffect, useId, useState } from "react";
+import React, { memo, useEffect, useId, useRef, useState } from "react";
 import type { TelecomFeedItem, TelecomPreset, TelecomVerdict } from "./types";
 
 type Props = {
@@ -54,6 +54,8 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
     "Carrier security code: 492018. Valid for 5 minutes. Do not share this code."
   );
   const [isClassifying, setIsClassifying] = useState<boolean>(false);
+  const isClassifyingRef = useRef<boolean>(false);
+  const [classificationError, setClassificationError] = useState<string | null>(null);
   const [classificationResult, setClassificationResult] = useState<TelecomFeedItem | null>(null);
   const [autoEscalate, setAutoEscalate] = useState<boolean>(false);
   const [isEscalating, setIsEscalating] = useState<boolean>(false);
@@ -75,7 +77,12 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
     if (e) {
       e.preventDefault();
     }
+    if (isClassifyingRef.current) {
+      return;
+    }
+    isClassifyingRef.current = true;
     setIsClassifying(true);
+    setClassificationError(null);
     try {
       const res = await fetch("/app-api/telecom/classify", {
         method: "POST",
@@ -103,10 +110,15 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
         if (onClassificationSuccess) {
           onClassificationSuccess();
         }
+      } else {
+        setClassificationError(`Classification failed with HTTP ${res.status}.`);
       }
     } catch (err) {
-      console.error("Classification request failed", err);
+      setClassificationError(
+        err instanceof Error ? err.message : "Classification request failed."
+      );
     } finally {
+      isClassifyingRef.current = false;
       setIsClassifying(false);
     }
   };
@@ -199,6 +211,23 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           ))}
         </div>
       </div>
+
+      {classificationError ? (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 14,
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.35)",
+            color: "#ef4444",
+            fontSize: 13,
+          }}
+        >
+          {classificationError}
+        </div>
+      ) : null}
 
       <form onSubmit={handleClassify}>
         <div

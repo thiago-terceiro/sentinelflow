@@ -6,27 +6,46 @@ import { InvestigationDiffPanel } from "./InvestigationDiffPanel";
 
 type Props = {
   thoughtProcess?: string | null;
+  streamingReasoningDelta?: string | null;
   reasoningSteps?: string[];
   hypotheses?: InvestigationHypothesis[];
   isLoading?: boolean;
   highlightedEvidenceId?: string | null;
+  pinnedEvidenceId?: string | null;
   onHighlightEvidence?: (id: string | null) => void;
+  onHoverEvidence?: (id: string | null) => void;
   iterationSnapshots?: IterationSnapshot[];
   iterationDiffs?: IterationDiff[];
+  showDiff?: boolean;
+  onToggleDiff?: (next: boolean) => void;
 };
 
 export const AgentReasoningPanel = memo(
   ({
     thoughtProcess,
+    streamingReasoningDelta,
     reasoningSteps = [],
     hypotheses = [],
     isLoading = false,
     highlightedEvidenceId,
+    pinnedEvidenceId,
     onHighlightEvidence,
+    onHoverEvidence,
     iterationSnapshots = [],
     iterationDiffs = [],
+    showDiff: controlledShowDiff,
+    onToggleDiff,
   }: Props) => {
-    const [showDiff, setShowDiff] = useState(false);
+    const [internalShowDiff, setInternalShowDiff] = useState(false);
+    const showDiff = controlledShowDiff !== undefined ? controlledShowDiff : internalShowDiff;
+    const setShowDiff = (next: boolean | ((prev: boolean) => boolean)) => {
+      const resolved = typeof next === "function" ? next(showDiff) : next;
+      if (onToggleDiff) {
+        onToggleDiff(resolved);
+      } else {
+        setInternalShowDiff(resolved);
+      }
+    };
 
     return (
       <section className="shell-card" style={{ padding: 24, display: "grid", gap: 20 }}>
@@ -88,6 +107,28 @@ export const AgentReasoningPanel = memo(
             diffs={iterationDiffs}
             onClose={() => setShowDiff(false)}
           />
+        ) : null}
+
+        {streamingReasoningDelta ? (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              padding: "12px 16px",
+              borderRadius: 10,
+              background: "rgba(56, 189, 248, 0.08)",
+              border: "1px solid rgba(56, 189, 248, 0.3)",
+              fontSize: 13,
+              color: "#38bdf8",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontFamily: "monospace",
+            }}
+          >
+            <span>⚡</span>
+            <span>{streamingReasoningDelta}</span>
+          </div>
         ) : null}
 
         {thoughtProcess ? (
@@ -237,23 +278,26 @@ export const AgentReasoningPanel = memo(
                         {h.supporting_evidence_ids.length > 0 ? (
                           h.supporting_evidence_ids.map((id) => {
                             const isFocused = id === highlightedEvidenceId;
+                            const isPinned =
+                              pinnedEvidenceId !== undefined ? pinnedEvidenceId === id : isFocused;
                             return (
                               <button
                                 key={id}
                                 type="button"
+                                aria-pressed={isPinned}
                                 onClick={() => {
                                   if (onHighlightEvidence) {
-                                    onHighlightEvidence(isFocused ? null : id);
+                                    onHighlightEvidence(isPinned ? null : id);
                                   }
                                 }}
                                 onMouseEnter={() => {
-                                  if (onHighlightEvidence) {
-                                    onHighlightEvidence(id);
+                                  if (onHoverEvidence) {
+                                    onHoverEvidence(id);
                                   }
                                 }}
                                 onMouseLeave={() => {
-                                  if (onHighlightEvidence && isFocused) {
-                                    onHighlightEvidence(null);
+                                  if (onHoverEvidence) {
+                                    onHoverEvidence(null);
                                   }
                                 }}
                                 style={{
@@ -286,23 +330,26 @@ export const AgentReasoningPanel = memo(
                         {h.contradicting_evidence_ids.length > 0 ? (
                           h.contradicting_evidence_ids.map((id) => {
                             const isFocused = id === highlightedEvidenceId;
+                            const isPinned =
+                              pinnedEvidenceId !== undefined ? pinnedEvidenceId === id : isFocused;
                             return (
                               <button
                                 key={id}
                                 type="button"
+                                aria-pressed={isPinned}
                                 onClick={() => {
                                   if (onHighlightEvidence) {
-                                    onHighlightEvidence(isFocused ? null : id);
+                                    onHighlightEvidence(isPinned ? null : id);
                                   }
                                 }}
                                 onMouseEnter={() => {
-                                  if (onHighlightEvidence) {
-                                    onHighlightEvidence(id);
+                                  if (onHoverEvidence) {
+                                    onHoverEvidence(id);
                                   }
                                 }}
                                 onMouseLeave={() => {
-                                  if (onHighlightEvidence && isFocused) {
-                                    onHighlightEvidence(null);
+                                  if (onHoverEvidence) {
+                                    onHoverEvidence(null);
                                   }
                                 }}
                                 style={{

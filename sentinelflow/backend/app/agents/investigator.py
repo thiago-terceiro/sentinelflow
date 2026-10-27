@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+import json
+from collections.abc import Awaitable, Callable, Iterable
 from typing import cast
 
 from app.graph.prompts import investigator_iteration, investigator_system
@@ -81,12 +82,42 @@ class InvestigatorAgent:
         failed_tools: list[dict[str, str]],
         failed_analyzers: list[dict[str, str]],
         reviewer_guidance: str | None = None,
+        on_delta: Callable[[str], Awaitable[None]] | None = None,
     ) -> tuple[InvestigatorIteration, LLMCallResult[InvestigatorIteration] | None]:
         sanitized_dispute_json, _ = redact_text(dispute.model_dump_json(indent=2))
+        serialized_evidence = [
+            {
+                "id": item.id,
+                "category": item.category,
+                "origin": item.origin,
+                "summary": item.summary,
+                "facts": item.facts,
+                "confidence": item.confidence,
+            }
+            for item in evidence
+        ]
+        sanitized_evidence_json, _ = redact_text(json.dumps(serialized_evidence, default=str))
+        serialized_analyzers = [
+            {
+                "analyzer": item.analyzer,
+                "summary": item.summary,
+                "findings": item.findings,
+                "contradictions": item.contradictions,
+                "evidence_ids": item.evidence_ids,
+                "confidence": item.confidence,
+            }
+            for item in analyzers
+        ]
+        sanitized_analyzers_json, _ = redact_text(json.dumps(serialized_analyzers, default=str))
         prompt_parts = [
             f"Dispute: {sanitized_dispute_json}",
             f"Evidence count: {len(evidence)}",
+            (
+                "Collected Evidence (cite exact 'id' strings in supporting_evidence_ids "
+                f"and contradicting_evidence_ids):\n{sanitized_evidence_json}"
+            ),
             f"Analyzer count: {len(analyzers)}",
+            f"Analyzer Summaries:\n{sanitized_analyzers_json}",
             f"Failed tools:\n{self._failure_note(failed_tools)}",
             f"Failed analyzers:\n{self._failure_note(failed_analyzers)}",
         ]
@@ -104,6 +135,7 @@ class InvestigatorAgent:
             prompt_template_id=PROMPT_TEMPLATE_ID,
             prompt_template_version=PROMPT_TEMPLATE_VERSION,
             prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
+            on_delta=on_delta,
         )
         if llm_result is not None:
             return llm_result.value, llm_result

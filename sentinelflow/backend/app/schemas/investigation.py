@@ -119,6 +119,16 @@ class InvestigationRun(BaseModel):
         default_factory=lambda: cast(list[ComplianceFinding], [])
     )
     report: InvestigationReport | None = None
+    evidence: list[Evidence] = Field(default_factory=lambda: cast(list[Evidence], []))
+    analyzer_summaries: list[AnalyzerSummary] = Field(
+        default_factory=lambda: cast(list[AnalyzerSummary], [])
+    )
+    hypotheses: list[InvestigationHypothesis] = Field(
+        default_factory=lambda: cast(list[InvestigationHypothesis], [])
+    )
+    timeline_events: list[dict[str, Any]] = Field(
+        default_factory=lambda: cast(list[dict[str, Any]], [])
+    )
 
 
 class InvestigationListItem(BaseModel):

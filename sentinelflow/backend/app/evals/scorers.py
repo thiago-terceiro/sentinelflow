@@ -137,7 +137,21 @@ def score_steering_compliance(
     match_ratio = matches / len(guidance_words)
 
     # 40%+ keyword overlap indicates genuine steering incorporation
-    return 1.0 if match_ratio >= 0.4 else round(match_ratio / 0.4, 3)
+    base_score = 1.0 if match_ratio >= 0.4 else round(match_ratio / 0.4, 3)
+
+    # Polarity alignment check: if guidance explicitly directs to deny or approve,
+    # penalize contradictory final recommendation.
+    if report and isinstance(report.get("recommendation"), str):
+        rec = str(report["recommendation"]).lower().strip()
+        lower_guidance = redacted_guidance.lower()
+        wants_deny = bool(re.search(r"\b(?:deny|reject|fraudulent)\b", lower_guidance))
+        wants_approve = bool(re.search(r"\b(?:approve|legitimate|valid)\b", lower_guidance))
+        if wants_deny and not wants_approve and rec == "approve":
+            base_score = round(base_score * 0.4, 3)
+        elif wants_approve and not wants_deny and rec == "deny":
+            base_score = round(base_score * 0.4, 3)
+
+    return base_score
 
 
 def score_pii_safety(text_corpus: str) -> float:

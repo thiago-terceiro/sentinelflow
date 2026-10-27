@@ -126,13 +126,14 @@ jobs:
           import json
           with open('sentinelflow/backend/app/evals/eval_report_latest.json') as f:
               data = json.load(f)
-          summary = data.get('summary', {})
-          acc = summary.get('recommendation_accuracy', 0) * 100
-          grnd = summary.get('mean_evidence_groundedness', 0) * 100
-          grd = summary.get('mean_guardrail_pass_rate', 0) * 100
+          acc = data.get('decision_accuracy', 0) * 100
+          grnd = data.get('grounding_rate', 0) * 100
+          grd = data.get('pii_safety_rate', 0) * 100
+          calib = data.get('risk_calibration_accuracy', 0) * 100
           print(f'| Recommendation Accuracy | >= 90.0% | {acc:.1f}% | {\"✅ PASS\" if acc >= 90 else \"❌ FAIL\"} |')
           print(f'| Evidence Groundedness | >= 90.0% | {grnd:.1f}% | {\"✅ PASS\" if grnd >= 90 else \"❌ FAIL\"} |')
-          print(f'| Safety Guardrail Pass Rate | 100.0% | {grd:.1f}% | {\"✅ PASS\" if grd == 100 else \"❌ FAIL\"} |')
+          print(f'| Risk Calibration Accuracy | >= 85.0% | {calib:.1f}% | {\"✅ PASS\" if calib >= 85 else \"❌ FAIL\"} |')
+          print(f'| Safety Guardrail & PII Pass Rate | 100.0% | {grd:.1f}% | {\"✅ PASS\" if grd == 100 else \"❌ FAIL\"} |')
           " >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -260,6 +261,10 @@ jobs:
             -d '{"sender": "+14155552671", "recipient": "+14155559876", "message": "Your verification code is 492018. It expires in 5 minutes.", "carrier": "Verizon Wireless"}')
           echo "Sandbox Live Classification Response: $RESPONSE"
           echo "$RESPONSE" | grep -q '"verdict":"ALLOW"'
+
+      - name: Run End-to-End Investigation & Worker SSE Smoke Test
+        run: |
+          python3 sentinelflow/ops/smoke_test.py --auth-mode dev_tokens --base-url http://127.0.0.1:8080
 
       - name: Run Ephemeral Traffic Load Smoke & Verify Latency SLA
         run: |

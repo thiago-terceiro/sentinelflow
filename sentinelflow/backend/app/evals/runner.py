@@ -63,6 +63,9 @@ class MockEvalSession:
     async def get(self, *args: Any, **kwargs: Any) -> Any:
         return None
 
+    def get_bind(self) -> Any:
+        return None
+
 
 def _build_initial_state(case: BenchmarkCase, dispute_id: str) -> DisputeState:
     return {

@@ -122,7 +122,8 @@ class RedisVelocityStore:
         # Bound memory growth under heavy continuous fallback traffic
         if len(self._in_memory_sender_history) > 10000:
             stale = [
-                k for k, dq in self._in_memory_sender_history.items()
+                k
+                for k, dq in self._in_memory_sender_history.items()
                 if not dq or dq[-1] < now - 3600.0
             ]
             for k in stale[:2000]:

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from collections.abc import Awaitable, Callable
+
 from app.graph.prompts import evidence_synthesis, final_recommendation, investigator_system
 from app.schemas.investigation import (
     ComplianceFinding,
@@ -37,11 +40,15 @@ class SynthesizerAgent:
         compliance: list[ComplianceFinding],
         evidence_ids: list[str],
         unresolved_questions: list[str],
+        on_delta: Callable[[str], Awaitable[None]] | None = None,
     ) -> tuple[InvestigationReport, LLMCallResult[SynthesisOutput] | None]:
+        serialized_hypotheses = [item.model_dump(mode="json") for item in hypotheses]
         prompt = (
-            f"Hypotheses: {len(hypotheses)}\n"
+            f"Hypotheses ({len(hypotheses)}):\n{json.dumps(serialized_hypotheses, indent=2)}\n"
+            f"Available Evidence IDs: {json.dumps(evidence_ids)}\n"
+            f"Unresolved Questions: {json.dumps(unresolved_questions)}\n"
             f"Risk: {risk.model_dump_json(indent=2)}\n"
-            f"Compliance: {[item.model_dump() for item in compliance]}"
+            f"Compliance: {[item.model_dump(mode='json') for item in compliance]}"
         )
         llm_result = await self.gateway.generate_structured(
             system_prompt=investigator_system,
@@ -50,6 +57,7 @@ class SynthesizerAgent:
             prompt_template_id=PROMPT_TEMPLATE_ID,
             prompt_template_version=PROMPT_TEMPLATE_VERSION,
             prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
+            on_delta=on_delta,
         )
         if llm_result is None:
             recommendation: Recommendation

@@ -4,6 +4,7 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, useState } fr
 
 import {
   getInvestigation,
+  getLatestDisputeInvestigation,
   investigationStreamEndpoint,
   resumeInvestigation,
   startInvestigation,
@@ -15,6 +16,7 @@ import {
   deriveConsoleStateAtStep,
   extractIterationSnapshots,
   initialConsoleState,
+  mergeUniqueEvents,
 } from "@/lib/investigationState";
 import { shouldReconnectInvestigation, streamReconnectDelayMs } from "@/lib/investigationStream";
 import { openInvestigationStream } from "@/lib/sse";
@@ -29,6 +31,7 @@ export const useSentinelAgent = (disputeId: string) => {
   const [rawEvents, setRawEvents] = useState<StreamEvent[]>([]);
   const [baseRun, setBaseRun] = useState<InvestigationRun | null>(null);
   const [selectedEventIndex, setSelectedEventIndex] = useState<number | null>(null);
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
 
   const [isLaunching, setIsLaunching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -54,27 +57,16 @@ export const useSentinelAgent = (disputeId: string) => {
     clearReconnectTimeout();
   };
 
-  useEffect(() => {
-    clearReconnectTimeout();
-    streamRef.current?.close();
-    streamRef.current = null;
-    resetReconnectState();
-    setRawEvents([]);
-    setBaseRun(null);
-    setSelectedEventIndex(null);
-    setState(initialConsoleState);
-
-    return () => {
-      clearReconnectTimeout();
-      streamRef.current?.close();
-      streamRef.current = null;
-    };
-  }, [disputeId]);
-
   const refresh = useCallback(async (investigationId: string, reconnectIfRunning = false) => {
     try {
       const run = await getInvestigation(investigationId);
       setBaseRun(run);
+      const hydratedEvents = Array.isArray(run.timeline_events)
+        ? (run.timeline_events as unknown as StreamEvent[])
+        : [];
+      if (hydratedEvents.length > 0) {
+        setRawEvents((prev) => mergeUniqueEvents(prev, hydratedEvents));
+      }
       setState((current) => applyRunToConsoleState(current, run));
       if (reconnectIfRunning && shouldReconnectInvestigation(run, reconnectAttemptRef.current)) {
         connectStream(run.id, false);
@@ -88,6 +80,54 @@ export const useSentinelAgent = (disputeId: string) => {
       }));
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    clearReconnectTimeout();
+    streamRef.current?.close();
+    streamRef.current = null;
+    resetReconnectState();
+    setRawEvents([]);
+    setBaseRun(null);
+    setSelectedEventIndex(null);
+    setIsHydrated(false);
+    setState(initialConsoleState);
+
+    const hydrateDisputeInvestigation = async () => {
+      try {
+        const latestRun = await getLatestDisputeInvestigation(disputeId);
+        if (cancelled || !latestRun) {
+          return;
+        }
+        setBaseRun(latestRun);
+        const hydratedEvents = Array.isArray(latestRun.timeline_events)
+          ? (latestRun.timeline_events as unknown as StreamEvent[])
+          : [];
+        if (hydratedEvents.length > 0) {
+          setRawEvents((prev) => mergeUniqueEvents(prev, hydratedEvents));
+        }
+        setState((current) => applyRunToConsoleState(current, latestRun));
+        if (latestRun.status === "running" || latestRun.status === "pending") {
+          connectStream(latestRun.id);
+        }
+      } catch {
+        // Dispute may not have an investigation yet; remain in IDLE state cleanly.
+      } finally {
+        if (!cancelled) {
+          setIsHydrated(true);
+        }
+      }
+    };
+
+    void hydrateDisputeInvestigation();
+
+    return () => {
+      cancelled = true;
+      clearReconnectTimeout();
+      streamRef.current?.close();
+      streamRef.current = null;
+    };
+  }, [disputeId]);
 
   const scheduleReconnect = (investigationId: string, message: string) => {
     streamRef.current = null;
@@ -135,7 +175,9 @@ export const useSentinelAgent = (disputeId: string) => {
           streamRef.current = null;
         }
         startTransition(() => {
-          setRawEvents((prev) => [...prev, event]);
+          if (event.type !== "reasoning_delta" && event.type !== "synthesis_delta") {
+            setRawEvents((prev) => mergeUniqueEvents(prev, [event]));
+          }
           setState((current) =>
             applyStreamEventToConsoleState(
               {
@@ -245,10 +287,10 @@ export const useSentinelAgent = (disputeId: string) => {
 
   const goToStep = useCallback(
     (index: number | null) => {
-      if (index === null || index >= rawEvents.length - 1) {
+      if (index === null) {
         setSelectedEventIndex(null);
       } else {
-        setSelectedEventIndex(Math.max(0, index));
+        setSelectedEventIndex(Math.min(Math.max(0, index), Math.max(0, rawEvents.length - 1)));
       }
     },
     [rawEvents.length]
@@ -305,6 +347,7 @@ export const useSentinelAgent = (disputeId: string) => {
     liveState: state,
     rawEvents,
     selectedEventIndex,
+    isHydrated,
     setSelectedEventIndex,
     isLive: selectedEventIndex === null,
     goToStep,

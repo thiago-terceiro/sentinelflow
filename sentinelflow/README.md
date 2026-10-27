@@ -21,8 +21,10 @@ The local stack is now wired to run as a production-like image-based deployment 
 - Typed LangGraph state and native `interrupt()` approval node
 - Tool layer that reads seeded dispute evidence from PostgreSQL
 - Deterministic risk engine and versioned compliance checks
-- Next.js 16 App Router console with SSE replay support
-- Seed data for five dispute cases with visibly different investigation profiles
+- Next.js 16 App Router console with SSE replay support, **Time-Travel State Scrubber (`?step=`)**, **Semantic Iteration Diff Inspector (`?diff=1`)**, and **Cross-Panel Evidence Citation Pinning (`?evidence=`)**
+- Seed data for five dispute cases with visibly different investigation profiles, including **pre-seeded showcase investigations**:
+  - `SF-10001` (`inv_seed_sf_10001`): Completed 2-iteration human-steered investigation with full timeline events, iteration diffs, and SHA-256 cryptographic audit ledger ready on boot
+  - `SF-10002` (`inv_seed_sf_10002`): Paused `awaiting_approval` investigation ready for immediate human-in-the-loop review (`Approve`, `Reject`, or `Request Revision`)
 - Multi-stage Docker images for backend and frontend
 - Durable queue execution path with Redis + arq worker
 - Optional encrypted raw audit artifact vault for auditor/admin review flows
@@ -245,7 +247,7 @@ uv run alembic downgrade -1
 
 - Production mode requires real JWT configuration and an OpenAI API key.
 - The backend still uses an in-memory LangGraph checkpointer outside production; production mode validates PostgreSQL checkpointer requirements at startup and readiness.
-- The SSE endpoint currently replays the latest persisted investigation state rather than maintaining a long-lived live push channel.
+- The SSE endpoint (`GET /api/v1/investigations/{id}/stream`) replays persisted snapshot events and streams live intra-node push events (`tool_started`, `evidence_added`, `reasoning_delta`, `approval_required`, etc.) over Redis Pub/Sub via `InvestigationBroadcaster`.
 - The built-in backend rate limiter is in-memory. For horizontally scaled production, move rate limiting to shared infrastructure or a distributed backing store.
 
 ---
@@ -290,7 +292,7 @@ SentinelPulse is an ultra-low-latency telecom intelligence gateway integrated in
 ### Quickstart & Load Testing Commands
 
 ```bash
-# 1. Run the Pytest verification suite (89 passing tests)
+# 1. Run the Pytest verification suite (112 passing tests across the full backend suite, plus 32 frontend Node tests)
 cd backend
 uv run pytest app/tests/test_telecom_gateway.py
 

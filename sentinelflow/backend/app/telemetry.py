@@ -31,6 +31,8 @@ def _build_exporter_headers(raw_headers: str | None) -> dict[str, str] | None:
 
 
 def _configure_trace_provider() -> None:
+    if isinstance(trace.get_tracer_provider(), TracerProvider):
+        return
     settings = get_settings()
     provider = TracerProvider(
         resource=Resource.create({"service.name": settings.OTEL_SERVICE_NAME}),
@@ -54,6 +56,10 @@ def _configure_trace_provider() -> None:
 def configure_telemetry(app: FastAPI) -> None:
     _configure_trace_provider()
     FastAPIInstrumentor.instrument_app(app)
+
+
+def configure_worker_telemetry() -> None:
+    _configure_trace_provider()
 
 
 def telemetry_operator_status() -> dict[str, Any]:

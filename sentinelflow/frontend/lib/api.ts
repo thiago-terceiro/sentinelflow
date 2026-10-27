@@ -62,6 +62,27 @@ export const getInvestigation = async (investigationId: string): Promise<Investi
   return request<InvestigationRun>(`/investigations/${investigationId}`);
 };
 
+export const getLatestDisputeInvestigation = async (
+  disputeId: string
+): Promise<InvestigationRun | null> => {
+  try {
+    return await request<InvestigationRun | null>(`/disputes/${disputeId}/investigations/latest`);
+  } catch (firstError) {
+    await new Promise<void>((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 150);
+    });
+    try {
+      return await request<InvestigationRun | null>(
+        `/disputes/${disputeId}/investigations/latest`
+      );
+    } catch {
+      throw firstError;
+    }
+  }
+};
+
 export const investigationStreamEndpoint = (investigationId: string): string => {
   return `${resolveClientProxyBaseUrl()}/investigations/${investigationId}/stream`;
 };

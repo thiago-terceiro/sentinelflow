@@ -5,12 +5,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
-from app.schemas.investigation import Evidence
+from app.schemas.investigation import Evidence, InvestigationHypothesis, InvestigationReport
 from app.services.guardrails import (
     GroundingResult,
     GuardrailResult,
     inspect_prompt_safety,
     validate_evidence_grounding,
+    validate_output_guardrails,
 )
 
 
@@ -143,3 +144,36 @@ def test_evidence_grounding_hallucination_detected() -> None:
     assert result.confidence_penalty > 0.0
     assert any("$9850.00" in h or "$9,850.00" in h for h in result.hallucinated_entities)
     assert any("txn_fake_99999" in h for h in result.hallucinated_entities)
+
+
+def test_validate_output_guardrails_strips_fabricated_evidence_ids() -> None:
+    """Verifies fabricated evidence_ids are stripped from hypotheses and report."""
+    hypotheses = [
+        InvestigationHypothesis(
+            statement="Account takeover suspected",
+            confidence=0.88,
+            supporting_evidence_ids=["ev_real_1", "ev_fake_99"],
+            contradicting_evidence_ids=["ev_fake_100"],
+        )
+    ]
+    report = InvestigationReport(
+        conclusion="Deny claim",
+        recommendation="deny",
+        confidence=0.90,
+        hypotheses=hypotheses,
+        risk_factors=[],
+        evidence_ids=["ev_real_1", "ev_fake_99", "ev_phantom_77"],
+        unresolved_questions=[],
+        compliance_findings=[],
+    )
+    sanitized_hyps, sanitized_rep, fabricated = validate_output_guardrails(
+        hypotheses,
+        report,
+        {"ev_real_1"},
+    )
+    assert set(fabricated) == {"ev_fake_99", "ev_fake_100", "ev_phantom_77"}
+    assert sanitized_hyps[0].supporting_evidence_ids == ["ev_real_1"]
+    assert sanitized_hyps[0].contradicting_evidence_ids == []
+    assert sanitized_rep is not None
+    assert sanitized_rep.evidence_ids == ["ev_real_1"]
+    assert sanitized_rep.hypotheses[0].supporting_evidence_ids == ["ev_real_1"]

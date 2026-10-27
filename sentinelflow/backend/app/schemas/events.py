@@ -15,6 +15,8 @@ StreamEventType = Literal[
     "analyzer_completed",
     "evidence_added",
     "hypothesis_updated",
+    "reasoning_delta",
+    "synthesis_delta",
     "risk_updated",
     "final_report_ready",
     "approval_required",

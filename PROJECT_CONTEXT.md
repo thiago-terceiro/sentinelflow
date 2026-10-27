@@ -35,16 +35,16 @@ flowchart TD
     subgraph "Deep Path: SentinelFlow Copilot (LangGraph)"
         Nginx -->|REST & SSE Stream| BackendAPI["SentinelFlow Backend (FastAPI)"]
         BackendAPI --> Auth["JWT / RBAC Middleware<br/>(Investigator, Reviewer, Auditor)"]
-        Auth --> Queue["Job Queue (arq + Redis)"]
+        Auth -->|W3C traceparent| Queue["Job Queue (arq + Redis)"]
         Queue --> Worker["Async Background Worker"]
         Worker --> Graph["LangGraph State Machine<br/>(intake -> investigate -> collect -> synthesize -> approval -> finalize)"]
         Graph --> PG[("PostgreSQL 16<br/>Disputes, Investigations, Checkpoints, Audit")]
-        Graph --> Broadcaster["InvestigationBroadcaster<br/>(In-Memory SSE Event Hub)"]
+        Graph --> Broadcaster["InvestigationBroadcaster<br/>(Redis Pub/Sub + Backpressure-Safe SSE Hub)"]
         Broadcaster -->|text/event-stream| Nginx
     end
 
     subgraph "Frontend Console & Cockpit"
-        Nginx --> FE["Next.js 16 (React 19, TypeScript)<br/>Console, Timeline, Auditor Cockpit (/audit)"]
+        Nginx --> FE["Next.js 16 (React 19, TypeScript)<br/>Console, Time-Travel Scrubber, Diff View, Telecom Sandbox (/telecom), Auditor Cockpit (/audit)"]
     end
 ```
 
@@ -59,14 +59,16 @@ The investigation copilot manages autonomous research and synthesis over complex
   - Strongly typed TypedDict utilizing explicit LangGraph reducers (`operator.add`, `add_messages`).
   - Fields include `evidence`, `analyzer_summaries`, `hypotheses`, `unresolved_questions`, `risk_assessment`, `compliance_findings`, and `timeline_events`.
 - **Execution Flow**:
-  1. `intake`: Ingests dispute narrative and metadata from PostgreSQL.
-  2. `investigate`: LLM agent formulates hypotheses and generates structured `ToolRequest` and `AnalyzerRequest` payloads.
-  3. `collect`: Dispatches evidence retrieval tools (`transactions`, `customer`, `device`, `merchant`) and deterministic analyzers (`behavioral`, `compliance`).
-  4. `synthesize`: Deterministic risk scoring engine + synthesis LLM produces recommendation report.
-  5. `approval`: Native LangGraph `interrupt()`. Halts execution if risk exceeds policy threshold.
+  1. `intake`: Ingests dispute narrative and metadata from PostgreSQL with pre-inference prompt injection guardrails.
+  2. `investigate`: LLM agent formulates hypotheses and generates structured `ToolRequest` and `AnalyzerRequest` payloads while streaming live `reasoning_delta` SSE tokens via `ModelGateway.generate_structured`.
+  3. `collect`: Concurrently dispatches evidence retrieval tools (`transactions`, `customer`, `device`, `merchant`) and deterministic analyzers (`fraud_pattern`, `device_fingerprint`) via `asyncio.gather` with `session_lock` serializing DB audit writes.
+  4. `synthesize`: Deterministic risk scoring engine + synthesis LLM produces recommendation report (with live `reasoning_delta` streaming).
+  5. `approval`: Native LangGraph `interrupt()`. Halts execution if risk exceeds policy threshold, persisting `approval_required` into `InvestigationRecord` via `persist_graph_state()`.
   6. `Human-in-the-Loop Revision Loop`: Reviewers can approve, deny, or select `request_revision` with steering guidance. Bounded to a maximum of 3 revision cycles (`MAX_REVISION_CYCLES = 3`) to prevent infinite execution loops.
   7. `finalize`: Closes dispute, writes terminal audit records, and updates database records.
-- **Persistence**: Environment-aware checkpointer. Uses `MemorySaver` in development and `AsyncPostgresSaver` in production, indexed by `thread_id`.
+- **Persistence & Distributed Tracing**:
+  - Environment-aware checkpointer (`MemorySaver` in dev, `AsyncPostgresSaver` in prod) indexed by `thread_id`, coupled with `persist_graph_state()` so browser refreshes (`F5`) cold-hydrate mid-run evidence, hypotheses, and timeline events.
+  - W3C `traceparent` / `tracestate` context is injected when enqueueing `arq` jobs in FastAPI and extracted by the worker (`run_investigation_job` / `run_resume_investigation_job`), linking HTTP ingress spans and background LangGraph node spans into a single distributed trace in Jaeger.
 
 ### 3.2 SentinelPulse High-Throughput Gateway
 Designed for telecom and CPaaS messaging anti-abuse (e.g., 5,000+ RPS).
@@ -99,9 +101,15 @@ Designed for telecom and CPaaS messaging anti-abuse (e.g., 5,000+ RPS).
   - $\text{PSI} < 0.10$ (Stable), $0.10 \le \text{PSI} < 0.25$ (Moderate drift alert), $\text{PSI} \ge 0.25$ (Critical drift triggering retraining).
 - **Telemetry**: Prometheus `/metrics` endpoint exports drift gauges (`telecom_drift_psi`, `telecom_drift_ks_pvalue`), request counts, fraud rate, and p50/p95/p99 latency histograms.
 
-### 3.5 Full-Stack Frontend & Auditor Cockpit
-- **Next.js 16 App Router**: Strict TypeScript, 100% arrow function adoption, and zero promise chains (full `try/catch` blocks).
-- **Real-Time Streaming**: Custom SSE parser with bounded exponential reconnect backoff (`500ms * 2^attempt`), parsing multi-chunk event payloads.
+### 3.5 Full-Stack Frontend, Explainable AI Workbench & Auditor Cockpit
+- **Next.js 16 App Router**: Strict TypeScript, 100% arrow function adoption, zero promise chains (full `try/catch` blocks), and route-level `loading.tsx` / `not-found.tsx` boundaries.
+- **Real-Time Streaming & Cold Hydration**: Custom SSE parser with bounded exponential reconnect backoff (`500ms * 2^attempt`), live `reasoning_delta` token streaming, and full state cold-hydration on page refresh.
+- **Explainable AI Workbench (`/disputes/[disputeId]`)**:
+  - **Time-Travel State Scrubber (`TimeTravelScrubber.tsx`)**: Scrub through arbitrary historical event steps (`0..N-1`) in `<0.03ms` (`deriveConsoleStateAtStep`), with keyboard shortcuts (`[`, `]`, `L`) and deep-linkable URL query synchronization (`?step=`).
+  - **Iteration & Revision Diff Inspector (`InvestigationDiffPanel.tsx`)**: Computes semantic diffs between agent iterations (`?diff=1`) with attribution badges (`[AI Investigator]`, `[Human Reviewer Steering]`, `[Deterministic Engine]`), hypothesis confidence shifts, and newly collected evidence IDs.
+  - **Sticky Evidence Provenance Highlighting**: Clicking any citation pill in `AnalyzerPanel` or `AgentReasoningPanel` pins the citation (`?evidence=`), highlights the matching card in `EvidencePanel`, and smoothly scrolls it into view.
+- **Telecom Intelligence Console (`/telecom`)**:
+  - Live SSE traffic feed, throughput/latency percentile cards, KS/PSI drift gauges, and the interactive `TelecomClassifySandbox` (`POST /v1/classify`).
 - **Auditor Dashboard (`/audit`)**:
   - Live cryptographic integrity verification badge (`verifyAuditIntegrity`).
   - Searchable, filterable audit event ledger table.
@@ -119,7 +127,7 @@ The project enforces a strict 7-stage automated verification pipeline:
 | :---: | :--- | :--- | :--- |
 | **1** | **Security & Supply Chain** | `gitleaks` (zero secret leaks), `trivy` (filesystem/container SCA), `pip-audit`, `pnpm audit`, `security_compliance_scan.py` | 11/11 controls passed (100% OWASP Top 10 & CWE compliance) |
 | **2** | **Static Analysis & Guardrails** | `ruff check --select S`, `bandit`, `mypy app` (strict mode across 73 files), `eslint 10` + `sonarjs`, `check-rules.js` (AST guardrails) | 0 type errors, 0 linter warnings, 100% arrow function & try/catch compliance |
-| **3** | **Deterministic Testing** | `pytest --cov=app --cov-fail-under=80`, `node --test`, Playwright visual pixel diff | 101 backend tests passed (**86.22% coverage** across 4,949 statements), 22 frontend tests passed |
+| **3** | **Deterministic Testing** | `pytest --cov=app --cov-fail-under=80`, `node --test`, Playwright E2E & visual pixel diff | **109 backend tests passed** (**86%+ coverage** across 4,949+ statements), **31 frontend unit tests passed** |
 | **4** | **API Contract Drift Gate** | `openapi.json` $\leftrightarrow$ `generate-types.js` $\leftrightarrow$ `api.generated.ts` verified via `git diff --exit-code` | 0 contract drift |
 | **5** | **AI Eval-Driven Development** | `app.evals.run` benchmark evaluating decision accuracy, evidence grounding, risk calibration, and zero PII leakage | 100% accuracy, 100% grounding, 100% PII safety |
 | **6** | **Sandbox Container Smoke** | `docker compose up -d --build --wait`, live `/v1/classify` transaction smoke test, traffic simulator run, `down -v` | End-to-end container stack passes in clean isolated environment |
@@ -136,7 +144,7 @@ The project enforces a strict 7-stage automated verification pipeline:
 | **Data Stores** | PostgreSQL 16 (pgvector-ready), Redis 7.2 (ZSET sliding windows, job queue, pub/sub) |
 | **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5.9, Tailwind CSS, Lucide Icons |
 | **Security & Auditing**| Cryptographic SHA-256 hash chains, Fernet symmetric encryption, Gitleaks, Bandit, Trivy, SonarJS |
-| **Telemetry & Observability**| OpenTelemetry (OTel SDK), Prometheus metrics exporter, Jaeger distributed tracing |
+| **Telemetry & Observability**| OpenTelemetry (OTel SDK + W3C TraceContext), Prometheus metrics exporter, Jaeger distributed tracing |
 | **Infrastructure** | Docker multi-stage builds, Docker Compose, Nginx reverse proxy |
 
 ---
@@ -147,22 +155,22 @@ The project enforces a strict 7-stage automated verification pipeline:
 sentinelflow/
 ├── backend/
 │   ├── app/
-│   │   ├── agents/          # Investigator and Synthesizer LLM agents
+│   │   ├── agents/          # Investigator and Synthesizer LLM agents (with live astream delta callbacks)
 │   │   ├── api/             # FastAPI routers (/disputes, /approvals, /telecom, /health, /evals)
 │   │   ├── db/              # SQLAlchemy models (Dispute, Investigation, Audit, Artifact)
 │   │   ├── evals/           # AI evaluation benchmark dataset, scorers, runner
 │   │   ├── graph/           # LangGraph StateGraph, nodes, pure reducers, routing, prompts
 │   │   ├── schemas/         # Pydantic v2 validation contracts
-│   │   ├── services/        # Deterministic risk engine, audit ledger, broadcaster, trace safety
+│   │   ├── services/        # Deterministic risk engine, audit ledger, broadcaster, model gateway, trace safety
 │   │   ├── telecom/         # ONNX inference engine, Redis velocity store, drift monitor
 │   │   ├── tools/           # Evidence collection tools (transactions, customer, device, merchant)
 │   │   └── main.py          # FastAPI lifespan, middleware onion, CORS
 │   └── pyproject.toml       # Dependencies, ruff, mypy, bandit, pytest-cov configurations
 ├── frontend/
-│   ├── app/                 # Next.js 16 App Router pages (disputes/[id], audit, auth, layout)
-│   ├── components/          # Console, Timeline, RiskPanel, AgentReasoningPanel, LangGraphProgress
-│   ├── hooks/               # useSentinelAgent hook managing SSE stream and console state
-│   ├── lib/                 # Typed API client, SSE stream parser, generated API schemas
+│   ├── app/                 # Next.js 16 App Router pages (disputes/[id], telecom, audit, auth, loading/not-found)
+│   ├── components/          # Console, TimeTravelScrubber, InvestigationDiffPanel, RiskPanel, AgentReasoningPanel, telecom/
+│   ├── hooks/               # useSentinelAgent hook managing SSE stream, time-travel, and console state
+│   ├── lib/                 # Typed API client, SSE stream parser, deterministic state derivation, generated API schemas
 │   └── scripts/             # AST check-rules.js, generate-types.js
 ├── ops/
 │   ├── nginx/default.conf   # Nginx reverse proxy, buffering disable for SSE, rate limiting
@@ -181,7 +189,7 @@ sentinelflow/
 At gateway ingress, telecom SLAs mandate end-to-end response times under 15ms. An 8-core CPU node serves $> 12,000$ ONNX inferences/second with $p99 < 0.1\text{ ms}$ at \$0.08 per million messages with zero GPU infrastructure complexity. A 12-layer Transformer on GPU achieves ~150 RPS with $p99 > 85\text{ ms}$ at \$14.50 per million messages, breaching latency SLAs and increasing operational cost by 180x.
 
 ### Q: How is state maintained safely across human approval pauses in LangGraph?
-When the risk engine flags a dispute for human oversight, LangGraph executes `interrupt()`. The state is serialized and persisted to PostgreSQL by `AsyncPostgresSaver` keyed by `thread_id`. The HTTP worker returns immediately. When a reviewer submits their decision via `POST /investigations/{id}/resume`, the graph resumes from its exact checkpoint using `Command(resume=...)`.
+When the risk engine flags a dispute for human oversight, LangGraph executes `interrupt()`. The state is serialized and persisted to PostgreSQL by `AsyncPostgresSaver` keyed by `thread_id`, and `persist_graph_state()` writes the mid-run snapshot and `approval_required` timeline event to `InvestigationRecord`. The HTTP worker returns immediately. When a reviewer submits their decision via `POST /investigations/{id}/resume`, the graph resumes from its exact checkpoint using `Command(resume=...)`.
 
 ### Q: How do you prevent tampering in AI audit trails?
 Every audit record includes a sequence number, timestamp, actor ID, and payload hash linked to the previous record's hash:

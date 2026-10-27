@@ -15,8 +15,11 @@ from app.db.models import InvestigationRecord
 from app.db.session import SessionLocal
 from app.schemas.events import StreamEvent, StreamEventType
 from app.schemas.investigation import (
+    AnalyzerSummary,
     ComplianceFinding,
+    Evidence,
     InvestigationBudget,
+    InvestigationHypothesis,
     InvestigationReport,
     InvestigationRun,
     InvestigationStatus,
@@ -26,7 +29,8 @@ from app.security import Principal
 from arq import create_pool
 from arq.connections import RedisSettings
 from langgraph.types import Command
-from opentelemetry import trace
+from opentelemetry import context as otel_context
+from opentelemetry import propagate, trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -145,7 +149,14 @@ class InvestigationBroadcaster:
             try:
                 q.put_nowait(None)
             except asyncio.QueueFull:
-                logger.debug("Dropped terminal SSE signal for full queue: %s", investigation_id)
+                try:
+                    q.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                try:
+                    q.put_nowait(None)
+                except asyncio.QueueFull:
+                    logger.debug("Dropped terminal SSE signal for full queue: %s", investigation_id)
         try:
             pool = await get_redis_pool()
             if pool is not None and hasattr(pool, "publish"):
@@ -248,14 +259,27 @@ def to_run(record: InvestigationRecord) -> InvestigationRun:
         if isinstance(record.risk_assessment, dict)
         else None
     )
-    compliance_findings = [
-        ComplianceFinding.model_validate(item) for item in record.compliance_findings
-    ]
+    raw_compliance = getattr(record, "compliance_findings", None) or []
+    compliance_findings = [ComplianceFinding.model_validate(item) for item in raw_compliance]
     report = (
         InvestigationReport.model_validate(record.report)
         if isinstance(record.report, dict)
         else None
     )
+    raw_evidence = getattr(record, "evidence", None) or []
+    evidence = [Evidence.model_validate(item) for item in raw_evidence if isinstance(item, dict)]
+    raw_analyzers = getattr(record, "analyzer_summaries", None) or []
+    analyzer_summaries = [
+        AnalyzerSummary.model_validate(item) for item in raw_analyzers if isinstance(item, dict)
+    ]
+    raw_hypotheses = getattr(record, "hypotheses", None) or []
+    hypotheses = [
+        InvestigationHypothesis.model_validate(item)
+        for item in raw_hypotheses
+        if isinstance(item, dict)
+    ]
+    raw_timeline = getattr(record, "timeline_events", None) or []
+    timeline_events = [item for item in raw_timeline if isinstance(item, dict)]
     return InvestigationRun(
         id=record.id,
         dispute_id=record.dispute_id,
@@ -267,6 +291,10 @@ def to_run(record: InvestigationRecord) -> InvestigationRun:
         risk_assessment=risk_assessment,
         compliance_findings=compliance_findings,
         report=report,
+        evidence=evidence,
+        analyzer_summaries=analyzer_summaries,
+        hypotheses=hypotheses,
+        timeline_events=timeline_events,
     )
 
 
@@ -362,7 +390,7 @@ def replay_events(record: InvestigationRecord) -> Iterable[dict[str, Any]]:
         yield build_stream_event(
             "risk_updated",
             record.risk_assessment,
-            event_id=f"risk_{record.id}",
+            event_id=f"risk_{record.id}_{getattr(record, 'iteration_count', 1) or 1}",
         )
     if record.report:
         yield build_stream_event(
@@ -431,7 +459,35 @@ async def persist_graph_state(
     record.iteration_count = values["iteration_count"]
     record.tool_call_count = values["tool_call_count"]
     record.analyzer_call_count = values["analyzer_call_count"]
-    record.timeline_events = _as_timeline_events(values.get("timeline_events"))
+    timeline_events = _as_timeline_events(values.get("timeline_events"))
+    if record.status == "awaiting_approval" and not any(
+        ev.get("type") == "approval_required" for ev in timeline_events[-2:]
+    ):
+        timeline_events.append(
+            build_stream_event(
+                "approval_required",
+                {
+                    "investigation_id": record.id,
+                    "report": record.report,
+                    "risk": record.risk_assessment,
+                    "evidence": record.evidence,
+                    "analyzer_summaries": record.analyzer_summaries,
+                    "hypotheses": record.hypotheses,
+                },
+                event_id=f"approval_{record.id}",
+            )
+        )
+    elif record.status == "completed" and not any(
+        ev.get("type") == "run_completed" for ev in timeline_events
+    ):
+        timeline_events.append(
+            build_stream_event(
+                "run_completed",
+                {"investigation_id": record.id, "report": record.report},
+                event_id=f"run_completed_{record.id}",
+            )
+        )
+    record.timeline_events = timeline_events
     record.checkpoint_id = _snapshot_checkpoint_id(snapshot, record.thread_id)
     await session.commit()
     await session.refresh(record)
@@ -494,7 +550,12 @@ async def _enqueue_job(
     payload: dict[str, Any],
 ) -> bool:
     pool = await get_redis_pool()
-    job = await pool.enqueue_job(job_name, payload, _job_id=job_id)
+    trace_carrier: dict[str, str] = {}
+    propagate.inject(trace_carrier)
+    enriched_payload = (
+        {**payload, "_trace_carrier": trace_carrier} if trace_carrier else dict(payload)
+    )
+    job = await pool.enqueue_job(job_name, enriched_payload, _job_id=job_id)
     return job is not None
 
 
@@ -520,9 +581,11 @@ async def _mark_failed_with_reason(investigation_id: str, reason: str) -> None:
             timeline_events.append(failure_event)
             record.timeline_events = timeline_events
         await session.commit()
-    if failure_event is not None:
-        await investigation_broadcaster.publish(investigation_id, failure_event)
-    await investigation_broadcaster.publish_terminal(investigation_id)
+    try:
+        if failure_event is not None:
+            await investigation_broadcaster.publish(investigation_id, failure_event)
+    finally:
+        await investigation_broadcaster.publish_terminal(investigation_id)
 
 
 async def _run_new_investigation(
@@ -600,17 +663,33 @@ async def run_investigation_job(_ctx: dict[str, Any], payload: dict[str, Any]) -
         user_id=str(payload["principal_id"]),
         roles=[str(role) for role in payload.get("principal_roles", [])],
     )
-    await _run_new_investigation(str(payload["investigation_id"]), principal)
+    carrier = payload.get("_trace_carrier")
+    token = None
+    if isinstance(carrier, dict):
+        token = otel_context.attach(propagate.extract(carrier))
+    try:
+        await _run_new_investigation(str(payload["investigation_id"]), principal)
+    finally:
+        if token is not None:
+            otel_context.detach(token)
 
 
 async def run_resume_investigation_job(_ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     global _shared_redis_pool
     if _shared_redis_pool is None and _ctx.get("redis") is not None:
         _shared_redis_pool = _ctx["redis"]
-    await _run_resume_investigation(
-        str(payload["investigation_id"]),
-        payload.get("decision", {}),
-    )
+    carrier = payload.get("_trace_carrier")
+    token = None
+    if isinstance(carrier, dict):
+        token = otel_context.attach(propagate.extract(carrier))
+    try:
+        await _run_resume_investigation(
+            str(payload["investigation_id"]),
+            payload.get("decision", {}),
+        )
+    finally:
+        if token is not None:
+            otel_context.detach(token)
 
 
 async def schedule_investigation(
@@ -671,7 +750,14 @@ async def _forward_redis_pubsub(
                         try:
                             queue.put_nowait(None)
                         except asyncio.QueueFull:
-                            pass
+                            try:
+                                queue.get_nowait()
+                            except asyncio.QueueEmpty:
+                                pass
+                            try:
+                                queue.put_nowait(None)
+                            except asyncio.QueueFull:
+                                pass
                         break
                     try:
                         queue.put_nowait(parsed)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -39,7 +40,11 @@ from app.schemas.events import StreamEvent, StreamEventType
 from app.schemas.investigation import AnalyzerSummary, Evidence
 from app.security import Principal, Role
 from app.services.audit import record_audit_event
-from app.services.guardrails import inspect_prompt_safety, validate_evidence_grounding
+from app.services.guardrails import (
+    inspect_prompt_safety,
+    validate_evidence_grounding,
+    validate_output_guardrails,
+)
 from app.services.investigations import investigation_broadcaster
 from app.services.model_gateway import LLMCallResult
 from app.services.risk import calculate_risk
@@ -54,7 +59,7 @@ from langchain_core.messages import AIMessage
 from langgraph.types import interrupt
 from opentelemetry import trace
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 tracer = trace.get_tracer("sentinelflow.graph")
 
@@ -369,7 +374,55 @@ class InvestigationNodes:
                     )
                 iteration_kwargs["reviewer_guidance"] = guidance_guard.sanitized_text
                 state["reviewer_guidance"] = None
+            await investigation_broadcaster.publish(
+                state["investigation_id"],
+                StreamEvent(
+                    id=f"reasoning_delta_{state['investigation_id']}_{state['iteration_count']}_start",
+                    type="reasoning_delta",
+                    timestamp=datetime.now(UTC),
+                    data={
+                        "phase": "investigate",
+                        "iteration": state["iteration_count"] + 1,
+                        "delta": (
+                            f"Analyzing {len(state['evidence'])} evidence items and "
+                            f"{len(state['analyzer_summaries'])} analyzer summaries..."
+                        ),
+                    },
+                ).model_dump(mode="json"),
+            )
+
+            async def _emit_reasoning_delta(delta_text: str) -> None:
+                await investigation_broadcaster.publish(
+                    state["investigation_id"],
+                    StreamEvent(
+                        id=f"reasoning_delta_{state['investigation_id']}_{uuid4().hex[:8]}",
+                        type="reasoning_delta",
+                        timestamp=datetime.now(UTC),
+                        data={
+                            "phase": "investigate",
+                            "iteration": state["iteration_count"] + 1,
+                            "delta": delta_text,
+                        },
+                    ).model_dump(mode="json"),
+                )
+
+            if "on_delta" in inspect.signature(self.investigator.run_iteration).parameters:
+                iteration_kwargs["on_delta"] = _emit_reasoning_delta
             iteration, llm_meta = await self.investigator.run_iteration(**iteration_kwargs)
+            if getattr(iteration, "thought_process", ""):
+                await investigation_broadcaster.publish(
+                    state["investigation_id"],
+                    StreamEvent(
+                        id=f"reasoning_delta_{state['investigation_id']}_{state['iteration_count']}_thought",
+                        type="reasoning_delta",
+                        timestamp=datetime.now(UTC),
+                        data={
+                            "phase": "investigate",
+                            "iteration": state["iteration_count"] + 1,
+                            "delta": getattr(iteration, "thought_process", ""),
+                        },
+                    ).model_dump(mode="json"),
+                )
             if llm_meta is not None:
                 span.set_attribute("gen_ai.system", llm_meta.provider)
                 span.set_attribute("gen_ai.request.model", llm_meta.model_used)
@@ -388,6 +441,28 @@ class InvestigationNodes:
                     "reasoning_steps": getattr(iteration, "reasoning_steps", []),
                 },
             )
+            valid_ev_ids = {item.id for item in state["evidence"]}
+            sanitized_hyps, _, fabricated_ids = validate_output_guardrails(
+                iteration.hypotheses, None, valid_ev_ids
+            )
+            if fabricated_ids:
+                iteration = iteration.model_copy(update={"hypotheses": sanitized_hyps})
+                _append_event(
+                    state,
+                    "hallucination_detected",
+                    {
+                        "phase": "investigate",
+                        "hallucinated_entities": fabricated_ids,
+                        "confidence_penalty": 0.15,
+                        "details": (
+                            f"Stripped fabricated evidence IDs: {', '.join(fabricated_ids)}"
+                        ),
+                    },
+                    event_id=(
+                        f"hallucination_inv_{state['investigation_id']}_"
+                        f"{state['iteration_count'] + 1}"
+                    ),
+                )
             state["iteration_count"] += 1
             state["hypotheses"] = iteration.hypotheses
             state["unresolved_questions"] = iteration.unresolved_questions
@@ -414,7 +489,7 @@ class InvestigationNodes:
                 investigation_id=state["investigation_id"],
                 dispute_id=state["dispute_id"],
             )
-            _append_event(
+            ev_hypothesis = _append_event(
                 state,
                 "hypothesis_updated",
                 {
@@ -426,6 +501,7 @@ class InvestigationNodes:
                 },
                 event_id=f"hypothesis_{state['investigation_id']}_{state['iteration_count']}",
             )
+            await investigation_broadcaster.publish(state["investigation_id"], ev_hypothesis)
             _append_event(
                 state,
                 "agent_status_updated",
@@ -466,9 +542,7 @@ class InvestigationNodes:
                 )
             session_lock = asyncio.Lock()
 
-            async def _run_single_tool(
-                index: int, tool_request: dict[str, Any]
-            ) -> Evidence | None:
+            async def _run_single_tool(index: int, tool_request: dict[str, Any]) -> Evidence | None:
                 tool_name = tool_request["name"]
                 tool = tools.get(tool_name)
                 if tool is None:
@@ -509,8 +583,15 @@ class InvestigationNodes:
                         state["investigation_id"], ev_tool_started
                     )
                     try:
-                        async with session_lock:
-                            evidence = await tool(self.session, state["dispute_id"])
+                        bind = getattr(self.session, "bind", None)
+                        if isinstance(bind, AsyncEngine):
+                            async with AsyncSession(
+                                bind=bind, expire_on_commit=False
+                            ) as tool_session:
+                                evidence = await tool(tool_session, state["dispute_id"])
+                        else:
+                            async with session_lock:
+                                evidence = await tool(self.session, state["dispute_id"])
                         tool_span.set_attribute("evidence.id", evidence.id)
                     except Exception as exc:
                         tool_span.record_exception(exc)
@@ -567,9 +648,7 @@ class InvestigationNodes:
                         },
                         event_id=f"evidence_{evidence.id}",
                     )
-                    await investigation_broadcaster.publish(
-                        state["investigation_id"], ev_evidence
-                    )
+                    await investigation_broadcaster.publish(state["investigation_id"], ev_evidence)
                     return evidence
 
             if state["pending_tools"]:
@@ -771,13 +850,67 @@ class InvestigationNodes:
                 stage="synthesize",
                 details={"finding_count": len(state["compliance_findings"])},
             )
+            await investigation_broadcaster.publish(
+                state["investigation_id"],
+                StreamEvent(
+                    id=f"synthesis_delta_{state['investigation_id']}_{state['iteration_count']}_start",
+                    type="synthesis_delta",
+                    timestamp=datetime.now(UTC),
+                    data={
+                        "phase": "synthesize",
+                        "delta": (
+                            f"Synthesizing risk score ({risk_assessment.score:.2f} / "
+                            f"{risk_assessment.level}) across "
+                            f"{len(state['evidence'])} evidence records..."
+                        ),
+                    },
+                ).model_dump(mode="json"),
+            )
             report, llm_meta = await self.synthesizer.build_report(
                 hypotheses=state["hypotheses"],
                 risk=risk_assessment,
                 compliance=state["compliance_findings"],
                 evidence_ids=[item.id for item in state["evidence"]],
                 unresolved_questions=state["unresolved_questions"],
+                **(
+                    {
+                        "on_delta": lambda delta_text: investigation_broadcaster.publish(
+                            state["investigation_id"],
+                            StreamEvent(
+                                id=f"synthesis_delta_{state['investigation_id']}_{uuid4().hex[:8]}",
+                                type="synthesis_delta",
+                                timestamp=datetime.now(UTC),
+                                data={"phase": "synthesize", "delta": delta_text},
+                            ).model_dump(mode="json"),
+                        )
+                    }
+                    if "on_delta" in inspect.signature(self.synthesizer.build_report).parameters
+                    else {}
+                ),
             )
+            valid_ev_ids = {item.id for item in state["evidence"]}
+            sanitized_hyps, sanitized_report, fabricated_ids = validate_output_guardrails(
+                state["hypotheses"], report, valid_ev_ids
+            )
+            if fabricated_ids and sanitized_report is not None:
+                state["hypotheses"] = sanitized_hyps
+                report = sanitized_report
+                _append_event(
+                    state,
+                    "hallucination_detected",
+                    {
+                        "phase": "synthesize",
+                        "hallucinated_entities": fabricated_ids,
+                        "confidence_penalty": 0.15,
+                        "details": (
+                            "Stripped fabricated evidence IDs from report: "
+                            f"{', '.join(fabricated_ids)}"
+                        ),
+                    },
+                    event_id=(
+                        f"hallucination_cite_{state['investigation_id']}_{state['iteration_count']}"
+                    ),
+                )
             grounding = validate_evidence_grounding(report.conclusion, state["evidence"])
             if not grounding.grounded:
                 _append_agent_message(

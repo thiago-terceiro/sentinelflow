@@ -659,3 +659,36 @@ async def test_encrypted_audit_artifacts_real_db(
 
     # Clean up settings cache
     get_settings.cache_clear()
+
+
+# ---------------------------------------------------------------------------
+# Test 9: Showcase Seeding & Cryptographic Audit Chain Integrity
+# ---------------------------------------------------------------------------
+async def test_seed_session_creates_showcase_investigations_and_verified_audit_chains(
+    real_db_session: AsyncSession,
+) -> None:
+    from app.db.seed import seed_session
+
+    await seed_session(real_db_session)
+    # Idempotency check: calling seed_session a second time must not duplicate records
+    await seed_session(real_db_session)
+
+    inv1 = await real_db_session.get(InvestigationRecord, "inv_seed_sf_10001")
+    assert inv1 is not None
+    assert inv1.status == "completed"
+    assert inv1.iteration_count == 2
+    assert len(inv1.evidence) == 4
+    assert any(ev.get("type") == "run_completed" for ev in inv1.timeline_events)
+
+    inv2 = await real_db_session.get(InvestigationRecord, "inv_seed_sf_10002")
+    assert inv2 is not None
+    assert inv2.status == "awaiting_approval"
+    assert inv2.timeline_events[-1]["type"] == "approval_required"
+
+    integrity1 = await verify_audit_integrity(real_db_session, "inv_seed_sf_10001")
+    assert integrity1.valid is True
+    assert integrity1.checked_records == 5
+
+    integrity2 = await verify_audit_integrity(real_db_session, "inv_seed_sf_10002")
+    assert integrity2.valid is True
+    assert integrity2.checked_records == 3

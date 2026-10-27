@@ -26,8 +26,9 @@ flowchart TD
     
     subgraph "Async Telemetry & MLOps Pipeline"
         Decider -.->|Pub/Sub| Prometheus["Prometheus Metrics (/metrics)"]
-        Decider -.->|Online Stream| Drift["Data Drift Monitor<br/>(KS-Test + PSI)"]
+        Decider -.->|asyncio.to_thread| Drift["Data Drift Monitor<br/>(KS-Test + PSI)"]
         Decider -.->|SSE Channel| Dashboard["Live Ops Dashboard<br/>(Next.js / React)"]
+        Decider -.->|BackgroundTasks + Semaphore| Escalation["SentinelFlow Bridge<br/>Auto-Create Dispute & LangGraph Run"]
         Decider -.->|Buffered Events| Kafka[("Kafka Event Bus<br/>telecom.sms.events")]
     end
 ```
@@ -66,8 +67,9 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 
 ## 3. Mitigating Cold-Starts, Noisy Neighbors & Cache Misses
 
-### 3.1 Eliminating Model Cold-Starts
-* **Pre-warmed ONNX Sessions:** During container startup (`lifespan`), the ONNX Runtime session runs a dummy warmup inference before opening the readiness probe (`/api/v1/ready`).
+### 3.1 Eliminating Model Cold-Starts & Vectorized Batch Inference
+* **Pre-warmed ONNX Sessions & Telemetry Warmup:** During container startup (`lifespan`), the ONNX Runtime session runs a dummy warmup inference and `seed_telecom_warmup()` classifies 20 baseline benign/fraud SMS events into the in-memory metrics and drift buffers before opening the readiness probe (`/api/v1/ready`).
+* **Vectorized Batch Execution (`predict_proba_batch`):** For `/v1/events/batch`, `OnnxInferenceEngine.predict_proba_batch(texts)` constructs a single 2D NumPy tensor (`np.array([[t] for t in texts], dtype=object)`) and executes one vectorized C++ `session.run()` call across the entire batch, amortizing Python-to-C++ FFI overhead.
 * **Zero JIT Compilation:** Unlike dynamic Python models or PyTorch runtime graphs, ONNX Runtime CPU executes pre-compiled static execution plans directly against BLAS/AVX-512 routines.
 
 ### 3.2 Noisy Neighbor Isolation
@@ -77,8 +79,9 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
   2. **Tier 2 (Normal):** Conversational P2P, appointment reminders.
   3. **Tier 3 (Bulk):** Promotional A2P broadcasts. Rate-limited and throttled under cluster congestion.
 
-### 3.3 Cache Miss Mitigation
-* If Redis experiences a transient network disconnect or timeout (>5ms), the gateway activates an **in-memory sliding window fallback** and relies on compiled regex heuristics, preventing request drops or cascaded timeouts.
+### 3.3 Self-Healing Redis Circuit Breaker & Cache Miss Mitigation
+* If Redis experiences a transient network disconnect or timeout (`socket_timeout=0.05s`), `VelocityFeatureStore` activates a **30-second self-healing circuit breaker** (`_fallback_until = time.monotonic() + 30.0`), routing lookups to an in-memory sliding window (`_local_windows`) without stalling the fast path, and automatically re-probing Redis once the cooldown expires.
+* Additionally, **Cross-System Autonomous Escalation** (`auto_escalate=True` on `BLOCK` verdicts) dispatches ` _escalate_to_sentinelflow()` via FastAPI `BackgroundTasks` guarded by a bounded `asyncio.Semaphore(4)` (`_escalation_semaphore`), keeping the synchronous HTTP response strictly `<15ms` while protecting the PostgreSQL connection pool during SMS pumping bursts.
 
 ---
 
@@ -123,6 +126,8 @@ flowchart LR
 ---
 
 ## 6. MLOps: Online Data Drift & Concept Drift Detection
+
+To prevent SciPy statistical evaluations from blocking the asyncio event loop on `/api/v1/telecom/drift`, `DataDriftMonitor.evaluate_drift()` is offloaded to a worker thread via `await asyncio.to_thread(drift.evaluate_drift)` and requires a calibrated sample floor (`sample_count >= 20`).
 
 * **Data Drift (Kolmogorov-Smirnov Test):**
   * Computes two-sample KS test on incoming message character/token lengths against the training corpus:

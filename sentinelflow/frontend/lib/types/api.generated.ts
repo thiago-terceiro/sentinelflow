@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/disputes/{dispute_id}/investigations/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Latest Dispute Investigation */
+        get: operations["get_latest_dispute_investigation_api_v1_disputes__dispute_id__investigations_latest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investigations/{investigation_id}": {
         parameters: {
             query?: never;
@@ -323,6 +340,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/telecom/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Escalate Telecom Anomaly
+         * @description Escalates a telecom anomaly to a SentinelFlow dispute for LangGraph investigation.
+         */
+        post: operations["escalate_telecom_anomaly_api_v1_telecom_escalate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/telecom/events/batch": {
         parameters: {
             query?: never;
@@ -487,6 +524,29 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnalyzerSummary */
+        AnalyzerSummary: {
+            /** Analyzer */
+            analyzer: string;
+            /**
+             * Origin
+             * @default analyzer_interpretation
+             * @enum {string}
+             */
+            origin: "observed_fact" | "agent_inference" | "analyzer_interpretation";
+            /** Summary */
+            summary: string;
+            /** Findings */
+            findings: string[];
+            /** Confidence */
+            confidence: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Contradictions */
+            contradictions: string[];
+            /** Recommended Followups */
+            recommended_followups: string[];
+        };
         /** ApprovalDecision */
         ApprovalDecision: {
             /**
@@ -911,6 +971,16 @@ export interface components {
             /** Compliance Findings */
             compliance_findings?: components["schemas"]["ComplianceFinding"][];
             report?: components["schemas"]["InvestigationReport"] | null;
+            /** Evidence */
+            evidence?: components["schemas"]["Evidence"][];
+            /** Analyzer Summaries */
+            analyzer_summaries?: components["schemas"]["AnalyzerSummary"][];
+            /** Hypotheses */
+            hypotheses?: components["schemas"]["InvestigationHypothesis"][];
+            /** Timeline Events */
+            timeline_events?: {
+                [key: string]: unknown;
+            }[];
         };
         /** RiskAssessment */
         RiskAssessment: {
@@ -982,6 +1052,12 @@ export interface components {
              * @description Originating network carrier
              */
             carrier?: string | null;
+            /**
+             * Escalate
+             * @description Automatically escalate FLAG/BLOCK verdicts to a SentinelFlow dispute
+             * @default false
+             */
+            escalate: boolean;
         };
         /** TelecomClassifyResponse */
         TelecomClassifyResponse: {
@@ -1002,6 +1078,72 @@ export interface components {
             };
             /** Model Version */
             model_version: string;
+            /** Escalated Dispute Id */
+            escalated_dispute_id?: string | null;
+            /** Escalated Dispute Url */
+            escalated_dispute_url?: string | null;
+        };
+        /** TelecomEscalateRequest */
+        TelecomEscalateRequest: {
+            /**
+             * Sender
+             * @description Originating phone number
+             */
+            sender: string;
+            /**
+             * Recipient
+             * @description Destination phone number
+             */
+            recipient: string;
+            /**
+             * Message
+             * @description SMS text content
+             */
+            message: string;
+            /**
+             * Carrier
+             * @description Network carrier
+             */
+            carrier?: string | null;
+            /**
+             * Verdict
+             * @description Classification verdict
+             * @enum {string}
+             */
+            verdict: "ALLOW" | "BLOCK" | "FLAG";
+            /**
+             * Fraud Score
+             * @description Computed composite fraud score
+             */
+            fraud_score: number;
+            /**
+             * Signals
+             * @description Triggered fraud signals
+             */
+            signals?: string[];
+            /**
+             * Velocity
+             * @description Velocity signals
+             */
+            velocity?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Event Id
+             * @description Telecom feed event ID
+             */
+            event_id?: string | null;
+        };
+        /** TelecomEscalateResponse */
+        TelecomEscalateResponse: {
+            /** Dispute Id */
+            dispute_id: string;
+            /** Case Code */
+            case_code: string;
+            /** Dispute Url */
+            dispute_url: string;
+            /** Status */
+            status: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1162,6 +1304,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvestigationRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_latest_dispute_investigation_api_v1_disputes__dispute_id__investigations_latest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dispute_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationRun"] | null;
                 };
             };
             /** @description Validation Error */
@@ -1563,6 +1736,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TelecomClassifyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    escalate_telecom_anomaly_api_v1_telecom_escalate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelecomEscalateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelecomEscalateResponse"];
                 };
             };
             /** @description Validation Error */

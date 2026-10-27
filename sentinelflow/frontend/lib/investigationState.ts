@@ -15,6 +15,47 @@ const mergeUniqueById = <T extends { id: string }>(items: T[], nextItem: T): T[]
   return [...items, nextItem];
 };
 
+export const mergeUniqueEvents = (
+  existing: StreamEvent[],
+  incoming: StreamEvent[]
+): StreamEvent[] => {
+  if (incoming.length === 0) {
+    return existing;
+  }
+  const seen = new Set(existing.map((item) => item.id));
+  const merged = [...existing];
+  for (const event of incoming) {
+    if (
+      event &&
+      typeof event.id === "string" &&
+      event.type !== "reasoning_delta" &&
+      event.type !== "synthesis_delta" &&
+      !seen.has(event.id)
+    ) {
+      seen.add(event.id);
+      merged.push(event);
+    }
+  }
+  return merged;
+};
+
+export const resolveActiveEvidenceId = (
+  pinnedEvidenceId: string | null | undefined,
+  hoveredEvidenceId: string | null | undefined
+): string | null => {
+  return hoveredEvidenceId ?? pinnedEvidenceId ?? null;
+};
+
+export const togglePinnedEvidenceId = (
+  currentPinned: string | null,
+  clickedId: string | null
+): string | null => {
+  if (!clickedId) {
+    return null;
+  }
+  return currentPinned === clickedId ? null : clickedId;
+};
+
 const mergeUniqueByKey = <T>(items: T[], nextItem: T, key: (item: T) => string): T[] => {
   const nextKey = key(nextItem);
   if (items.some((item) => key(item) === nextKey)) {
@@ -87,6 +128,7 @@ export const initialConsoleState: ConsoleState = {
   reasoningSteps: [],
   currentPhase: "intake",
   reviewerGuidance: null,
+  streamingReasoningDelta: null,
 };
 
 export const applyRunToConsoleState = (
@@ -95,16 +137,43 @@ export const applyRunToConsoleState = (
 ): ConsoleState => {
   const isSameInvestigation = state.investigationId === run.id;
   const nextStatus = mapRunStatus(run.status);
-  return {
+  const runEvents = Array.isArray(run.timeline_events)
+    ? (run.timeline_events as unknown as StreamEvent[])
+    : [];
+  const baseTimeline = isSameInvestigation ? state.timeline : [];
+  const mergedTimeline =
+    runEvents.length > 0 ? mergeUniqueEvents(baseTimeline, runEvents) : baseTimeline;
+
+  const runEvidence =
+    Array.isArray(run.evidence) && run.evidence.length > 0
+      ? run.evidence
+      : isSameInvestigation
+        ? state.evidence
+        : [];
+  const runAnalyzers =
+    Array.isArray(run.analyzer_summaries) && run.analyzer_summaries.length > 0
+      ? (run.analyzer_summaries as ConsoleState["analyzerSummaries"])
+      : isSameInvestigation
+        ? state.analyzerSummaries
+        : [];
+  const runHypotheses =
+    run.report?.hypotheses ??
+    (Array.isArray(run.hypotheses) && run.hypotheses.length > 0
+      ? (run.hypotheses as ConsoleState["hypotheses"])
+      : isSameInvestigation
+        ? state.hypotheses
+        : []);
+
+  let hydratedState: ConsoleState = {
     ...state,
     investigationId: run.id,
-    evidence: isSameInvestigation ? state.evidence : [],
-    analyzerSummaries: isSameInvestigation ? state.analyzerSummaries : [],
-    hypotheses: run.report?.hypotheses ?? (isSameInvestigation ? state.hypotheses : []),
+    evidence: runEvidence,
+    analyzerSummaries: runAnalyzers,
+    hypotheses: runHypotheses,
     riskAssessment: run.risk_assessment ?? null,
     report: run.report ?? null,
     isReportUnlocked: run.status === "awaiting_approval" || run.status === "completed",
-    timeline: isSameInvestigation ? state.timeline : [],
+    timeline: mergedTimeline,
     agentStatus: isSameInvestigation ? state.agentStatus : null,
     toolLogs: isSameInvestigation ? state.toolLogs : [],
     requiresApproval: run.status === "awaiting_approval",
@@ -113,13 +182,50 @@ export const applyRunToConsoleState = (
     streamConnection: isTerminalState(nextStatus) ? "idle" : "disconnected",
     nextReconnectDelayMs: null,
     error: null,
+    streamingReasoningDelta: null,
   };
+
+  if (runEvents.length > 0 && !isSameInvestigation) {
+    for (const ev of runEvents) {
+      hydratedState = applyStreamEventToConsoleState(hydratedState, ev);
+    }
+    hydratedState = {
+      ...hydratedState,
+      evidence: runEvidence.length > 0 ? runEvidence : hydratedState.evidence,
+      analyzerSummaries:
+        runAnalyzers.length > 0 ? runAnalyzers : hydratedState.analyzerSummaries,
+      hypotheses: runHypotheses.length > 0 ? runHypotheses : hydratedState.hypotheses,
+      riskAssessment: run.risk_assessment ?? hydratedState.riskAssessment,
+      report: run.report ?? hydratedState.report,
+      isReportUnlocked: run.status === "awaiting_approval" || run.status === "completed",
+      requiresApproval: run.status === "awaiting_approval",
+      status: nextStatus,
+      isStreaming: false,
+      streamConnection: isTerminalState(nextStatus) ? "idle" : "disconnected",
+      streamingReasoningDelta: null,
+    };
+  }
+
+  return hydratedState;
 };
 
 export const applyStreamEventToConsoleState = (
   state: ConsoleState,
   event: StreamEvent
 ): ConsoleState => {
+  if (event.type === "reasoning_delta" || event.type === "synthesis_delta") {
+    const deltaText =
+      typeof event.data.delta === "string"
+        ? event.data.delta
+        : state.streamingReasoningDelta;
+    return {
+      ...state,
+      streamingReasoningDelta: deltaText ?? null,
+      currentPhase: event.type === "synthesis_delta" ? "synthesize" : "investigate",
+      streamConnection: "connected",
+      error: null,
+    };
+  }
   const nextTimeline = mergeUniqueById(state.timeline, event);
   if (event.type === "agent_message") {
     const stage =
@@ -219,6 +325,7 @@ export const applyStreamEventToConsoleState = (
       hypotheses: (event.data.hypotheses as ConsoleState["hypotheses"]) ?? state.hypotheses,
       activeThoughtProcess: thought,
       reasoningSteps: steps,
+      streamingReasoningDelta: null,
       currentPhase: "investigate",
       timeline: nextTimeline,
       streamConnection: "connected",
@@ -239,6 +346,7 @@ export const applyStreamEventToConsoleState = (
       ...state,
       agentStatus: "Drafted final recommendation",
       currentPhase: "synthesize",
+      streamingReasoningDelta: null,
       report: event.data as ConsoleState["report"],
       isReportUnlocked: false,
       timeline: nextTimeline,
@@ -253,6 +361,7 @@ export const applyStreamEventToConsoleState = (
       currentPhase: "approval",
       requiresApproval: true,
       status: "APPROVAL_REQUIRED",
+      streamingReasoningDelta: null,
       report: (event.data.report as ConsoleState["report"]) ?? state.report,
       isReportUnlocked: true,
       timeline: nextTimeline,
@@ -268,6 +377,7 @@ export const applyStreamEventToConsoleState = (
       agentStatus: "Investigation complete",
       currentPhase: "finalize",
       status: "COMPLETED",
+      streamingReasoningDelta: null,
       requiresApproval: false,
       report: (event.data.report as ConsoleState["report"]) ?? state.report,
       isReportUnlocked: true,
@@ -282,6 +392,7 @@ export const applyStreamEventToConsoleState = (
     return {
       ...state,
       status: "FAILED",
+      streamingReasoningDelta: null,
       error: String(event.data.message ?? "Investigation failed."),
       isReportUnlocked: false,
       timeline: nextTimeline,
@@ -383,20 +494,26 @@ export const deriveConsoleStateAtStep = (
   baseRun?: InvestigationRun | null,
   selectedEventIndex?: number | null
 ): ConsoleState => {
-  let state = baseRun
-    ? applyRunToConsoleState(initialConsoleState, baseRun)
-    : initialConsoleState;
-
   if (events.length === 0) {
-    return state;
+    return baseRun
+      ? applyRunToConsoleState(initialConsoleState, baseRun)
+      : initialConsoleState;
   }
+
+  const cleanStepZeroState: ConsoleState = {
+    ...initialConsoleState,
+    investigationId:
+      baseRun?.id ?? String(events[0]?.data?.investigation_id ?? ""),
+    status: "RUNNING",
+    streamConnection: "idle",
+  };
 
   if (
     selectedEventIndex !== null &&
     selectedEventIndex !== undefined &&
     selectedEventIndex < 0
   ) {
-    return state;
+    return cleanStepZeroState;
   }
 
   const targetIndex =
@@ -404,10 +521,14 @@ export const deriveConsoleStateAtStep = (
       ? events.length - 1
       : Math.min(Math.max(0, selectedEventIndex), events.length - 1);
 
+  let state = cleanStepZeroState;
   for (let i = 0; i <= targetIndex; i += 1) {
     state = applyStreamEventToConsoleState(state, events[i]);
   }
 
+  if ((selectedEventIndex === null || selectedEventIndex === undefined) && baseRun) {
+    return applyRunToConsoleState(state, baseRun);
+  }
   return state;
 };
 

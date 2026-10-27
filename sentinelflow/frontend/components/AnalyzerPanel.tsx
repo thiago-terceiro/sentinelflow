@@ -6,11 +6,19 @@ import { AnalyzerSummary } from "@/lib/types";
 type Props = {
   analyzers: AnalyzerSummary[];
   highlightedEvidenceId?: string | null;
+  pinnedEvidenceId?: string | null;
   onHighlightEvidence?: (id: string | null) => void;
+  onHoverEvidence?: (id: string | null) => void;
 };
 
 export const AnalyzerPanel = memo(
-  ({ analyzers, highlightedEvidenceId, onHighlightEvidence }: Props) => {
+  ({
+    analyzers,
+    highlightedEvidenceId,
+    pinnedEvidenceId,
+    onHighlightEvidence,
+    onHoverEvidence,
+  }: Props) => {
     return (
       <section className="shell-card" style={{ padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -109,23 +117,26 @@ export const AnalyzerPanel = memo(
                     <span style={{ color: "var(--muted)" }}>Linked Evidence:</span>
                     {item.evidence_ids.map((id) => {
                       const isLinked = id === highlightedEvidenceId;
+                      const isPinned =
+                        pinnedEvidenceId !== undefined ? pinnedEvidenceId === id : isLinked;
                       return (
                         <button
                           key={id}
                           type="button"
+                          aria-pressed={isPinned}
                           onClick={() => {
                             if (onHighlightEvidence) {
-                              onHighlightEvidence(isLinked ? null : id);
+                              onHighlightEvidence(isPinned ? null : id);
                             }
                           }}
                           onMouseEnter={() => {
-                            if (onHighlightEvidence) {
-                              onHighlightEvidence(id);
+                            if (onHoverEvidence) {
+                              onHoverEvidence(id);
                             }
                           }}
                           onMouseLeave={() => {
-                            if (onHighlightEvidence && isLinked) {
-                              onHighlightEvidence(null);
+                            if (onHoverEvidence) {
+                              onHoverEvidence(null);
                             }
                           }}
                           style={{

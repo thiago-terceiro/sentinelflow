@@ -202,6 +202,62 @@
         }
       }
     },
+    "/api/v1/disputes/{dispute_id}/investigations/latest": {
+      "get": {
+        "tags": [
+          "disputes",
+          "investigations"
+        ],
+        "summary": "Get Latest Dispute Investigation",
+        "operationId": "get_latest_dispute_investigation_api_v1_disputes__dispute_id__investigations_latest_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dispute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dispute Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InvestigationRun"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Latest Dispute Investigation Api V1 Disputes  Dispute Id  Investigations Latest Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/investigations/{investigation_id}": {
       "get": {
         "tags": [
@@ -906,6 +962,48 @@
         }
       }
     },
+    "/api/v1/telecom/escalate": {
+      "post": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Escalate Telecom Anomaly",
+        "description": "Escalates a telecom anomaly to a SentinelFlow dispute for LangGraph investigation.",
+        "operationId": "escalate_telecom_anomaly_api_v1_telecom_escalate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelecomEscalateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelecomEscalateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/telecom/events/batch": {
       "post": {
         "tags": [
@@ -1143,6 +1241,73 @@
   },
   "components": {
     "schemas": {
+      "AnalyzerSummary": {
+        "properties": {
+          "analyzer": {
+            "type": "string",
+            "title": "Analyzer"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "observed_fact",
+              "agent_inference",
+              "analyzer_interpretation"
+            ],
+            "title": "Origin",
+            "default": "analyzer_interpretation"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "findings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "contradictions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Contradictions"
+          },
+          "recommended_followups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Followups"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analyzer",
+          "summary",
+          "findings",
+          "confidence",
+          "evidence_ids",
+          "contradictions",
+          "recommended_followups"
+        ],
+        "title": "AnalyzerSummary"
+      },
       "ApprovalDecision": {
         "properties": {
           "decision": {
@@ -2197,6 +2362,35 @@
                 "type": "null"
               }
             ]
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "analyzer_summaries": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyzerSummary"
+            },
+            "type": "array",
+            "title": "Analyzer Summaries"
+          },
+          "hypotheses": {
+            "items": {
+              "$ref": "#/components/schemas/InvestigationHypothesis"
+            },
+            "type": "array",
+            "title": "Hypotheses"
+          },
+          "timeline_events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Timeline Events"
           }
         },
         "type": "object",
@@ -2377,6 +2571,12 @@
             ],
             "title": "Carrier",
             "description": "Originating network carrier"
+          },
+          "escalate": {
+            "type": "boolean",
+            "title": "Escalate",
+            "description": "Automatically escalate FLAG/BLOCK verdicts to a SentinelFlow dispute",
+            "default": false
           }
         },
         "type": "object",
@@ -2421,6 +2621,28 @@
           "model_version": {
             "type": "string",
             "title": "Model Version"
+          },
+          "escalated_dispute_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalated Dispute Id"
+          },
+          "escalated_dispute_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalated Dispute Url"
           }
         },
         "type": "object",
@@ -2433,6 +2655,115 @@
           "model_version"
         ],
         "title": "TelecomClassifyResponse"
+      },
+      "TelecomEscalateRequest": {
+        "properties": {
+          "sender": {
+            "type": "string",
+            "title": "Sender",
+            "description": "Originating phone number"
+          },
+          "recipient": {
+            "type": "string",
+            "title": "Recipient",
+            "description": "Destination phone number"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "SMS text content"
+          },
+          "carrier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrier",
+            "description": "Network carrier"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "BLOCK",
+              "FLAG"
+            ],
+            "title": "Verdict",
+            "description": "Classification verdict"
+          },
+          "fraud_score": {
+            "type": "number",
+            "title": "Fraud Score",
+            "description": "Computed composite fraud score"
+          },
+          "signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Signals",
+            "description": "Triggered fraud signals"
+          },
+          "velocity": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Velocity",
+            "description": "Velocity signals"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id",
+            "description": "Telecom feed event ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sender",
+          "recipient",
+          "message",
+          "verdict",
+          "fraud_score"
+        ],
+        "title": "TelecomEscalateRequest"
+      },
+      "TelecomEscalateResponse": {
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "title": "Dispute Id"
+          },
+          "case_code": {
+            "type": "string",
+            "title": "Case Code"
+          },
+          "dispute_url": {
+            "type": "string",
+            "title": "Dispute Url"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dispute_id",
+          "case_code",
+          "dispute_url",
+          "status"
+        ],
+        "title": "TelecomEscalateResponse"
       },
       "ValidationError": {
         "properties": {

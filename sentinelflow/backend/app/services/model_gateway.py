@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar, cast, runtime_checkable
 
@@ -39,6 +40,43 @@ def _as_str(value: object, *, default: str) -> str:
     if isinstance(value, str):
         return value
     return default
+
+
+def _extract_partial_delta_text(partial: object) -> str:
+    if isinstance(partial, BaseModel):
+        for attr in ("thought_process", "summary", "conclusion"):
+            val = getattr(partial, attr, None)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        return ""
+    if isinstance(partial, dict):
+        parsed_obj = partial.get("parsed")
+        if parsed_obj is not None:
+            inner = _extract_partial_delta_text(parsed_obj)
+            if inner:
+                return inner
+        for key in ("thought_process", "summary", "conclusion"):
+            val = partial.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        raw_obj = partial.get("raw")
+        content = getattr(raw_obj, "content", None)
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+    return ""
+
+
+def _coerce_to_schema[SchemaT: BaseModel](
+    candidate: object, schema: type[SchemaT]
+) -> SchemaT | None:
+    if isinstance(candidate, schema):
+        return candidate
+    if isinstance(candidate, dict):
+        try:
+            return schema.model_validate(candidate)
+        except Exception:
+            return None
+    return None
 
 
 class _StructuredInvoker(Protocol):
@@ -88,6 +126,7 @@ class ModelGateway:
         prompt_template_id: str,
         prompt_template_version: str,
         prompt_template_sha256: str,
+        on_delta: Callable[[str], Awaitable[None]] | None = None,
     ) -> LLMCallResult[SchemaT] | None:
         chat_openai_cls = ChatOpenAI
         if not self.enabled or chat_openai_cls is None or not self.settings.OPENAI_API_KEY:
@@ -112,16 +151,69 @@ class ModelGateway:
         for attempt in range(attempts):
             start = time.monotonic()
             try:
-                raw_result_candidate = await structured.ainvoke(messages)
+                if on_delta is not None:
+                    await on_delta(f"Streaming structured {schema.__name__} completion...")
+                raw_result_candidate: object = None
+                astream_fn = getattr(structured, "astream", None)
+                if on_delta is not None and callable(astream_fn):
+                    last_emit = 0.0
+                    last_delta_text = ""
+                    streamed_raw_msg: _AIMessageLike | None = None
+                    streamed_parsed_candidate: object = None
+                    stream_iter = cast(Any, astream_fn(messages))
+                    if hasattr(stream_iter, "__aiter__"):
+                        async for partial in stream_iter:
+                            if isinstance(partial, schema):
+                                streamed_parsed_candidate = partial
+                            elif isinstance(partial, dict):
+                                raw_chunk = partial.get("raw")
+                                if isinstance(raw_chunk, _AIMessageLike):
+                                    streamed_raw_msg = raw_chunk
+                                if partial.get("parsed") is not None:
+                                    streamed_parsed_candidate = partial.get("parsed")
+                                elif (
+                                    "parsed" not in partial
+                                    and "raw" not in partial
+                                    and "parsing_error" not in partial
+                                ):
+                                    streamed_parsed_candidate = partial
+                            delta_text = _extract_partial_delta_text(partial)
+                            now_ts = time.monotonic()
+                            if (
+                                delta_text
+                                and delta_text != last_delta_text
+                                and (now_ts - last_emit) >= 0.04
+                            ):
+                                last_emit = now_ts
+                                last_delta_text = delta_text
+                                await on_delta(delta_text)
+                        if last_delta_text:
+                            await on_delta(last_delta_text)
+                        coerced_stream = _coerce_to_schema(streamed_parsed_candidate, schema)
+                        if coerced_stream is not None:
+                            raw_result_candidate = {
+                                "parsed": coerced_stream,
+                                "raw": streamed_raw_msg,
+                            }
+                if raw_result_candidate is None:
+                    raw_result_candidate = await structured.ainvoke(messages)
+                if isinstance(raw_result_candidate, schema):
+                    raw_result_candidate = {"parsed": raw_result_candidate, "raw": None}
                 latency_ms = (time.monotonic() - start) * 1000.0
                 if not isinstance(raw_result_candidate, dict):
                     return None
                 raw_result: dict[str, object] = cast(dict[str, object], raw_result_candidate)
 
                 parsed_candidate = raw_result.get("parsed")
-                if not isinstance(parsed_candidate, schema):
+                if (
+                    parsed_candidate is None
+                    and "parsed" not in raw_result
+                    and "raw" not in raw_result
+                ):
+                    parsed_candidate = raw_result
+                parsed = _coerce_to_schema(parsed_candidate, schema)
+                if parsed is None:
                     return None
-                parsed = parsed_candidate
 
                 ai_msg_candidate = raw_result.get("raw")
                 ai_msg = ai_msg_candidate if isinstance(ai_msg_candidate, _AIMessageLike) else None
@@ -141,6 +233,8 @@ class ModelGateway:
 
                 content = ai_msg.content if ai_msg is not None else ""
                 output_text = content if isinstance(content, str) else str(content)
+                if not output_text.strip():
+                    output_text = parsed.model_dump_json()
                 reasoning_value = response_metadata.get("reasoning")
                 reasoning_text = reasoning_value if isinstance(reasoning_value, str) else None
 

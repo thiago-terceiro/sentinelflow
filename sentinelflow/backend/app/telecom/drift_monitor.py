@@ -303,9 +303,7 @@ class DataDriftMonitor:
             TELECOM_DRIFT_PSI.set(round(psi_val, 4))
             TELECOM_DRIFT_KS_PVALUE.set(round(ks_p, 4))
             status_code = (
-                2.0
-                if status == "CRITICAL_DRIFT"
-                else (1.0 if status == "MODERATE_DRIFT" else 0.0)
+                2.0 if status == "CRITICAL_DRIFT" else (1.0 if status == "MODERATE_DRIFT" else 0.0)
             )
             TELECOM_DRIFT_STATUS.set(status_code)
 
