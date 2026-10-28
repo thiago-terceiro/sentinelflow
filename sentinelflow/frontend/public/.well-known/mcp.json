@@ -1,0 +1,77 @@
+{
+  "name": "sentinelflow-mcp",
+  "version": "1.0.0",
+  "protocolVersion": "2024-11-05",
+  "description": "Remote MCP server for SentinelFlow dispute investigation and SentinelPulse telecom intelligence",
+  "transports": [
+    {
+      "type": "sse",
+      "url": "/api/v1/mcp/sse"
+    }
+  ],
+  "capabilities": {
+    "tools": {
+      "list_disputes": {
+        "description": "List disputes with their status, code, title, amount, and timestamp.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "description": "Maximum number of disputes to return",
+              "default": 10
+            }
+          }
+        }
+      },
+      "get_investigation": {
+        "description": "Get latest investigation run, hypotheses, evidence, and risk assessment.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "dispute_id": {
+              "type": "string",
+              "description": "The dispute ID (e.g. SF-10001)"
+            }
+          },
+          "required": ["dispute_id"]
+        }
+      },
+      "submit_review": {
+        "description": "Submit a human review decision (approve, reject, or request_revision).",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "dispute_id": { "type": "string", "description": "The dispute ID" },
+            "investigation_id": { "type": "string", "description": "The active investigation ID" },
+            "decision": {
+              "type": "string",
+              "enum": ["approve", "reject", "request_revision"],
+              "description": "Review decision"
+            },
+            "guidance": {
+              "type": "string",
+              "description": "Optional steering instructions for revision"
+            }
+          },
+          "required": ["dispute_id", "investigation_id", "decision"]
+        }
+      },
+      "classify_telecom": {
+        "description": "Classify an incoming SMS for fraud and pumping attacks via ONNX model.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sender_phone": {
+              "type": "string",
+              "description": "Sender phone number in E.164 format"
+            },
+            "message_body": { "type": "string", "description": "SMS text content" },
+            "client_ip": { "type": "string", "description": "Optional client IP address" }
+          },
+          "required": ["sender_phone", "message_body"]
+        }
+      }
+    }
+  }
+}

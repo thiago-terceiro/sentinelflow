@@ -109,15 +109,21 @@ class InvestigatorAgent:
             for item in analyzers
         ]
         sanitized_analyzers_json, _ = redact_text(json.dumps(serialized_analyzers, default=str))
+        evidence_block = (
+            "Collected Evidence (cite exact 'id' strings in supporting_evidence_ids "
+            f"and contradicting_evidence_ids):\n<untrusted_evidence_payload>\n"
+            f"{sanitized_evidence_json}\n</untrusted_evidence_payload>"
+        )
+        analyzer_block = (
+            "Analyzer Summaries:\n<untrusted_analyzer_payload>\n"
+            f"{sanitized_analyzers_json}\n</untrusted_analyzer_payload>"
+        )
         prompt_parts = [
-            f"Dispute: {sanitized_dispute_json}",
+            f"<untrusted_dispute_context>\n{sanitized_dispute_json}\n</untrusted_dispute_context>",
             f"Evidence count: {len(evidence)}",
-            (
-                "Collected Evidence (cite exact 'id' strings in supporting_evidence_ids "
-                f"and contradicting_evidence_ids):\n{sanitized_evidence_json}"
-            ),
+            evidence_block,
             f"Analyzer count: {len(analyzers)}",
-            f"Analyzer Summaries:\n{sanitized_analyzers_json}",
+            analyzer_block,
             f"Failed tools:\n{self._failure_note(failed_tools)}",
             f"Failed analyzers:\n{self._failure_note(failed_analyzers)}",
         ]

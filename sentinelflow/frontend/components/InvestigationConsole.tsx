@@ -8,6 +8,7 @@ import { AnalyzerPanel } from "@/components/AnalyzerPanel";
 import { ApprovalPanel } from "@/components/ApprovalPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EvidencePanel } from "@/components/EvidencePanel";
+import { GenUIArtifactCard } from "@/components/GenUIArtifactCard";
 import { InvestigationTimeline } from "@/components/InvestigationTimeline";
 import { LangGraphProgress } from "@/components/LangGraphProgress";
 import { RiskPanel } from "@/components/RiskPanel";
@@ -41,6 +42,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
   const [pinnedEvidenceId, setPinnedEvidenceId] = useState<string | null>(null);
   const [hoveredEvidenceId, setHoveredEvidenceId] = useState<string | null>(null);
   const [showDiff, setShowDiff] = useState<boolean>(false);
+  const [showGenUI, setShowGenUI] = useState<boolean>(false);
   const initialStepHydratedRef = useRef<boolean>(false);
   const initialStepTargetRef = useRef<number | null>(null);
 
@@ -64,6 +66,8 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
       }
       const diffParam = params.get("diff");
       setShowDiff(diffParam === "1" || diffParam === "true");
+      const genuiParam = params.get("genui");
+      setShowGenUI(genuiParam === "1" || genuiParam === "true");
       const evParam = params.get("evidence");
       setPinnedEvidenceId(evParam || null);
     } catch {
@@ -294,6 +298,23 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <button
               type="button"
+              onClick={() => setShowGenUI((prev) => !prev)}
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 999,
+                padding: "12px 20px",
+                background: showGenUI ? "rgba(59,130,246,0.15)" : "transparent",
+                color: showGenUI ? "var(--accent)" : "inherit",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              aria-pressed={showGenUI}
+            >
+              {showGenUI ? "⚡ GenUI Active" : "Generative UI View"}
+            </button>
+            <button
+              type="button"
               onClick={() => void launch()}
               disabled={isLaunching || state.status === "RUNNING"}
               style={{
@@ -373,6 +394,64 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
         ) : null}
 
         <AgentMessageStrip message={state.agentStatus} status={state.status} />
+
+        {showGenUI ? (
+          <section className="shell-card" style={{ padding: 24 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18 }}>Generative UI Artifact Stream</h3>
+                <p style={{ margin: "4px 0 0 0", color: "var(--muted)", fontSize: 13 }}>
+                  Interactive components rendering structured agent evidence, hypotheses, and reviewer actions.
+                </p>
+              </div>
+              <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--accent)" }}>
+                React 19 RSC · streamUI Spec
+              </span>
+            </div>
+
+            {state.requiresApproval ? (
+              <GenUIArtifactCard
+                type="action"
+                title="Human-in-the-Loop Review & Steering"
+                onSubmitAction={async (decision, guidance) => {
+                  const mappedDecision: ApprovalDecision =
+                    decision === "request_revision"
+                      ? "request_revision"
+                      : decision === "approve"
+                      ? "approve"
+                      : "deny";
+                  handleDecision(mappedDecision, guidance || "GenUI Steering Action", guidance);
+                }}
+              />
+            ) : null}
+
+            {state.hypotheses.map((h, idx) => (
+              <GenUIArtifactCard
+                key={`genui-hyp-${idx}`}
+                type="hypothesis"
+                title={`Hypothesis #${idx + 1}`}
+                hypothesis={h}
+              />
+            ))}
+
+            {state.evidence.map((ev) => (
+              <GenUIArtifactCard
+                key={`genui-evd-${ev.id}`}
+                type="evidence"
+                title={`${ev.category.toUpperCase()} - ${ev.id}`}
+                evidence={ev}
+                onSelectEvidence={setPinnedEvidenceId}
+              />
+            ))}
+          </section>
+        ) : null}
 
         {/* Primary Agent Reasoning & Hypotheses Panel with Iteration Diff Support */}
         <AgentReasoningPanel

@@ -1,0 +1,22 @@
+# SentinelFlow & SentinelPulse
+> Enterprise autonomous AI dispute investigation copilot (LangGraph) and real-time telecom trust-and-safety gateway (<15ms ONNX SLA).
+
+## Core Architecture
+- [System Architecture](/docs/architecture.md): Complete system map covering LangGraph multi-agent flow, PostgreSQL audit ledger, Redis velocity counters, and Next.js console.
+- [Architectural Review & Evolution](/docs/architecture-review.md): Self-explanatory chronicle of engineering reviews, security hardening, and reliability milestones.
+- [System Design for Scale](/SYSTEM_DESIGN.md): Detailed 1,000 to 100,000+ RPS distributed architecture for telecom anti-abuse messaging.
+
+## AI Agent & Protocol Endpoints
+- [Remote MCP SSE Endpoint](/api/v1/mcp/sse): Server-Sent Events stream for Remote Model Context Protocol (MCP) tool execution.
+- [MCP Discovery Manifest](/.well-known/mcp.json): Public discovery schema exposing list_disputes, get_investigation, submit_review, and classify_telecom.
+- [Live SSE Reasoning Stream](/api/v1/investigations/{id}/stream): Real-time token-by-token reasoning deltas and tool execution timeline events.
+
+## API Endpoints
+- [Dispute Operations](/api/v1/disputes): List, inspect, and trigger autonomous multi-agent investigations.
+- [Human-in-the-Loop Reviews](/api/v1/approvals): Interactive review endpoints (approve, reject, request_revision with steering guidance).
+- [SentinelPulse Real-Time Classification](/v1/classify): Synchronous sub-15ms SMS fraud classification powered by ONNX Runtime CPU.
+- [Batch Telecom Inspection](/v1/events/batch): Vectorized multi-event traffic analysis.
+
+## Governance & Compliance
+- [Cryptographic Audit Ledger](/api/v1/audit/records): SHA-256 hash-chained append-only decision audit trail.
+- [Decoupled Robots Policy](/robots.txt): Explicit crawler permissions differentiating model training scrapers from search/citation bots.

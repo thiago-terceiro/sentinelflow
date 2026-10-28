@@ -7,9 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry import trace
 
 from app.api.approvals import router as approvals_router
+from app.api.discovery import router as discovery_router
 from app.api.disputes import router as disputes_router
 from app.api.evals import router as evals_router
 from app.api.health import router as health_router
+from app.api.mcp import router as mcp_router
 from app.api.telecom import (
     _drain_background_tasks,
     batch_classify_telecom_messages,
@@ -71,6 +73,9 @@ app.include_router(disputes_router, prefix=settings.API_V1_PREFIX)
 app.include_router(approvals_router, prefix=settings.API_V1_PREFIX)
 app.include_router(evals_router, prefix=settings.API_V1_PREFIX)
 app.include_router(telecom_router, prefix=settings.API_V1_PREFIX)
+app.include_router(mcp_router, prefix=settings.API_V1_PREFIX)
+app.include_router(mcp_router)
+app.include_router(discovery_router)
 
 # Compatibility aliases requested for SentinelPulse Gateway
 app.post("/v1/classify", tags=["telecom-intelligence"])(classify_telecom_message)

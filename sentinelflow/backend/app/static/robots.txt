@@ -1,0 +1,40 @@
+# Block Foundation Model Training Crawlers
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+# Allow Real-Time AI Search & Citation Agents
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# Allow User-Directed AI Fetchers
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+# Standard Crawlers
+User-agent: *
+Allow: /
+
+# Manifests
+Sitemap: /sitemap.xml
+LLM: /llms.txt

@@ -1,0 +1,82 @@
+# SentinelFlow & SentinelPulse — Full Technical Knowledge Base
+> Complete operational reference for autonomous AI agents, LLM tool executors, and system integration.
+
+---
+
+## 1. System Overview
+SentinelFlow is an autonomous AI dispute investigation copilot built on LangGraph. SentinelPulse is a synchronous sub-15ms telecom fraud and spam intelligence gateway.
+
+### Core Architecture Pillars:
+- **LangGraph Multi-Agent Engine**: Intake -> Investigate -> Collect (Parallel async tool execution) -> Synthesize -> Approval (Human-in-the-Loop interrupt) -> Finalize.
+- **Cryptographic Audit Ledger**: Every investigation step is recorded in an append-only ledger linked by SHA-256 row hashes (sequence_no, prev_hash, row_hash).
+- **SentinelPulse Real-Time Gateway**: Sub-15ms synchronous SMS inspection using ONNX Runtime CPU (TF-IDF + calibrated classifier) and Redis sliding-window velocity aggregation (10s, 60s, 1h).
+- **Explainable AI Workbench**: Next.js 16 console with client-side Time-Travel State Scrubbing (<0.03ms per step), semantic iteration diffs (?diff=1), and sticky cross-panel evidence citation pinning (?evidence=EVD-xxx).
+
+---
+
+## 2. Remote Model Context Protocol (MCP) Endpoints
+SentinelFlow exposes public tools for autonomous AI agents over standard MCP (2024-11-05 spec):
+- **Discovery**: GET /.well-known/mcp.json
+- **SSE Stream**: GET /api/v1/mcp/sse
+- **Messages**: POST /api/v1/mcp/messages
+
+### Available Tools:
+1. `list_disputes(status?: str, limit?: int)`: Query and filter disputes with risk levels and customer details.
+2. `get_investigation(dispute_id: str)`: Retrieve full multi-agent investigation timeline, hypotheses, and evidence.
+3. `submit_review(dispute_id: str, investigation_id: str, decision: str, guidance?: str)`: Submit human reviewer decision (approve, reject, or request_revision with steering instructions).
+4. `classify_telecom(sender_phone: str, message_body: str, client_ip?: str)`: Run real-time ONNX fraud classification (<15ms).
+
+---
+
+## 3. Dispute Investigation Lifecycle
+```
+[Dispute Ingested]
+       │
+       ▼
+[intake] ──> Initializes DisputeState, loads customer & transaction data
+       │
+       ▼
+[investigate] ──> LLM formulates competing hypotheses & requests tools
+       │
+       ├─ (Needs Tools / Analyzers) ──> [collect] (Parallel asyncio.gather) ──> [investigate]
+       │
+       ▼
+[synthesize] ──> Evaluates deterministic compliance & normalized risk
+       │
+       ├─ (Risk < 0.70) ──> [finalize] ──> [Resolved]
+       │
+       ▼ (Risk >= 0.70)
+[approval] ──> LangGraph native interrupt() halts for human review
+       │
+       ├─ Human: Approve / Reject ──> [finalize]
+       │
+       ▼ Human: Request Revision (guidance)
+[investigate] ──> Resumes autonomous loop with steering context (Max 3 cycles)
+```
+
+---
+
+## 4. REST API Quick Reference
+
+### Ingestion & Discovery
+- `GET /llms.txt`: Token-efficient curated table of contents for language models.
+- `GET /llms-full.txt`: This full-text markdown compilation for 1-turn context loading.
+- `GET /robots.txt`: Decoupled crawler governance policy.
+
+### Disputes & Investigations
+- `GET /api/v1/disputes`: List disputes (Supports Accept: text/markdown content negotiation).
+- `GET /api/v1/disputes/{id}`: Detailed dispute view with transaction history.
+- `POST /api/v1/disputes/{id}/investigations`: Enqueue multi-agent investigation (arq + Redis).
+- `GET /api/v1/disputes/{id}/investigations/latest`: Hydrate latest investigation run snapshot.
+- `GET /api/v1/investigations/{id}/stream`: Real-time Server-Sent Events stream.
+
+### Human-in-the-Loop Reviews
+- `POST /api/v1/disputes/{id}/investigations/{inv_id}/review`:
+  - Body: `{"decision": "approve" | "reject" | "request_revision", "guidance": "string"}`
+
+### SentinelPulse Real-Time Gateway
+- `POST /v1/classify`: Real-time SMS inspection:
+  - Request: `{"sender_phone": "+12025550199", "message_body": "Your code is 123456", "client_ip": "1.2.3.4"}`
+  - Response: `{"verdict": "ALLOW" | "FLAG" | "BLOCK", "risk_score": 0.05, "latency_ms": 1.2}`
+- `POST /v1/events/batch`: High-throughput batch classification.
+- `GET /metrics`: Prometheus metrics (/metrics).

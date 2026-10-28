@@ -72,6 +72,53 @@ REDACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
 )
 
+ZERO_WIDTH_PATTERN: re.Pattern[str] = re.compile(
+    r"[\u200B\u200C\u200D\u200E\u200F\uFEFF\u00AD\u2060\u2061\u2062\u2063\u2064]"
+)
+
+HIDDEN_DOM_TAG_PATTERN: re.Pattern[str] = re.compile(
+    r"<\s*[^>]+(?:display\s*:\s*none|font-size\s*:\s*0|visibility\s*:\s*hidden|opacity\s*:\s*0|hidden)[^>]*>.*?</[^>]+>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+DANGEROUS_DOM_TAG_PATTERN: re.Pattern[str] = re.compile(
+    r"<\s*(?:script|iframe|style|object|embed)[^>]*>.*?</\s*(?:script|iframe|style|object|embed)\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+PROMPT_INJECTION_PATTERN: re.Pattern[str] = re.compile(
+    r"(?i)\b(?:system\s+override|ignore\s+(?:all\s+)?previous\s+instructions?|you\s+are\s+now\s+in\s+developer\s+mode|disregard\s+(?:the\s+)?prior\s+commands?|admin\s+escalation\s+code)\b"
+)
+
+
+def sanitize_prompt_injection(value: str) -> tuple[str, bool, list[str]]:
+    """Sanitize indirect prompt injection vectors (zero-width Unicode, hidden DOM, canaries)."""
+    sanitized = value
+    changed = False
+    warnings: list[str] = []
+
+    if ZERO_WIDTH_PATTERN.search(sanitized):
+        sanitized = ZERO_WIDTH_PATTERN.sub("", sanitized)
+        changed = True
+        warnings.append("zero_width_unicode_stripped")
+
+    if HIDDEN_DOM_TAG_PATTERN.search(sanitized):
+        sanitized = HIDDEN_DOM_TAG_PATTERN.sub(" [FLAGGED_HIDDEN_DOM_INJECTION] ", sanitized)
+        changed = True
+        warnings.append("hidden_dom_injection_stripped")
+
+    if DANGEROUS_DOM_TAG_PATTERN.search(sanitized):
+        sanitized = DANGEROUS_DOM_TAG_PATTERN.sub(" [FLAGGED_DANGEROUS_TAG] ", sanitized)
+        changed = True
+        warnings.append("dangerous_tag_stripped")
+
+    if PROMPT_INJECTION_PATTERN.search(sanitized):
+        sanitized = PROMPT_INJECTION_PATTERN.sub("[FLAGGED_INJECTION_ATTEMPT]", sanitized)
+        changed = True
+        warnings.append("prompt_injection_pattern_neutralized")
+
+    return sanitized, changed, warnings
+
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -109,8 +156,9 @@ def to_text(value: Any) -> str:
 
 
 def redact_text(value: str) -> tuple[str, bool]:
-    redacted = value
-    changed = False
+    sanitized, inject_changed, _ = sanitize_prompt_injection(value)
+    redacted = sanitized
+    changed = inject_changed
     for pattern, replacement in REDACTION_PATTERNS:
         updated = pattern.sub(replacement, redacted)
         if updated != redacted:

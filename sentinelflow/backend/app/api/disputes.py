@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 from uuid import uuid4
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -45,7 +45,8 @@ router = APIRouter(tags=["disputes", "investigations"])
 async def list_disputes(
     session: DBSessionDep,
     principal: PrincipalDep,
-) -> list[DisputeSummary]:
+    request: Request,
+) -> Any:
     principal.require_any(
         Role.INVESTIGATOR,
         Role.SENIOR_INVESTIGATOR,
@@ -54,7 +55,7 @@ async def list_disputes(
         Role.ADMIN,
     )
     result = await session.execute(select(DisputeRecord).order_by(DisputeRecord.created_at.desc()))
-    return [
+    items = [
         DisputeSummary(
             id=item.id,
             case_code=item.case_code,
@@ -66,6 +67,24 @@ async def list_disputes(
         )
         for item in result.scalars()
     ]
+    if "text/markdown" in request.headers.get("accept", ""):
+        lines = [
+            "# SentinelFlow Disputes",
+            "",
+            "| ID | Code | Title | Amount | Status | Created At |",
+            "| :--- | :--- | :--- | :--- | :--- | :--- |",
+        ]
+        for it in items:
+            lines.append(
+                f"| {it.id} | {it.case_code} | {it.title} | {it.amount} {it.currency} | "
+                f"{it.status} | {it.created_at.isoformat()} |"
+            )
+        return Response(
+            content="\n".join(lines),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Vary": "Accept"},
+        )
+    return items
 
 
 @router.post("/disputes", response_model=DisputeDetail)
