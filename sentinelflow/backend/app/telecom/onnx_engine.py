@@ -161,6 +161,15 @@ class OnnxInferenceEngine:
 
         return max_heuristic, signals
 
+    _evaluate_heuristics = evaluate_heuristics
+
+    def _is_circuit_open(self) -> bool:
+        """Returns True when the ONNX session is unavailable or circuit-broken."""
+        return bool(
+            getattr(self, "_circuit_open", False)
+            or (self._session is None and self.session is None)
+        )
+
     def predict(self, text: str) -> InferenceResult:
         """Synchronously classifies an SMS text message with sub-millisecond execution."""
         t_start = time.perf_counter()
@@ -239,15 +248,29 @@ class OnnxInferenceEngine:
         if not texts:
             return []
         t_start = time.perf_counter()
-        onnx_probs = self.predict_proba_batch(texts)
+        circuit_open = self._is_circuit_open()
+        heuristics = [self.evaluate_heuristics(t) for t in texts]
+        onnx_indices = [
+            idx
+            for idx, (h_score, _) in enumerate(heuristics)
+            if not circuit_open and h_score < 0.85
+        ]
+        onnx_probs_by_idx: dict[int, float] = {}
+        if onnx_indices:
+            subset_texts = [texts[idx] for idx in onnx_indices]
+            subset_probs = self.predict_proba_batch(subset_texts)
+            for idx, prob in zip(onnx_indices, subset_probs, strict=False):
+                onnx_probs_by_idx[idx] = prob
+
         per_item_latency_ms = round(
             ((time.perf_counter() - t_start) * 1000.0) / max(len(texts), 1), 3
         )
         results: list[InferenceResult] = []
         active_session = self._session or self.session
-        for text, onnx_prob in zip(texts, onnx_probs, strict=False):
-            heuristic_score, signals = self.evaluate_heuristics(text)
-            if active_session is None:
+        for idx, (heuristic_score, signals_raw) in enumerate(heuristics):
+            signals = list(signals_raw)
+            onnx_prob = onnx_probs_by_idx.get(idx, heuristic_score)
+            if active_session is None or circuit_open:
                 signals.append("ENGINE:HEURISTIC_ONLY")
             fraud_score = max(heuristic_score, onnx_prob)
             if onnx_prob >= 0.75:

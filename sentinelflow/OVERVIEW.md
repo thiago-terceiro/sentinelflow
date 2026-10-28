@@ -9,7 +9,7 @@ An evolving technical reference detailing SentinelFlow and SentinelPulse's conti
 ```mermaid
 flowchart LR
     A["1. Security & Supply Chain\n(Trivy, Gitleaks, Bandit, SonarJS)"] --> B["2. Static Analysis & Guardrails\n(Mypy Strict, ESLint 10, Ruff)"]
-    B --> C["3. Deterministic Testing\n(112 Pytest @ 86% Cov, 32 Node Tests)"]
+    B --> C["3. Deterministic Testing\n(114 Pytest @ 86% Cov, 32 Node Tests)"]
     C --> D["4. Contract Integrity\n(OpenAPI ↔ TypeScript Drift Check)"]
     D --> E["5. MLOps & AI Evals\n(8 Golden Cases, Guardrails, Drift PSI)"]
     E --> F["6. Sandbox Container Smoke\n(Docker Compose Live E2E Stack)"]
@@ -45,7 +45,7 @@ flowchart LR
 
 ### 3. Test Coverage & Deterministic Verification
 - **Backend Test Suite**:
-  - **112 tests** execute via `pytest`.
+  - **114 tests** execute via `pytest`.
   - **Coverage Floor**: Integrated `pytest-cov` strictly enforces a **minimum 80% coverage threshold** (`--cov-fail-under=80`). Current measured codebase coverage is **86% across 4,949+ statements**.
   - Covers API contracts, state graph node transitions, parallel tool execution with isolated `AsyncSession(bind=bind)` (`AsyncEngine`) and `session_lock` fallback, human-in-the-loop approvals, mid-run PostgreSQL checkpoint hydration (`to_run` / `persist_graph_state`), W3C `traceparent` context propagation across Redis/arq, `ModelGateway` streaming schema coercion (`reasoning_delta`), backpressure-safe SSE terminal delivery, vectorized ONNX batch inference (`predict_proba_batch`), self-healing 30s Redis circuit breakers, and cryptographic ledger hash-chains linearized via PostgreSQL `SELECT ... FOR UPDATE` + `uq_audit_records_investigation_sequence`.
 - **Frontend Test Suite**:

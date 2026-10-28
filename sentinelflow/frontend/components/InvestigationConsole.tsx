@@ -143,9 +143,17 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
   // Keyboard navigation for Time-Travel Scrubber: [ / ] / L
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
       const target = e.target as HTMLElement | null;
       const tagName = target?.tagName?.toLowerCase();
-      if (tagName === "input" || tagName === "textarea" || target?.isContentEditable) {
+      if (
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        target?.isContentEditable
+      ) {
         return;
       }
       if (e.key === "[") {

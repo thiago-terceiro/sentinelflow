@@ -359,6 +359,44 @@ def initial_state(record: InvestigationRecord, principal: PrincipalContext) -> d
     }
 
 
+def _rehydrate_state_from_record(
+    record: InvestigationRecord,
+    principal: PrincipalContext,
+) -> dict[str, Any]:
+    """Reconstructs a valid DisputeState from a persisted InvestigationRecord."""
+    state = initial_state(record, principal)
+    raw_evidence = getattr(record, "evidence", None) or []
+    state["evidence"] = [
+        Evidence.model_validate(item) for item in raw_evidence if isinstance(item, dict)
+    ]
+    raw_analyzers = getattr(record, "analyzer_summaries", None) or []
+    state["analyzer_summaries"] = [
+        AnalyzerSummary.model_validate(item) for item in raw_analyzers if isinstance(item, dict)
+    ]
+    raw_hypotheses = getattr(record, "hypotheses", None) or []
+    state["hypotheses"] = [
+        InvestigationHypothesis.model_validate(item)
+        for item in raw_hypotheses
+        if isinstance(item, dict)
+    ]
+    state["unresolved_questions"] = list(getattr(record, "unresolved_questions", None) or [])
+    if isinstance(record.risk_assessment, dict):
+        state["risk_assessment"] = RiskAssessment.model_validate(record.risk_assessment)
+    raw_compliance = getattr(record, "compliance_findings", None) or []
+    state["compliance_findings"] = [
+        ComplianceFinding.model_validate(item) for item in raw_compliance if isinstance(item, dict)
+    ]
+    if isinstance(record.report, dict):
+        state["investigation_report"] = InvestigationReport.model_validate(record.report)
+    state["iteration_count"] = int(getattr(record, "iteration_count", 1) or 1)
+    state["tool_call_count"] = int(getattr(record, "tool_call_count", 0) or 0)
+    state["analyzer_call_count"] = int(getattr(record, "analyzer_call_count", 0) or 0)
+    saved_events = _as_timeline_events(getattr(record, "timeline_events", None))
+    if saved_events:
+        state["timeline_events"] = list(saved_events)
+    return state
+
+
 def extract_timeline_events(update: dict[str, Any]) -> list[dict[str, Any]]:
     for value in update.values():
         value_obj = _as_object(value)
@@ -624,10 +662,79 @@ async def _run_new_investigation(
             raise
 
 
+async def _finalize_seeded_resume(
+    session: AsyncSession,
+    record: InvestigationRecord,
+    hydrated_state: dict[str, Any],
+    decision: dict[str, Any],
+) -> None:
+    """Deterministically finalizes a cold-seeded awaiting_approval run on approve/deny."""
+    from app.security import Role
+    from app.services.audit import record_audit_event
+
+    action = str(decision.get("decision", "approve"))
+    report_obj: InvestigationReport | None = hydrated_state.get("investigation_report")
+    if report_obj is not None:
+        if action in ("deny", "reject"):
+            report_obj = report_obj.model_copy(update={"recommendation": "deny"})
+        elif action == "approve" and report_obj.recommendation == "escalate":
+            report_obj = report_obj.model_copy(update={"recommendation": "approve"})
+        record.report = report_obj.model_dump(mode="json")
+
+    timeline_events = [
+        ev
+        for ev in _as_timeline_events(getattr(record, "timeline_events", None))
+        if ev.get("type") != "approval_required"
+    ]
+    new_events: list[dict[str, Any]] = []
+    if record.report is not None:
+        report_event = build_stream_event(
+            "final_report_ready",
+            record.report,
+            event_id=f"report_final_{record.id}",
+        )
+        timeline_events.append(report_event)
+        new_events.append(report_event)
+
+    completed_event = build_stream_event(
+        "run_completed",
+        {"investigation_id": record.id, "report": record.report},
+        event_id=f"run_completed_{record.id}",
+    )
+    timeline_events.append(completed_event)
+    new_events.append(completed_event)
+
+    record.timeline_events = timeline_events
+    record.status = "completed"
+
+    if hasattr(session, "execute"):
+        await record_audit_event(
+            session,
+            actor=Principal(user_id="reviewer", roles={Role.REVIEWER}),
+            event_name="investigation.finalized",
+            payload={
+                "decision": action,
+                "comment": decision.get("comment"),
+                "status": "completed",
+            },
+            dispute_id=record.dispute_id,
+            investigation_id=record.id,
+        )
+
+    await session.commit()
+    await session.refresh(record)
+
+    for ev in new_events:
+        await investigation_broadcaster.publish(record.id, ev)
+    await investigation_broadcaster.publish_terminal(record.id)
+
+
 async def _run_resume_investigation(
     investigation_id: str,
     decision: dict[str, Any],
 ) -> None:
+    from app.services.trace_safety import redact_text
+
     tracer = trace.get_tracer("sentinelflow.investigations")
     with tracer.start_as_current_span(
         "investigation.resume_workflow",
@@ -646,8 +753,55 @@ async def _run_resume_investigation(
                 record.status = "running"
                 await session.commit()
                 await session.refresh(record)
-                resume_command: Command[tuple[()]] = Command(resume=decision)
-                await _run_graph(session, record, resume_command)
+
+                graph = build_graph(session)
+                config = thread_config(record.thread_id)
+                snapshot = await graph.aget_state(config) if hasattr(graph, "aget_state") else None
+                snapshot_values = _snapshot_values(snapshot) if snapshot is not None else {}
+
+                if not snapshot_values and hasattr(graph, "aget_state"):
+                    principal = PrincipalContext(
+                        user_id=str(getattr(record, "created_by", None) or "seed-investigator"),
+                        roles=["investigator"],
+                    )
+                    hydrated_state = _rehydrate_state_from_record(record, principal)
+                    action = str(decision.get("decision", "approve"))
+                    if action == "request_revision":
+                        guidance, _ = redact_text(
+                            str(
+                                decision.get("guidance")
+                                or decision.get("comment")
+                                or "Reviewer requested revision."
+                            )
+                        )
+                        hydrated_state["reviewer_guidance"] = guidance
+                        hydrated_state["revision_count"] = (
+                            int(getattr(record, "revision_count", 0) or 0) + 1
+                        )
+                        hydrated_state["timeline_events"] = [
+                            ev
+                            for ev in hydrated_state["timeline_events"]
+                            if ev.get("type") != "approval_required"
+                        ]
+                        hydrated_state["timeline_events"].append(
+                            build_stream_event(
+                                "agent_message",
+                                {
+                                    "actor": "reviewer",
+                                    "stage": "approval",
+                                    "message": f"Reviewer requested re-investigation: {guidance}",
+                                    "guidance": guidance,
+                                    "details": {"guidance": guidance},
+                                },
+                                event_id=f"steering_{record.id}_{hydrated_state['revision_count']}",
+                            )
+                        )
+                        await _run_graph(session, record, hydrated_state)
+                    else:
+                        await _finalize_seeded_resume(session, record, hydrated_state, decision)
+                else:
+                    resume_command: Command[tuple[()]] = Command(resume=decision)
+                    await _run_graph(session, record, resume_command)
         except Exception as exc:
             span.record_exception(exc)
             span.set_status(trace.StatusCode.ERROR, str(exc))

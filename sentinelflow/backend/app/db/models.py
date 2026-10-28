@@ -4,7 +4,17 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 JsonDict = dict[str, Any]
@@ -33,6 +43,7 @@ class DisputeRecord(Base):
 
 class InvestigationRecord(Base):
     __tablename__ = "investigations"
+    __table_args__ = (Index("ix_investigations_dispute_created_at", "dispute_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     dispute_id: Mapped[str] = mapped_column(ForeignKey("disputes.id"), index=True)

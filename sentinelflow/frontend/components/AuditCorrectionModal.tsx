@@ -18,30 +18,55 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
 
   const titleId = useId();
   const descId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Close on Escape key
+  // Close on Escape key & trap Tab focus within modal, restoring focus on close
   useEffect(() => {
     if (!isOpen) {
       return;
     }
+    const previousActiveElement = document.activeElement as HTMLElement | null;
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
+        return;
+      }
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusable = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusable.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === dialogRef.current) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      if (previousActiveElement && typeof previousActiveElement.focus === "function") {
+        previousActiveElement.focus();
+      }
     };
   }, [isOpen, onClose]);
-
-  // Initial focus on text area when modal opens
-  useEffect(() => {
-    if (isOpen && textareaRef.current) {
-      textareaRef.current.focus();
-    }
-  }, [isOpen]);
 
   if (!isOpen || !target) {
     return null;
@@ -94,6 +119,7 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

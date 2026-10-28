@@ -13,28 +13,52 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
   const descId = useId();
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  // Close on Escape key
+  // Close on Escape key & trap Tab focus within drawer, restoring focus on close
   useEffect(() => {
     if (!record) {
       return;
     }
+    const previousActiveElement = document.activeElement as HTMLElement | null;
+    if (drawerRef.current) {
+      drawerRef.current.focus();
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
+        return;
+      }
+      if (e.key === "Tab" && drawerRef.current) {
+        const focusable = Array.from(
+          drawerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusable.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === drawerRef.current) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      if (previousActiveElement && typeof previousActiveElement.focus === "function") {
+        previousActiveElement.focus();
+      }
     };
   }, [record, onClose]);
-
-  // Initial focus management
-  useEffect(() => {
-    if (record && drawerRef.current) {
-      drawerRef.current.focus();
-    }
-  }, [record]);
 
   if (!record) {
     return null;

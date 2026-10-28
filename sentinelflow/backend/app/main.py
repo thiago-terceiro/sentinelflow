@@ -11,6 +11,7 @@ from app.api.disputes import router as disputes_router
 from app.api.evals import router as evals_router
 from app.api.health import router as health_router
 from app.api.telecom import (
+    _drain_background_tasks,
     batch_classify_telecom_messages,
     classify_telecom_message,
     get_prometheus_metrics,
@@ -37,6 +38,7 @@ configure_logging()
 async def lifespan(_app: FastAPI):
     seed_telecom_warmup()
     yield
+    await _drain_background_tasks()
     await get_velocity_store().close()
     await close_redis_pool()
     await close_checkpointer()

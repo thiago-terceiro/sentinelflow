@@ -20,7 +20,7 @@ def test_alembic_migrations_have_single_head() -> None:
     script = ScriptDirectory.from_config(config)
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly one Alembic head revision, found: {heads}"
-    assert heads[0] == "20261022_000005"
+    assert heads[0] == "20261022_000006"
 
 
 def test_alembic_revisions_chain_is_contiguous_and_reversible() -> None:

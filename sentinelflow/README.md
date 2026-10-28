@@ -292,7 +292,7 @@ SentinelPulse is an ultra-low-latency telecom intelligence gateway integrated in
 ### Quickstart & Load Testing Commands
 
 ```bash
-# 1. Run the Pytest verification suite (112 passing tests across the full backend suite, plus 32 frontend Node tests)
+# 1. Run the Pytest verification suite (114 passing tests across the full backend suite, plus 32 frontend Node tests)
 cd backend
 uv run pytest app/tests/test_telecom_gateway.py
 

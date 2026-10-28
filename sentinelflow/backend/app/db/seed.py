@@ -280,21 +280,24 @@ async def _seed_showcase_investigations(
         risk_iter1 = {
             "score": 0.76,
             "level": "high",
+            "threshold_triggered": True,
             "explanation": (
                 "Initial high risk driven by transaction amount ($4,899) and device distance."
             ),
             "factors": [
                 {
                     "name": "transaction_amount",
+                    "score": 0.85,
                     "weight": 0.22,
-                    "value": 0.85,
-                    "rationale": "Disputed amount $4,899.00 exceeds high-value threshold.",
+                    "explanation": "Disputed amount $4,899.00 exceeds high-value threshold.",
+                    "evidence_ids": ["ev_tx_10001"],
                 },
                 {
                     "name": "device_trust",
+                    "score": 0.82,
                     "weight": 0.18,
-                    "value": 0.82,
-                    "rationale": "Unrecognized device 6,800km from baseline.",
+                    "explanation": "Unrecognized device 6,800km from baseline.",
+                    "evidence_ids": ["ev_dev_10001"],
                 },
             ],
         }
@@ -302,6 +305,7 @@ async def _seed_showcase_investigations(
         risk_iter2 = {
             "score": 0.91,
             "level": "critical",
+            "threshold_triggered": True,
             "explanation": (
                 "Critical composite fraud risk (0.91) after incorporating merchant chargeback "
                 "rate (8.0%) and confirmed SIM-swap OTP bypass."
@@ -309,33 +313,43 @@ async def _seed_showcase_investigations(
             "factors": [
                 {
                     "name": "transaction_amount",
+                    "score": 0.95,
                     "weight": 0.22,
-                    "value": 0.95,
-                    "rationale": "High-value $4,899.00 electronics checkout during velocity burst.",
+                    "explanation": (
+                        "High-value $4,899.00 electronics checkout during velocity burst."
+                    ),
+                    "evidence_ids": ["ev_tx_10001"],
                 },
                 {
                     "name": "device_trust",
+                    "score": 0.96,
                     "weight": 0.18,
-                    "value": 0.96,
-                    "rationale": "Unrecognized device fingerprint with 14 IPs at 6,800km distance.",
+                    "explanation": (
+                        "Unrecognized device fingerprint with 14 IPs at 6,800km distance."
+                    ),
+                    "evidence_ids": ["ev_dev_10001"],
                 },
                 {
                     "name": "merchant_risk",
+                    "score": 0.88,
                     "weight": 0.12,
-                    "value": 0.88,
-                    "rationale": "Merchant risk 0.61 with 8.0% chargeback rate.",
+                    "explanation": "Merchant risk 0.61 with 8.0% chargeback rate.",
+                    "evidence_ids": ["ev_merch_10001"],
                 },
             ],
         }
 
         compliance_findings = [
             {
-                "code": "CN-001",
-                "severity": "warning",
-                "message": (
+                "framework": "CARD_NETWORK",
+                "rule_id": "CN-001",
+                "passed": False,
+                "requires_review": True,
+                "explanation": (
                     "Dispute amount ($4,899.00) exceeds $2,500.00 mandatory review threshold."
                 ),
-                "requires_review": True,
+                "evidence_ids": ["ev_tx_10001"],
+                "policy_version": "2026.1",
             }
         ]
 
@@ -349,11 +363,7 @@ async def _seed_showcase_investigations(
             "recommendation": "deny",
             "confidence": 0.94,
             "hypotheses": iter2_hypotheses,
-            "risk_factors": [
-                "Unrecognized device 6,800km away with IP velocity 14",
-                "OTP bypass during 9-transaction 24h velocity spike",
-                "Merchant chargeback rate at 8.0% (risk score 0.61)",
-            ],
+            "risk_factors": risk_iter2["factors"],
             "evidence_ids": ["ev_tx_10001", "ev_cust_10001", "ev_dev_10001", "ev_merch_10001"],
             "unresolved_questions": [],
             "compliance_findings": ["CN-001: Mandatory human review completed"],
@@ -688,21 +698,24 @@ async def _seed_showcase_investigations(
         risk2 = {
             "score": 0.58,
             "level": "medium",
+            "threshold_triggered": True,
             "explanation": (
                 "Moderate risk (0.58): unrecognized session offset by 8-year customer tenure."
             ),
             "factors": [
                 {
                     "name": "device_trust",
+                    "score": 0.68,
                     "weight": 0.18,
-                    "value": 0.68,
-                    "rationale": "Unrecognized browser session 420km from home region.",
+                    "explanation": "Unrecognized browser session 420km from home region.",
+                    "evidence_ids": ["ev_dev_10002"],
                 },
                 {
                     "name": "customer_history",
+                    "score": 0.15,
                     "weight": 0.16,
-                    "value": 0.15,
-                    "rationale": "8-year tenure with 0 prior disputes lowers baseline risk.",
+                    "explanation": "8-year tenure with 0 prior disputes lowers baseline risk.",
+                    "evidence_ids": ["ev_cust_10002"],
                 },
             ],
         }
@@ -716,10 +729,7 @@ async def _seed_showcase_investigations(
             "recommendation": "escalate",
             "confidence": 0.74,
             "hypotheses": hyp2,
-            "risk_factors": [
-                "Unrecognized session at 420km distance",
-                "High-value $2,200 travel booking",
-            ],
+            "risk_factors": risk2["factors"],
             "evidence_ids": ["ev_tx_10002", "ev_cust_10002", "ev_dev_10002"],
             "unresolved_questions": ["Did cardholder authorize travel from secondary device?"],
             "compliance_findings": [],

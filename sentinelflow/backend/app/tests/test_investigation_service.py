@@ -1053,3 +1053,228 @@ async def test_model_gateway_astream_coerces_dict_chunks_to_schema_and_serialize
     assert result.output_text != ""
     assert '"recommendation":"escalate"' in result.output_text.replace(" ", "")
     assert any("Streaming partial conclusion..." in d for d in deltas)
+
+
+async def test_resume_seeded_awaiting_approval_record_without_binary_checkpoint_approve(
+    monkeypatch: Any,
+) -> None:
+    """Verifies Approve on a cold-seeded awaiting_approval record succeeds without KeyError."""
+    from app.services.investigations import _run_resume_investigation
+
+    now = datetime.now(UTC)
+    seeded_record = cast(
+        InvestigationRecord,
+        SimpleNamespace(
+            id="inv_seed_sf_10002",
+            dispute_id="disp_seed_10002",
+            thread_id="thread_seed_sf_10002",
+            status="awaiting_approval",
+            created_by="seed-investigator",
+            created_at=now,
+            updated_at=now,
+            evidence=[
+                {
+                    "id": "ev_tx_10002",
+                    "source": "transactions",
+                    "category": "transaction",
+                    "origin": "observed_fact",
+                    "summary": "International travel booking ($2,200.00).",
+                    "facts": {"amount": 2200.0},
+                    "confidence": 0.94,
+                    "collected_at": now.isoformat(),
+                    "provenance": "postgres://disputes/SF-10002/transactions",
+                }
+            ],
+            analyzer_summaries=[],
+            hypotheses=[
+                {
+                    "statement": "Ambiguous travel booking requiring human review",
+                    "confidence": 0.74,
+                    "supporting_evidence_ids": ["ev_tx_10002"],
+                    "contradicting_evidence_ids": [],
+                }
+            ],
+            unresolved_questions=["Did cardholder authorize travel?"],
+            risk_assessment={
+                "score": 0.58,
+                "level": "medium",
+                "threshold_triggered": True,
+                "explanation": "Moderate risk.",
+                "factors": [
+                    {
+                        "name": "device_trust",
+                        "score": 0.68,
+                        "weight": 0.18,
+                        "explanation": "Unrecognized session.",
+                        "evidence_ids": ["ev_tx_10002"],
+                    }
+                ],
+            },
+            compliance_findings=[],
+            report={
+                "conclusion": "Conflicting signals on $2,200 booking.",
+                "recommendation": "escalate",
+                "confidence": 0.74,
+                "hypotheses": [],
+                "risk_factors": [],
+                "evidence_ids": ["ev_tx_10002"],
+                "unresolved_questions": [],
+                "compliance_findings": [],
+            },
+            timeline_events=[
+                {
+                    "id": "evt_sf2_01_start",
+                    "type": "run_started",
+                    "timestamp": now.isoformat(),
+                    "data": {"investigation_id": "inv_seed_sf_10002"},
+                },
+                {
+                    "id": "approval_inv_seed_sf_10002",
+                    "type": "approval_required",
+                    "timestamp": now.isoformat(),
+                    "data": {"investigation_id": "inv_seed_sf_10002"},
+                },
+            ],
+            iteration_count=1,
+            tool_call_count=3,
+            analyzer_call_count=1,
+            checkpoint_id="ckpt_seed_sf_10002_v1",
+        ),
+    )
+
+    class _EmptyCheckpointGraph:
+        async def aget_state(self, _config: dict[str, Any]) -> object:
+            return SimpleNamespace(values={}, next=(), config={})
+
+    class _FakeDBSession:
+        async def __aenter__(self) -> _FakeDBSession:
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def get(self, _model: object, _id: str) -> InvestigationRecord:
+            return seeded_record
+
+        async def commit(self) -> None:
+            return None
+
+        async def refresh(self, _obj: object) -> None:
+            return None
+
+    monkeypatch.setattr("app.services.investigations.SessionLocal", lambda: _FakeDBSession())
+    monkeypatch.setattr(
+        "app.services.investigations.build_graph",
+        lambda _s: _EmptyCheckpointGraph(),
+    )
+
+    await _run_resume_investigation(
+        "inv_seed_sf_10002",
+        {"decision": "approve", "comment": "Approved after verifying cardholder travel"},
+    )
+
+    assert seeded_record.status == "completed"
+    assert isinstance(seeded_record.report, dict)
+    assert seeded_record.report["recommendation"] == "approve"
+    assert any(ev["type"] == "run_completed" for ev in seeded_record.timeline_events)
+
+
+async def test_resume_seeded_awaiting_approval_record_without_binary_checkpoint_request_revision(
+    monkeypatch: Any,
+) -> None:
+    """Verifies Request Revision on a cold-seeded record rehydrates state and runs Iteration 2."""
+    from app.services.investigations import _run_resume_investigation
+
+    now = datetime.now(UTC)
+    seeded_record = cast(
+        InvestigationRecord,
+        SimpleNamespace(
+            id="inv_seed_sf_10002",
+            dispute_id="disp_seed_10002",
+            thread_id="thread_seed_sf_10002",
+            status="awaiting_approval",
+            created_by="seed-investigator",
+            created_at=now,
+            updated_at=now,
+            evidence=[
+                {
+                    "id": "ev_tx_10002",
+                    "source": "transactions",
+                    "category": "transaction",
+                    "origin": "observed_fact",
+                    "summary": "International travel booking ($2,200.00).",
+                    "facts": {"amount": 2200.0},
+                    "confidence": 0.94,
+                    "collected_at": now.isoformat(),
+                    "provenance": "postgres://disputes/SF-10002/transactions",
+                }
+            ],
+            analyzer_summaries=[],
+            hypotheses=[],
+            unresolved_questions=[],
+            risk_assessment=None,
+            compliance_findings=[],
+            report=None,
+            timeline_events=[],
+            iteration_count=1,
+            tool_call_count=3,
+            analyzer_call_count=1,
+            revision_count=0,
+            checkpoint_id="ckpt_seed_sf_10002_v1",
+        ),
+    )
+
+    captured_graph_input: dict[str, Any] = {}
+
+    class _EmptyCheckpointGraph:
+        async def aget_state(self, _config: dict[str, Any]) -> object:
+            return SimpleNamespace(values={}, next=(), config={})
+
+    class _FakeDBSession:
+        async def __aenter__(self) -> _FakeDBSession:
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def get(self, _model: object, _id: str) -> InvestigationRecord:
+            return seeded_record
+
+        async def commit(self) -> None:
+            return None
+
+        async def refresh(self, _obj: object) -> None:
+            return None
+
+    async def _fake_run_graph(
+        _session: Any,
+        record: InvestigationRecord,
+        graph_input: Any,
+    ) -> None:
+        captured_graph_input["input"] = graph_input
+        record.status = "completed"
+
+    monkeypatch.setattr("app.services.investigations.SessionLocal", lambda: _FakeDBSession())
+    monkeypatch.setattr(
+        "app.services.investigations.build_graph",
+        lambda _s: _EmptyCheckpointGraph(),
+    )
+    monkeypatch.setattr("app.services.investigations._run_graph", _fake_run_graph)
+
+    await _run_resume_investigation(
+        "inv_seed_sf_10002",
+        {
+            "decision": "request_revision",
+            "guidance": "Check whether 3DS challenge IP matches hotel destination.",
+        },
+    )
+
+    assert seeded_record.status == "completed"
+    rehydrated = captured_graph_input["input"]
+    assert isinstance(rehydrated, dict)
+    assert rehydrated["reviewer_guidance"] == (
+        "Check whether 3DS challenge IP matches hotel destination."
+    )
+    assert rehydrated["revision_count"] == 1
+    assert len(rehydrated["evidence"]) == 1
+    assert rehydrated["evidence"][0].id == "ev_tx_10002"
