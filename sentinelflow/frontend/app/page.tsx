@@ -45,9 +45,11 @@ const HomePage = () => {
         <h1 style={{ margin: "8px 0 12px", fontSize: "clamp(2.4rem, 4.5vw, 4rem)" }}>
           SentinelFlow
         </h1>
-        <p style={{ maxWidth: 700, margin: 0, color: "var(--muted)", lineHeight: 1.6 }}>
-          Evidence-grounded dispute investigations with deterministic risk scoring and reviewer
-          approval for high-impact outcomes.
+        <p style={{ maxWidth: 780, margin: 0, color: "var(--muted)", lineHeight: 1.6 }}>
+          SentinelFlow is an autonomous AI dispute investigation copilot built on LangGraph that
+          coordinates parallel multi-agent evidence collection, deterministic risk scoring, and
+          human-in-the-loop steering. Paired with SentinelPulse, a sub-15ms telecom fraud
+          intelligence gateway powered by ONNX Runtime CPU.
         </p>
       </section>
 

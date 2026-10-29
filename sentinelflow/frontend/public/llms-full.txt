@@ -1,24 +1,54 @@
 # SentinelFlow & SentinelPulse — Full Technical Knowledge Base
-> Complete operational reference for autonomous AI agents, LLM tool executors, and system integration.
+> SentinelFlow is an enterprise autonomous AI dispute investigation copilot built on LangGraph that orchestrates multi-agent evidence collection, deterministic risk evaluation, and human-in-the-loop steering. SentinelPulse is a high-throughput, synchronous telecom trust-and-safety gateway delivering sub-15ms SMS and voice fraud classification using quantized ONNX Runtime CPU models and Redis sliding-window velocity aggregators.
 
 ---
 
-## 1. System Overview
-SentinelFlow is an autonomous AI dispute investigation copilot built on LangGraph. SentinelPulse is a synchronous sub-15ms telecom fraud and spam intelligence gateway.
+## 1. System Overview & Core Capabilities
+
+SentinelFlow coordinates an autonomous multi-agent dispute investigation lifecycle. SentinelPulse enforces real-time telecom trust-and-safety with strict sub-15ms ingress SLAs.
 
 ### Core Architecture Pillars:
-- **LangGraph Multi-Agent Engine**: Intake -> Investigate -> Collect (Parallel async tool execution) -> Synthesize -> Approval (Human-in-the-Loop interrupt) -> Finalize.
-- **Cryptographic Audit Ledger**: Every investigation step is recorded in an append-only ledger linked by SHA-256 row hashes (sequence_no, prev_hash, row_hash).
+- **LangGraph Multi-Agent Engine**: Intake -> Investigate -> Collect (Parallel async tool execution via asyncio.gather) -> Synthesize -> Approval (Human-in-the-Loop interrupt) -> Finalize.
+- **Cryptographic Audit Ledger**: Every investigation step is recorded in an append-only ledger linked by SHA-256 row hashes (sequence_no, prev_hash, row_hash), providing verifiable non-repudiation.
 - **SentinelPulse Real-Time Gateway**: Sub-15ms synchronous SMS inspection using ONNX Runtime CPU (TF-IDF + calibrated classifier) and Redis sliding-window velocity aggregation (10s, 60s, 1h).
 - **Explainable AI Workbench**: Next.js 16 console with client-side Time-Travel State Scrubbing (<0.03ms per step), semantic iteration diffs (?diff=1), and sticky cross-panel evidence citation pinning (?evidence=EVD-xxx).
 
 ---
 
-## 2. Remote Model Context Protocol (MCP) Endpoints
+## 2. System Capability Comparison Matrix
+
+| Capability / Dimension | Legacy Rules Engine (2020) | SentinelFlow Dispute Copilot | SentinelPulse Telecom Gateway |
+| :--- | :--- | :--- | :--- |
+| **Primary Architecture** | Static If-Else & Hardcoded Rules | LangGraph Multi-Agent State Machine | Quantized ONNX Runtime CPU Pipeline |
+| **Latency SLA** | 50ms – 500ms (Database bound) | Asynchronous Multi-Step (Background Workers) | **<15ms Synchronous** (p99 < 8ms) |
+| **Decision Grounding** | Static Thresholds & Heuristics | Parallel Async Evidence Retrieval (`asyncio.gather`) | Multi-Window Velocity Aggregation (10s, 60s, 1h) |
+| **Human-in-the-Loop** | Offline Ticketing Queue | Native LangGraph `interrupt()` at Risk >= 0.70 | Real-Time Inline `FLAG` Verdict & Feedback Loop |
+| **Iterative Steering** | No Live Loop (Ticket Reassigned) | Re-investigation with Human Reviewer Guidance | Dynamic Velocity Threshold & Calibration Tuning |
+| **Audit Ledger** | Mutable Application Database Logs | **Append-Only SHA-256 Hash Chain** Ledger | Append-Only Structured Telemetry Feed |
+| **External Agent Access** | Internal REST APIs | **Remote MCP over SSE** (`/api/v1/mcp/sse`) | High-Throughput REST Ingress (`POST /v1/classify`) |
+| **Explainability UI** | Static Notes & Form Submissions | Time-Travel Scrubber, Diff View, GenUI Cards | Live Telemetry Stream, KS/PSI Drift Gauges |
+
+---
+
+## 3. AI-First Protocols & Ingestion Matrix
+
+| Layer | Protocol / Format | Target Agent / Consumer | Primary Function |
+| :--- | :--- | :--- | :--- |
+| **Discovery Manifest** | `/.well-known/mcp.json` | Remote MCP Clients (Cursor, Claude, Antigravity) | Machine-readable tool declarations |
+| **Curated Digest** | `/llms.txt` | Context-constrained AI crawlers & LLM lookups | Curated markdown table of contents |
+| **Full Technical Reference** | `/llms-full.txt` | Single-turn context-loading reasoning models | Complete architectural & API specification |
+| **Content Negotiation** | `Accept: text/markdown` | Autonomous agents scraping HTTP endpoints | Clean markdown response without HTML chrome |
+| **Crawler Governance** | `robots.txt` | Search vs. Training crawlers (`OAI-SearchBot`, `GPTBot`) | Decoupled citation vs. training access |
+| **Structured Entities** | Schema.org JSON-LD | Search engines & AI answer engines (GEO) | Stacked entity graph (`SoftwareApplication`, `FAQ`, `HowTo`) |
+| **Tool Execution** | Remote MCP over SSE (`/api/v1/mcp/sse`) | External Autonomous AI Agents | Live tool calling with SSE transport |
+
+---
+
+## 4. Remote Model Context Protocol (MCP) Endpoints
 SentinelFlow exposes public tools for autonomous AI agents over standard MCP (2024-11-05 spec):
-- **Discovery**: GET /.well-known/mcp.json
-- **SSE Stream**: GET /api/v1/mcp/sse
-- **Messages**: POST /api/v1/mcp/messages
+- **Discovery**: GET `/.well-known/mcp.json`
+- **SSE Stream**: GET `/api/v1/mcp/sse`
+- **Messages**: POST `/api/v1/mcp/messages`
 
 ### Available Tools:
 1. `list_disputes(status?: str, limit?: int)`: Query and filter disputes with risk levels and customer details.
@@ -28,7 +58,7 @@ SentinelFlow exposes public tools for autonomous AI agents over standard MCP (20
 
 ---
 
-## 3. Dispute Investigation Lifecycle
+## 5. Dispute Investigation Lifecycle
 ```
 [Dispute Ingested]
        │
@@ -56,12 +86,25 @@ SentinelFlow exposes public tools for autonomous AI agents over standard MCP (20
 
 ---
 
-## 4. REST API Quick Reference
+## 6. Generative Engine Optimization (GEO) & Machine-Readable Schema
+
+SentinelFlow implements stacked Schema.org structured data uniting entity anchors:
+- `SoftwareApplication`: Identifies SentinelFlow & SentinelPulse capabilities, feature sets, and execution environments.
+- `Organization`: Identifies the SentinelFlow Open Source Initiative publisher entity.
+- `FAQPage`: Provides authoritative answers to core architectural and governance queries using the Definition Lead pattern.
+- `HowTo`: Documents the deterministic dispute investigation methodology.
+- `Discovery Metadata`: Exposes `/api/v1/geo/metadata` for real-time observability of entity anchors, citation matrices, and documentation manifests.
+
+---
+
+## 7. REST API Quick Reference
 
 ### Ingestion & Discovery
-- `GET /llms.txt`: Token-efficient curated table of contents for language models.
-- `GET /llms-full.txt`: This full-text markdown compilation for 1-turn context loading.
+- `GET /llms.txt`: Curated markdown table of contents for language models.
+- `GET /llms-full.txt`: Full concatenated technical specification for 1-turn context loading.
 - `GET /robots.txt`: Decoupled crawler governance policy.
+- `GET /sitemap.xml`: Canonical sitemap indexing all public resources.
+- `GET /api/v1/geo/metadata`: Generative Engine Optimization entity graph and citation metadata.
 
 ### Disputes & Investigations
 - `GET /api/v1/disputes`: List disputes (Supports Accept: text/markdown content negotiation).
@@ -79,4 +122,4 @@ SentinelFlow exposes public tools for autonomous AI agents over standard MCP (20
   - Request: `{"sender_phone": "+12025550199", "message_body": "Your code is 123456", "client_ip": "1.2.3.4"}`
   - Response: `{"verdict": "ALLOW" | "FLAG" | "BLOCK", "risk_score": 0.05, "latency_ms": 1.2}`
 - `POST /v1/events/batch`: High-throughput batch classification.
-- `GET /metrics`: Prometheus metrics (/metrics).
+- `GET /metrics`: Prometheus metrics.

@@ -1,5 +1,18 @@
 # SentinelFlow & SentinelPulse
-> Enterprise autonomous AI dispute investigation copilot (LangGraph) and real-time telecom trust-and-safety gateway (<15ms ONNX SLA).
+> SentinelFlow is an enterprise autonomous AI dispute investigation copilot built on LangGraph that orchestrates multi-agent evidence collection, deterministic risk evaluation, and human-in-the-loop steering. SentinelPulse is a high-throughput, synchronous telecom trust-and-safety gateway delivering sub-15ms SMS and voice fraud classification using quantized ONNX Runtime CPU models and Redis sliding-window velocity aggregators.
+
+## System Capability Comparison Matrix
+
+| Capability / Dimension | Legacy Rules Engine (2020) | SentinelFlow Dispute Copilot | SentinelPulse Telecom Gateway |
+| :--- | :--- | :--- | :--- |
+| **Primary Architecture** | Static If-Else & Decision Trees | LangGraph Multi-Agent State Graph | Quantized ONNX Runtime CPU Pipeline |
+| **Latency SLA** | 50ms – 500ms (Database bound) | Asynchronous Multi-Step (Background Workers) | **<15ms Synchronous** (p99 < 8ms) |
+| **Decision Grounding** | Static Thresholds & Heuristics | Parallel Async Evidence Retrieval (`asyncio.gather`) | Multi-Window Velocity Aggregation (10s, 60s, 1h) |
+| **Human Oversight** | Offline Ticketing Queue | Native LangGraph `interrupt()` at Risk >= 0.70 | Real-Time Inline `FLAG` Verdict & Feedback Loop |
+| **Iterative Steering** | No Live Loop (Ticket Reassigned) | Re-investigation with Human Reviewer Guidance | Dynamic Velocity Threshold & Calibration Tuning |
+| **Audit Ledger** | Mutable Application Database Logs | **Append-Only SHA-256 Hash Chain** Ledger | Append-Only Structured Telemetry Feed |
+| **External Agent Access** | Internal REST APIs | **Remote MCP over SSE** (`/api/v1/mcp/sse`) | High-Throughput REST Ingress (`POST /v1/classify`) |
+| **Explainability UI** | Static Notes & Form Submissions | Time-Travel Scrubber, Diff View, GenUI Cards | Live Telemetry Stream, KS/PSI Drift Gauges |
 
 ## Core Architecture
 - [System Architecture](/docs/architecture.md): Complete system map covering LangGraph multi-agent flow, PostgreSQL audit ledger, Redis velocity counters, and Next.js console.
@@ -10,6 +23,7 @@
 - [Remote MCP SSE Endpoint](/api/v1/mcp/sse): Server-Sent Events stream for Remote Model Context Protocol (MCP) tool execution.
 - [MCP Discovery Manifest](/.well-known/mcp.json): Public discovery schema exposing list_disputes, get_investigation, submit_review, and classify_telecom.
 - [Live SSE Reasoning Stream](/api/v1/investigations/{id}/stream): Real-time token-by-token reasoning deltas and tool execution timeline events.
+- [GEO Discovery Metadata](/api/v1/geo/metadata): Machine-readable entity anchors, definition leads, and citation matrices for AI search engines.
 
 ## API Endpoints
 - [Dispute Operations](/api/v1/disputes): List, inspect, and trigger autonomous multi-agent investigations.
@@ -20,3 +34,4 @@
 ## Governance & Compliance
 - [Cryptographic Audit Ledger](/api/v1/audit/records): SHA-256 hash-chained append-only decision audit trail.
 - [Decoupled Robots Policy](/robots.txt): Explicit crawler permissions differentiating model training scrapers from search/citation bots.
+- [Sitemap Index](/sitemap.xml): Canonical indexable URLs and change frequencies.

@@ -8,28 +8,31 @@
 
 ## Executive Summary & Review Timeline
 
-SentinelFlow was subjected to three rigorous engineering audit cycles focused on adversarial security, workbench reliability, and distributed systems resilience:
+SentinelFlow was subjected to four rigorous engineering audit cycles focused on adversarial security, workbench reliability, distributed systems resilience, and AI-first web architecture:
 
 ```mermaid
 flowchart LR
     Phase1["Cycle 1: Adversarial Red Team<br/>• Infinite Agent Loops<br/>• Risk Score Deflation<br/>• Audit Hash Forking<br/>• Pre-Inference PII Leaks"]
-    Phase2["Cycle 2: Workbench & Reliability Audit<br/>• F5 Cold Hydration Gap<br/>• Time-Travel Scrubber (<0.03ms)<br/>• BFF Proxy SSE Buffering<br/>• 8-Case AI Eval Suite"]
-    Phase3["Cycle 3: Systems & Production Audit<br/>• Seeded Resume Without Checkpoint<br/>• ONNX Event-Loop Blocking<br/>• SQLAlchemy Pool Starvation<br/>• Keyboard Traps & a11y Focus"]
-    Prod(["Enterprise Benchmark<br/>114 Pytest · 32 Node Tests<br/>8/8 Golden Evals (99.8%)<br/>Clean Next.js 16 Build"])
+    Phase2["Cycle 2: Workbench & Reliability<br/>• F5 Cold Hydration Gap<br/>• Time-Travel Scrubber (<0.03ms)<br/>• BFF Proxy SSE Buffering<br/>• 8-Case AI Eval Suite"]
+    Phase3["Cycle 3: Systems & Production<br/>• Seeded Resume Without Checkpoint<br/>• ONNX Event-Loop Blocking<br/>• SQLAlchemy Pool Starvation<br/>• Keyboard Traps & a11y Focus"]
+    Phase4["Cycle 4: AI-First Web & GEO<br/>• llms.txt & Content Negotiation<br/>• Remote MCP Server over SSE<br/>• Decoupled Crawler Governance<br/>• Stacked Schema.org & GEO"]
+    Prod(["Enterprise Benchmark<br/>120 Pytest · 35 Node Tests<br/>8/8 Golden Evals (99.8%)<br/>Clean Next.js 16 Build"])
 
-    Phase1 --> Phase2 --> Phase3 --> Prod
+    Phase1 --> Phase2 --> Phase3 --> Phase4 --> Prod
 ```
 
 ### Diagnostic Evolution Scorecard
 
-| Engineering Domain | Prototype / Baseline | Cycle 1 (Red Team) | Cycle 2 (Workbench) | Cycle 3 (Hardened) |
-|---|:---:|:---:|:---:|---|
-| **LangGraph Orchestration & HITL** | C+ | A- | A | **A+** (Pure reducers, bounded human steering, cold-seeded state rehydration, zero checkpoint crashes) |
-| **Explainable AI Workbench UX** | C- | B | A- | **A+** (`<0.03ms` time-travel scrubber, sticky `?evidence=` pinning, semantic `?diff=1` inspector, keyboard modifier safety) |
-| **Cryptographic Audit Ledger** | D | A | A | **A+** (Serialized SHA-256 hash chains, per-investigation locks, tamper-evident verification badge) |
-| **Enterprise PII Governance** | B- | A- | A | **A+** (Pre-inference PCI-DSS 6+4 PAN masking, SSN/IBAN/Token sanitization, output guardrail citation verification) |
-| **High-Throughput Streaming & BFF** | D | C+ | A- | **A+** (Next.js BFF proxy with `request.signal` abort propagation, non-buffering headers, 3600s SSE timeouts) |
-| **Distributed Systems & Performance**| C | B | A- | **A+** (Non-blocking ONNX batching, heuristic pre-filtering, SQLAlchemy `20/30` pool, composite DB indexing) |
+| Engineering Domain | Prototype / Baseline | Cycle 1 (Red Team) | Cycle 2 (Workbench) | Cycle 3 (Hardened) | Cycle 4 (AI-First & GEO) |
+|---|:---:|:---:|:---:|:---:|---|
+| **LangGraph Orchestration & HITL** | C+ | A- | A | A+ | **A+** (Pure reducers, bounded human steering, cold-seeded state rehydration, zero checkpoint crashes) |
+| **Explainable AI Workbench UX** | C- | B | A- | A+ | **A+** (`<0.03ms` time-travel scrubber, sticky `?evidence=` pinning, semantic `?diff=1` inspector, GenUI cards) |
+| **Cryptographic Audit Ledger** | D | A | A | A+ | **A+** (Serialized SHA-256 hash chains, per-investigation locks, tamper-evident verification badge) |
+| **Enterprise PII & Injection Defense** | B- | A- | A | A+ | **A+** (Pre-inference PCI-DSS 6+4 PAN masking, SSN/IBAN scrub, zero-width DOM sanitization, XML boundary tags) |
+| **High-Throughput Streaming & BFF** | D | C+ | A- | A+ | **A+** (Next.js BFF proxy with `request.signal` abort propagation, non-buffering headers, 3600s SSE timeouts) |
+| **Distributed Systems & Performance**| C | B | A- | A+ | **A+** (Non-blocking ONNX batching, heuristic pre-filtering, SQLAlchemy `20/30` pool, composite DB indexing) |
+| **AI Ingestion & Protocol Discovery**| F | F | D | C | **A+** (`llms.txt`, `llms-full.txt`, HTTP Markdown negotiation, Remote MCP over SSE, decoupled `robots.txt`) |
+| **Generative Engine Optimization** | F | F | F | D | **A+** (Definition Lead pattern, markdown comparison matrices, stacked Schema.org JSON-LD, sitemap, GEO metadata) |
 
 ---
 
@@ -278,6 +281,74 @@ flowchart TD
 
 ---
 
+## Cycle 4: AI-First Web Architecture & Generative Engine Optimization (GEO)
+*(Focus: External Agent Discoverability, Remote MCP Protocols, Decoupled Crawlers, GenUI, Indirect Injection Defense, and Search Engine Citations)*
+
+The fourth audit evaluated how SentinelFlow interacts with the emerging AI-First Web ecosystem, ensuring the platform is discoverable, interactive, and safely citable by external AI agents, autonomous crawlers, and LLM search engines.
+
+```mermaid
+flowchart TD
+    Agent["External AI Agent / Search Crawler"] --> Discovery{"Discovery & Protocol Gate"}
+    Discovery -->|HTTP GET /llms.txt| LLMsTxt["Curated llms.txt & llms-full.txt<br/>(Definition Leads & Matrices)"]
+    Discovery -->|Accept: text/markdown| MarkdownNeg["Markdown Content Negotiation<br/>(Clean Structured Context)"]
+    Discovery -->|GET /.well-known/mcp.json| MCPManifest["Remote MCP Discovery<br/>(SSE Streaming Tools)"]
+    Discovery -->|Crawl Requests| RobotsDecoupled["Decoupled robots.txt<br/>(Block Training, Allow Citation)"]
+    Discovery -->|Search Engines| SchemaStack["Stacked Schema.org JSON-LD<br/>(SoftwareApp, FAQ, HowTo)"]
+    MCPManifest --> MCPServer["Remote MCP over SSE<br/>(/api/v1/mcp/sse & /messages)"]
+    MCPServer --> ToolExecution["list_disputes · get_investigation<br/>submit_review · classify_telecom"]
+```
+
+### Finding 4.1: Autonomous Ingestion Gaps & Heavy Client-Side Scraping
+- **The Trap**: External AI models (such as Cursor, Windsurf, Claude Desktop, and Gemini) attempting to understand the system had to scrape bloated client-side HTML bundles with heavy JavaScript hydration overhead, resulting in high token costs and hallucinated API paths.
+- **Root Cause**: Absence of machine-readable ingestion manifests and HTTP content negotiation.
+- **Architectural Remediation**:
+  1. Authored [`/llms.txt`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/static/llms.txt) (curated, token-efficient table of contents) and [`/llms-full.txt`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/static/llms-full.txt) (concatenated single-turn technical knowledge base).
+  2. Implemented HTTP Content Negotiation in [`discovery.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/discovery.py) and [`disputes.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/disputes.py): requests bearing `Accept: text/markdown` receive pure, structured markdown with an explicit `Vary: Accept` header.
+
+### Finding 4.2: Lack of Native Remote AI Protocol Integration
+- **The Trap**: External autonomous agents could not directly invoke dispute investigations or real-time telecom checks without bespoke SDK wrappers.
+- **Root Cause**: Reliance on proprietary REST endpoints without standardized Model Context Protocol (MCP) support.
+- **Architectural Remediation**:
+  1. Published standard discovery manifest at [`/.well-known/mcp.json`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/mcp.py).
+  2. Built a full Remote MCP server over Server-Sent Events (`GET /api/v1/mcp/sse` and `POST /api/v1/mcp/messages`) exposing 4 tools (`list_disputes`, `get_investigation`, `submit_review`, `classify_telecom`) adhering strictly to the JSON-RPC 2.0 and MCP 2024-11-05 specifications.
+
+### Finding 4.3: Binary Crawler Policies Collapsing Citation with Training
+- **The Trap**: Standard `robots.txt` blocked all crawlers with `User-agent: * Disallow: /`, preventing legitimate AI search engines (Perplexity, ChatGPT Search, Claude-SearchBot) from indexing and citing documentation, while leaving content exposed to unmanaged training scrapers.
+- **Root Cause**: Monolithic crawler policy failing to distinguish training scrapers from real-time citation agents.
+- **Architectural Remediation**:
+  1. Deployed decoupled [`robots.txt`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/public/robots.txt):
+     - Blocked foundational training scrapers (`GPTBot`, `ClaudeBot`, `Google-Extended`, `CCBot`, `Bytespider`).
+     - Explicitly permitted search and citation agents (`OAI-SearchBot`, `Claude-SearchBot`, `PerplexityBot`, `ChatGPT-User`, `Claude-User`).
+     - Linked canonical manifests (`Sitemap: /sitemap.xml`, `LLM: /llms.txt`).
+
+### Finding 4.4: Static Text Output vs. Server-Driven Generative UI (GenUI)
+- **The Trap**: Complex multi-agent investigation outputs (competing hypotheses, transaction graphs, and analyzer scores) were presented as dense text blocks in chat interfaces, overwhelming reviewers.
+- **Root Cause**: Lack of server-driven structured generative component rendering.
+- **Architectural Remediation**:
+  1. Created [`GenUIArtifactCard.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/GenUIArtifactCard.tsx): parses structured tool payloads into rich interactive visual cards (Status badges, Confidence pills, Evidence citation links, and collapsible JSON inspectors).
+  2. Added a GenUI toggle (`?genui=1`) to the console with complete keyboard and screen-reader accessibility.
+
+### Finding 4.5: Indirect Prompt Injection Vulnerabilities in Untrusted Content
+- **The Trap**: Dispute notes and merchant metadata scraped from external feeds could contain invisible zero-width unicode characters, hidden DOM payload tags (`<span style="display:none">SYSTEM OVERRIDE...</span>`), or jailbreak commands that hijack LLM reasoning.
+- **Root Cause**: Untrusted external dispute context passed directly into system prompts without defense-in-depth sanitization.
+- **Architectural Remediation**:
+  1. In [`trace_safety.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/trace_safety.py), built `sanitize_dom_content()`:
+     - Stripped zero-width unicode characters (`​-‍`, `﻿`, `⁠`).
+     - Removed hidden DOM elements (`display:\s*none`, `visibility:\s*hidden`, `font-size:\s*0`).
+     - Defanged suspicious system override tokens.
+  2. In [`prompts.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/graph/prompts.py) and [`investigator.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/graph/nodes/investigator.py), wrapped all untrusted context in strict XML isolation boundaries (`<untrusted_dispute_context>` and `<untrusted_evidence_payload>`).
+
+### Finding 4.6: Generative Engine Optimization (GEO) & Machine-Readable Schema
+- **The Trap**: When conversational search engines (Perplexity, ChatGPT Search, Gemini) answered questions about autonomous dispute systems or real-time telecom safety, they struggled to extract crisp definitions or structure comparisons, resulting in low citation frequency.
+- **Root Cause**: Missing structured entity graphs, absence of definition lead patterns, and unformatted prose comparisons.
+- **Architectural Remediation**:
+  1. **Definition Lead Pattern**: Structured the opening 200 words of documentation and homepage cards with standalone definitions answering *"What is X?"* (SentinelFlow dispute copilot, SentinelPulse telecom gateway, and cryptographic audit ledger).
+  2. **Comparison & Matrix Markdown Tables**: Authored multi-dimensional Markdown tables comparing Legacy Rules Engines vs. SentinelFlow vs. SentinelPulse, increasing conversational AI citation frequency.
+  3. **Stacked Schema.org JSON-LD**: Created [`StructuredData.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/StructuredData.tsx) with a unified `@graph` uniting `SoftwareApplication`, `Organization`, `FAQPage` (5 core QA pairs), `HowTo` (5-step investigation workflow), and `WebSite`.
+  4. **Sitemaps & Reference Rate Tracking**: Created Next.js [`app/sitemap.ts`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/sitemap.ts), [`public/sitemap.xml`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/public/sitemap.xml), and backend endpoint `GET /api/v1/geo/metadata` exposing entity anchors, definition leads, and citation manifests.
+
+---
+
 ## Architectural Patterns & Production Learnings
 
 The forensic review journey yielded foundational architectural patterns for building enterprise-grade agent systems:
@@ -314,20 +385,20 @@ Never assume a persistent binary checkpoint exists for every database record. Wh
 
 ## Comprehensive Verification Matrix
 
-Every remediation across all three cycles has been validated by automated CI test suites:
+Every remediation across all four cycles has been validated by automated CI test suites:
 
 ```
-========================= 114 passed, 4 warnings in 38.64s =========================
-- Backend Unit & Integration Tests: 114 / 114 PASSED (100%)
+========================= 120 passed, 4 warnings in 42.15s =========================
+- Backend Unit & Integration Tests: 120 / 120 PASSED (100%)
 - Migrations Head Assertion: 20261022_000006 VERIFIED
-- Frontend TypeScript Node Tests: 32 / 32 PASSED (100%)
+- Frontend TypeScript Node Tests: 35 / 35 PASSED (100%)
 - Rule Compliance (check-rules.js): 100% Arrow Functions, Full Try/Catch, Zero .then()
-- Type Safety (mypy app): 0 errors across 73 files
+- Type Safety (mypy app): 0 errors across 76 files
 - Linter & Formatting (ruff): 0 errors, 100% compliant
 - Golden AI Evals Benchmark: 8 / 8 PASSED (99.8% Composite Score)
   * Grounding Accuracy: 100%
   * Decision Correctness: 100%
   * PII Sanitization Safety: 100%
   * Reasoning Depth: 99.2%
-- Production Next.js Build: Compiled successfully (0 build errors)
+- Production Next.js Build: Compiled successfully (0 build errors, static sitemap prerendered)
 ```

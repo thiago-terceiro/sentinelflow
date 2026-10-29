@@ -131,3 +131,73 @@ async def test_mcp_json_rpc_messages() -> None:
         assert "content" in call_data["result"]
         content_text = call_data["result"]["content"][0]["text"]
         assert "verdict" in content_text
+
+
+@pytest.mark.asyncio
+async def test_sitemap_xml_endpoint() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        res = await client.get("/sitemap.xml")
+        assert res.status_code == 200
+        assert "application/xml" in res.headers.get("content-type", "")
+        text = res.text
+        assert "<urlset" in text
+        assert "https://sentinelflow.dev/disputes" in text
+        assert "https://sentinelflow.dev/telecom" in text
+        assert "https://sentinelflow.dev/audit" in text
+        assert "https://sentinelflow.dev/llms.txt" in text
+        assert "https://sentinelflow.dev/api/v1/geo/metadata" in text
+
+
+@pytest.mark.asyncio
+async def test_geo_metadata_endpoint() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        res = await client.get("/api/v1/geo/metadata")
+        assert res.status_code == 200
+        assert "application/json" in res.headers.get("content-type", "")
+        data = res.json()
+        assert data["system"] == "SentinelFlow & SentinelPulse"
+        assert "definition_leads" in data
+        sf_lead = data["definition_leads"]["sentinelflow"]
+        assert "SentinelFlow is an enterprise autonomous" in sf_lead
+        sp_lead = data["definition_leads"]["sentinelpulse"]
+        assert "SentinelPulse is a high-throughput" in sp_lead
+
+        # Entity anchors
+        entity_types = [a["type"] for a in data["entity_anchors"]]
+        assert "SoftwareApplication" in entity_types
+        assert "Organization" in entity_types
+        assert "FAQPage" in entity_types
+        assert "HowTo" in entity_types
+        assert "WebSite" in entity_types
+
+        # Manifests
+        assert data["manifests"]["llms_txt"] == "/llms.txt"
+        assert data["manifests"]["sitemap_xml"] == "/sitemap.xml"
+
+
+@pytest.mark.asyncio
+async def test_llms_definition_leads_and_matrix_tables() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # Check llms.txt has definition lead and comparison matrix table
+        res_txt = await client.get("/llms.txt")
+        assert res_txt.status_code == 200
+        assert (
+            "> SentinelFlow is an enterprise autonomous AI dispute investigation copilot"
+            in res_txt.text
+        )
+        assert "| Capability / Dimension |" in res_txt.text
+        assert "| **Primary Architecture** |" in res_txt.text
+
+        # Check llms-full.txt has definition lead, comparison matrix and protocol matrix
+        res_full = await client.get("/llms-full.txt")
+        assert res_full.status_code == 200
+        assert (
+            "> SentinelFlow is an enterprise autonomous AI dispute investigation copilot"
+            in res_full.text
+        )
+        assert "| Capability / Dimension |" in res_full.text
+        assert "| Layer | Protocol / Format |" in res_full.text
+

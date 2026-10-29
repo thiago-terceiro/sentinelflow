@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { NavbarLinks } from "@/components/NavbarLinks";
+import { StructuredData } from "@/components/StructuredData";
 import { StyleSwitcher } from "@/components/StyleSwitcher";
 import { ACCESS_TOKEN_COOKIE_NAME, TEST_USER_COOKIE_NAME } from "@/lib/testAuth";
 
@@ -46,6 +47,7 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
           href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=DM+Sans:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Lexend:wght@400;500;600&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
+        <StructuredData />
       </head>
       <body>
         <header className="app-header">
