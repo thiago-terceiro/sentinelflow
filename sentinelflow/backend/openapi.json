@@ -1010,7 +1010,7 @@
           "telecom-intelligence"
         ],
         "summary": "Batch Classify Telecom Messages",
-        "description": "High-throughput batch ingestion endpoint for bulk SMS stream evaluation.",
+        "description": "High-throughput batch ingestion endpoint using vectorized ONNX CPU inference.",
         "operationId": "batch_classify_telecom_messages_api_v1_telecom_events_batch_post",
         "requestBody": {
           "content": {
@@ -1094,6 +1094,30 @@
         }
       }
     },
+    "/api/v1/telecom/reset": {
+      "post": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Reset Telecom Telemetry",
+        "description": "Resets in-memory SentinelPulse telemetry, live feed buffer, and drift observations.",
+        "operationId": "reset_telecom_telemetry_api_v1_telecom_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Reset Telecom Telemetry Api V1 Telecom Reset Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/telecom/stream": {
       "get": {
         "tags": [
@@ -1130,6 +1154,302 @@
                 "schema": {}
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/.well-known/mcp.json": {
+      "get": {
+        "tags": [
+          "mcp",
+          "protocols"
+        ],
+        "summary": "Get Mcp Discovery Manifest",
+        "description": "Return public MCP server discovery manifest (2024-11-05 standard).",
+        "operationId": "get_mcp_discovery_manifest_api_v1__well_known_mcp_json_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/sse": {
+      "get": {
+        "tags": [
+          "mcp",
+          "protocols"
+        ],
+        "summary": "Mcp Sse Transport",
+        "description": "Server-Sent Events endpoint establishing an interactive MCP remote session.",
+        "operationId": "mcp_sse_transport_api_v1_mcp_sse_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/messages": {
+      "post": {
+        "tags": [
+          "mcp",
+          "protocols"
+        ],
+        "summary": "Mcp Messages Transport",
+        "description": "Handle incoming JSON-RPC 2.0 messages from agents over MCP protocol.",
+        "operationId": "mcp_messages_transport_api_v1_mcp_messages_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/mcp.json": {
+      "get": {
+        "tags": [
+          "mcp",
+          "protocols"
+        ],
+        "summary": "Get Mcp Discovery Manifest",
+        "description": "Return public MCP server discovery manifest (2024-11-05 standard).",
+        "operationId": "get_mcp_discovery_manifest__well_known_mcp_json_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/sse": {
+      "get": {
+        "tags": [
+          "mcp",
+          "protocols"
+        ],
+        "summary": "Mcp Sse Transport",
+        "description": "Server-Sent Events endpoint establishing an interactive MCP remote session.",
+        "operationId": "mcp_sse_transport_mcp_sse_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/messages": {
+      "post": {
+        "tags": [
+          "mcp",
+          "protocols"
+        ],
+        "summary": "Mcp Messages Transport",
+        "description": "Handle incoming JSON-RPC 2.0 messages from agents over MCP protocol.",
+        "operationId": "mcp_messages_transport_mcp_messages_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/robots.txt": {
+      "get": {
+        "tags": [
+          "discovery",
+          "ai-first"
+        ],
+        "summary": "Get Robots Txt",
+        "description": "Return decoupled robots.txt separating training scrapers from search/citation crawlers.",
+        "operationId": "get_robots_txt_robots_txt_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llms.txt": {
+      "get": {
+        "tags": [
+          "discovery",
+          "ai-first"
+        ],
+        "summary": "Get Llms Txt",
+        "description": "Return standard llms.txt curated manifest for AI agents and LLMs.",
+        "operationId": "get_llms_txt_llms_txt_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llms-full.txt": {
+      "get": {
+        "tags": [
+          "discovery",
+          "ai-first"
+        ],
+        "summary": "Get Llms Full Txt",
+        "description": "Return full concatenated markdown technical reference for 1-turn context loading.",
+        "operationId": "get_llms_full_txt_llms_full_txt_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sitemap.xml": {
+      "get": {
+        "tags": [
+          "discovery",
+          "ai-first"
+        ],
+        "summary": "Get Sitemap Xml",
+        "description": "Return XML sitemap for search crawlers and AI search engine indexing.",
+        "operationId": "get_sitemap_xml_sitemap_xml_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/v1/geo/metadata": {
+      "get": {
+        "tags": [
+          "discovery",
+          "ai-first"
+        ],
+        "summary": "Get Geo Metadata",
+        "description": "Return Generative Engine Optimization (GEO) structured metadata and entity anchors.",
+        "operationId": "get_geo_metadata_api_v1_geo_metadata_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Geo Metadata Api V1 Geo Metadata Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "discovery",
+          "ai-first"
+        ],
+        "summary": "Root Content Negotiation",
+        "description": "Root endpoint supporting HTTP Content Negotiation (Accept: text/markdown vs json).",
+        "operationId": "root_content_negotiation__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
           }
         }
       }
@@ -1182,7 +1502,7 @@
           "telecom-intelligence"
         ],
         "summary": "Batch Classify Telecom Messages",
-        "description": "High-throughput batch ingestion endpoint for bulk SMS stream evaluation.",
+        "description": "High-throughput batch ingestion endpoint using vectorized ONNX CPU inference.",
         "operationId": "batch_classify_telecom_messages_v1_events_batch_post",
         "requestBody": {
           "content": {
@@ -1211,6 +1531,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reset": {
+      "post": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Reset Telecom Telemetry",
+        "description": "Resets in-memory SentinelPulse telemetry, live feed buffer, and drift observations.",
+        "operationId": "reset_telecom_telemetry_v1_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Reset Telecom Telemetry V1 Reset Post"
                 }
               }
             }
@@ -1851,6 +2195,8 @@
               "open",
               "investigating",
               "pending_review",
+              "under_review",
+              "completed",
               "closed"
             ],
             "title": "Status",
@@ -1901,6 +2247,8 @@
               "open",
               "investigating",
               "pending_review",
+              "under_review",
+              "completed",
               "closed"
             ],
             "title": "Status"
@@ -1973,6 +2321,8 @@
               "open",
               "investigating",
               "pending_review",
+              "under_review",
+              "completed",
               "closed"
             ],
             "title": "Status"

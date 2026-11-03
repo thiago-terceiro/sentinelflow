@@ -1,6 +1,7 @@
 "use client";
 
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
+import { useSentinelPulse } from "@/components/SentinelPulseProvider";
 import type { TelecomFeedItem, TelecomVerdict } from "./types";
 
 type Props = {
@@ -30,31 +31,22 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   };
 };
 
-export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: Props) => {
-  const [liveFeed, setLiveFeed] = useState<TelecomFeedItem[]>(initialFeed);
-  const [filterVerdict, setFilterVerdict] = useState<string>("ALL");
-  const [isPaused, setIsPaused] = useState<boolean>(false);
-  const isPausedRef = useRef<boolean>(isPaused);
-  isPausedRef.current = isPaused;
+export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
+  const {
+    hasSession,
+    liveFeed: ctxLiveFeed,
+    isPaused,
+    setIsPaused,
+    isResetting,
+    resetGateway,
+  } = useSentinelPulse();
 
-  const [hasSession, setHasSession] = useState<boolean>(false);
+  const liveFeed = ctxLiveFeed.length > 0 ? ctxLiveFeed : initialFeed;
+  const [filterVerdict, setFilterVerdict] = useState<string>("ALL");
   const [escalatingIds, setEscalatingIds] = useState<Record<string, boolean>>({});
   const [escalatedDisputes, setEscalatedDisputes] = useState<
     Record<string, { id: string; case_code?: string; url: string }>
   >({});
-
-  // Detect user session for escalation actions
-  useEffect(() => {
-    try {
-      const hasToken = Boolean(
-        document.cookie.match(/(?:^|;\s*)sentinelflow_access_token=([^;]+)/) ||
-        document.cookie.match(/(?:^|;\s*)sentinelflow_test_user=([^;]+)/)
-      );
-      setHasSession(hasToken);
-    } catch {
-      setHasSession(false);
-    }
-  }, []);
 
   // Handle incoming query params and hash from the disputes page
   useEffect(() => {
@@ -77,68 +69,6 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
       // In SSR or non-browser environments
     }
   }, []);
-
-  // Sync initial feed when provided and liveFeed is empty
-  useEffect(() => {
-    if (initialFeed.length > 0) {
-      setLiveFeed((prev) => (prev.length === 0 ? initialFeed : prev));
-    }
-  }, [initialFeed]);
-
-  // Establish SSE stream once on mount - NEVER reconnect on pause/resume
-  useEffect(() => {
-    let es: EventSource | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    const connectSSE = () => {
-      try {
-        es = new EventSource("/app-api/telecom/stream");
-
-        es.onopen = () => {
-          if (onConnectionChange) {
-            onConnectionChange(true);
-          }
-        };
-
-        es.addEventListener("message", (event) => {
-          try {
-            const parsed = JSON.parse(event.data) as TelecomFeedItem;
-            if (!isPausedRef.current) {
-              setLiveFeed((prev) => [parsed, ...prev.slice(0, 49)]);
-            }
-          } catch (e) {
-            console.debug("Failed to parse SSE event", e);
-          }
-        });
-
-        es.onerror = () => {
-          if (onConnectionChange) {
-            onConnectionChange(false);
-          }
-          if (es) {
-            es.close();
-          }
-          reconnectTimeout = setTimeout(connectSSE, 4000);
-        };
-      } catch (err) {
-        console.warn("Error setting up EventSource", err);
-        if (onConnectionChange) {
-          onConnectionChange(false);
-        }
-      }
-    };
-
-    connectSSE();
-
-    return () => {
-      if (es) {
-        es.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-    };
-  }, [onConnectionChange]);
 
   const handleEscalate = async (item: TelecomFeedItem) => {
     if (!hasSession) {
@@ -213,10 +143,12 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
+          gap: 10,
           marginBottom: 14,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <h2 style={{ margin: "0 0 4px", fontSize: 20, letterSpacing: "-0.02em" }}>
             <span className="page-icon">🛰️ </span>Real-Time Inspection Feed
           </h2>
@@ -225,12 +157,15 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
           </span>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {/* Reset / Clear feed button */}
           <button
             type="button"
-            onClick={() => setLiveFeed([])}
-            title="Clear all buffered messages"
+            disabled={isResetting}
+            onClick={() => {
+              void resetGateway();
+            }}
+            title="Reset gateway telemetry and clear buffered messages"
             aria-label="Clear all buffered messages"
             style={{
               fontSize: 11,
@@ -239,11 +174,12 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
               border: "1px solid var(--panel-border)",
               background: "transparent",
               color: "var(--muted)",
-              cursor: "pointer",
+              cursor: isResetting ? "wait" : "pointer",
               fontWeight: 600,
             }}
           >
-            <span className="page-icon">🗑️ </span>Reset
+            <span className="page-icon">🗑️ </span>
+            {isResetting ? "Resetting..." : "Reset"}
           </button>
 
           <button
@@ -278,7 +214,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
       <div
         role="tablist"
         aria-label="Filter events by verdict"
-        style={{ display: "flex", gap: 6, marginBottom: 12 }}
+        style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}
       >
         {["ALL", "BLOCK", "FLAG", "ALLOW", "ESCALATED"].map((f) => {
           const isSelected = filterVerdict === f;
@@ -367,10 +303,12 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 6,
                     marginBottom: 6,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span
                       style={{
                         fontSize: 10,
@@ -390,7 +328,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                     <span style={{ color: "var(--muted)", fontSize: 11 }}>({ev.carrier})</span>
                   </div>
 
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     <span style={{ color: "var(--muted)", fontSize: 11 }}>
                       score: {ev.fraud_score}
                     </span>
@@ -406,6 +344,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [], onConnectionChange }: P
                     color: "var(--foreground)",
                     fontSize: 13,
                     lineHeight: 1.35,
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {ev.message}

@@ -17,12 +17,15 @@ from app.api.telecom import (
     batch_classify_telecom_messages,
     classify_telecom_message,
     get_prometheus_metrics,
+    reset_telecom_telemetry,
     seed_telecom_warmup,
 )
 from app.api.telecom import (
     router as telecom_router,
 )
 from app.config import get_settings
+from app.db.models import Base
+from app.db.seed import seed
 from app.db.session import engine
 from app.errors import install_error_handlers
 from app.graph.graph import close_checkpointer
@@ -39,6 +42,14 @@ configure_logging()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     seed_telecom_warmup()
+    if settings.APP_ENV != "test":
+        try:
+            if settings.DATABASE_URL.startswith("sqlite"):
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+            await seed()
+        except Exception:  # noqa: S110
+            pass
     yield
     await _drain_background_tasks()
     await get_velocity_store().close()
@@ -80,4 +91,5 @@ app.include_router(discovery_router)
 # Compatibility aliases requested for SentinelPulse Gateway
 app.post("/v1/classify", tags=["telecom-intelligence"])(classify_telecom_message)
 app.post("/v1/events/batch", tags=["telecom-intelligence"])(batch_classify_telecom_messages)
+app.post("/v1/reset", tags=["telecom-intelligence"])(reset_telecom_telemetry)
 app.get("/metrics", tags=["telecom-intelligence"])(get_prometheus_metrics)

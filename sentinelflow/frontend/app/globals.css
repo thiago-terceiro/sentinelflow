@@ -680,3 +680,68 @@ main {
   border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 
+/* ========================================================
+   Mobile & Responsive Overflow Protection (375px+)
+   ======================================================== */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+main,
+.shell-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.console-timeline-evidence-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.4fr);
+  gap: 18px;
+}
+
+.console-two-col-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.audit-compliance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.eval-benchmark-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .console-timeline-evidence-grid,
+  .console-two-col-grid,
+  .audit-compliance-grid,
+  .eval-benchmark-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  main {
+    padding: 16px 12px 48px !important;
+  }
+
+  .app-header {
+    padding: 10px 12px !important;
+  }
+
+  .shell-card {
+    padding: 16px !important;
+  }
+}
+
+

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { memo, useEffect, useId, useRef, useState } from "react";
+import React, { memo, useId, useRef, useState } from "react";
+import { useSentinelPulse } from "@/components/SentinelPulseProvider";
 import type { TelecomFeedItem, TelecomPreset, TelecomVerdict } from "./types";
 
 type Props = {
@@ -32,20 +33,7 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
 
 export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }: Props) => {
   const formId = useId();
-
-  const [hasSession, setHasSession] = useState<boolean>(false);
-
-  useEffect(() => {
-    try {
-      const hasToken = Boolean(
-        document.cookie.match(/(?:^|;\s*)sentinelflow_access_token=([^;]+)/) ||
-        document.cookie.match(/(?:^|;\s*)sentinelflow_test_user=([^;]+)/)
-      );
-      setHasSession(hasToken);
-    } catch {
-      setHasSession(false);
-    }
-  }, []);
+  const { hasSession } = useSentinelPulse();
 
   const [testSender, setTestSender] = useState<string>("+14155552671");
   const [testRecipient, setTestRecipient] = useState<string>("+14155559876");
@@ -233,7 +221,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
             gap: 12,
             marginBottom: 12,
           }}

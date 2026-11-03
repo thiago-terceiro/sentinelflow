@@ -419,92 +419,232 @@ async def escalate_telecom_anomaly(request: TelecomEscalateRequest) -> TelecomEs
 
 _WARMUP_EVENTS: tuple[tuple[str, str, str, str, float], ...] = (
     (
-        "+14155552671",
+        "+14155552601",
         "+14155559801",
         "Verizon Wireless",
         "Carrier security code: 492018. Valid for 5 minutes. Do not share this code.",
-        0.08,
-    ),
-    (
-        "+14155552672",
-        "+14155559802",
-        "AT&T Mobility",
-        "Your appointment with Dr. Chen is confirmed for tomorrow at 10:30 AM.",
-        0.06,
-    ),
-    (
-        "+14155552673",
-        "+14155559803",
-        "T-Mobile USA",
-        "Your pharmacy order #84920 is ready for pickup at Main St.",
         0.05,
     ),
     (
-        "+14155552674",
-        "+14155559804",
-        "Verizon Wireless",
-        "Flight UA492 boarding begins at Gate B14 in 30 minutes. Safe travels!",
-        0.09,
-    ),
-    (
-        "+14155552675",
-        "+14155559805",
+        "+14155552602",
+        "+14155559802",
         "AT&T Mobility",
-        "Your one-time login passcode is 773910. Never share this code with anyone.",
-        0.07,
-    ),
-    (
-        "+14155552676",
-        "+14155559806",
-        "T-Mobile USA",
-        "Reminder: Your monthly utility statement is available in the customer portal.",
-        0.11,
-    ),
-    (
-        "+14155552677",
-        "+14155559807",
-        "Verizon Wireless",
-        "Hi Alex, let us meet at the coffee shop on 4th Street around 2:15 PM today.",
-        0.04,
-    ),
-    (
-        "+14155552678",
-        "+14155559808",
-        "AT&T Mobility",
-        "Your grocery delivery driver is 5 minutes away with your fresh produce order.",
+        "Your appointment with Dr. Chen is confirmed for tomorrow at 10:30 AM.",
         0.08,
     ),
     (
-        "+14155552679",
-        "+14155559809",
+        "+14155552603",
+        "+14155559803",
         "T-Mobile USA",
-        "Direct deposit of $1,840.00 has been posted to your checking account today.",
-        0.10,
+        "Your pharmacy order #84920 is ready for pickup at Main St.",
+        0.12,
     ),
     (
-        "+14155552680",
-        "+14155559810",
+        "+14155552604",
+        "+14155559804",
         "Verizon Wireless",
-        "Security notice: Two-factor authentication code 918273 requested on web login.",
+        "Flight UA492 boarding begins at Gate B14 in 30 minutes. Safe travels!",
+        0.04,
+    ),
+    (
+        "+14155552605",
+        "+14155559805",
+        "AT&T Mobility",
+        "Your one-time login passcode is 773910. Never share this code with anyone.",
         0.06,
     ),
     (
-        "+14155552681",
+        "+14155552606",
+        "+14155559806",
+        "T-Mobile USA",
+        "Reminder: Your monthly utility statement is available in the customer portal.",
+        0.14,
+    ),
+    (
+        "+14155552607",
+        "+14155559807",
+        "Verizon Wireless",
+        "Hi Alex, let us meet at the coffee shop on 4th Street around 2:15 PM today.",
+        0.09,
+    ),
+    (
+        "+14155552608",
+        "+14155559808",
+        "AT&T Mobility",
+        "Your grocery delivery driver is 5 minutes away with your fresh produce order.",
+        0.07,
+    ),
+    (
+        "+14155552609",
+        "+14155559809",
+        "T-Mobile USA",
+        "Direct deposit of $1,840.00 has been posted to your checking account today.",
+        0.11,
+    ),
+    (
+        "+14155552610",
+        "+14155559810",
+        "Verizon Wireless",
+        "Security notice: Two-factor authentication code 918273 requested on web login.",
+        0.13,
+    ),
+    (
+        "+14155552611",
         "+14155559811",
         "AT&T Mobility",
         "Your library hold for Designing Data-Intensive Applications is ready for pickup.",
         0.05,
     ),
     (
-        "+14155552682",
+        "+14155552612",
         "+14155559812",
         "T-Mobile USA",
         "Thank you for visiting City Dental Clinic. Your receipt has been emailed to you.",
+        0.04,
+    ),
+    (
+        "+14155552613",
+        "+14155559813",
+        "Verizon Wireless",
+        "Your rideshare driver Marcus is arriving now in a silver Toyota Camry.",
+        0.08,
+    ),
+    (
+        "+14155552614",
+        "+14155559814",
+        "AT&T Mobility",
+        "Order #39201 has shipped via UPS Ground. Estimated delivery is Thursday.",
+        0.06,
+    ),
+    (
+        "+14155552615",
+        "+14155559815",
+        "T-Mobile USA",
+        "Your table for 4 at Bistro Verde is reserved for Friday at 7:00 PM.",
+        0.10,
+    ),
+    (
+        "+14155552616",
+        "+14155559816",
+        "Verizon Wireless",
+        "Verification code 661209 for your healthcare patient portal sign-in.",
+        0.07,
+    ),
+    (
+        "+14155552617",
+        "+14155559817",
+        "AT&T Mobility",
+        "Friendly reminder: Dental cleaning scheduled for Monday at 9:00 AM.",
         0.09,
     ),
     (
+        "+14155552618",
+        "+14155559818",
+        "T-Mobile USA",
+        "Your monthly cloud storage subscription ($2.99) was renewed automatically.",
+        0.12,
+    ),
+    (
+        "+14155552619",
+        "+14155559819",
+        "Verizon Wireless",
+        "Gate change notice: Flight DL204 will now depart from Gate C9 at 4:45 PM.",
+        0.08,
+    ),
+    (
+        "+14155552620",
+        "+14155559820",
+        "AT&T Mobility",
+        "Hi Mom, just landed safely in Chicago! Will call you once I get to the hotel.",
+        0.05,
+    ),
+    (
+        "+14155552621",
+        "+14155559821",
+        "T-Mobile USA",
+        "Your dry cleaning order (4 items) is ready for pickup at Express Cleaners.",
+        0.11,
+    ),
+    (
+        "+14155552622",
+        "+14155559822",
+        "Verizon Wireless",
+        "Passcode 309481: Use this code to confirm your wire transfer beneficiary.",
+        0.07,
+    ),
+    (
+        "+14155552623",
+        "+14155559823",
+        "AT&T Mobility",
+        "Weather Advisory: Light rain expected in San Francisco this evening.",
+        0.09,
+    ),
+    (
+        "+14155552624",
+        "+14155559824",
+        "T-Mobile USA",
+        "Your vehicle service is complete. Total balance due at pickup is $84.50.",
+        0.06,
+    ),
+    (
+        "+14155552625",
+        "+14155559825",
+        "Verizon Wireless",
+        "Team lunch moved to 12:30 PM in Conference Room B. See you there!",
+        0.08,
+    ),
+    (
+        "+14155552626",
+        "+14155559826",
+        "AT&T Mobility",
+        "Your fitness class reservation at Core Studio starts in 45 minutes.",
+        0.10,
+    ),
+    (
+        "+14155552627",
+        "+14155559827",
+        "T-Mobile USA",
+        "Package delivered: Your parcel was left near the front porch at 1:14 PM.",
+        0.05,
+    ),
+    (
+        "+14155552628",
+        "+14155559828",
+        "Verizon Wireless",
+        "Auth code: 558291 for workspace SSO login. Expires in 10 minutes.",
+        0.07,
+    ),
+    (
+        "+14155552629",
+        "+14155559829",
+        "AT&T Mobility",
+        "School district notice: Early dismissal tomorrow at 1:30 PM for staff training.",
+        0.06,
+    ),
+    (
+        "+14155552630",
+        "+14155559830",
+        "T-Mobile USA",
+        "Your pet grooming appointment for Bella is confirmed for Saturday at 11 AM.",
+        0.09,
+    ),
+    (
+        "+14155552631",
+        "+14155559831",
+        "Verizon Wireless",
+        "Autopay confirmation: $65.00 wireless plan payment processed successfully.",
+        0.08,
+    ),
+    (
+        "+14155552632",
+        "+14155559832",
+        "AT&T Mobility",
+        "Thanks for dining at Harbor Grill! Reply 1-5 to rate your experience tonight.",
+        0.04,
+    ),
+    (
         "+15550001231",
-        "+14155559813",
+        "+14155559833",
         "TextNow",
         (
             "URGENT: Chase Bank alert. Account suspended! Verify immediately at "
@@ -513,84 +653,74 @@ _WARMUP_EVENTS: tuple[tuple[str, str, str, str, float], ...] = (
         0.89,
     ),
     (
+        "+14155552634",
+        "+14155559834",
+        "T-Mobile USA",
+        "Your hardware store curbside pickup order #1104 is ready in Spot 3.",
+        0.11,
+    ),
+    (
+        "+14155552635",
+        "+14155559835",
+        "Verizon Wireless",
+        "Two-step verification code: 882104. Do not share this code with support.",
+        0.06,
+    ),
+    (
         "+15550001232",
-        "+14155559814",
+        "+14155559836",
         "Bandwidth.com",
         (
             "USPS Alert: Package 928301 held due to incomplete address. Pay $1.99 "
-            "customs fee now at http://tinyurl.com/usps-fee-pay"
+            "customs fee now at https://usps-redelivery-lookup.example/track"
         ),
-        0.86,
+        0.58,
     ),
     (
-        "+15550001233",
-        "+14155559815",
-        "Sinch Virtual",
-        (
-            "Exclusive Crypto VIP signal: Earn 300% guaranteed return on free "
-            "bitcoin in 24h! Claim now at http://cutt.ly/crypto-vip"
-        ),
-        0.92,
+        "+14155552637",
+        "+14155559837",
+        "AT&T Mobility",
+        "Your electric vehicle charging session at Station #14 has completed.",
+        0.07,
+    ),
+    (
+        "+14155552638",
+        "+14155559838",
+        "T-Mobile USA",
+        "Ticket confirmation: 2 seats for Symphony Night on Friday, Row G Seats 12-13.",
+        0.08,
     ),
     (
         "+15550001234",
-        "+14155559816",
+        "+14155559839",
         "TextNow",
         (
             "IRS FINAL NOTICE: Federal arrest warrant issued for delinquent taxes. "
             "Call or verify immediately at http://bit.ly/irs-pay"
         ),
-        0.94,
+        0.93,
     ),
     (
-        "+15550001235",
-        "+14155559817",
-        "Bandwidth.com",
-        (
-            "EZPass Toll Notice: You have an unpaid turnpike invoice of $6.40. "
-            "Avoid a $50 late fee at http://rb.gy/ezpass-toll-now"
-        ),
-        0.84,
-    ),
-    (
-        "+15550001236",
-        "+14155559818",
-        "Sinch Virtual",
-        (
-            "URGENT: Unauthorized login detected on your Wells Fargo account. "
-            "Unlock immediately at https://wellsfargo-verify.xyz/auth"
-        ),
-        0.91,
-    ),
-    (
-        "+15550001237",
-        "+14155559819",
-        "TextNow",
-        (
-            "FedEx Parcel Notice: Your shipment #FX9012 requires a redelivery fee "
-            "of $2.50. Update billing at http://is.gd/fedex-hold"
-        ),
-        0.82,
-    ),
-    (
-        "+15550001238",
-        "+14155559820",
-        "Bandwidth.com",
-        (
-            "SunPass Alert: Unpaid toll invoice requires immediate settlement to "
-            "prevent registration suspension: http://t.co/sunpass9"
-        ),
-        0.88,
+        "+14155552640",
+        "+14155559840",
+        "Verizon Wireless",
+        "Your morning coffee order (#412) is ready at the mobile pickup counter.",
+        0.05,
     ),
 )
 
+_warmup_seeded: bool = False
 
-def seed_telecom_warmup() -> None:
+
+def seed_telecom_warmup(force: bool = False) -> None:
     """Pre-warms in-memory SentinelPulse telemetry and drift baseline on cold startup."""
+    global _warmup_seeded
     metrics = get_metrics_tracker()
     drift = get_drift_monitor()
-    if metrics.get_summary()["total_requests"] > 0:
+    if not force and (_warmup_seeded or metrics.get_summary()["total_requests"] > 0):
+        _warmup_seeded = True
         return
+    _warmup_seeded = True
 
     engine = get_inference_engine()
     batch_results = engine.predict_batch([item[3] for item in _WARMUP_EVENTS])
@@ -599,7 +729,7 @@ def seed_telecom_warmup() -> None:
         inf_res,
     ) in enumerate(zip(_WARMUP_EVENTS, batch_results, strict=False)):
         safe_message, _ = redact_text(message)
-        score = max(inf_res.fraud_score, calibrated_score)
+        score = calibrated_score
         verdict: Literal["ALLOW", "BLOCK", "FLAG"] = (
             "BLOCK" if score >= 0.75 else ("FLAG" if score >= 0.40 else "ALLOW")
         )
@@ -689,6 +819,36 @@ async def get_telecom_drift_status() -> dict[str, Any]:
     }
 
 
+@router.post("/telecom/reset")
+async def reset_telecom_telemetry() -> dict[str, Any]:
+    """Resets in-memory SentinelPulse telemetry, live feed buffer, and drift observations."""
+    global _warmup_seeded
+    _warmup_seeded = True
+    metrics = get_metrics_tracker()
+    drift = get_drift_monitor()
+    metrics.reset()
+    drift.reset()
+    report = await drift.a_evaluate_drift(force=True)
+    await broadcast_telecom_event({"type": "reset", "status": "cleared"})
+    return {
+        "status": "cleared",
+        "metrics": metrics.get_summary(),
+        "drift": {
+            "status": report.status,
+            "ks_statistic": report.ks_statistic,
+            "ks_p_value": report.ks_p_value,
+            "ks_drift_detected": report.ks_drift_detected,
+            "psi_score": report.psi_score,
+            "psi_status": report.psi_status,
+            "sample_count": report.sample_count,
+            "baseline_sample_count": report.baseline_sample_count,
+            "mean_live_length": report.mean_live_length,
+            "mean_baseline_length": report.mean_baseline_length,
+            "recommendation": report.recommendation,
+        },
+    }
+
+
 @router.get("/telecom/stream")
 async def stream_telecom_events() -> StreamingResponse:
     """Server-Sent Events (SSE) feed for real-time dashboard live inspection."""
@@ -709,7 +869,10 @@ async def stream_telecom_events() -> StreamingResponse:
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=10.0)
-                    yield f"event: message\ndata: {json.dumps(event)}\n\n"
+                    if event.get("type") == "reset":
+                        yield f"event: reset\ndata: {json.dumps(event)}\n\n"
+                    else:
+                        yield f"event: message\ndata: {json.dumps(event)}\n\n"
                 except TimeoutError:
                     yield f"event: heartbeat\ndata: {json.dumps({'time': time.time()})}\n\n"
         finally:

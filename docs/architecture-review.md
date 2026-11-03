@@ -402,3 +402,34 @@ Every remediation across all four cycles has been validated by automated CI test
   * Reasoning Depth: 99.2%
 - Production Next.js Build: Compiled successfully (0 build errors, static sitemap prerendered)
 ```
+
+
+---
+
+## Cycle 5: Live Browser & Mobile Responsiveness Review
+*(Focus: Auth-State Consistency, Root Pre-Warmed SSE Provider, Server-Side Telemetry Reset, Realistic Threat Calibration, and Zero 375px Horizontal Overflow)*
+
+The fifth cycle audited live browser interactions and mobile viewports (`375x812` and `1440x900`) to eliminate state-synchronization flicker, confusing telemetry baselines, and mobile horizontal overflow.
+
+### Finding 5.1: Unauthenticated Queue Clutter, Seed Bloat, & Unbounded Dispute Lists
+- **The Trap**: Landing on `/` while signed out rendered an empty `"Seeded disputes (0 cases)"` card or raw authentication errors, while stray escalated cases polluted the database beyond the 5 showcase disputes (`SF-10001` through `SF-10005`). Furthermore, `DisputeStatus` schema validation rejected `"completed"` and `"under_review"` statuses set by the showcase seed runner.
+- **Architectural Remediation**:
+  1. In [`page.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/page.tsx), gated the disputes queue behind `hasSession` so unauthenticated visitors see a clean Sign-In CTA card, while authenticated users receive a bounded scrollable queue (`maxHeight: 460px`, `overflowY: "auto"`) with status filter pills (`All`, `Open`, `Under Review`, `Completed`).
+  2. In [`seed.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/db/seed.py), enforced strict cleanup of non-showcase disputes on seed execution and aligned [`schemas/disputes.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/schemas/disputes.py) (`DisputeStatus`) with all lifecycle states.
+
+### Finding 5.2: SSE Tab-Switch Flicker ("GATEWAY RECONNECTING") & HttpOnly Session Mismatch
+- **The Trap**: Navigating between `/` and `/telecom` unmounted the page-level `EventSource`, causing a multi-second `"GATEWAY RECONNECTING"` flash on every tab switch. Additionally, checking `document.cookie` on the client failed when session cookies were `httpOnly`.
+- **Architectural Remediation**:
+  1. Created [`SentinelPulseProvider.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/SentinelPulseProvider.tsx) mounted in the root [`layout.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/layout.tsx), pre-warming the `/api/v1/telecom/stream` SSE connection and telemetry snapshots once at application load so tab transitions are instantaneous with zero reconnect flicker.
+  2. Passed server-read `initialHasSession`, `initialUsername`, and `initialRole` from the root Server Component into `SentinelPulseProvider` for consistent authentication state across `/`, `/telecom`, and `/audit`.
+
+### Finding 5.3: Client-Only Reset Illusion & 40% Warmup Threat Ratio
+- **The Trap**: Clicking "Reset" on SentinelPulse cleared only local React state, allowing the next 3-second poll to restore old backend events. Meanwhile, the 10-event warmup buffer produced a 40% threat ratio that looked like an active outage rather than healthy carrier traffic.
+- **Architectural Remediation**:
+  1. Added `POST /api/v1/telecom/reset` in [`api/telecom.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/telecom.py) (`reset_telecom_telemetry`) and `.reset()` methods on [`TelecomMetricsTracker`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/telecom/telecom_metrics.py) and [`DataDriftMonitor`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/telecom/drift_monitor.py), broadcasting a `reset` SSE event to all connected clients.
+  2. Calibrated `_WARMUP_EVENTS` to 40 realistic carrier events (37 `ALLOW`, 1 `FLAG`, 2 `BLOCK` = **7.5% Threat Ratio**) and aligned `BASELINE_LENGTHS` / `BASELINE_FRAUD_SCORES` so PSI starts `STABLE` (`< 0.10`).
+
+### Finding 5.4: Mobile (`375x812`) Horizontal Scroll Overflow
+- **The Trap**: Fixed `minmax(240px, 1fr)` grids, unwrapped monospace hashes/traces, and wide padding caused horizontal overflow (`scrollWidth > clientWidth`) on `375px` mobile screens.
+- **Architectural Remediation**:
+  1. Added responsive media queries (`@media (max-width: 768px)` and `@media (max-width: 640px)`), `min-width: 0` grid children, `overflow-wrap: anywhere` on long identifiers, and mobile-friendly header/drawer layouts across [`globals.css`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/globals.css), [`InvestigationConsole.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/InvestigationConsole.tsx), [`TelecomLiveFeed.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/telecom/TelecomLiveFeed.tsx), and [`audit/page.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/audit/page.tsx).

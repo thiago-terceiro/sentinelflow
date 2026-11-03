@@ -163,6 +163,7 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
         style={{
           display: "flex",
           alignItems: "center",
+          flexWrap: "wrap",
           gap: 12,
           padding: "10px 14px",
           borderRadius: 8,

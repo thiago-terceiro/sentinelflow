@@ -28,7 +28,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
         gap: 16,
         marginBottom: 24,
       }}
@@ -36,6 +36,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
       {/* Throughput Card */}
       <div
         className="shell-card"
+        title="Rolling 5-second message ingestion rate and cumulative carrier volume"
         style={{
           padding: "20px 22px",
           minHeight: 170,
@@ -69,6 +70,9 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
             </span>
             <span style={{ fontSize: 13, color: "var(--muted)" }}>events / sec</span>
           </div>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted)", lineHeight: 1.35 }}>
+            Rolling 5s ingress rate across active carrier trunks
+          </p>
         </div>
         <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
           Total processed:{" "}
@@ -82,6 +86,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
       {/* Latency Percentiles Card */}
       <div
         className="shell-card"
+        title="End-to-end synchronous gateway latency including Redis velocity pipeline and ONNX CPU inference (<15ms p95 SLA)"
         style={{
           padding: "20px 22px",
           minHeight: 170,
@@ -100,7 +105,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
               textTransform: "uppercase",
             }}
           >
-            Inference Latency SLA
+            Inference Latency SLA (&lt;15ms p95)
           </span>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
             <div style={{ display: "flex", gap: 24 }}>
@@ -134,13 +139,14 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
           </div>
         </div>
         <div style={{ marginTop: 8, fontSize: 12, color: "#22c55e" }}>
-          ✓ Within 15ms target envelope
+          ✓ Within 15ms target envelope (ONNX + Redis)
         </div>
       </div>
 
       {/* Fraud Rate Card */}
       <div
         className="shell-card"
+        title="Percentage of inspected messages classified as FLAG (>=0.40) or BLOCK (>=0.75) out of total carrier volume"
         style={{
           padding: "20px 22px",
           minHeight: 170,
@@ -174,8 +180,11 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
             </span>
             <span style={{ fontSize: 13, color: "var(--muted)" }}>threat ratio</span>
           </div>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted)", lineHeight: 1.35 }}>
+            Share of messages flagged or blocked (~5–8% carrier baseline)
+          </p>
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 11 }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 11, flexWrap: "wrap" }}>
           <span style={{ color: "#22c55e" }}>Allow: {metrics.verdicts.allow}</span>
           <span style={{ color: "#eab308" }}>Flag: {metrics.verdicts.flag}</span>
           <span style={{ color: "#ef4444" }}>Block: {metrics.verdicts.block}</span>
@@ -185,6 +194,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
       {/* MLOps Drift Health Card */}
       <div
         className="shell-card"
+        title="Online Kolmogorov-Smirnov (message length p-value) and Population Stability Index (score shift <0.10 stable) vs. training baseline"
         style={{
           padding: "20px 22px",
           minHeight: 170,
@@ -203,7 +213,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
               textTransform: "uppercase",
             }}
           >
-            MLOps Data Drift
+            MLOps Data Drift (KS / PSI)
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
             <span
@@ -220,11 +230,16 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
               {drift?.status ?? "HEALTHY"}
             </span>
           </div>
+          <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--muted)", lineHeight: 1.35 }}>
+            KS length test (p≥0.05) &amp; PSI score shift (&lt;0.10 stable)
+          </p>
         </div>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8,
             marginTop: 8,
             fontSize: 11,
             color: "var(--muted)",

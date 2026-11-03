@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { NavbarLinks } from "@/components/NavbarLinks";
+import { SentinelPulseProvider } from "@/components/SentinelPulseProvider";
 import { StructuredData } from "@/components/StructuredData";
 import { StyleSwitcher } from "@/components/StyleSwitcher";
 import { ACCESS_TOKEN_COOKIE_NAME, TEST_USER_COOKIE_NAME } from "@/lib/testAuth";
@@ -50,61 +51,63 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
         <StructuredData />
       </head>
       <body>
-        <header className="app-header">
-          <div className="app-header-inner">
-            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-              <Link
-                href="/"
-                style={{
-                  fontWeight: 700,
-                  fontSize: 16,
-                  textDecoration: "none",
-                  color: "var(--foreground)",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                <span className="nav-icon">⚡ </span>SentinelFlow
-              </Link>
-
-              <NavbarLinks hasSession={hasSession} userRole={role ?? null} />
-            </div>
-
-
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <StyleSwitcher />
-              {hasSession && sessionLabel ? (
-                <span
+        <SentinelPulseProvider
+          initialHasSession={hasSession}
+          initialUsername={username || null}
+          initialRole={role || null}
+        >
+          <header className="app-header">
+            <div className="app-header-inner">
+              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <Link
+                  href="/"
                   style={{
-                    fontSize: 12,
-                    padding: "3px 8px",
-                    borderRadius: 999,
-                    background: "rgba(255,255,255,0.06)",
+                    fontWeight: 700,
+                    fontSize: 16,
+                    textDecoration: "none",
                     color: "var(--foreground)",
+                    letterSpacing: "-0.02em",
                   }}
                 >
-                  {sessionLabel}
-                </span>
-              ) : null}
-              {hasSession ? (
-                <Link
-                  href="/auth/logout"
-                  prefetch={false}
-                  style={{ color: "var(--muted)", fontSize: 13, textDecoration: "none" }}
-                >
-                  Sign out
+                  <span className="nav-icon">⚡ </span>SentinelFlow
                 </Link>
-              ) : (
-                <Link
-                  href="/login"
-                  className="nav-signin-btn"
-                >
-                  Sign in
-                </Link>
-              )}
+
+                <NavbarLinks hasSession={hasSession} userRole={role ?? null} />
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <StyleSwitcher />
+                {hasSession && sessionLabel ? (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      padding: "3px 8px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.06)",
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    {sessionLabel}
+                  </span>
+                ) : null}
+                {hasSession ? (
+                  <Link
+                    href="/auth/logout"
+                    prefetch={false}
+                    style={{ color: "var(--muted)", fontSize: 13, textDecoration: "none" }}
+                  >
+                    Sign out
+                  </Link>
+                ) : (
+                  <Link href="/login" className="nav-signin-btn">
+                    Sign in
+                  </Link>
+                )}
+              </div>
             </div>
-          </div>
-        </header>
-        {children}
+          </header>
+          {children}
+        </SentinelPulseProvider>
       </body>
     </html>
   );

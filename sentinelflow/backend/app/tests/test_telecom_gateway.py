@@ -299,3 +299,46 @@ def test_onnx_predict_proba_batch_vectorized() -> None:
     assert 0.0 <= probs[0] <= 1.0
     assert 0.0 <= probs[1] <= 1.0
     assert engine.predict_proba_batch([]) == []
+
+
+@pytest.mark.asyncio
+async def test_telecom_warmup_realistic_ratio_and_reset_endpoint() -> None:
+    """Verifies warmup threat ratio (~7.5%) and permanent reset via POST /api/v1/telecom/reset."""
+    from app.api.telecom import seed_telecom_warmup
+    from app.telecom.telecom_metrics import get_metrics_tracker
+
+    get_metrics_tracker().reset()
+    get_drift_monitor().reset()
+    seed_telecom_warmup(force=True)
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        summary_resp = await client.get("/api/v1/telecom/metrics/summary")
+        assert summary_resp.status_code == 200
+        summary = summary_resp.json()
+        assert summary["total_requests"] == 40
+        assert summary["fraud_rate_pct"] == 7.5
+        assert summary["verdicts"] == {"allow": 37, "flag": 1, "block": 2}
+
+        drift_resp = await client.get("/api/v1/telecom/drift")
+        assert drift_resp.status_code == 200
+        drift = drift_resp.json()
+        assert drift["status"] == "HEALTHY"
+        assert drift["psi_status"] == "STABLE"
+
+        reset_resp = await client.post("/api/v1/telecom/reset")
+        assert reset_resp.status_code == 200
+        reset_data = reset_resp.json()
+        assert reset_data["status"] == "cleared"
+        assert reset_data["metrics"]["total_requests"] == 0
+        assert reset_data["metrics"]["recent_feed"] == []
+
+        # Subsequent summary poll must NOT re-seed warmup events after reset
+        after_resp = await client.get("/api/v1/telecom/metrics/summary")
+        assert after_resp.status_code == 200
+        after_data = after_resp.json()
+        assert after_data["total_requests"] == 0
+        assert after_data["recent_feed"] == []
+
+        # Restore warmup state for any subsequent tests
+        seed_telecom_warmup(force=True)

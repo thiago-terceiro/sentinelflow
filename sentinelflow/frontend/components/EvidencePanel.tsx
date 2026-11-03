@@ -37,8 +37,16 @@ export const EvidencePanel = memo(
 
     return (
       <section className="shell-card" style={{ padding: 24, minHeight: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <h2>Evidence Provenance</h2>
             {highlightedEvidenceId ? (
               <span
@@ -175,13 +183,17 @@ export const EvidencePanel = memo(
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 6,
                     paddingTop: 8,
                     borderTop: "1px solid rgba(255,255,255,0.06)",
                     fontSize: 11,
                     color: "var(--muted)",
                   }}
                 >
-                  <span style={{ fontFamily: "monospace" }}>{item.provenance}</span>
+                  <span style={{ fontFamily: "monospace", overflowWrap: "anywhere" }}>
+                    {item.provenance}
+                  </span>
                   {item.collected_at ? (
                     <span>{new Date(item.collected_at).toLocaleTimeString()}</span>
                   ) : null}

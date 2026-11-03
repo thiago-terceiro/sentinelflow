@@ -18,7 +18,7 @@ from scipy import stats
 
 logger = logging.getLogger(__name__)
 
-# Baseline training distribution reference (pre-computed from training dataset)
+# Baseline training distribution reference (~92.5% benign, ~7.5% fraud/anomaly)
 BASELINE_LENGTHS: list[int] = [
     68,
     62,
@@ -57,49 +57,9 @@ BASELINE_LENGTHS: list[int] = [
     67,
     68,
     56,
-    74,
-    63,
-    60,
     115,
     114,
     126,
-    128,
-    123,
-    113,
-    118,
-    115,
-    117,
-    124,
-    110,
-    110,
-    110,
-    118,
-    110,
-    119,
-    110,
-    114,
-    116,
-    108,
-    110,
-    110,
-    115,
-    114,
-    114,
-    117,
-    111,
-    109,
-    111,
-    112,
-    112,
-    110,
-    114,
-    116,
-    115,
-    114,
-    113,
-    115,
-    112,
-    110,
 ]
 
 BASELINE_FRAUD_SCORES: list[float] = [
@@ -108,7 +68,7 @@ BASELINE_FRAUD_SCORES: list[float] = [
     0.12,
     0.04,
     0.06,
-    0.15,
+    0.14,
     0.09,
     0.07,
     0.11,
@@ -129,32 +89,20 @@ BASELINE_FRAUD_SCORES: list[float] = [
     0.06,
     0.08,
     0.10,
-    0.85,
-    0.92,
-    0.78,
-    0.88,
-    0.95,
+    0.05,
+    0.07,
+    0.06,
+    0.09,
+    0.08,
+    0.04,
+    0.11,
+    0.06,
+    0.07,
+    0.08,
+    0.05,
+    0.58,
     0.89,
-    0.82,
-    0.91,
-    0.87,
-    0.94,
-    0.79,
-    0.86,
     0.93,
-    0.90,
-    0.81,
-    0.89,
-    0.92,
-    0.84,
-    0.96,
-    0.88,
-    0.91,
-    0.85,
-    0.93,
-    0.87,
-    0.90,
-    0.82,
 ]
 
 
@@ -207,6 +155,13 @@ class DataDriftMonitor:
         self._cached_report: DriftReport | None = None
         self._cached_at: float = 0.0
         self._cache_ttl_seconds: float = 5.0
+
+    def reset(self) -> None:
+        """Clears live observation windows and invalidates the cached drift report."""
+        self._message_lengths.clear()
+        self._fraud_scores.clear()
+        self._cached_report = None
+        self._cached_at = 0.0
 
     def record_observation(self, message: str, fraud_score: float) -> None:
         """Records an incoming message's length and resulting fraud score."""

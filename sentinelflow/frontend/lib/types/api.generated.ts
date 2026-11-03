@@ -371,7 +371,7 @@ export interface paths {
         put?: never;
         /**
          * Batch Classify Telecom Messages
-         * @description High-throughput batch ingestion endpoint for bulk SMS stream evaluation.
+         * @description High-throughput batch ingestion endpoint using vectorized ONNX CPU inference.
          */
         post: operations["batch_classify_telecom_messages_api_v1_telecom_events_batch_post"];
         delete?: never;
@@ -420,6 +420,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/telecom/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Telecom Telemetry
+         * @description Resets in-memory SentinelPulse telemetry, live feed buffer, and drift observations.
+         */
+        post: operations["reset_telecom_telemetry_api_v1_telecom_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/telecom/stream": {
         parameters: {
             query?: never;
@@ -460,6 +480,246 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/.well-known/mcp.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Mcp Discovery Manifest
+         * @description Return public MCP server discovery manifest (2024-11-05 standard).
+         */
+        get: operations["get_mcp_discovery_manifest_api_v1__well_known_mcp_json_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/sse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mcp Sse Transport
+         * @description Server-Sent Events endpoint establishing an interactive MCP remote session.
+         */
+        get: operations["mcp_sse_transport_api_v1_mcp_sse_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mcp Messages Transport
+         * @description Handle incoming JSON-RPC 2.0 messages from agents over MCP protocol.
+         */
+        post: operations["mcp_messages_transport_api_v1_mcp_messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/.well-known/mcp.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Mcp Discovery Manifest
+         * @description Return public MCP server discovery manifest (2024-11-05 standard).
+         */
+        get: operations["get_mcp_discovery_manifest__well_known_mcp_json_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mcp/sse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mcp Sse Transport
+         * @description Server-Sent Events endpoint establishing an interactive MCP remote session.
+         */
+        get: operations["mcp_sse_transport_mcp_sse_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mcp/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mcp Messages Transport
+         * @description Handle incoming JSON-RPC 2.0 messages from agents over MCP protocol.
+         */
+        post: operations["mcp_messages_transport_mcp_messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/robots.txt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Robots Txt
+         * @description Return decoupled robots.txt separating training scrapers from search/citation crawlers.
+         */
+        get: operations["get_robots_txt_robots_txt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/llms.txt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Llms Txt
+         * @description Return standard llms.txt curated manifest for AI agents and LLMs.
+         */
+        get: operations["get_llms_txt_llms_txt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/llms-full.txt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Llms Full Txt
+         * @description Return full concatenated markdown technical reference for 1-turn context loading.
+         */
+        get: operations["get_llms_full_txt_llms_full_txt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sitemap.xml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sitemap Xml
+         * @description Return XML sitemap for search crawlers and AI search engine indexing.
+         */
+        get: operations["get_sitemap_xml_sitemap_xml_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geo/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Geo Metadata
+         * @description Return Generative Engine Optimization (GEO) structured metadata and entity anchors.
+         */
+        get: operations["get_geo_metadata_api_v1_geo_metadata_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Root Content Negotiation
+         * @description Root endpoint supporting HTTP Content Negotiation (Accept: text/markdown vs json).
+         */
+        get: operations["root_content_negotiation__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/classify": {
         parameters: {
             query?: never;
@@ -491,9 +751,29 @@ export interface paths {
         put?: never;
         /**
          * Batch Classify Telecom Messages
-         * @description High-throughput batch ingestion endpoint for bulk SMS stream evaluation.
+         * @description High-throughput batch ingestion endpoint using vectorized ONNX CPU inference.
          */
         post: operations["batch_classify_telecom_messages_v1_events_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Telecom Telemetry
+         * @description Resets in-memory SentinelPulse telemetry, live feed buffer, and drift observations.
+         */
+        post: operations["reset_telecom_telemetry_v1_reset_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -761,7 +1041,7 @@ export interface components {
              * @default open
              * @enum {string}
              */
-            status: "open" | "investigating" | "pending_review" | "closed";
+            status: "open" | "investigating" | "pending_review" | "under_review" | "completed" | "closed";
             /** Attributes */
             attributes?: {
                 [key: string]: unknown;
@@ -786,7 +1066,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "open" | "investigating" | "pending_review" | "closed";
+            status: "open" | "investigating" | "pending_review" | "under_review" | "completed" | "closed";
             /**
              * Created At
              * Format: date-time
@@ -820,7 +1100,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "open" | "investigating" | "pending_review" | "closed";
+            status: "open" | "investigating" | "pending_review" | "under_review" | "completed" | "closed";
             /**
              * Created At
              * Format: date-time
@@ -1859,6 +2139,28 @@ export interface operations {
             };
         };
     };
+    reset_telecom_telemetry_api_v1_telecom_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     stream_telecom_events_api_v1_telecom_stream_get: {
         parameters: {
             query?: never;
@@ -1896,6 +2198,266 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+        };
+    };
+    get_mcp_discovery_manifest_api_v1__well_known_mcp_json_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    mcp_sse_transport_api_v1_mcp_sse_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    mcp_messages_transport_api_v1_mcp_messages_post: {
+        parameters: {
+            query?: {
+                session_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_mcp_discovery_manifest__well_known_mcp_json_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    mcp_sse_transport_mcp_sse_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    mcp_messages_transport_mcp_messages_post: {
+        parameters: {
+            query?: {
+                session_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_robots_txt_robots_txt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    get_llms_txt_llms_txt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    get_llms_full_txt_llms_full_txt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    get_sitemap_xml_sitemap_xml_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_geo_metadata_api_v1_geo_metadata_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    root_content_negotiation__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -1961,6 +2523,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_telecom_telemetry_v1_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

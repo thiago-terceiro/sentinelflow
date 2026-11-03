@@ -21,7 +21,15 @@ export const AnalyzerPanel = memo(
   }: Props) => {
     return (
       <section className="shell-card" style={{ padding: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
           <h2>Analyzer Findings & Contradictions</h2>
           <span style={{ color: "var(--muted)", fontSize: 13 }}>{analyzers.length} analyzers</span>
         </div>
@@ -108,6 +116,7 @@ export const AnalyzerPanel = memo(
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      flexWrap: "wrap",
                       gap: 6,
                       fontSize: 11,
                       paddingTop: 8,

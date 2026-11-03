@@ -9,18 +9,25 @@ import { AuditComplianceCards } from "@/components/AuditComplianceCards";
 import { AuditTable } from "@/components/AuditTable";
 import { AuditDetailDrawer } from "@/components/AuditDetailDrawer";
 import { AuditCorrectionModal } from "@/components/AuditCorrectionModal";
+import { useSentinelPulse } from "@/components/SentinelPulseProvider";
 
 export const AuditPage = () => {
+  const { userRole } = useSentinelPulse();
   const [records, setRecords] = useState<AuditRecord[]>([]);
   const [integrity, setIntegrity] = useState<AuditIntegrity | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<AuditRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"ledger" | "evals">("ledger");
-  const [authRole, setAuthRole] = useState<string | null>(null);
-  const [hasAuthChecked, setHasAuthChecked] = useState(false);
+  const [authRole, setAuthRole] = useState<string | null>(userRole);
+  const [hasAuthChecked, setHasAuthChecked] = useState(Boolean(userRole));
 
   useEffect(() => {
+    if (userRole) {
+      setAuthRole(userRole);
+      setHasAuthChecked(true);
+      return;
+    }
     let role: string | null = null;
     try {
       const match = document.cookie.match(/(?:^|;\s*)sentinelflow_test_user=([^;]+)/);
@@ -34,7 +41,7 @@ export const AuditPage = () => {
     }
     setAuthRole(role);
     setHasAuthChecked(true);
-  }, []);
+  }, [userRole]);
 
   const isAuthorized = authRole === "auditor" || authRole === "admin";
 
@@ -223,12 +230,21 @@ export const AuditPage = () => {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
           gap: 16,
           marginBottom: 20,
         }}
       >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+        <div style={{ minWidth: 0, flex: "1 1 240px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 10,
+              marginBottom: 4,
+            }}
+          >
             <span
               style={{
                 fontSize: 11,
@@ -252,7 +268,9 @@ export const AuditPage = () => {
               Auditor Role Active
             </span>
           </div>
-          <h1 style={{ margin: 0 }}>SentinelFlow Audit Ledger & Traces</h1>
+          <h1 style={{ margin: 0, fontSize: "clamp(1.45rem, 3.5vw, 2.2rem)" }}>
+            SentinelFlow Audit Ledger & Traces
+          </h1>
           <p style={{ margin: "6px 0 0 0", color: "var(--muted)", fontSize: 13 }}>
             Continuous AI compliance, PII redaction verification, and fine-tuning telemetry for EU
             AI Act & SOC 2.
@@ -266,14 +284,12 @@ export const AuditPage = () => {
             style={{
               border: "1px solid var(--panel-border)",
               borderRadius: 999,
-              padding: "10px 22px",
-              minWidth: 200,
+              padding: "10px 18px",
               background: "rgba(255,255,255,0.05)",
               color: "inherit",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
-              whiteSpace: "nowrap",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -288,14 +304,12 @@ export const AuditPage = () => {
             style={{
               border: "1px solid var(--panel-border)",
               borderRadius: 999,
-              padding: "10px 22px",
-              minWidth: 180,
+              padding: "10px 18px",
               background: "rgba(255,255,255,0.05)",
               color: "inherit",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
-              whiteSpace: "nowrap",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -325,46 +339,46 @@ export const AuditPage = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-            <button
-              onClick={() => setActiveTab("ledger")}
-              style={{
-                padding: "10px 18px",
-                borderRadius: 999,
-                fontSize: 13,
-                fontWeight: 600,
-                border:
-                  activeTab === "ledger"
-                    ? "1px solid var(--accent)"
-                    : "1px solid rgba(255,255,255,0.1)",
-                background:
-                  activeTab === "ledger" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
-                color: activeTab === "ledger" ? "var(--foreground)" : "var(--muted)",
-                cursor: "pointer",
-              }}
-            >
-              <span className="page-icon">📋 </span>Audit Ledger & Traces
-            </button>
-            <button
-              onClick={() => setActiveTab("evals")}
-              style={{
-                padding: "10px 18px",
-                borderRadius: 999,
-                fontSize: 13,
-                fontWeight: 600,
-                border:
-                  activeTab === "evals"
-                    ? "1px solid var(--accent)"
-                    : "1px solid rgba(255,255,255,0.1)",
-                background:
-                  activeTab === "evals" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
-                color: activeTab === "evals" ? "var(--foreground)" : "var(--muted)",
-                cursor: "pointer",
-              }}
-            >
-              <span className="page-icon">🎯 </span>AI Model Evaluations & Continuous Improvement
-            </button>
-          </div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+        <button
+          onClick={() => setActiveTab("ledger")}
+          style={{
+            padding: "10px 18px",
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 600,
+            border:
+              activeTab === "ledger"
+                ? "1px solid var(--accent)"
+                : "1px solid rgba(255,255,255,0.1)",
+            background:
+              activeTab === "ledger" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+            color: activeTab === "ledger" ? "var(--foreground)" : "var(--muted)",
+            cursor: "pointer",
+          }}
+        >
+          <span className="page-icon">📋 </span>Audit Ledger & Traces
+        </button>
+        <button
+          onClick={() => setActiveTab("evals")}
+          style={{
+            padding: "10px 18px",
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 600,
+            border:
+              activeTab === "evals"
+                ? "1px solid var(--accent)"
+                : "1px solid rgba(255,255,255,0.1)",
+            background:
+              activeTab === "evals" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+            color: activeTab === "evals" ? "var(--foreground)" : "var(--muted)",
+            cursor: "pointer",
+          }}
+        >
+          <span className="page-icon">🎯 </span>AI Model Evaluations & Continuous Improvement
+        </button>
+      </div>
 
       {activeTab === "evals" ? (
         <AiEvaluationBenchmarkPanel />
@@ -388,7 +402,14 @@ export const AuditPage = () => {
           >
             <form
               onSubmit={handleSearchSubmit}
-              style={{ display: "flex", gap: 10, alignItems: "center", flex: 1, minWidth: 260 }}
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+                flex: "1 1 200px",
+                minWidth: 0,
+              }}
             >
               <input
                 type="text"
@@ -401,7 +422,8 @@ export const AuditPage = () => {
                   border: "1px solid var(--panel-border)",
                   background: "var(--input-bg, #ffffff)",
                   color: "inherit",
-                  flex: 1,
+                  flex: "1 1 160px",
+                  minWidth: 0,
                   fontSize: 13,
                 }}
               />
@@ -423,7 +445,7 @@ export const AuditPage = () => {
               </button>
             </form>
 
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: 12, color: "var(--muted)" }}>Event Type:</span>
               <select
                 value={eventFilter}
@@ -435,6 +457,7 @@ export const AuditPage = () => {
                   background: "var(--input-bg, #ffffff)",
                   color: "inherit",
                   fontSize: 13,
+                  maxWidth: "100%",
                 }}
               >
                 <option value="all">All Events</option>
@@ -445,7 +468,7 @@ export const AuditPage = () => {
                 <option value="approval.decision">Reviewer Steering & Approvals</option>
               </select>
 
-              <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>Limit:</span>
+              <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 4 }}>Limit:</span>
               <select
                 value={limit}
                 onChange={(e) => setLimit(Number(e.target.value))}

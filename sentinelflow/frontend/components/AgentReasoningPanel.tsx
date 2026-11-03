@@ -273,7 +273,7 @@ export const AgentReasoningPanel = memo(
                     </div>
 
                     <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
                         <span style={{ color: "var(--muted)" }}>Supporting:</span>
                         {h.supporting_evidence_ids.length > 0 ? (
                           h.supporting_evidence_ids.map((id) => {
@@ -325,7 +325,7 @@ export const AgentReasoningPanel = memo(
                         )}
                       </div>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
                         <span style={{ color: "var(--muted)" }}>Contradicting:</span>
                         {h.contradicting_evidence_ids.length > 0 ? (
                           h.contradicting_evidence_ids.map((id) => {

@@ -278,10 +278,11 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            flexWrap: "wrap",
             gap: 16,
           }}
         >
-          <div>
+          <div style={{ minWidth: 0, flex: "1 1 220px" }}>
             <p
               style={{
                 margin: 0,
@@ -293,16 +294,25 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
             >
               SentinelFlow Agent Console
             </p>
-            <h1 style={{ marginBottom: 0, marginTop: 4 }}>Dispute {disputeId}</h1>
+            <h1
+              style={{
+                marginBottom: 0,
+                marginTop: 4,
+                fontSize: "clamp(1.35rem, 3.5vw, 2.2rem)",
+                overflowWrap: "anywhere",
+              }}
+            >
+              Dispute {disputeId}
+            </h1>
           </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={() => setShowGenUI((prev) => !prev)}
               style={{
                 border: "1px solid var(--border)",
                 borderRadius: 999,
-                padding: "12px 20px",
+                padding: "10px 18px",
                 background: showGenUI ? "rgba(59,130,246,0.15)" : "transparent",
                 color: showGenUI ? "var(--accent)" : "inherit",
                 fontSize: 13,
@@ -320,7 +330,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
               style={{
                 border: 0,
                 borderRadius: 999,
-                padding: "14px 24px",
+                padding: "12px 20px",
                 background: "var(--accent)",
                 color: "white",
                 fontWeight: 600,
@@ -471,14 +481,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
         />
 
         {/* Timeline and Evidence Panels with Cross-Panel Linking */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(260px, 0.9fr) minmax(0, 1.4fr)",
-            gap: 20,
-            alignItems: "start",
-          }}
-        >
+        <div className="console-timeline-evidence-grid" style={{ alignItems: "start" }}>
           <InvestigationTimeline status={state.status} events={state.timeline} />
           <EvidencePanel
             evidence={state.evidence}
@@ -489,7 +492,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
         </div>
 
         {/* Risk and Analyzers with Cross-Panel Linking */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20 }}>
+        <div className="console-two-col-grid">
           <RiskPanel risk={state.riskAssessment} />
           <AnalyzerPanel
             analyzers={state.analyzerSummaries}

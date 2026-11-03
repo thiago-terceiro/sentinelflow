@@ -5,7 +5,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-DisputeStatus = Literal["open", "investigating", "pending_review", "closed"]
+DisputeStatus = Literal[
+    "open",
+    "investigating",
+    "pending_review",
+    "under_review",
+    "completed",
+    "closed",
+]
 
 
 class DisputeSummary(BaseModel):

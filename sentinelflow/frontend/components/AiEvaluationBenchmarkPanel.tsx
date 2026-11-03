@@ -208,7 +208,13 @@ export const AiEvaluationBenchmarkPanel = () => {
 
       {/* Run Action Header */}
       <div
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
       >
         <div>
           <h3 style={{ margin: 0, fontSize: 16 }}>Golden Archetype Benchmark Trajectories</h3>
@@ -237,9 +243,7 @@ export const AiEvaluationBenchmarkPanel = () => {
       </div>
 
       {/* Cases and Detail Grid */}
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: 16, alignItems: "start" }}
-      >
+      <div className="eval-benchmark-grid">
         {/* Cases List */}
         <div
           className="shell-card"

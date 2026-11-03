@@ -9,7 +9,7 @@ from app.db.models import DisputeRecord, InvestigationRecord
 from app.db.session import SessionLocal
 from app.security import Principal, Role
 from app.services.audit import record_audit_event
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 CASES: list[dict[str, Any]] = [
@@ -134,10 +134,9 @@ async def _seed_showcase_investigations(
     session: AsyncSession,
     disputes_by_code: dict[str, DisputeRecord],
 ) -> None:
-    existing_inv = (
-        await session.execute(select(InvestigationRecord.id).limit(1))
-    ).scalar_one_or_none()
-    if existing_inv is not None:
+    existing_inv1 = await session.get(InvestigationRecord, "inv_seed_sf_10001")
+    existing_inv2 = await session.get(InvestigationRecord, "inv_seed_sf_10002")
+    if existing_inv1 is not None and existing_inv2 is not None:
         return
 
     now = datetime.now(UTC)
@@ -148,7 +147,7 @@ async def _seed_showcase_investigations(
     # Showcase 1: SF-10001 — Completed 2-Iteration Human-Steered Investigation
     # -------------------------------------------------------------------------
     sf1 = disputes_by_code.get("SF-10001") or disputes_by_code.get("SF-A")
-    if sf1 is not None:
+    if sf1 is not None and existing_inv1 is None:
         inv1_id = "inv_seed_sf_10001"
         t0 = now - timedelta(minutes=12)
         ev_tx = {
@@ -619,7 +618,7 @@ async def _seed_showcase_investigations(
     # Showcase 2: SF-10002 — Paused Awaiting Human Approval Investigation
     # -------------------------------------------------------------------------
     sf2 = disputes_by_code.get("SF-10002") or disputes_by_code.get("SF-B")
-    if sf2 is not None:
+    if sf2 is not None and existing_inv2 is None:
         inv2_id = "inv_seed_sf_10002"
         t2 = now - timedelta(minutes=6)
         ev2_tx = {
@@ -892,9 +891,21 @@ async def _seed_showcase_investigations(
 
 
 async def seed_session(session: AsyncSession) -> None:
+    showcase_codes = {case["case_code"] for case in CASES}
     existing = await session.execute(select(DisputeRecord))
     existing_records = list(existing.scalars())
-    disputes_by_code: dict[str, DisputeRecord] = {r.case_code: r for r in existing_records}
+
+    stray_ids = [r.id for r in existing_records if r.case_code not in showcase_codes]
+    if stray_ids:
+        await session.execute(
+            delete(InvestigationRecord).where(InvestigationRecord.dispute_id.in_(stray_ids))
+        )
+        await session.execute(delete(DisputeRecord).where(DisputeRecord.id.in_(stray_ids)))
+        await session.commit()
+
+    disputes_by_code: dict[str, DisputeRecord] = {
+        r.case_code: r for r in existing_records if r.case_code in showcase_codes
+    }
 
     base_time = datetime.now(UTC)
     for idx, case in enumerate(CASES):

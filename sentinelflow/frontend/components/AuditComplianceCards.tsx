@@ -11,14 +11,7 @@ export const AuditComplianceCards = ({ integrity, recordCount }: Props) => {
   const isChainValid = integrity?.valid !== false;
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-        gap: 16,
-        marginBottom: 20,
-      }}
-    >
+    <div className="audit-compliance-grid">
       {/* Cryptographic hash chain */}
       <div className="shell-card" style={{ padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>

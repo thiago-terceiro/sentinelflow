@@ -80,6 +80,14 @@ class TelecomMetricsTracker:
         self._counts: dict[str, int] = {"ALLOW": 0, "BLOCK": 0, "FLAG": 0}
         self._total_requests: int = 0
 
+    def reset(self) -> None:
+        """Clears rolling telemetry buffers and resets verdict counters."""
+        self._latencies.clear()
+        self._timestamps.clear()
+        self._recent_events.clear()
+        self._counts = {"ALLOW": 0, "BLOCK": 0, "FLAG": 0}
+        self._total_requests = 0
+
     def record_event(
         self,
         event_id: str,

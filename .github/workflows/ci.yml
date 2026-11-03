@@ -306,8 +306,10 @@ jobs:
         working-directory: sentinelflow/backend
         run: uv sync
 
-      - name: Run database migrations
+      - name: Run database migrations and showcase seed
         working-directory: sentinelflow/backend
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: uv run alembic upgrade head
+        run: |
+          uv run alembic upgrade head
+          uv run python -m app.db.seed

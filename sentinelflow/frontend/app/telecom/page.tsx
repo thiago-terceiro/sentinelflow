@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React from "react";
+import { useSentinelPulse } from "@/components/SentinelPulseProvider";
 import { TelecomClassifySandbox } from "@/components/telecom/TelecomClassifySandbox";
 import { TelecomLiveFeed } from "@/components/telecom/TelecomLiveFeed";
 import { TelecomTelemetryCards } from "@/components/telecom/TelecomTelemetryCards";
@@ -50,60 +51,19 @@ const BASELINE_DRIFT: DriftReport = {
   recommendation: "Baseline calibrated. Distribution healthy.",
 };
 
+const EMPTY_METRICS: MetricsSummary = {
+  total_requests: 0,
+  throughput_eps: 0,
+  verdicts: { allow: 0, flag: 0, block: 0 },
+  fraud_rate_pct: 0,
+  latency: { p50_ms: 0, p90_ms: 0, p95_ms: 0, p99_ms: 0, avg_ms: 0 },
+  recent_feed: [],
+};
+
 const TelecomDashboardPage = () => {
-  const [metrics, setMetrics] = useState<MetricsSummary>({
-    total_requests: 0,
-    throughput_eps: 0,
-    verdicts: { allow: 0, flag: 0, block: 0 },
-    fraud_rate_pct: 0,
-    latency: { p50_ms: 0, p90_ms: 0, p95_ms: 0, p99_ms: 0, avg_ms: 0 },
-    recent_feed: [],
-  });
-
-  const [drift, setDrift] = useState<DriftReport>(BASELINE_DRIFT);
-  const [connected, setConnected] = useState<boolean>(false);
-
-  const fetchMetrics = useCallback(async () => {
-    try {
-      const res = await fetch("/app-api/telecom/metrics/summary");
-      if (res.ok) {
-        const data = (await res.json()) as MetricsSummary;
-        setMetrics(data);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch telecom metrics summary", err);
-    }
-  }, []);
-
-  const fetchDrift = useCallback(async () => {
-    try {
-      const res = await fetch("/app-api/telecom/drift");
-      if (res.ok) {
-        const data = (await res.json()) as DriftReport;
-        setDrift(data);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch drift report", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchMetrics();
-    void fetchDrift();
-
-    const interval = setInterval(() => {
-      void fetchMetrics();
-      void fetchDrift();
-    }, 3000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [fetchMetrics, fetchDrift]);
-
-  const handleConnectionChange = useCallback((isLive: boolean) => {
-    setConnected(isLive);
-  }, []);
+  const { metrics: ctxMetrics, drift: ctxDrift, connected, refreshTelemetry } = useSentinelPulse();
+  const metrics = ctxMetrics ?? EMPTY_METRICS;
+  const drift = ctxDrift ?? BASELINE_DRIFT;
 
   return (
     <main>
@@ -127,7 +87,7 @@ const TelecomDashboardPage = () => {
             gap: 16,
           }}
         >
-          <div>
+          <div style={{ minWidth: 0, flex: "1 1 260px" }}>
             <div
               style={{
                 display: "inline-flex",
@@ -158,7 +118,13 @@ const TelecomDashboardPage = () => {
                 {connected ? "LIVE GATEWAY STREAM ACTIVE" : "GATEWAY RECONNECTING"}
               </span>
             </div>
-            <h1 style={{ margin: "8px 0 12px", fontSize: "clamp(2.4rem, 4.5vw, 4rem)" }}>
+            <h1
+              style={{
+                margin: "8px 0 12px",
+                fontSize: "clamp(1.75rem, 4vw, 3.2rem)",
+                overflowWrap: "anywhere",
+              }}
+            >
               <span className="page-icon">📡 </span>SentinelPulse: SMS Intelligence Gateway
             </h1>
             <p style={{ maxWidth: 700, margin: 0, color: "var(--muted)", lineHeight: 1.6 }}>
@@ -168,7 +134,7 @@ const TelecomDashboardPage = () => {
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <span
               className="sla-pill"
               style={{
@@ -196,13 +162,10 @@ const TelecomDashboardPage = () => {
         style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}
       >
         {/* Interactive Simulator Section */}
-        <TelecomClassifySandbox presets={PRESETS} onClassificationSuccess={fetchMetrics} />
+        <TelecomClassifySandbox presets={PRESETS} onClassificationSuccess={refreshTelemetry} />
 
         {/* Live Event Stream Feed */}
-        <TelecomLiveFeed
-          initialFeed={metrics.recent_feed}
-          onConnectionChange={handleConnectionChange}
-        />
+        <TelecomLiveFeed initialFeed={metrics.recent_feed} />
       </div>
     </main>
   );

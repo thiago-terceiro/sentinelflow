@@ -42,7 +42,15 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, onDecision 
 
   return (
     <section className="shell-card" style={{ padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
         <div>
           <h2>Human Approval & Steering (LangGraph Interrupt)</h2>
           <p style={{ color: "var(--muted)", margin: "4px 0 16px 0" }}>
