@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { NavbarLinks } from "@/components/NavbarLinks";
+import { NavSignInButton } from "@/components/NavSignInButton";
 import { SentinelPulseProvider } from "@/components/SentinelPulseProvider";
 import { StructuredData } from "@/components/StructuredData";
 import { StyleSwitcher } from "@/components/StyleSwitcher";
@@ -33,7 +34,10 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
   const hasSession = Boolean(cookieStore.get(ACCESS_TOKEN_COOKIE_NAME)?.value);
   const userInfo = cookieStore.get(TEST_USER_COOKIE_NAME)?.value ?? "";
   const [username, role] = userInfo.split(":", 2);
-  const sessionLabel = username && role ? `${username} (${role})` : null;
+  const capitalizedUsername = username
+    ? username.charAt(0).toUpperCase() + username.slice(1)
+    : "";
+  const sessionLabel = capitalizedUsername || null;
 
   return (
     <html
@@ -99,9 +103,7 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
                     Sign out
                   </Link>
                 ) : (
-                  <Link href="/login" className="nav-signin-btn">
-                    Sign in
-                  </Link>
+                  <NavSignInButton />
                 )}
               </div>
             </div>

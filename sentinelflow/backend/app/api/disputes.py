@@ -5,8 +5,9 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import DBSessionDep, PrincipalDep
 from app.db.models import DisputeRecord, InvestigationRecord
@@ -131,18 +132,35 @@ async def create_dispute(
     )
 
 
+async def _resolve_dispute(session: AsyncSession, dispute_id: str) -> DisputeRecord | None:
+    dispute = await session.get(DisputeRecord, dispute_id)
+    if dispute is not None:
+        return dispute
+    result = await session.execute(
+        select(DisputeRecord).where(
+            func.lower(DisputeRecord.case_code) == dispute_id.strip().lower()
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 @router.post("/disputes/{dispute_id}/investigations", response_model=InvestigationRun)
 async def start_investigation(
     dispute_id: str,
     session: DBSessionDep,
     principal: PrincipalDep,
 ) -> InvestigationRun:
-    principal.require_any(Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.ADMIN)
-    dispute = await session.get(DisputeRecord, dispute_id)
+    principal.require_any(
+        Role.INVESTIGATOR,
+        Role.SENIOR_INVESTIGATOR,
+        Role.REVIEWER,
+        Role.ADMIN,
+    )
+    dispute = await _resolve_dispute(session, dispute_id)
     if dispute is None:
         raise NotFoundError("DISPUTE_NOT_FOUND", "Dispute was not found.")
     record = InvestigationRecord(
-        dispute_id=dispute_id,
+        dispute_id=dispute.id,
         thread_id=f"thread_{uuid4().hex[:12]}",
         status="pending",
         created_by=principal.user_id,
@@ -155,7 +173,7 @@ async def start_investigation(
         actor=principal,
         event_name="investigation.started",
         payload={"investigation_id": record.id, "status": record.status},
-        dispute_id=dispute_id,
+        dispute_id=dispute.id,
         investigation_id=record.id,
     )
     scheduled = await schedule_investigation(record.id, PrincipalContext.from_principal(principal))
@@ -187,12 +205,12 @@ async def get_latest_dispute_investigation(
         Role.AUDITOR,
         Role.ADMIN,
     )
-    dispute = await session.get(DisputeRecord, dispute_id)
+    dispute = await _resolve_dispute(session, dispute_id)
     if dispute is None:
         raise NotFoundError("DISPUTE_NOT_FOUND", "Dispute was not found.")
     result = await session.execute(
         select(InvestigationRecord)
-        .where(InvestigationRecord.dispute_id == dispute_id)
+        .where(InvestigationRecord.dispute_id == dispute.id)
         .order_by(InvestigationRecord.created_at.desc())
         .limit(1)
     )

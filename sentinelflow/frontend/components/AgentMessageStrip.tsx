@@ -23,6 +23,33 @@ const fallbackMessage = (status: Props["status"]) => {
 
 export const AgentMessageStrip = memo(({ message, status }: Props) => {
   const isActive = status === "RUNNING" || status === "APPROVAL_REQUIRED";
+  const isFinalized = status === "COMPLETED";
+  const isFailed = status === "FAILED";
+
+  const getDotStyle = () => {
+    if (isFinalized) {
+      return {
+        background: "var(--success, #22c55e)",
+        boxShadow: "0 0 8px rgba(34, 197, 94, 0.6)",
+      };
+    }
+    if (isActive) {
+      return {
+        background: "var(--accent, #2563eb)",
+        boxShadow: "0 0 8px rgba(37, 99, 235, 0.6)",
+      };
+    }
+    if (isFailed) {
+      return {
+        background: "var(--danger, #ef4444)",
+        boxShadow: "0 0 8px rgba(239, 68, 68, 0.6)",
+      };
+    }
+    return {
+      background: "rgba(15, 23, 42, 0.2)",
+      boxShadow: "none",
+    };
+  };
 
   return (
     <section
@@ -40,8 +67,8 @@ export const AgentMessageStrip = memo(({ message, status }: Props) => {
           width: 10,
           height: 10,
           borderRadius: 999,
-          background: isActive ? "var(--accent)" : "rgba(255,255,255,0.18)",
           flexShrink: 0,
+          ...getDotStyle(),
         }}
       />
       <p

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Awaitable, Callable, Iterable
 from typing import cast
+from uuid import uuid4
 
 from app.graph.prompts import investigator_iteration, investigator_system
 from app.schemas.disputes import DisputeDetail
@@ -145,14 +146,40 @@ class InvestigatorAgent:
         )
         if llm_result is not None:
             return llm_result.value, llm_result
-        return self._heuristic_iteration(
+        heuristic_val = self._heuristic_iteration(
             dispute=dispute,
             evidence=evidence,
             analyzers=analyzers,
             failed_tools=failed_tools,
             failed_analyzers=failed_analyzers,
             reviewer_guidance=sanitized_guidance,
-        ), None
+        )
+        settings = getattr(self.gateway, "settings", None)
+        if settings is not None and getattr(settings, "APP_ENV", "development") != "production":
+            if on_delta is not None:
+                await on_delta(
+                    f"Evaluating {len(evidence)} evidence signals against "
+                    f"hypotheses using {settings.MODEL_NAME}..."
+                )
+            simulated_meta = LLMCallResult[InvestigatorIteration](
+                value=heuristic_val,
+                provider=settings.MODEL_PROVIDER,
+                model_used=settings.MODEL_NAME,
+                deployment_id=settings.MODEL_DEPLOYMENT_ID,
+                response_id=f"sim_resp_{uuid4().hex[:8]}",
+                prompt_template_id=PROMPT_TEMPLATE_ID,
+                prompt_template_version=PROMPT_TEMPLATE_VERSION,
+                prompt_template_sha256=PROMPT_TEMPLATE_SHA256,
+                input_tokens=len(prompt) // 4 + 64,
+                output_tokens=len(heuristic_val.thought_process) // 4 + 180,
+                reasoning_tokens=len(heuristic_val.thought_process) // 4,
+                latency_ms=145.0,
+                prompt_text=prompt,
+                output_text=heuristic_val.model_dump_json(indent=2),
+                reasoning_text=heuristic_val.thought_process,
+            )
+            return heuristic_val, simulated_meta
+        return heuristic_val, None
 
     def _heuristic_iteration(
         self,

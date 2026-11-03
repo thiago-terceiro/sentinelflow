@@ -22,6 +22,33 @@ const sourceLabel = (origin: Evidence["origin"]) => {
   return "Observed fact";
 };
 
+const formatCategory = (category: string): string => {
+  const map: Record<string, string> = {
+    carrier_telecom: "Carrier & Telecom Signals",
+    device_fingerprint: "Device Intelligence",
+    transaction_history: "Transaction Ledger",
+    merchant_profile: "Merchant Risk Profile",
+    customer_dispute: "Cardholder Claim",
+    transaction: "Transaction Record",
+    customer: "Cardholder Profile",
+    device: "Device Intelligence",
+    merchant: "Merchant Record",
+  };
+  return map[category] ?? category.replace(/_/g, " ");
+};
+
+const formatProvenance = (provenance: string): string => {
+  const map: Record<string, string> = {
+    "tools.telecom_carrier.query_ss7": "Telecom SS7 Routing Audit",
+    "app.tools.db.query": "Database Record Lookup",
+    "analyzer.fraud_scoring": "Fraud Risk Engine",
+    "tools.device.fingerprint": "Device Fingerprint Service",
+    "tools.transaction.lookup": "Core Banking Gateway",
+    "tools.merchant.profile": "Merchant Risk Directory",
+  };
+  return map[provenance] ?? provenance.replace(/^tools\./, "").replace(/^app\./, "");
+};
+
 export const EvidencePanel = memo(
   ({ evidence, isLoading, highlightedEvidenceId, onSelectEvidence }: Props) => {
     const cardRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -36,7 +63,7 @@ export const EvidencePanel = memo(
     }, [highlightedEvidenceId]);
 
     return (
-      <section className="shell-card" style={{ padding: 24, minHeight: 0 }}>
+      <section id="investigation-evidence" aria-label="Investigation evidence" className="shell-card" style={{ padding: 24, minHeight: 0 }}>
         <div
           style={{
             display: "flex",
@@ -70,7 +97,7 @@ export const EvidencePanel = memo(
           style={{
             display: "grid",
             gap: 12,
-            height: 560,
+            maxHeight: 560,
             overflowY: "auto",
             paddingRight: 6,
             alignContent: "start",
@@ -123,6 +150,7 @@ export const EvidencePanel = memo(
             return (
               <article
                 key={item.id}
+                id={`evidence-${item.id}`}
                 ref={(el) => {
                   cardRefs.current[item.id] = el;
                 }}
@@ -168,7 +196,7 @@ export const EvidencePanel = memo(
                         letterSpacing: "0.08em",
                       }}
                     >
-                      {sourceLabel(item.origin)} · {item.category}
+                      {sourceLabel(item.origin)} · {formatCategory(item.category)}
                     </span>
                   </div>
                   <span style={{ color: "var(--muted)", fontSize: 13, fontWeight: 600 }}>
@@ -192,7 +220,7 @@ export const EvidencePanel = memo(
                   }}
                 >
                   <span style={{ fontFamily: "monospace", overflowWrap: "anywhere" }}>
-                    {item.provenance}
+                    Source: {formatProvenance(item.provenance)}
                   </span>
                   {item.collected_at ? (
                     <span>{new Date(item.collected_at).toLocaleTimeString()}</span>

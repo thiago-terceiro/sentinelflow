@@ -587,14 +587,33 @@ async def _enqueue_job(
     job_id: str,
     payload: dict[str, Any],
 ) -> bool:
-    pool = await get_redis_pool()
     trace_carrier: dict[str, str] = {}
     propagate.inject(trace_carrier)
     enriched_payload = (
         {**payload, "_trace_carrier": trace_carrier} if trace_carrier else dict(payload)
     )
-    job = await pool.enqueue_job(job_name, enriched_payload, _job_id=job_id)
-    return job is not None
+    pool = await get_redis_pool()
+    if pool is not None:
+        try:
+            job = await pool.enqueue_job(job_name, enriched_payload, _job_id=job_id)
+            if job is not None:
+                return True
+        except Exception as exc:
+            logger.warning(
+                "Redis pool enqueue failed for %s (%s); falling back to in-process execution",
+                job_name,
+                exc,
+            )
+
+    # In-process asynchronous task execution fallback
+    # Guarantees investigations execute live without external standalone ARQ workers
+    if job_name == RUN_JOB:
+        asyncio.create_task(run_investigation_job({}, enriched_payload))
+        return True
+    if job_name == RESUME_JOB:
+        asyncio.create_task(run_resume_investigation_job({}, enriched_payload))
+        return True
+    return False
 
 
 async def _mark_failed_with_reason(investigation_id: str, reason: str) -> None:

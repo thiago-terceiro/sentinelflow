@@ -136,8 +136,8 @@ export const AgentReasoningPanel = memo(
             style={{
               padding: 16,
               borderRadius: 12,
-              background: "rgba(15,23,42,0.4)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              background: "var(--card-subtle-bg, #f8fafc)",
+              border: "1px solid var(--panel-border)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -151,7 +151,7 @@ export const AgentReasoningPanel = memo(
                 margin: 0,
                 fontSize: 13,
                 lineHeight: 1.6,
-                color: "var(--foreground)",
+                color: "var(--ink, #0f172a)",
                 whiteSpace: "pre-wrap",
               }}
             >

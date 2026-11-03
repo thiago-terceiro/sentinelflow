@@ -92,13 +92,16 @@ const eventBadge = (event: StreamEvent): string => {
 export const InvestigationTimeline = memo(({ status, events }: Props) => {
   return (
     <section
+      id="investigation-timeline"
+      aria-label="Investigation timeline"
       className="shell-card"
       style={{
         padding: 24,
-        height: 1000,
+        maxHeight: 700,
+        minHeight: 120,
         overflow: "hidden",
-        display: "grid",
-        gridTemplateRows: "auto auto minmax(0, 1fr)",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <p
@@ -111,7 +114,7 @@ export const InvestigationTimeline = memo(({ status, events }: Props) => {
       >
         Investigation timeline
       </p>
-      <h2 style={{ marginTop: 12 }}>Status: {status}</h2>
+      <h2 style={{ margin: "8px 0 14px", fontSize: 18 }}>Status: {status}</h2>
       <ul
         style={{
           listStyle: "none",
@@ -120,11 +123,13 @@ export const InvestigationTimeline = memo(({ status, events }: Props) => {
           display: "grid",
           gap: 14,
           overflowY: "auto",
-          minHeight: 0,
+          maxHeight: 580,
           paddingRight: 8,
         }}
       >
-        {events.length === 0 ? <li>No timeline events yet.</li> : null}
+        {events.length === 0 ? (
+          <li style={{ color: "var(--muted)", fontSize: 13 }}>No timeline events yet.</li>
+        ) : null}
         {events.map((event) => (
           <li key={event.id} style={{ borderLeft: "3px solid var(--accent)", paddingLeft: 12 }}>
             <div

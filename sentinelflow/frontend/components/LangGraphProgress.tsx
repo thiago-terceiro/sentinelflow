@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import React, { memo } from "react";
 
 type StageKey = "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
 
@@ -12,10 +12,10 @@ type StageConfig = {
 
 const STAGES: StageConfig[] = [
   { key: "intake", label: "Intake", sublabel: "State init" },
-  { key: "investigate", label: "Investigate", sublabel: "LLM reasoning" },
+  { key: "investigate", label: "Investigating", sublabel: "LLM reasoning" },
   { key: "collect", label: "Collect", sublabel: "Tools & analyzers" },
   { key: "synthesize", label: "Synthesize", sublabel: "Evidence synthesis" },
-  { key: "approval", label: "Approval", sublabel: "Human interrupt" },
+  { key: "approval", label: "Reviewer Audit", sublabel: "Human interrupt" },
   { key: "finalize", label: "Finalize", sublabel: "Audit & commit" },
 ];
 
@@ -38,6 +38,22 @@ export const LangGraphProgress = memo(({ currentPhase = "intake", status, review
   const currentIndex = stageOrder[currentPhase] ?? 0;
   const isCompleted = status === "COMPLETED";
   const isFailed = status === "FAILED";
+
+  const getStageHeader = (): string => {
+    if (isCompleted) {
+      return "COMPLETED (Audit Ledger Committed)";
+    }
+    if (status === "APPROVAL_REQUIRED") {
+      return "APPROVAL REQUIRED (Human Interrupt)";
+    }
+    if (status === "RUNNING") {
+      return `${currentPhase.toUpperCase()} (Running)`;
+    }
+    if (isFailed) {
+      return "FAILED";
+    }
+    return currentPhase.toUpperCase();
+  };
 
   return (
     <div className="shell-card" style={{ padding: "20px 24px" }}>
@@ -62,7 +78,17 @@ export const LangGraphProgress = memo(({ currentPhase = "intake", status, review
           </span>
           <h3 style={{ margin: "2px 0 0 0", fontSize: 16, fontWeight: 600 }}>
             Active Graph State:{" "}
-            <span style={{ color: "var(--accent)" }}>{currentPhase.toUpperCase()}</span>
+            <span
+              style={{
+                color: isCompleted
+                  ? "var(--success)"
+                  : isFailed
+                  ? "var(--danger)"
+                  : "var(--accent)",
+              }}
+            >
+              {getStageHeader()}
+            </span>
           </h3>
         </div>
         {reviewerGuidance ? (
@@ -85,9 +111,9 @@ export const LangGraphProgress = memo(({ currentPhase = "intake", status, review
         style={{
           display: "flex",
           alignItems: "center",
-          position: "relative",
-          gap: 8,
+          gap: 6,
           overflowX: "auto",
+          paddingBottom: 4,
         }}
       >
         {STAGES.map((stage, idx) => {
@@ -113,25 +139,23 @@ export const LangGraphProgress = memo(({ currentPhase = "intake", status, review
           }
 
           return (
-            <div
-              key={stage.key}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                flex: 1,
-                minWidth: 110,
-              }}
-            >
+            <React.Fragment key={stage.key}>
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
+                  justifyContent: "center",
                   alignItems: "flex-start",
-                  padding: "8px 12px",
+                  padding: "10px 14px",
                   borderRadius: 10,
                   border: `1px solid ${badgeColor}`,
                   background: isCurrent ? "rgba(99,102,241,0.06)" : "transparent",
-                  width: "100%",
+                  flex: 1,
+                  minWidth: 120,
+                  height: 72,
+                  minHeight: 72,
+                  maxHeight: 72,
+                  boxSizing: "border-box",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -142,20 +166,42 @@ export const LangGraphProgress = memo(({ currentPhase = "intake", status, review
                       borderRadius: "50%",
                       background: dotBg,
                       display: "inline-block",
+                      flexShrink: 0,
                     }}
                   />
                   <span style={{ fontSize: 13, fontWeight: 600, color: textColor }}>
                     {stage.label}
                   </span>
                 </div>
-                <span style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "var(--muted)",
+                    marginTop: 3,
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {stage.sublabel}
                 </span>
               </div>
               {idx < STAGES.length - 1 ? (
-                <span style={{ color: "var(--muted)", margin: "0 4px", fontSize: 14 }}>→</span>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--muted)",
+                    fontSize: 16,
+                    padding: "0 4px",
+                    flexShrink: 0,
+                    userSelect: "none",
+                  }}
+                  aria-hidden="true"
+                >
+                  →
+                </div>
               ) : null}
-            </div>
+            </React.Fragment>
           );
         })}
       </div>

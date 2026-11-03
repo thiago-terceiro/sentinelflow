@@ -3,6 +3,16 @@
 import { memo } from "react";
 import { AnalyzerSummary } from "@/lib/types";
 
+const formatAnalyzer = (name: string): string => {
+  const map: Record<string, string> = {
+    fraud_scoring: "Fraud Risk Scoring Engine",
+    device_intelligence: "Device Fingerprint & IP Intelligence",
+    identity_crosscheck: "Identity & Profile Cross-Check",
+    telecom_velocity: "Telecom SS7 Velocity Monitor",
+  };
+  return map[name] ?? name.replace(/_/g, " ");
+};
+
 type Props = {
   analyzers: AnalyzerSummary[];
   highlightedEvidenceId?: string | null;
@@ -64,7 +74,7 @@ export const AnalyzerPanel = memo(
                     marginBottom: 8,
                   }}
                 >
-                  <strong style={{ fontSize: 15 }}>{item.analyzer}</strong>
+                  <strong style={{ fontSize: 15 }}>{formatAnalyzer(item.analyzer)}</strong>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>
                     {Math.round(item.confidence * 100)}% confidence
                   </span>
@@ -128,14 +138,22 @@ export const AnalyzerPanel = memo(
                       const isLinked = id === highlightedEvidenceId;
                       const isPinned =
                         pinnedEvidenceId !== undefined ? pinnedEvidenceId === id : isLinked;
+                      const friendlyLabel = `Evidence #${id.replace(/^evd_0*/, "") || id}`;
                       return (
                         <button
                           key={id}
                           type="button"
                           aria-pressed={isPinned}
+                          title={`Jump to ${id}`}
                           onClick={() => {
                             if (onHighlightEvidence) {
                               onHighlightEvidence(isPinned ? null : id);
+                            }
+                            if (typeof document !== "undefined") {
+                              document.getElementById(`evidence-${id}`)?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "nearest",
+                              });
                             }
                           }}
                           onMouseEnter={() => {
@@ -149,19 +167,19 @@ export const AnalyzerPanel = memo(
                             }
                           }}
                           style={{
-                            padding: "2px 6px",
+                            padding: "3px 8px",
                             borderRadius: 4,
                             background: isLinked ? "var(--accent)" : "rgba(255,255,255,0.08)",
-                            color: isLinked ? "#10231e" : "var(--foreground)",
+                            color: isLinked ? "#ffffff" : "var(--foreground)",
                             border: isLinked
                               ? "1px solid var(--accent)"
                               : "1px solid var(--panel-border)",
                             cursor: "pointer",
-                            fontFamily: "monospace",
+                            fontSize: 11,
                             fontWeight: 600,
                           }}
                         >
-                          {id}
+                          {friendlyLabel}
                         </button>
                       );
                     })}

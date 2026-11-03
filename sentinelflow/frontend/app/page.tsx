@@ -34,7 +34,15 @@ const HomePage = () => {
         setFetchError(null);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to load disputes.";
-        setFetchError(message);
+        const isAuthError =
+          message.toLowerCase().includes("auth") ||
+          message.includes("401") ||
+          message.includes("403");
+        if (isAuthError) {
+          setFetchError(null);
+        } else {
+          setFetchError(message);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -121,7 +129,7 @@ const HomePage = () => {
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <Link
-              href="/login"
+              href="/login?returnTo=/"
               style={{
                 display: "inline-flex",
                 alignItems: "center",

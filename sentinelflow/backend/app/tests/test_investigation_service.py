@@ -893,6 +893,21 @@ async def test_enqueue_job_injects_w3c_trace_carrier(monkeypatch: Any) -> None:
     )
 
 
+async def test_enqueue_job_in_process_fallback_when_redis_unavailable(monkeypatch: Any) -> None:
+    from app.services.investigations import _enqueue_job
+
+    async def _fake_no_redis() -> None:
+        return None
+
+    monkeypatch.setattr("app.services.investigations.get_redis_pool", _fake_no_redis)
+    enqueued = await _enqueue_job(
+        "run_investigation_job",
+        job_id="investigation:inv_fallback_1:active",
+        payload={"investigation_id": "inv_fallback_1", "principal_id": "actor_1"},
+    )
+    assert enqueued is True
+
+
 async def test_persist_graph_state_appends_approval_required_on_interrupt() -> None:
     record = cast(
         InvestigationRecord,

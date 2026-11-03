@@ -2,9 +2,22 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { TEST_AUTH_USERS, sanitizeReturnPath, type TestAuthRole } from "@/lib/testAuth";
+
+// Order roles as requested: Reviewer, Auditor, Admin, Investigator, Senior Investigator
+const ROLE_DISPLAY_ORDER: TestAuthRole[] = [
+  "reviewer",
+  "auditor",
+  "admin",
+  "investigator",
+  "senior_investigator",
+];
+
+const ORDERED_USERS = ROLE_DISPLAY_ORDER.map(
+  (role) => TEST_AUTH_USERS.find((u) => u.role === role)!
+).filter(Boolean);
 
 const errorMessages: Record<string, string> = {
   invalid_credentials: "Invalid username, password, or role.",
@@ -14,10 +27,28 @@ const errorMessages: Record<string, string> = {
 
 const LoginPage = () => {
   const searchParams = useSearchParams();
-  const safeReturnTo = useMemo(
-    () => sanitizeReturnPath(searchParams.get("returnTo")),
-    [searchParams]
+  const [returnTo, setReturnTo] = useState<string>(() =>
+    sanitizeReturnPath(searchParams.get("returnTo"))
   );
+
+  useEffect(() => {
+    const fromParam = searchParams.get("returnTo");
+    if (fromParam) {
+      setReturnTo(sanitizeReturnPath(fromParam));
+      return;
+    }
+    if (typeof document !== "undefined" && document.referrer) {
+      try {
+        const refUrl = new URL(document.referrer);
+        if (refUrl.origin === window.location.origin && refUrl.pathname !== "/login") {
+          setReturnTo(sanitizeReturnPath(refUrl.pathname + refUrl.search));
+        }
+      } catch {
+        // Ignore invalid referrer URL
+      }
+    }
+  }, [searchParams]);
+
   const message = useMemo(() => {
     const error = searchParams.get("error");
     if (!error) {
@@ -26,10 +57,20 @@ const LoginPage = () => {
     return errorMessages[error] ?? "Sign-in failed.";
   }, [searchParams]);
 
-  const [role, setRole] = useState<TestAuthRole>("investigator");
-  const [username, setUsername] = useState<string>("investigator");
-  const [password, setPassword] = useState<string>("investigator123");
+  // Default to reviewer
+  const [role, setRole] = useState<TestAuthRole>("reviewer");
+  const [username, setUsername] = useState<string>("reviewer");
+  const [password, setPassword] = useState<string>("reviewer123");
   const [copiedRole, setCopiedRole] = useState<TestAuthRole | null>(null);
+
+  const handleRoleChange = (nextRole: TestAuthRole): void => {
+    setRole(nextRole);
+    const matched = TEST_AUTH_USERS.find((u) => u.role === nextRole);
+    if (matched) {
+      setUsername(matched.username);
+      setPassword(matched.password);
+    }
+  };
 
   const applyAccount = (
     nextRole: TestAuthRole,
@@ -93,17 +134,17 @@ const LoginPage = () => {
           method="POST"
           style={{ display: "grid", gap: 14, marginTop: 20 }}
         >
-          <input type="hidden" name="returnTo" value={safeReturnTo} />
+          <input type="hidden" name="returnTo" value={returnTo} />
 
           <label style={{ display: "grid", gap: 6 }}>
             <span>Role</span>
             <select
               name="role"
               value={role}
-              onChange={(event) => setRole(event.target.value as TestAuthRole)}
+              onChange={(event) => handleRoleChange(event.target.value as TestAuthRole)}
               style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)" }}
             >
-              {TEST_AUTH_USERS.map((user) => (
+              {ORDERED_USERS.map((user) => (
                 <option key={user.role} value={user.role}>
                   {user.label}
                 </option>

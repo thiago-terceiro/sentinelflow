@@ -216,6 +216,53 @@ export const TimeTravelScrubber = memo(
             Next ▶
           </button>
         </div>
+
+        {/* Sneak Peek & Execution State */}
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: 6,
+            background: "var(--card-subtle-bg, #f8fafc)",
+            border: "1px solid var(--panel-border)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            fontSize: 12,
+            fontFamily: "monospace",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background:
+                  activeEvent.type === "run_completed" ||
+                  activeEvent.type === "final_report_ready"
+                    ? "#22c55e"
+                    : activeEvent.type === "run_failed"
+                    ? "#ef4444"
+                    : "#2563eb",
+                boxShadow:
+                  activeEvent.type === "run_completed" ||
+                  activeEvent.type === "final_report_ready"
+                    ? "0 0 8px rgba(34, 197, 94, 0.6)"
+                    : "0 0 8px rgba(37, 99, 235, 0.6)",
+                display: "inline-block",
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontWeight: 600, color: "var(--foreground)" }}>
+              GenUIArtifactCard.tsx
+            </span>
+          </div>
+          <div style={{ paddingLeft: 13, color: "var(--muted)" }}>
+            execution_state:{" "}
+            <span style={{ color: "var(--accent)" }}>{activeEvent.type}</span> (step{" "}
+            {currentStep + 1} of {totalSteps})
+          </div>
+        </div>
       </section>
     );
   }
