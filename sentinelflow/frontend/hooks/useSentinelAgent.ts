@@ -32,6 +32,17 @@ export const useSentinelAgent = (disputeId: string) => {
   const [baseRun, setBaseRun] = useState<InvestigationRun | null>(null);
   const [selectedEventIndex, setSelectedEventIndex] = useState<number | null>(null);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
+  const [resetCount, setResetCount] = useState<number>(0);
+
+  useEffect(() => {
+    const handleReset = () => {
+      setResetCount((prev) => prev + 1);
+    };
+    window.addEventListener("sentinelflow:reset", handleReset);
+    return () => {
+      window.removeEventListener("sentinelflow:reset", handleReset);
+    };
+  }, []);
 
   const [isLaunching, setIsLaunching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -127,7 +138,7 @@ export const useSentinelAgent = (disputeId: string) => {
       streamRef.current?.close();
       streamRef.current = null;
     };
-  }, [disputeId]);
+  }, [disputeId, resetCount]);
 
   const scheduleReconnect = (investigationId: string, message: string) => {
     streamRef.current = null;
@@ -166,6 +177,9 @@ export const useSentinelAgent = (disputeId: string) => {
       investigationStreamEndpoint(investigationId),
       (event) => {
         resetReconnectState();
+        if (event.type === "heartbeat") {
+          return;
+        }
         if (
           event.type === "approval_required" ||
           event.type === "run_completed" ||
@@ -249,7 +263,7 @@ export const useSentinelAgent = (disputeId: string) => {
     } finally {
       setIsLaunching(false);
     }
-  }, [disputeId]);
+  }, [disputeId, resetCount]);
 
   const review = useCallback(
     async (decision: ApprovalDecision, comment: string, guidance?: string) => {
@@ -260,6 +274,8 @@ export const useSentinelAgent = (disputeId: string) => {
       setIsReviewing(true);
       try {
         const run = await resumeInvestigation(investigationId, decision, comment, guidance);
+        setSelectedEventIndex(null);
+        setRawEvents((prev) => prev.filter((evt) => evt.type !== "approval_required"));
         setBaseRun(run);
         setState((current) => applyRunToConsoleState(current, run));
         connectStream(run.id);

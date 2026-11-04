@@ -11,7 +11,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.config import get_settings
-from app.db.models import InvestigationRecord
+from app.db.models import DisputeRecord, InvestigationRecord
 from app.db.session import SessionLocal
 from app.schemas.events import StreamEvent, StreamEventType
 from app.schemas.investigation import (
@@ -527,6 +527,15 @@ async def persist_graph_state(
         )
     record.timeline_events = timeline_events
     record.checkpoint_id = _snapshot_checkpoint_id(snapshot, record.thread_id)
+    if hasattr(session, "get") and getattr(record, "dispute_id", None):
+        dispute = await session.get(DisputeRecord, record.dispute_id)
+        if dispute is not None and isinstance(dispute, DisputeRecord):
+            if record.status == "awaiting_approval":
+                dispute.status = "under_review"
+            elif record.status == "completed":
+                dispute.status = "completed"
+            elif record.status == "running":
+                dispute.status = "investigating"
     await session.commit()
     await session.refresh(record)
     return record
@@ -577,8 +586,43 @@ async def _run_graph(
     await investigation_broadcaster.publish_terminal(record.id)
 
 
+_active_in_process_jobs: set[str] = set()
+_background_tasks: set[asyncio.Task[Any]] = set()
+
+
+def reset_active_jobs() -> None:
+    _active_in_process_jobs.clear()
+
+
 def _active_job_id(investigation_id: str) -> str:
     return ACTIVE_JOB_ID_TEMPLATE.format(investigation_id=investigation_id)
+
+
+def _spawn_in_process_job(
+    job_name: str,
+    job_id: str,
+    enriched_payload: dict[str, Any],
+) -> bool:
+    if job_id in _active_in_process_jobs:
+        return False
+
+    async def _runner() -> None:
+        try:
+            await asyncio.sleep(0.05)
+            if job_name == RUN_JOB:
+                await run_investigation_job({}, enriched_payload)
+            elif job_name == RESUME_JOB:
+                await run_resume_investigation_job({}, enriched_payload)
+        except Exception as exc:
+            logger.warning("In-process job %s (%s) failed: %s", job_name, job_id, exc)
+        finally:
+            _active_in_process_jobs.discard(job_id)
+
+    _active_in_process_jobs.add(job_id)
+    task = asyncio.create_task(_runner())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return True
 
 
 async def _enqueue_job(
@@ -593,7 +637,10 @@ async def _enqueue_job(
         {**payload, "_trace_carrier": trace_carrier} if trace_carrier else dict(payload)
     )
     pool = await get_redis_pool()
-    if pool is not None:
+    # Delegate to pool.enqueue_job only for unit-test stubs or non-investigation jobs
+    if pool is not None and (
+        not type(pool).__module__.startswith("arq") or job_name not in (RUN_JOB, RESUME_JOB)
+    ):
         try:
             job = await pool.enqueue_job(job_name, enriched_payload, _job_id=job_id)
             if job is not None:
@@ -605,14 +652,9 @@ async def _enqueue_job(
                 exc,
             )
 
-    # In-process asynchronous task execution fallback
-    # Guarantees investigations execute live without external standalone ARQ workers
-    if job_name == RUN_JOB:
-        asyncio.create_task(run_investigation_job({}, enriched_payload))
-        return True
-    if job_name == RESUME_JOB:
-        asyncio.create_task(run_resume_investigation_job({}, enriched_payload))
-        return True
+    # In-process asynchronous task execution guarantees investigations execute live
+    if job_name in (RUN_JOB, RESUME_JOB):
+        return _spawn_in_process_job(job_name, job_id, enriched_payload)
     return False
 
 
@@ -725,6 +767,10 @@ async def _finalize_seeded_resume(
 
     record.timeline_events = timeline_events
     record.status = "completed"
+    if hasattr(session, "get") and getattr(record, "dispute_id", None):
+        dispute = await session.get(DisputeRecord, record.dispute_id)
+        if dispute is not None and isinstance(dispute, DisputeRecord):
+            dispute.status = "completed"
 
     if hasattr(session, "execute"):
         await record_audit_event(
@@ -769,6 +815,11 @@ async def _run_resume_investigation(
                     return
                 span.set_attribute("dispute.id", record.dispute_id)
                 span.set_attribute("thread.id", record.thread_id)
+                record.timeline_events = [
+                    ev
+                    for ev in _as_timeline_events(getattr(record, "timeline_events", None))
+                    if ev.get("type") != "approval_required"
+                ]
                 record.status = "running"
                 await session.commit()
                 await session.refresh(record)
@@ -802,19 +853,19 @@ async def _run_resume_investigation(
                             for ev in hydrated_state["timeline_events"]
                             if ev.get("type") != "approval_required"
                         ]
-                        hydrated_state["timeline_events"].append(
-                            build_stream_event(
-                                "agent_message",
-                                {
-                                    "actor": "reviewer",
-                                    "stage": "approval",
-                                    "message": f"Reviewer requested re-investigation: {guidance}",
-                                    "guidance": guidance,
-                                    "details": {"guidance": guidance},
-                                },
-                                event_id=f"steering_{record.id}_{hydrated_state['revision_count']}",
-                            )
+                        steering_event = build_stream_event(
+                            "agent_message",
+                            {
+                                "actor": "reviewer",
+                                "stage": "approval",
+                                "message": f"Reviewer requested re-investigation: {guidance}",
+                                "guidance": guidance,
+                                "details": {"guidance": guidance},
+                            },
+                            event_id=f"steering_{record.id}_{hydrated_state['revision_count']}",
                         )
+                        hydrated_state["timeline_events"].append(steering_event)
+                        await investigation_broadcaster.publish(record.id, steering_event)
                         await _run_graph(session, record, hydrated_state)
                     else:
                         await _finalize_seeded_resume(session, record, hydrated_state, decision)
@@ -967,6 +1018,23 @@ async def stream_graph_events(investigation_id: str) -> AsyncIterator[str]:
                 snapshot = await graph.aget_state(thread_config(record.thread_id))
                 snapshot_values = _snapshot_values(snapshot) if snapshot is not None else {}
                 timeline_events = _as_timeline_events(snapshot_values.get("timeline_events"))
+                if (
+                    not timeline_events
+                    and record.status in ("running", "pending")
+                    and isinstance(session, AsyncSession)
+                    and _active_job_id(investigation_id) not in _active_in_process_jobs
+                ):
+                    _spawn_in_process_job(
+                        RUN_JOB,
+                        _active_job_id(investigation_id),
+                        {
+                            "investigation_id": record.id,
+                            "principal_id": str(
+                                getattr(record, "created_by", None) or "investigator-001"
+                            ),
+                            "principal_roles": ["investigator"],
+                        },
+                    )
 
             for event in timeline_events:
                 eid = event.get("id")

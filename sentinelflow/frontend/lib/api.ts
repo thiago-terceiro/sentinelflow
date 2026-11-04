@@ -54,6 +54,10 @@ export const listDisputes = async (): Promise<DisputeSummary[]> => {
   return request<DisputeSummary[]>("/disputes");
 };
 
+export const resetDisputesToDefaults = async (): Promise<DisputeSummary[]> => {
+  return request<DisputeSummary[]>("/disputes/reset", { method: "POST" });
+};
+
 export const startInvestigation = async (disputeId: string): Promise<InvestigationRun> => {
   return request<InvestigationRun>(`/disputes/${disputeId}/investigations`, { method: "POST" });
 };

@@ -994,11 +994,16 @@ class InvestigationNodes:
                 risk_assessment.model_dump(mode="json"),
                 event_id=f"risk_{state['investigation_id']}_{state['iteration_count']}",
             )
+            report_event_id = (
+                f"report_{state['investigation_id']}"
+                if state["iteration_count"] <= 1
+                else f"report_{state['investigation_id']}_{state['iteration_count']}"
+            )
             _append_event(
                 state,
                 "final_report_ready",
                 report.model_dump(mode="json"),
-                event_id=f"report_{state['investigation_id']}",
+                event_id=report_event_id,
             )
             return state
 
@@ -1031,11 +1036,17 @@ class InvestigationNodes:
                     "investigation_id": state["investigation_id"],
                 },
             )
+            rev_count = int(state.get("revision_count", 0) or 0)
+            approval_event_id = (
+                f"approval_{state['investigation_id']}"
+                if rev_count <= 0
+                else f"approval_{state['investigation_id']}_rev{rev_count}"
+            )
             _append_event(
                 state,
                 "approval_required",
                 approval_payload,
-                event_id=f"approval_{state['investigation_id']}",
+                event_id=approval_event_id,
             )
             decision = interrupt(
                 {

@@ -33,11 +33,22 @@ const AuthErrorAlert = () => {
 };
 
 const HomePage = () => {
-  const { hasSession } = useSentinelPulse();
+  const { hasSession, clearSession } = useSentinelPulse();
   const [disputes, setDisputes] = useState<DisputeSummary[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [resetCount, setResetCount] = useState<number>(0);
+
+  useEffect(() => {
+    const handleReset = () => {
+      setResetCount((prev) => prev + 1);
+    };
+    window.addEventListener("sentinelflow:reset", handleReset);
+    return () => {
+      window.removeEventListener("sentinelflow:reset", handleReset);
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasSession) {
@@ -61,6 +72,7 @@ const HomePage = () => {
           message.includes("403");
         if (isAuthError) {
           setFetchError(null);
+          clearSession();
         } else {
           setFetchError(message);
         }
@@ -70,7 +82,7 @@ const HomePage = () => {
     };
 
     void loadDisputes();
-  }, [hasSession]);
+  }, [hasSession, clearSession, resetCount]);
 
   const filteredDisputes = useMemo(() => {
     if (statusFilter === "ALL") {

@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from app.db.models import DisputeRecord, InvestigationRecord
+from app.db.models import AuditArtifactRecord, AuditRecord, DisputeRecord, InvestigationRecord
 from app.db.session import SessionLocal
 from app.security import Principal, Role
 from app.services.audit import record_audit_event
@@ -604,15 +604,21 @@ async def _seed_showcase_investigations(
                 },
             ),
         ]
-        for actor, ev_name, payload in sf1_audit_events:
-            await record_audit_event(
-                session,
-                actor=actor,
-                event_name=ev_name,
-                payload=payload,
-                dispute_id=sf1.id,
-                investigation_id=inv1_id,
+        existing_sf1_audit = (
+            await session.execute(
+                select(AuditRecord.id).where(AuditRecord.investigation_id == inv1_id).limit(1)
             )
+        ).scalar_one_or_none()
+        if existing_sf1_audit is None:
+            for actor, ev_name, payload in sf1_audit_events:
+                await record_audit_event(
+                    session,
+                    actor=actor,
+                    event_name=ev_name,
+                    payload=payload,
+                    dispute_id=sf1.id,
+                    investigation_id=inv1_id,
+                )
 
     # -------------------------------------------------------------------------
     # Showcase 2: SF-10002 — Paused Awaiting Human Approval Investigation
@@ -879,15 +885,61 @@ async def _seed_showcase_investigations(
                 },
             ),
         ]
-        for actor, ev_name, payload in sf2_audit_events:
-            await record_audit_event(
-                session,
-                actor=actor,
-                event_name=ev_name,
-                payload=payload,
-                dispute_id=sf2.id,
-                investigation_id=inv2_id,
+        existing_sf2_audit = (
+            await session.execute(
+                select(AuditRecord.id).where(AuditRecord.investigation_id == inv2_id).limit(1)
             )
+        ).scalar_one_or_none()
+        if existing_sf2_audit is None:
+            for actor, ev_name, payload in sf2_audit_events:
+                await record_audit_event(
+                    session,
+                    actor=actor,
+                    event_name=ev_name,
+                    payload=payload,
+                    dispute_id=sf2.id,
+                    investigation_id=inv2_id,
+                )
+
+
+async def _cleanup_orphans_and_sync_statuses(session: AsyncSession) -> None:
+    inv_result = await session.execute(
+        select(InvestigationRecord).order_by(InvestigationRecord.created_at.desc())
+    )
+    all_invs = list(inv_result.scalars())
+    orphaned_ids = [
+        inv.id
+        for inv in all_invs
+        if inv.status in ("running", "pending") and not (inv.timeline_events or [])
+    ]
+    if orphaned_ids:
+        await session.execute(
+            delete(InvestigationRecord).where(InvestigationRecord.id.in_(orphaned_ids))
+        )
+        await session.commit()
+        all_invs = [inv for inv in all_invs if inv.id not in set(orphaned_ids)]
+
+    latest_by_dispute: dict[str, InvestigationRecord] = {}
+    for inv in all_invs:
+        if inv.dispute_id not in latest_by_dispute:
+            latest_by_dispute[inv.dispute_id] = inv
+
+    disputes_result = await session.execute(select(DisputeRecord))
+    changed = False
+    for dispute in disputes_result.scalars():
+        latest = latest_by_dispute.get(dispute.id)
+        if latest is None:
+            if dispute.status != "open":
+                dispute.status = "open"
+                changed = True
+        elif latest.status == "awaiting_approval" and dispute.status != "under_review":
+            dispute.status = "under_review"
+            changed = True
+        elif latest.status == "completed" and dispute.status != "completed":
+            dispute.status = "completed"
+            changed = True
+    if changed:
+        await session.commit()
 
 
 async def seed_session(session: AsyncSession) -> None:
@@ -929,6 +981,79 @@ async def seed_session(session: AsyncSession) -> None:
 
     await session.commit()
     await _seed_showcase_investigations(session, disputes_by_code)
+    await _cleanup_orphans_and_sync_statuses(session)
+
+
+async def reset_database_to_defaults(session: AsyncSession) -> list[DisputeRecord]:
+    from app.graph.graph import _memory_checkpointer
+    from app.services.investigations import reset_active_jobs
+
+    reset_active_jobs()
+    try:
+        _memory_checkpointer().storage.clear()
+    except Exception:  # noqa: S110
+        pass
+
+    try:
+        async with session.begin_nested():
+            await session.execute(delete(AuditArtifactRecord))
+            await session.execute(delete(AuditRecord))
+    except Exception:  # noqa: S110
+        pass
+
+    await session.execute(delete(InvestigationRecord))
+    await session.commit()
+
+    showcase_codes = {case["case_code"] for case in CASES}
+    existing = await session.execute(select(DisputeRecord))
+    existing_records = list(existing.scalars())
+
+    stray_ids = [r.id for r in existing_records if r.case_code not in showcase_codes]
+    if stray_ids:
+        await session.execute(delete(DisputeRecord).where(DisputeRecord.id.in_(stray_ids)))
+        await session.commit()
+
+    disputes_by_code: dict[str, DisputeRecord] = {
+        r.case_code: r for r in existing_records if r.case_code in showcase_codes
+    }
+
+    base_time = datetime.now(UTC)
+    for idx, case in enumerate(CASES):
+        code = str(case["case_code"])
+        if code in disputes_by_code:
+            rec = disputes_by_code[code]
+            rec.title = case["title"]
+            rec.narrative = case["narrative"]
+            rec.customer_id = case["customer_id"]
+            rec.merchant_id = case["merchant_id"]
+            rec.amount = case["amount"]
+            rec.currency = "USD"
+            rec.status = "open"
+            rec.attributes = case["attributes"]
+        else:
+            rec = DisputeRecord(
+                id=str(uuid4()),
+                case_code=code,
+                title=case["title"],
+                narrative=case["narrative"],
+                customer_id=case["customer_id"],
+                merchant_id=case["merchant_id"],
+                amount=case["amount"],
+                currency="USD",
+                status="open",
+                attributes=case["attributes"],
+                created_at=base_time - timedelta(minutes=idx + 1),
+            )
+            session.add(rec)
+            disputes_by_code[code] = rec
+
+    await session.commit()
+    await _seed_showcase_investigations(session, disputes_by_code)
+
+    final_res = await session.execute(
+        select(DisputeRecord).order_by(DisputeRecord.created_at.desc())
+    )
+    return list(final_res.scalars())
 
 
 async def seed() -> None:

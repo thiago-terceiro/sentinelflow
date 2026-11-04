@@ -154,6 +154,32 @@
         ]
       }
     },
+    "/api/v1/disputes/reset": {
+      "post": {
+        "tags": [
+          "disputes",
+          "investigations"
+        ],
+        "summary": "Reset Disputes To Defaults",
+        "operationId": "reset_disputes_to_defaults_api_v1_disputes_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DisputeSummary"
+                  },
+                  "type": "array",
+                  "title": "Response Reset Disputes To Defaults Api V1 Disputes Reset Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/disputes/{dispute_id}/investigations": {
       "post": {
         "tags": [

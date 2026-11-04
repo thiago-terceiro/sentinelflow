@@ -20,7 +20,9 @@ type SentinelPulseContextValue = {
   setIsPaused: React.Dispatch<React.SetStateAction<boolean>>;
   isResetting: boolean;
   resetGateway: () => Promise<void>;
+  resetAllToDefaults: () => Promise<void>;
   refreshTelemetry: () => Promise<void>;
+  clearSession: () => void;
 };
 
 const EMPTY_METRICS: TelecomMetricsSummary = {
@@ -45,7 +47,9 @@ const SentinelPulseContext = createContext<SentinelPulseContextValue>({
   setIsPaused: () => {},
   isResetting: false,
   resetGateway: async () => {},
+  resetAllToDefaults: async () => {},
   refreshTelemetry: async () => {},
+  clearSession: () => {},
 });
 
 type ProviderProps = {
@@ -159,6 +163,49 @@ export const SentinelPulseProvider = ({
     }
   }, []);
 
+  const clearSession = useCallback(() => {
+    setHasSession(false);
+    setUsername(null);
+    setUserRole(null);
+  }, []);
+
+  const resetAllToDefaults = useCallback(async () => {
+    setIsResetting(true);
+    hasHydratedFeedRef.current = false;
+    setLiveFeed([]);
+    setMetrics(EMPTY_METRICS);
+    try {
+      const [, telecomRes] = await Promise.all([
+        fetch("/app-api/disputes/reset", { method: "POST", cache: "no-store" }),
+        fetch("/app-api/telecom/reset", { method: "POST", cache: "no-store" }),
+      ]);
+      if (telecomRes.ok) {
+        const payload = (await telecomRes.json()) as {
+          metrics?: TelecomMetricsSummary;
+          drift?: TelecomDriftReport;
+        };
+        if (payload.metrics) {
+          setMetrics(payload.metrics);
+          if (Array.isArray(payload.metrics.recent_feed) && payload.metrics.recent_feed.length > 0) {
+            hasHydratedFeedRef.current = true;
+            setLiveFeed(payload.metrics.recent_feed);
+          }
+        }
+        if (payload.drift) {
+          setDrift(payload.drift);
+        }
+      }
+      await refreshTelemetry();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sentinelflow:reset"));
+      }
+    } catch {
+      // Local state already cleared
+    } finally {
+      setIsResetting(false);
+    }
+  }, [refreshTelemetry]);
+
   useEffect(() => {
     void refreshTelemetry();
     const interval = setInterval(() => {
@@ -232,7 +279,9 @@ export const SentinelPulseProvider = ({
         setIsPaused,
         isResetting,
         resetGateway,
+        resetAllToDefaults,
         refreshTelemetry,
+        clearSession,
       }}
     >
       {children}

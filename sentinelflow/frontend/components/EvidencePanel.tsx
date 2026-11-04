@@ -10,7 +10,7 @@ type Props = {
   onSelectEvidence?: (id: string | null) => void;
 };
 
-const placeholderRows = [0, 1, 2];
+const placeholderRows = [0];
 
 const sourceLabel = (origin: Evidence["origin"]) => {
   if (origin === "analyzer_interpretation") {
@@ -180,7 +180,21 @@ export const EvidencePanel = memo(
                 </article>
               ))
             : null}
-          {!isLoading && evidence.length === 0 ? <p>No evidence collected yet.</p> : null}
+          {!isLoading && evidence.length === 0 ? (
+            <div
+              style={{
+                border: "1px solid var(--panel-border)",
+                borderRadius: 16,
+                padding: 16,
+                background: "rgba(255,255,255,0.02)",
+                color: "var(--muted)",
+                fontSize: 13,
+                textAlign: "left",
+              }}
+            >
+              No evidence collected yet.
+            </div>
+          ) : null}
           {evidence.map((item) => {
             const isHighlighted = item.id === highlightedEvidenceId;
             return (

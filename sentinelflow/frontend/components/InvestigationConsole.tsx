@@ -511,6 +511,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
         <ApprovalPanel
           requiresApproval={state.requiresApproval}
           isSubmitting={isReviewing}
+          error={state.error}
           onDecision={handleDecision}
         />
 

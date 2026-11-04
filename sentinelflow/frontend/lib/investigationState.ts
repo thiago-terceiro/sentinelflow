@@ -140,7 +140,11 @@ export const applyRunToConsoleState = (
   const runEvents = Array.isArray(run.timeline_events)
     ? (run.timeline_events as unknown as StreamEvent[])
     : [];
-  const baseTimeline = isSameInvestigation ? state.timeline : [];
+  const baseTimeline = isSameInvestigation
+    ? nextStatus === "RUNNING"
+      ? state.timeline.filter((evt) => evt.type !== "approval_required")
+      : state.timeline
+    : [];
   const mergedTimeline =
     runEvents.length > 0 ? mergeUniqueEvents(baseTimeline, runEvents) : baseTimeline;
 

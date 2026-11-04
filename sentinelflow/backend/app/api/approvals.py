@@ -24,7 +24,7 @@ async def resume_investigation(
     session: DBSessionDep,
     principal: PrincipalDep,
 ) -> InvestigationRun:
-    principal.require_any(Role.REVIEWER, Role.ADMIN)
+    principal.require_any(Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.REVIEWER, Role.ADMIN)
     record = await session.get(InvestigationRecord, investigation_id)
     if record is None:
         raise NotFoundError("INVESTIGATION_NOT_FOUND", "Investigation was not found.")
@@ -41,6 +41,13 @@ async def resume_investigation(
             message="Investigation is already running.",
             status_code=409,
         )
+    existing_timeline = getattr(record, "timeline_events", None)
+    if isinstance(existing_timeline, list):
+        record.timeline_events = [
+            ev
+            for ev in existing_timeline
+            if not (isinstance(ev, dict) and ev.get("type") == "approval_required")
+        ]
     record.status = "running"
     await session.commit()
     await session.refresh(record)

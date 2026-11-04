@@ -62,7 +62,7 @@ async def test_resume_investigation_requires_reviewer_or_admin() -> None:
             "inv_123",
             decision,
             cast(AsyncSession, _FakeSession(None)),
-            _principal(Role.INVESTIGATOR),
+            _principal(Role.AUDITOR),
         )
 
 

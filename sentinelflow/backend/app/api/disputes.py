@@ -33,6 +33,8 @@ from app.services.audit import (
 )
 from app.services.investigations import (
     PrincipalContext,
+    _active_in_process_jobs,
+    _active_job_id,
     schedule_investigation,
     stream_graph_events,
     to_run,
@@ -132,6 +134,35 @@ async def create_dispute(
     )
 
 
+@router.post("/disputes/reset", response_model=list[DisputeSummary])
+async def reset_disputes_to_defaults(
+    session: DBSessionDep,
+) -> list[DisputeSummary]:
+    from app.api import telecom
+    from app.db.seed import reset_database_to_defaults
+
+    records = await reset_database_to_defaults(session)
+    try:
+        telecom._warmup_seeded = False
+        telecom.get_metrics_tracker().reset()
+        telecom.get_drift_monitor().reset()
+        telecom.seed_telecom_warmup()
+    except Exception:  # noqa: S110
+        pass
+    return [
+        DisputeSummary(
+            id=item.id,
+            case_code=item.case_code,
+            title=item.title,
+            amount=item.amount,
+            currency=item.currency,
+            status=cast(DisputeStatus, item.status),
+            created_at=item.created_at,
+        )
+        for item in records
+    ]
+
+
 async def _resolve_dispute(session: AsyncSession, dispute_id: str) -> DisputeRecord | None:
     dispute = await session.get(DisputeRecord, dispute_id)
     if dispute is not None:
@@ -184,6 +215,7 @@ async def start_investigation(
             status_code=409,
         )
     record.status = "running"
+    dispute.status = "investigating"
     await session.commit()
     await session.refresh(record)
     return to_run(record)
@@ -216,6 +248,14 @@ async def get_latest_dispute_investigation(
     )
     record = result.scalar_one_or_none()
     if record is None:
+        return None
+    if (
+        record.status in ("running", "pending")
+        and not (record.timeline_events or [])
+        and _active_job_id(record.id) not in _active_in_process_jobs
+    ):
+        await session.delete(record)
+        await session.commit()
         return None
     return to_run(record)
 

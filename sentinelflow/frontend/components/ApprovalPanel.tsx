@@ -6,6 +6,7 @@ import type { ApprovalDecision } from "@/lib/types";
 type Props = {
   requiresApproval: boolean;
   isSubmitting: boolean;
+  error?: string | null;
   onDecision: (
     decision: ApprovalDecision,
     comment: string,
@@ -13,7 +14,7 @@ type Props = {
   ) => Promise<void> | void;
 };
 
-export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, onDecision }: Props) => {
+export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDecision }: Props) => {
   const [comment, setComment] = useState("Risk threshold crossed; reviewer confirmation required.");
   const [guidance, setGuidance] = useState("");
   const [isSteeringOpen, setIsSteeringOpen] = useState(false);
@@ -154,6 +155,24 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, onDecision 
               color: "inherit",
             }}
           />
+        </div>
+      ) : null}
+
+      {error ? (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.35)",
+            color: "var(--danger)",
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          {error}
         </div>
       ) : null}
 
