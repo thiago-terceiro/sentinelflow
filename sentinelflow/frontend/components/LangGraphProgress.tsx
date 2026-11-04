@@ -56,7 +56,7 @@ export const LangGraphProgress = memo(({ currentPhase = "intake", status, review
   };
 
   return (
-    <div className="shell-card" style={{ padding: "20px 24px" }}>
+    <div className="shell-card" style={{ padding: "20px 24px", minHeight: 224, boxSizing: "border-box" }}>
       <div
         style={{
           display: "flex",
@@ -206,21 +206,36 @@ export const LangGraphProgress = memo(({ currentPhase = "intake", status, review
         })}
       </div>
 
-      {reviewerGuidance ? (
-        <div
-          style={{
-            marginTop: 14,
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: "rgba(99,102,241,0.06)",
-            borderLeft: "3px solid #818cf8",
-            fontSize: 12,
-          }}
-        >
-          <strong style={{ color: "#a5b4fc" }}>Reviewer Steering Guidance Applied: </strong>
-          <span style={{ color: "var(--foreground)" }}>{reviewerGuidance}</span>
-        </div>
-      ) : null}
+      <div
+        style={{
+          marginTop: 14,
+          minHeight: 40,
+          display: "flex",
+          alignItems: "center",
+          padding: "10px 14px",
+          borderRadius: 8,
+          fontSize: 12,
+          boxSizing: "border-box",
+          background: reviewerGuidance
+            ? "rgba(99, 102, 241, 0.06)"
+            : "rgba(255, 255, 255, 0.02)",
+          borderLeft: reviewerGuidance
+            ? "3px solid #818cf8"
+            : "3px solid var(--panel-border)",
+          transition: "background 0.15s ease, border-color 0.15s ease",
+        }}
+      >
+        {reviewerGuidance ? (
+          <div>
+            <strong style={{ color: "#a5b4fc" }}>Reviewer Steering Guidance Applied: </strong>
+            <span style={{ color: "var(--foreground)" }}>{reviewerGuidance}</span>
+          </div>
+        ) : (
+          <span style={{ color: "var(--muted)", opacity: 0.7 }}>
+            No reviewer steering guidance applied · Autonomous execution baseline
+          </span>
+        )}
+      </div>
     </div>
   );
 });

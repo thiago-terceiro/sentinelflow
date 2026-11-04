@@ -111,13 +111,19 @@ export const TimeTravelScrubber = memo(
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: 6,
+                  height: 28,
+                  minWidth: 128,
+                  padding: "0 12px",
+                  borderRadius: 6,
                   fontSize: 12,
                   fontWeight: 600,
                   color: "var(--success)",
-                  padding: "4px 10px",
-                  borderRadius: 6,
                   background: "rgba(34,197,94,0.12)",
+                  border: "1px solid rgba(34,197,94,0.25)",
+                  boxSizing: "border-box",
+                  whiteSpace: "nowrap",
                 }}
               >
                 <span
@@ -138,18 +144,25 @@ export const TimeTravelScrubber = memo(
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: 6,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#10231e",
-                  background: "var(--accent)",
-                  border: "none",
+                  height: 28,
+                  minWidth: 128,
+                  padding: "0 12px",
                   borderRadius: 6,
-                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#1d4ed8",
+                  background: "rgba(37,99,235,0.12)",
+                  border: "1px solid rgba(37,99,235,0.25)",
                   cursor: "pointer",
+                  boxSizing: "border-box",
+                  whiteSpace: "nowrap",
+                  transition: "none",
+                  outline: "none",
                 }}
               >
-                ⏪ Return to Live (L)
+                Return to Live (L)
               </button>
             )}
           </div>
