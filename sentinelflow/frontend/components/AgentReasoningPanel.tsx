@@ -290,26 +290,16 @@ export const AgentReasoningPanel = memo(
                                     onHighlightEvidence(isPinned ? null : id);
                                   }
                                 }}
-                                onMouseEnter={() => {
-                                  if (onHoverEvidence) {
-                                    onHoverEvidence(id);
-                                  }
-                                }}
-                                onMouseLeave={() => {
-                                  if (onHoverEvidence) {
-                                    onHoverEvidence(null);
-                                  }
-                                }}
                                 style={{
                                   padding: "2px 6px",
                                   borderRadius: 4,
                                   background: isFocused
-                                    ? "var(--accent)"
-                                    : "rgba(40,167,69,0.15)",
-                                  color: isFocused ? "#10231e" : "var(--success)",
+                                    ? "rgba(37,99,235,0.08)"
+                                    : "rgba(40,167,69,0.1)",
+                                  color: isFocused ? "var(--accent)" : "var(--success)",
                                   border: isFocused
-                                    ? "1px solid var(--accent)"
-                                    : "1px solid rgba(40,167,69,0.3)",
+                                    ? "1.5px solid var(--accent)"
+                                    : "1px solid rgba(40,167,69,0.25)",
                                   cursor: "pointer",
                                   fontWeight: 600,
                                   fontFamily: "monospace",
@@ -342,26 +332,16 @@ export const AgentReasoningPanel = memo(
                                     onHighlightEvidence(isPinned ? null : id);
                                   }
                                 }}
-                                onMouseEnter={() => {
-                                  if (onHoverEvidence) {
-                                    onHoverEvidence(id);
-                                  }
-                                }}
-                                onMouseLeave={() => {
-                                  if (onHoverEvidence) {
-                                    onHoverEvidence(null);
-                                  }
-                                }}
                                 style={{
                                   padding: "2px 6px",
                                   borderRadius: 4,
                                   background: isFocused
-                                    ? "var(--accent)"
-                                    : "rgba(220,53,69,0.15)",
-                                  color: isFocused ? "#10231e" : "var(--danger)",
+                                    ? "rgba(220,38,38,0.08)"
+                                    : "rgba(220,53,69,0.1)",
+                                  color: isFocused ? "var(--danger)" : "var(--danger)",
                                   border: isFocused
-                                    ? "1px solid var(--accent)"
-                                    : "1px solid rgba(220,53,69,0.3)",
+                                    ? "1.5px solid var(--danger)"
+                                    : "1px solid rgba(220,53,69,0.25)",
                                   cursor: "pointer",
                                   fontWeight: 600,
                                   fontFamily: "monospace",

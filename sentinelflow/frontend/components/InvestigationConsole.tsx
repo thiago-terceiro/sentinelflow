@@ -472,8 +472,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
           isLoading={state.status === "RUNNING"}
           highlightedEvidenceId={highlightedEvidenceId}
           pinnedEvidenceId={pinnedEvidenceId}
-          onHighlightEvidence={setPinnedEvidenceId}
-          onHoverEvidence={setHoveredEvidenceId}
+          onHighlightEvidence={(id) => setPinnedEvidenceId((prev) => (prev === id ? null : id))}
           iterationSnapshots={iterationSnapshots}
           iterationDiffs={iterationDiffs}
           showDiff={showDiff}
@@ -487,7 +486,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
             evidence={state.evidence}
             isLoading={state.status === "RUNNING" && state.evidence.length === 0}
             highlightedEvidenceId={highlightedEvidenceId}
-            onSelectEvidence={setPinnedEvidenceId}
+            onSelectEvidence={(id) => setPinnedEvidenceId((prev) => (prev === id ? null : id))}
           />
         </div>
 
@@ -498,8 +497,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
             analyzers={state.analyzerSummaries}
             highlightedEvidenceId={highlightedEvidenceId}
             pinnedEvidenceId={pinnedEvidenceId}
-            onHighlightEvidence={setPinnedEvidenceId}
-            onHoverEvidence={setHoveredEvidenceId}
+            onHighlightEvidence={(id) => setPinnedEvidenceId((prev) => (prev === id ? null : id))}
           />
         </div>
 

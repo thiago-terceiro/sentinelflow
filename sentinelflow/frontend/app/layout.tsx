@@ -81,30 +81,40 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
 
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <StyleSwitcher />
-                {hasSession && sessionLabel ? (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      padding: "3px 8px",
-                      borderRadius: 999,
-                      background: "rgba(255,255,255,0.06)",
-                      color: "var(--foreground)",
-                    }}
-                  >
-                    {sessionLabel}
-                  </span>
-                ) : null}
-                {hasSession ? (
-                  <Link
-                    href="/auth/logout"
-                    prefetch={false}
-                    style={{ color: "var(--muted)", fontSize: 13, textDecoration: "none" }}
-                  >
-                    Sign out
-                  </Link>
-                ) : (
-                  <NavSignInButton />
-                )}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexShrink: 0,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {hasSession && sessionLabel ? (
+                    <span
+                      style={{
+                        fontSize: 12,
+                        padding: "3px 8px",
+                        borderRadius: 999,
+                        background: "rgba(255,255,255,0.06)",
+                        color: "var(--foreground)",
+                      }}
+                    >
+                      {sessionLabel}
+                    </span>
+                  ) : null}
+                  {hasSession ? (
+                    <Link
+                      href="/auth/logout"
+                      prefetch={false}
+                      style={{ color: "var(--muted)", fontSize: 13, textDecoration: "none" }}
+                    >
+                      Sign out
+                    </Link>
+                  ) : (
+                    <NavSignInButton />
+                  )}
+                </div>
               </div>
             </div>
           </header>

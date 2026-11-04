@@ -52,13 +52,19 @@ const formatProvenance = (provenance: string): string => {
 export const EvidencePanel = memo(
   ({ evidence, isLoading, highlightedEvidenceId, onSelectEvidence }: Props) => {
     const cardRefs = useRef<Record<string, HTMLElement | null>>({});
+    const listContainerRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-      if (highlightedEvidenceId && cardRefs.current[highlightedEvidenceId]) {
-        cardRefs.current[highlightedEvidenceId]?.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-        });
+      if (highlightedEvidenceId && cardRefs.current[highlightedEvidenceId] && listContainerRef.current) {
+        const container = listContainerRef.current;
+        const card = cardRefs.current[highlightedEvidenceId];
+        if (card) {
+          const cardTop = card.offsetTop - container.offsetTop;
+          container.scrollTo({
+            top: Math.max(0, cardTop - 8),
+            behavior: "smooth",
+          });
+        }
       }
     }, [highlightedEvidenceId]);
 
@@ -67,33 +73,33 @@ export const EvidencePanel = memo(
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "baseline",
             flexWrap: "wrap",
-            gap: 8,
+            gap: 12,
+            marginBottom: 16,
+            textAlign: "left",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <h2>Evidence Provenance</h2>
-            {highlightedEvidenceId ? (
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: "2px 8px",
-                  borderRadius: 999,
-                  background: "rgba(201,243,106,0.15)",
-                  color: "var(--accent)",
-                  fontWeight: 600,
-                  border: "1px solid rgba(201,243,106,0.3)",
-                }}
-              >
-                Focus: {highlightedEvidenceId}
-              </span>
-            ) : null}
-          </div>
+          <h2 style={{ margin: 0 }}>Evidence Provenance</h2>
           <span style={{ color: "var(--muted)", fontSize: 13 }}>{evidence.length} items</span>
+          {highlightedEvidenceId ? (
+            <span
+              style={{
+                fontSize: 11,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: "rgba(37,99,235,0.08)",
+                color: "var(--accent)",
+                fontWeight: 600,
+                border: "1px solid var(--panel-border)",
+              }}
+            >
+              Focus: {highlightedEvidenceId}
+            </span>
+          ) : null}
         </div>
         <div
+          ref={listContainerRef}
           style={{
             display: "grid",
             gap: 12,
@@ -161,18 +167,19 @@ export const EvidencePanel = memo(
                 }}
                 style={{
                   border: isHighlighted
-                    ? "2px solid var(--accent)"
+                    ? "1.5px solid var(--accent)"
                     : "1px solid var(--panel-border)",
-                  boxShadow: isHighlighted ? "0 0 16px rgba(201, 243, 106, 0.4)" : "none",
-                  background: isHighlighted ? "rgba(201, 243, 106, 0.05)" : "transparent",
+                  boxShadow: "none",
+                  background: isHighlighted ? "rgba(37, 99, 235, 0.03)" : "transparent",
                   borderRadius: 16,
                   padding: 16,
                   cursor: onSelectEvidence ? "pointer" : "default",
-                  transition: "all 0.2s ease-in-out",
+                  transition: "all 0.15s ease-in-out",
+                  textAlign: "left",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <div style={{ display: "grid", gap: 4 }}>
+                  <div style={{ display: "grid", gap: 4, textAlign: "left" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <strong>{item.source}</strong>
                       <span
@@ -194,6 +201,7 @@ export const EvidencePanel = memo(
                         fontSize: 12,
                         textTransform: "uppercase",
                         letterSpacing: "0.08em",
+                        textAlign: "left",
                       }}
                     >
                       {sourceLabel(item.origin)} · {formatCategory(item.category)}
@@ -203,7 +211,7 @@ export const EvidencePanel = memo(
                     {Math.round(item.confidence * 100)}%
                   </span>
                 </div>
-                <p style={{ margin: "10px 0 8px", fontSize: 13, lineHeight: 1.5 }}>
+                <p style={{ margin: "10px 0 8px", fontSize: 13, lineHeight: 1.5, textAlign: "left" }}>
                   {item.summary}
                 </p>
                 <div
@@ -217,9 +225,10 @@ export const EvidencePanel = memo(
                     borderTop: "1px solid rgba(255,255,255,0.06)",
                     fontSize: 11,
                     color: "var(--muted)",
+                    textAlign: "left",
                   }}
                 >
-                  <span style={{ fontFamily: "monospace", overflowWrap: "anywhere" }}>
+                  <span style={{ fontFamily: "monospace", overflowWrap: "anywhere", textAlign: "left" }}>
                     Source: {formatProvenance(item.provenance)}
                   </span>
                   {item.collected_at ? (

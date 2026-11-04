@@ -102,6 +102,8 @@ export const InvestigationTimeline = memo(({ status, events }: Props) => {
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
+        maxWidth: "80%",
+        width: "100%",
       }}
     >
       <p

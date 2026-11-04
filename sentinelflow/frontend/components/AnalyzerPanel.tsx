@@ -144,35 +144,19 @@ export const AnalyzerPanel = memo(
                           key={id}
                           type="button"
                           aria-pressed={isPinned}
-                          title={`Jump to ${id}`}
+                          title={`Focus evidence ${id}`}
                           onClick={() => {
                             if (onHighlightEvidence) {
                               onHighlightEvidence(isPinned ? null : id);
-                            }
-                            if (typeof document !== "undefined") {
-                              document.getElementById(`evidence-${id}`)?.scrollIntoView({
-                                behavior: "smooth",
-                                block: "nearest",
-                              });
-                            }
-                          }}
-                          onMouseEnter={() => {
-                            if (onHoverEvidence) {
-                              onHoverEvidence(id);
-                            }
-                          }}
-                          onMouseLeave={() => {
-                            if (onHoverEvidence) {
-                              onHoverEvidence(null);
                             }
                           }}
                           style={{
                             padding: "3px 8px",
                             borderRadius: 4,
-                            background: isLinked ? "var(--accent)" : "rgba(255,255,255,0.08)",
-                            color: isLinked ? "#ffffff" : "var(--foreground)",
+                            background: isLinked ? "rgba(37,99,235,0.08)" : "rgba(255,255,255,0.06)",
+                            color: isLinked ? "var(--accent)" : "var(--foreground)",
                             border: isLinked
-                              ? "1px solid var(--accent)"
+                              ? "1.5px solid var(--accent)"
                               : "1px solid var(--panel-border)",
                             cursor: "pointer",
                             fontSize: 11,
