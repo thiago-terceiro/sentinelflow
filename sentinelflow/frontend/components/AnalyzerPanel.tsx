@@ -18,7 +18,6 @@ type Props = {
   highlightedEvidenceId?: string | null;
   pinnedEvidenceId?: string | null;
   onHighlightEvidence?: (id: string | null) => void;
-  onHoverEvidence?: (id: string | null) => void;
 };
 
 export const AnalyzerPanel = memo(
@@ -27,7 +26,6 @@ export const AnalyzerPanel = memo(
     highlightedEvidenceId,
     pinnedEvidenceId,
     onHighlightEvidence,
-    onHoverEvidence,
   }: Props) => {
     return (
       <section className="shell-card" style={{ padding: 24 }}>
@@ -161,6 +159,8 @@ export const AnalyzerPanel = memo(
                             cursor: "pointer",
                             fontSize: 11,
                             fontWeight: 600,
+                            transition: "none",
+                            outline: "none",
                           }}
                         >
                           {friendlyLabel}

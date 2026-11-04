@@ -74,14 +74,15 @@ export const EvidencePanel = memo(
           style={{
             display: "flex",
             alignItems: "baseline",
+            justifyContent: "flex-start",
             flexWrap: "wrap",
             gap: 12,
             marginBottom: 16,
             textAlign: "left",
           }}
         >
-          <h2 style={{ margin: 0 }}>Evidence Provenance</h2>
-          <span style={{ color: "var(--muted)", fontSize: 13 }}>{evidence.length} items</span>
+          <h2 style={{ margin: 0, textAlign: "left" }}>Evidence Provenance</h2>
+          <span style={{ color: "var(--muted)", fontSize: 13, textAlign: "left" }}>{evidence.length} items</span>
           {highlightedEvidenceId ? (
             <span
               style={{
@@ -92,6 +93,7 @@ export const EvidencePanel = memo(
                 color: "var(--accent)",
                 fontWeight: 600,
                 border: "1px solid var(--panel-border)",
+                textAlign: "left",
               }}
             >
               Focus: {highlightedEvidenceId}
@@ -217,10 +219,10 @@ export const EvidencePanel = memo(
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: "space-between",
+                    justifyContent: "flex-start",
                     alignItems: "center",
                     flexWrap: "wrap",
-                    gap: 6,
+                    gap: 12,
                     paddingTop: 8,
                     borderTop: "1px solid rgba(255,255,255,0.06)",
                     fontSize: 11,
@@ -232,7 +234,9 @@ export const EvidencePanel = memo(
                     Source: {formatProvenance(item.provenance)}
                   </span>
                   {item.collected_at ? (
-                    <span>{new Date(item.collected_at).toLocaleTimeString()}</span>
+                    <span style={{ textAlign: "left" }}>
+                      · {new Date(item.collected_at).toLocaleTimeString()}
+                    </span>
                   ) : null}
                 </div>
               </article>

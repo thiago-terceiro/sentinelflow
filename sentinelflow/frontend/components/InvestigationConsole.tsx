@@ -14,7 +14,6 @@ import { LangGraphProgress } from "@/components/LangGraphProgress";
 import { RiskPanel } from "@/components/RiskPanel";
 import { TimeTravelScrubber } from "@/components/TimeTravelScrubber";
 import { useSentinelAgent } from "@/hooks/useSentinelAgent";
-import { resolveActiveEvidenceId } from "@/lib/investigationState";
 import type { ApprovalDecision } from "@/lib/types";
 
 type Props = {
@@ -40,13 +39,12 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
   } = useSentinelAgent(disputeId);
 
   const [pinnedEvidenceId, setPinnedEvidenceId] = useState<string | null>(null);
-  const [hoveredEvidenceId, setHoveredEvidenceId] = useState<string | null>(null);
   const [showDiff, setShowDiff] = useState<boolean>(false);
   const [showGenUI, setShowGenUI] = useState<boolean>(false);
   const initialStepHydratedRef = useRef<boolean>(false);
   const initialStepTargetRef = useRef<number | null>(null);
 
-  const highlightedEvidenceId = resolveActiveEvidenceId(pinnedEvidenceId, hoveredEvidenceId);
+  const highlightedEvidenceId = pinnedEvidenceId;
 
   // Hydrate initial URL query params (?step=, ?diff=, ?evidence=)
   useEffect(() => {

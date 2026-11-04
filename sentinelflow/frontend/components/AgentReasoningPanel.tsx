@@ -13,7 +13,6 @@ type Props = {
   highlightedEvidenceId?: string | null;
   pinnedEvidenceId?: string | null;
   onHighlightEvidence?: (id: string | null) => void;
-  onHoverEvidence?: (id: string | null) => void;
   iterationSnapshots?: IterationSnapshot[];
   iterationDiffs?: IterationDiff[];
   showDiff?: boolean;
@@ -30,7 +29,6 @@ export const AgentReasoningPanel = memo(
     highlightedEvidenceId,
     pinnedEvidenceId,
     onHighlightEvidence,
-    onHoverEvidence,
     iterationSnapshots = [],
     iterationDiffs = [],
     showDiff: controlledShowDiff,
@@ -304,6 +302,8 @@ export const AgentReasoningPanel = memo(
                                   fontWeight: 600,
                                   fontFamily: "monospace",
                                   fontSize: 11,
+                                  transition: "none",
+                                  outline: "none",
                                 }}
                               >
                                 {id}
@@ -346,6 +346,8 @@ export const AgentReasoningPanel = memo(
                                   fontWeight: 600,
                                   fontFamily: "monospace",
                                   fontSize: 11,
+                                  transition: "none",
+                                  outline: "none",
                                 }}
                               >
                                 {id}
