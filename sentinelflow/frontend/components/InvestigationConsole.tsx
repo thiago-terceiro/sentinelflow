@@ -486,7 +486,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
         />
 
         {/* Timeline and Evidence Panels with Cross-Panel Linking */}
-        <div className="console-timeline-evidence-grid" style={{ alignItems: "start" }}>
+        <div className="console-timeline-evidence-grid">
           <InvestigationTimeline status={state.status} events={state.timeline} />
           <EvidencePanel
             evidence={state.evidence}

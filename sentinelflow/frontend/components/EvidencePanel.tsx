@@ -69,7 +69,22 @@ export const EvidencePanel = memo(
     }, [highlightedEvidenceId]);
 
     return (
-      <section id="investigation-evidence" aria-label="Investigation evidence" className="shell-card" style={{ padding: 24, minHeight: 0 }}>
+      <section
+        id="investigation-evidence"
+        aria-label="Investigation evidence"
+        className="shell-card"
+        style={{
+          padding: 24,
+          height: "100%",
+          maxHeight: 700,
+          minHeight: 120,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
         <p
           style={{
             margin: 0,
@@ -117,7 +132,8 @@ export const EvidencePanel = memo(
           style={{
             display: "grid",
             gap: 12,
-            maxHeight: 560,
+            flex: 1,
+            maxHeight: 580,
             overflowY: "auto",
             paddingRight: 6,
             alignContent: "start",

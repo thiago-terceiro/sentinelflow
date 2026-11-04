@@ -99,6 +99,80 @@ export const TimeTravelScrubber = memo(
             >
               {eventTypeLabel}
             </span>
+
+            {/* Quick Prev / Next Stepper Arrows */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 2,
+                background: "rgba(255, 255, 255, 0.04)",
+                padding: "2px",
+                borderRadius: 6,
+                border: "1px solid var(--panel-border)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={onPrevious}
+                disabled={!hasEvents || currentStep <= 0}
+                aria-label="Step backward in timeline"
+                title="Step backward ([)"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 24,
+                  height: 22,
+                  padding: 0,
+                  borderRadius: 4,
+                  background: !hasEvents || currentStep <= 0 ? "transparent" : "rgba(255, 255, 255, 0.06)",
+                  border: 0,
+                  color: !hasEvents || currentStep <= 0 ? "var(--muted)" : "var(--foreground)",
+                  cursor: !hasEvents || currentStep <= 0 ? "not-allowed" : "pointer",
+                  fontSize: 10,
+                  lineHeight: 1,
+                  opacity: !hasEvents || currentStep <= 0 ? 0.35 : 1,
+                  transition: "none",
+                }}
+              >
+                ◀
+              </button>
+              <button
+                type="button"
+                onClick={onNext}
+                disabled={!hasEvents || isLive || currentStep >= totalSteps - 1}
+                aria-label="Step forward in timeline"
+                title="Step forward (])"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 24,
+                  height: 22,
+                  padding: 0,
+                  borderRadius: 4,
+                  background:
+                    !hasEvents || isLive || currentStep >= totalSteps - 1
+                      ? "transparent"
+                      : "rgba(255, 255, 255, 0.06)",
+                  border: 0,
+                  color:
+                    !hasEvents || isLive || currentStep >= totalSteps - 1
+                      ? "var(--muted)"
+                      : "var(--foreground)",
+                  cursor:
+                    !hasEvents || isLive || currentStep >= totalSteps - 1 ? "not-allowed" : "pointer",
+                  fontSize: 10,
+                  lineHeight: 1,
+                  opacity: !hasEvents || isLive || currentStep >= totalSteps - 1 ? 0.35 : 1,
+                  transition: "none",
+                }}
+              >
+                ▶
+              </button>
+            </div>
+
             <span style={{ fontSize: 12, color: "var(--muted)" }}>
               {hasEvents ? `Step ${currentStep + 1} of ${totalSteps}` : "Standby (0 events)"}
             </span>

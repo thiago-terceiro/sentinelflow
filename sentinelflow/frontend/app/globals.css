@@ -700,7 +700,7 @@ main,
   display: grid;
   grid-template-columns: minmax(320px, 1fr) minmax(0, 1.5fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .audit-compliance-grid {

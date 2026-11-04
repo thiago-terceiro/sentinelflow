@@ -97,12 +97,14 @@ export const InvestigationTimeline = memo(({ status, events }: Props) => {
       className="shell-card"
       style={{
         padding: 24,
+        height: "100%",
         maxHeight: 700,
         minHeight: 120,
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         width: "100%",
+        boxSizing: "border-box",
       }}
     >
       <p
@@ -125,6 +127,7 @@ export const InvestigationTimeline = memo(({ status, events }: Props) => {
           display: "grid",
           gap: 14,
           overflowY: "auto",
+          flex: 1,
           maxHeight: 580,
           paddingRight: 8,
         }}

@@ -28,7 +28,16 @@ export const AnalyzerPanel = memo(
     onHighlightEvidence,
   }: Props) => {
     return (
-      <section className="shell-card" style={{ padding: 24 }}>
+      <section
+        className="shell-card"
+        style={{
+          padding: 24,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+        }}
+      >
         <p
           style={{
             margin: 0,
