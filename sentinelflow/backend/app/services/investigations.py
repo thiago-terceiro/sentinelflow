@@ -497,10 +497,20 @@ async def persist_graph_state(
     record.iteration_count = values["iteration_count"]
     record.tool_call_count = values["tool_call_count"]
     record.analyzer_call_count = values["analyzer_call_count"]
-    timeline_events = _as_timeline_events(values.get("timeline_events"))
-    if record.status == "awaiting_approval" and not any(
-        ev.get("type") == "approval_required" for ev in timeline_events[-2:]
-    ):
+    # Stale approval events (from earlier iterations or replayed interrupt nodes) are dropped;
+    # a single fresh one is appended only when the graph is truly paused for review.
+    timeline_events = [
+        ev
+        for ev in _as_timeline_events(values.get("timeline_events"))
+        if ev.get("type") != "approval_required"
+    ]
+    if record.status == "awaiting_approval":
+        revision_count = int(values.get("revision_count", 0) or 0)
+        approval_event_id = (
+            f"approval_{record.id}"
+            if revision_count <= 0
+            else f"approval_{record.id}_rev{revision_count}"
+        )
         timeline_events.append(
             build_stream_event(
                 "approval_required",
@@ -512,7 +522,7 @@ async def persist_graph_state(
                     "analyzer_summaries": record.analyzer_summaries,
                     "hypotheses": record.hypotheses,
                 },
-                event_id=f"approval_{record.id}",
+                event_id=approval_event_id,
             )
         )
     elif record.status == "completed" and not any(
@@ -563,6 +573,11 @@ async def _run_graph(
                 new_events = extract_timeline_events(chunk)
                 chunk_added = False
                 for event in new_events:
+                    # approval_required is emitted once by persist_graph_state after the graph
+                    # pauses; streaming it mid-run would replay stale interrupts and make the
+                    # console close its stream before the resumed run actually finishes.
+                    if event.get("type") == "approval_required":
+                        continue
                     eid = event.get("id")
                     if eid and eid in seen_ids:
                         continue

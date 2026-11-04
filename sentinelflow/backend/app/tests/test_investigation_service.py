@@ -988,6 +988,77 @@ async def test_persist_graph_state_appends_approval_required_on_interrupt() -> N
     assert updated.timeline_events[-1]["id"] == "approval_inv_interrupt_1"
 
 
+async def test_persist_graph_state_keeps_only_one_fresh_approval_after_revision() -> None:
+    record = cast(
+        InvestigationRecord,
+        SimpleNamespace(
+            id="inv_rev_1",
+            dispute_id="disp_rev_1",
+            thread_id="thread_rev_1",
+            status="running",
+            evidence=[],
+            analyzer_summaries=[],
+            hypotheses=[],
+            unresolved_questions=[],
+            risk_assessment=None,
+            compliance_findings=[],
+            report=None,
+            iteration_count=0,
+            tool_call_count=0,
+            analyzer_call_count=0,
+            timeline_events=[],
+            checkpoint_id=None,
+        ),
+    )
+    stale_approval = {
+        "id": "approval_inv_rev_1",
+        "type": "approval_required",
+        "timestamp": "2026-09-03T00:00:01Z",
+        "data": {"investigation_id": "inv_rev_1"},
+    }
+
+    class _FakeGraph:
+        async def aget_state(self, _config: dict[str, Any]) -> object:
+            return SimpleNamespace(
+                next=("approval",),
+                config={"configurable": {"checkpoint_id": "chk_rev_1"}},
+                values={
+                    "status": "running",
+                    "evidence": [],
+                    "analyzer_summaries": [],
+                    "hypotheses": [],
+                    "unresolved_questions": [],
+                    "risk_assessment": None,
+                    "compliance_findings": [],
+                    "investigation_report": None,
+                    "iteration_count": 2,
+                    "tool_call_count": 4,
+                    "analyzer_call_count": 2,
+                    "revision_count": 1,
+                    "timeline_events": [stale_approval, stale_approval],
+                },
+            )
+
+    class _FakeSession:
+        async def commit(self) -> None:
+            return None
+
+        async def refresh(self, _obj: object) -> None:
+            return None
+
+    updated = await persist_graph_state(
+        cast(AsyncSession, _FakeSession()),
+        record,
+        _FakeGraph(),
+        {"configurable": {"thread_id": "thread_rev_1"}},
+    )
+
+    approval_ids = [
+        ev["id"] for ev in updated.timeline_events if ev["type"] == "approval_required"
+    ]
+    assert approval_ids == ["approval_inv_rev_1_rev1"]
+
+
 async def test_publish_terminal_evicts_oldest_item_when_subscriber_queue_is_full(
     monkeypatch: Any,
 ) -> None:
