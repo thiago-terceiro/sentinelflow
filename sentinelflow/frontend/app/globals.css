@@ -695,16 +695,12 @@ main,
   max-width: 100%;
 }
 
-.console-timeline-evidence-grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.4fr);
-  gap: 18px;
-}
-
+.console-timeline-evidence-grid,
 .console-two-col-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(320px, 1fr) minmax(0, 1.5fr);
   gap: 18px;
+  align-items: start;
 }
 
 .audit-compliance-grid {

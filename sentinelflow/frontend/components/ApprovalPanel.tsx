@@ -21,8 +21,19 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, onDecision 
   if (!requiresApproval) {
     return (
       <section className="shell-card" style={{ padding: 24 }}>
-        <h2>Human Approval & Steering</h2>
-        <p style={{ color: "var(--muted)" }}>No review action is currently required.</p>
+        <p
+          style={{
+            margin: 0,
+            color: "var(--muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            fontSize: 11,
+          }}
+        >
+          Human-in-the-loop review
+        </p>
+        <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>Human Approval & Steering</h2>
+        <p style={{ color: "var(--muted)", margin: 0 }}>No review action is currently required.</p>
       </section>
     );
   }
@@ -52,7 +63,20 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, onDecision 
         }}
       >
         <div>
-          <h2>Human Approval & Steering (LangGraph Interrupt)</h2>
+          <p
+            style={{
+              margin: 0,
+              color: "var(--muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              fontSize: 11,
+            }}
+          >
+            Human-in-the-loop review
+          </p>
+          <h2 style={{ margin: "8px 0 4px", fontSize: 18, fontWeight: 600 }}>
+            Human Approval & Steering (LangGraph Interrupt)
+          </h2>
           <p style={{ color: "var(--muted)", margin: "4px 0 16px 0" }}>
             The graph interrupted execution at the <code>approval</code> checkpoint. Reviewers can
             approve, deny, or steer the agent to re-investigate.

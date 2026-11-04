@@ -102,7 +102,6 @@ export const InvestigationTimeline = memo(({ status, events }: Props) => {
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        maxWidth: "80%",
         width: "100%",
       }}
     >
@@ -112,11 +111,12 @@ export const InvestigationTimeline = memo(({ status, events }: Props) => {
           color: "var(--muted)",
           textTransform: "uppercase",
           letterSpacing: "0.08em",
+          fontSize: 11,
         }}
       >
         Investigation timeline
       </p>
-      <h2 style={{ margin: "8px 0 14px", fontSize: 18 }}>Status: {status}</h2>
+      <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>Status: {status}</h2>
       <ul
         style={{
           listStyle: "none",

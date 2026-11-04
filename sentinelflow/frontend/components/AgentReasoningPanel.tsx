@@ -67,7 +67,9 @@ export const AgentReasoningPanel = memo(
             >
               Agent Observability & Reasoning
             </span>
-            <h2 style={{ margin: "2px 0 0 0" }}>Investigative Chain of Thought & Hypotheses</h2>
+            <h2 style={{ margin: "8px 0 0 0", fontSize: 18, fontWeight: 600 }}>
+              Investigative Chain of Thought & Hypotheses
+            </h2>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -296,7 +298,7 @@ export const AgentReasoningPanel = memo(
                                     : "rgba(40,167,69,0.1)",
                                   color: isFocused ? "var(--accent)" : "var(--success)",
                                   border: isFocused
-                                    ? "1.5px solid var(--accent)"
+                                    ? "1px solid var(--accent)"
                                     : "1px solid rgba(40,167,69,0.25)",
                                   cursor: "pointer",
                                   fontWeight: 600,
@@ -340,7 +342,7 @@ export const AgentReasoningPanel = memo(
                                     : "rgba(220,53,69,0.1)",
                                   color: isFocused ? "var(--danger)" : "var(--danger)",
                                   border: isFocused
-                                    ? "1.5px solid var(--danger)"
+                                    ? "1px solid var(--danger)"
                                     : "1px solid rgba(220,53,69,0.25)",
                                   cursor: "pointer",
                                   fontWeight: 600,

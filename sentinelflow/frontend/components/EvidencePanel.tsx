@@ -70,18 +70,30 @@ export const EvidencePanel = memo(
 
     return (
       <section id="investigation-evidence" aria-label="Investigation evidence" className="shell-card" style={{ padding: 24, minHeight: 0 }}>
-        <div
+        <p
           style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "flex-start",
-            flexWrap: "wrap",
-            gap: 12,
-            marginBottom: 16,
+            margin: 0,
+            color: "var(--muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            fontSize: 11,
             textAlign: "left",
           }}
         >
-          <h2 style={{ margin: 0, textAlign: "left" }}>Evidence Provenance</h2>
+          Investigation evidence
+        </p>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            flexWrap: "wrap",
+            gap: 12,
+            margin: "8px 0 14px",
+            textAlign: "left",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, textAlign: "left" }}>Evidence Provenance</h2>
           <span style={{ color: "var(--muted)", fontSize: 13, textAlign: "left" }}>{evidence.length} items</span>
           {highlightedEvidenceId ? (
             <span
@@ -168,15 +180,14 @@ export const EvidencePanel = memo(
                   }
                 }}
                 style={{
-                  border: isHighlighted
-                    ? "1.5px solid var(--accent)"
-                    : "1px solid var(--panel-border)",
-                  boxShadow: "none",
+                  border: "1px solid",
+                  borderColor: isHighlighted ? "var(--accent)" : "var(--panel-border)",
+                  boxShadow: isHighlighted ? "0 0 0 1px var(--accent)" : "none",
                   background: isHighlighted ? "rgba(37, 99, 235, 0.03)" : "transparent",
                   borderRadius: 16,
                   padding: 16,
                   cursor: onSelectEvidence ? "pointer" : "default",
-                  transition: "all 0.15s ease-in-out",
+                  transition: "border-color 0.15s ease, background-color 0.15s ease",
                   textAlign: "left",
                 }}
               >

@@ -29,6 +29,17 @@ export const AnalyzerPanel = memo(
   }: Props) => {
     return (
       <section className="shell-card" style={{ padding: 24 }}>
+        <p
+          style={{
+            margin: 0,
+            color: "var(--muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            fontSize: 11,
+          }}
+        >
+          Multi-agent analysis
+        </p>
         <div
           style={{
             display: "flex",
@@ -36,9 +47,10 @@ export const AnalyzerPanel = memo(
             alignItems: "center",
             flexWrap: "wrap",
             gap: 8,
+            margin: "8px 0 14px",
           }}
         >
-          <h2>Analyzer Findings & Contradictions</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Analyzer Findings & Contradictions</h2>
           <span style={{ color: "var(--muted)", fontSize: 13 }}>{analyzers.length} analyzers</span>
         </div>
         {analyzers.length === 0 ? (
@@ -154,7 +166,7 @@ export const AnalyzerPanel = memo(
                             background: isLinked ? "rgba(37,99,235,0.08)" : "rgba(255,255,255,0.06)",
                             color: isLinked ? "var(--accent)" : "var(--foreground)",
                             border: isLinked
-                              ? "1.5px solid var(--accent)"
+                              ? "1px solid var(--accent)"
                               : "1px solid var(--panel-border)",
                             cursor: "pointer",
                             fontSize: 11,

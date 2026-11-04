@@ -46,15 +46,17 @@ export const TimeTravelScrubber = memo(
     onNext,
     onReturnToLive,
   }: Props) => {
-    if (rawEvents.length === 0) {
-      return null;
-    }
-
-    const totalSteps = rawEvents.length;
+    const hasEvents = rawEvents.length > 0;
+    const totalSteps = hasEvents ? rawEvents.length : 1;
     const isLive = selectedEventIndex === null;
-    const currentStep = isLive ? totalSteps - 1 : selectedEventIndex;
-    const activeEvent = rawEvents[currentStep] || rawEvents[rawEvents.length - 1];
-    const badgeStyle = getEventBadgeColor(activeEvent.type);
+    const currentStep = hasEvents ? (isLive ? totalSteps - 1 : selectedEventIndex) : 0;
+    const activeEvent = hasEvents
+      ? rawEvents[currentStep] || rawEvents[rawEvents.length - 1]
+      : null;
+    const badgeStyle = activeEvent
+      ? getEventBadgeColor(activeEvent.type)
+      : { bg: "rgba(255,255,255,0.06)", text: "var(--muted)" };
+    const eventTypeLabel = activeEvent ? activeEvent.type : "standby";
 
     return (
       <section
@@ -95,10 +97,10 @@ export const TimeTravelScrubber = memo(
                 fontFamily: "monospace",
               }}
             >
-              {activeEvent.type}
+              {eventTypeLabel}
             </span>
             <span style={{ fontSize: 12, color: "var(--muted)" }}>
-              Step {currentStep + 1} of {totalSteps}
+              {hasEvents ? `Step ${currentStep + 1} of ${totalSteps}` : "Standby (0 events)"}
             </span>
           </div>
 
@@ -173,15 +175,15 @@ export const TimeTravelScrubber = memo(
           <button
             type="button"
             onClick={onPrevious}
-            disabled={currentStep <= 0}
+            disabled={!hasEvents || currentStep <= 0}
             aria-label="Step backward in timeline"
             style={{
               padding: "4px 10px",
               borderRadius: 6,
               background: "rgba(255,255,255,0.05)",
               border: "1px solid var(--panel-border)",
-              color: currentStep <= 0 ? "var(--muted)" : "var(--foreground)",
-              cursor: currentStep <= 0 ? "not-allowed" : "pointer",
+              color: !hasEvents || currentStep <= 0 ? "var(--muted)" : "var(--foreground)",
+              cursor: !hasEvents || currentStep <= 0 ? "not-allowed" : "pointer",
               fontSize: 12,
               fontWeight: 600,
             }}
@@ -192,10 +194,12 @@ export const TimeTravelScrubber = memo(
           <input
             type="range"
             min={0}
-            max={totalSteps - 1}
+            max={Math.max(1, totalSteps - 1)}
             value={currentStep}
+            disabled={!hasEvents}
             aria-label="Event step scrubber"
             onChange={(e) => {
+              if (!hasEvents) return;
               const val = Number(e.target.value);
               if (val >= totalSteps - 1) {
                 onSelectIndex(null);
@@ -206,75 +210,33 @@ export const TimeTravelScrubber = memo(
             style={{
               flex: 1,
               accentColor: isLive ? "var(--accent)" : "#eab308",
-              cursor: "pointer",
+              cursor: hasEvents ? "pointer" : "not-allowed",
+              opacity: hasEvents ? 1 : 0.5,
             }}
           />
 
           <button
             type="button"
             onClick={onNext}
-            disabled={isLive || currentStep >= totalSteps - 1}
+            disabled={!hasEvents || isLive || currentStep >= totalSteps - 1}
             aria-label="Step forward in timeline"
             style={{
               padding: "4px 10px",
               borderRadius: 6,
               background: "rgba(255,255,255,0.05)",
               border: "1px solid var(--panel-border)",
-              color: isLive || currentStep >= totalSteps - 1 ? "var(--muted)" : "var(--foreground)",
-              cursor: isLive || currentStep >= totalSteps - 1 ? "not-allowed" : "pointer",
+              color:
+                !hasEvents || isLive || currentStep >= totalSteps - 1
+                  ? "var(--muted)"
+                  : "var(--foreground)",
+              cursor:
+                !hasEvents || isLive || currentStep >= totalSteps - 1 ? "not-allowed" : "pointer",
               fontSize: 12,
               fontWeight: 600,
             }}
           >
             Next ▶
           </button>
-        </div>
-
-        {/* Sneak Peek & Execution State */}
-        <div
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            background: "var(--card-subtle-bg, #f8fafc)",
-            border: "1px solid var(--panel-border)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            fontSize: 12,
-            fontFamily: "monospace",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background:
-                  activeEvent.type === "run_completed" ||
-                  activeEvent.type === "final_report_ready"
-                    ? "#22c55e"
-                    : activeEvent.type === "run_failed"
-                    ? "#ef4444"
-                    : "#2563eb",
-                boxShadow:
-                  activeEvent.type === "run_completed" ||
-                  activeEvent.type === "final_report_ready"
-                    ? "0 0 8px rgba(34, 197, 94, 0.6)"
-                    : "0 0 8px rgba(37, 99, 235, 0.6)",
-                display: "inline-block",
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ fontWeight: 600, color: "var(--foreground)" }}>
-              GenUIArtifactCard.tsx
-            </span>
-          </div>
-          <div style={{ paddingLeft: 13, color: "var(--muted)" }}>
-            execution_state:{" "}
-            <span style={{ color: "var(--accent)" }}>{activeEvent.type}</span> (step{" "}
-            {currentStep + 1} of {totalSteps})
-          </div>
         </div>
       </section>
     );

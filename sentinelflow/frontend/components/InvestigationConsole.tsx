@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { AgentMessageStrip } from "@/components/AgentMessageStrip";
 import { AgentReasoningPanel } from "@/components/AgentReasoningPanel";
 import { AnalyzerPanel } from "@/components/AnalyzerPanel";
 import { ApprovalPanel } from "@/components/ApprovalPanel";
@@ -225,7 +224,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
               marginBottom: 8,
             }}
           >
-            <h2 style={{ fontSize: 24, margin: 0 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
               Recommendation:{" "}
               <span style={{ color: getRecommendationColor(state.report.recommendation) }}>
                 {state.report.recommendation.toUpperCase()}
@@ -255,9 +254,19 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
 
       return (
         <section className="shell-card" style={{ padding: 24 }}>
-          <h2>Recommendation</h2>
-          <p style={{ fontSize: 24, marginBottom: 8 }}>IN PROGRESS</p>
-          <p>{inProgressMessage}</p>
+          <p
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "var(--muted)",
+              margin: 0,
+            }}
+          >
+            Final Synthesis & Verdict
+          </p>
+          <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>Recommendation: IN PROGRESS</h2>
+          <p style={{ margin: 0, color: "var(--muted)" }}>{inProgressMessage}</p>
         </section>
       );
     }
@@ -355,6 +364,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
           currentPhase={state.currentPhase}
           status={state.status}
           reviewerGuidance={state.reviewerGuidance}
+          agentMessage={state.agentStatus}
         />
 
         {state.error ? (
@@ -400,8 +410,6 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
             recovery succeeds.
           </div>
         ) : null}
-
-        <AgentMessageStrip message={state.agentStatus} status={state.status} />
 
         {showGenUI ? (
           <section className="shell-card" style={{ padding: 24 }}>

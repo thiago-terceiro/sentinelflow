@@ -9,7 +9,18 @@ export const RiskPanel = memo(({ risk }: Props) => {
   const meter = risk ? `${Math.round(risk.score * 100)}%` : "0%";
   return (
     <section className="shell-card" style={{ padding: 24 }}>
-      <h2>Risk</h2>
+      <p
+        style={{
+          margin: 0,
+          color: "var(--muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          fontSize: 11,
+        }}
+      >
+        Risk assessment
+      </p>
+      <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>Risk Scoring & Evaluation</h2>
       <div
         style={{
           height: 12,

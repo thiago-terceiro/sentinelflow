@@ -23,124 +23,232 @@ type Props = {
   currentPhase?: StageKey;
   status: string;
   reviewerGuidance?: string | null;
+  agentMessage?: string | null;
 };
 
-export const LangGraphProgress = memo(({ currentPhase = "intake", status, reviewerGuidance }: Props) => {
-  const stageOrder: Record<StageKey, number> = {
-    intake: 0,
-    investigate: 1,
-    collect: 2,
-    synthesize: 3,
-    approval: 4,
-    finalize: 5,
+const fallbackMessage = (status: string) => {
+  if (status === "APPROVAL_REQUIRED") {
+    return "Awaiting reviewer approval";
+  }
+  if (status === "COMPLETED") {
+    return "Investigation complete";
+  }
+  if (status === "FAILED") {
+    return "Investigation failed";
+  }
+  if (status === "RUNNING") {
+    return "Initializing investigation";
+  }
+  return "Ready to start";
+};
+
+const getAgentDotStyle = (status: string) => {
+  if (status === "COMPLETED") {
+    return {
+      background: "var(--success, #22c55e)",
+      boxShadow: "0 0 8px rgba(34, 197, 94, 0.6)",
+    };
+  }
+  if (status === "RUNNING" || status === "APPROVAL_REQUIRED") {
+    return {
+      background: "var(--accent, #2563eb)",
+      boxShadow: "0 0 8px rgba(37, 99, 235, 0.6)",
+    };
+  }
+  if (status === "FAILED") {
+    return {
+      background: "var(--danger, #ef4444)",
+      boxShadow: "0 0 8px rgba(239, 68, 68, 0.6)",
+    };
+  }
+  return {
+    background: "rgba(15, 23, 42, 0.2)",
+    boxShadow: "none",
   };
+};
 
-  const currentIndex = stageOrder[currentPhase] ?? 0;
-  const isCompleted = status === "COMPLETED";
-  const isFailed = status === "FAILED";
+export const LangGraphProgress = memo(
+  ({ currentPhase = "intake", status, reviewerGuidance, agentMessage }: Props) => {
+    const stageOrder: Record<StageKey, number> = {
+      intake: 0,
+      investigate: 1,
+      collect: 2,
+      synthesize: 3,
+      approval: 4,
+      finalize: 5,
+    };
 
-  const getStageHeader = (): string => {
-    if (isCompleted) {
-      return "COMPLETED (Audit Ledger Committed)";
-    }
-    if (status === "APPROVAL_REQUIRED") {
-      return "APPROVAL REQUIRED (Human Interrupt)";
-    }
-    if (status === "RUNNING") {
-      return `${currentPhase.toUpperCase()} (Running)`;
-    }
-    if (isFailed) {
-      return "FAILED";
-    }
-    return currentPhase.toUpperCase();
-  };
+    const currentIndex = stageOrder[currentPhase] ?? 0;
+    const isCompleted = status === "COMPLETED";
+    const isFailed = status === "FAILED";
 
-  return (
-    <div className="shell-card" style={{ padding: "20px 24px", minHeight: 224, boxSizing: "border-box" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <span
-            style={{
-              fontSize: 11,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "var(--muted)",
-            }}
-          >
-            LangGraph Execution Pipeline
-          </span>
-          <h3 style={{ margin: "2px 0 0 0", fontSize: 16, fontWeight: 600 }}>
-            Active Graph State:{" "}
+    const getStageHeader = (): string => {
+      if (isCompleted) {
+        return "COMPLETED";
+      }
+      if (status === "APPROVAL_REQUIRED") {
+        return "APPROVAL REQUIRED";
+      }
+      if (status === "RUNNING") {
+        return currentPhase.toUpperCase();
+      }
+      if (isFailed) {
+        return "FAILED";
+      }
+      return currentPhase.toUpperCase();
+    };
+
+    return (
+      <div className="shell-card" style={{ padding: "20px 24px", minHeight: 224, boxSizing: "border-box" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 16,
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  color: "var(--muted)",
+                }}
+              >
+                LangGraph Execution Pipeline
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  marginTop: 6,
+                  flexWrap: "wrap",
+                }}
+              >
+                {/* Active Graph State */}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  <span style={{ color: "var(--muted)" }}>Active Graph State:</span>
+                  <strong
+                    style={{
+                      color: isCompleted
+                        ? "var(--success)"
+                        : isFailed
+                        ? "var(--danger)"
+                        : "var(--accent)",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {getStageHeader()}
+                  </strong>
+                </div>
+
+                {/* Agent Activity inline chip */}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid var(--panel-border)",
+                    fontSize: 12,
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      ...getAgentDotStyle(status),
+                    }}
+                  />
+                  <span
+                    style={{
+                      color: "var(--muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      fontSize: 11,
+                    }}
+                  >
+                    Agent activity:
+                  </span>
+                  <strong style={{ fontWeight: 600, color: "var(--foreground)" }}>
+                    {agentMessage ?? fallbackMessage(status)}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          {reviewerGuidance ? (
             <span
               style={{
-                color: isCompleted
-                  ? "var(--success)"
-                  : isFailed
-                  ? "var(--danger)"
-                  : "var(--accent)",
+                padding: "4px 10px",
+                borderRadius: 999,
+                fontSize: 11,
+                background: "rgba(99,102,241,0.15)",
+                color: "#818cf8",
+                border: "1px solid rgba(99,102,241,0.3)",
+                whiteSpace: "nowrap",
               }}
             >
-              {getStageHeader()}
+              ⟲ Human Steering Loop Active
             </span>
-          </h3>
+          ) : null}
         </div>
-        {reviewerGuidance ? (
-          <span
-            style={{
-              padding: "4px 10px",
-              borderRadius: 999,
-              fontSize: 11,
-              background: "rgba(99,102,241,0.15)",
-              color: "#818cf8",
-              border: "1px solid rgba(99,102,241,0.3)",
-            }}
-          >
-            ⟲ Human Steering Loop Active
-          </span>
-        ) : null}
-      </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          overflowX: "auto",
-          paddingBottom: 4,
-        }}
-      >
-        {STAGES.map((stage, idx) => {
-          const isCurrent = currentPhase === stage.key && !isCompleted;
-          const isPast = idx < currentIndex || isCompleted;
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            overflowX: "auto",
+            paddingBottom: 4,
+          }}
+        >
+          {STAGES.map((stage, idx) => {
+            const isCurrent = currentPhase === stage.key && !isCompleted;
+            const isPast = idx < currentIndex || isCompleted;
 
-          let badgeColor = "var(--panel-border)";
-          let textColor = "var(--muted)";
-          let dotBg = "rgba(255,255,255,0.1)";
+            let badgeColor = "var(--panel-border)";
+            let textColor = "var(--muted)";
+            let dotBg = "rgba(255,255,255,0.1)";
 
-          if (isFailed && isCurrent) {
-            badgeColor = "var(--danger)";
-            textColor = "var(--danger)";
-            dotBg = "var(--danger)";
-          } else if (isCurrent) {
-            badgeColor = "var(--accent)";
-            textColor = "var(--accent)";
-            dotBg = "var(--accent)";
-          } else if (isPast) {
-            badgeColor = "var(--success)";
-            textColor = "var(--foreground)";
-            dotBg = "var(--success)";
-          }
+            if (isFailed && isCurrent) {
+              badgeColor = "var(--danger)";
+              textColor = "var(--danger)";
+              dotBg = "var(--danger)";
+            } else if (isCurrent) {
+              badgeColor = "var(--accent)";
+              textColor = "var(--accent)";
+              dotBg = "var(--accent)";
+            } else if (isPast) {
+              badgeColor = "var(--success)";
+              textColor = "var(--foreground)";
+              dotBg = "var(--success)";
+            }
 
-          return (
-            <React.Fragment key={stage.key}>
+            return (
               <div
+                key={stage.key}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -184,27 +292,9 @@ export const LangGraphProgress = memo(({ currentPhase = "intake", status, review
                   {stage.sublabel}
                 </span>
               </div>
-              {idx < STAGES.length - 1 ? (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--muted)",
-                    fontSize: 16,
-                    padding: "0 4px",
-                    flexShrink: 0,
-                    userSelect: "none",
-                  }}
-                  aria-hidden="true"
-                >
-                  →
-                </div>
-              ) : null}
-            </React.Fragment>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
       <div
         style={{
