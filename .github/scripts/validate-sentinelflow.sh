@@ -38,13 +38,14 @@ resolve_uv_bin() {
   return 1
 }
 
-UV_BIN="${UV_BIN:-}"
-if [[ -z "$UV_BIN" ]]; then
-  if ! UV_BIN="$(resolve_uv_bin)"; then
-    echo "Unable to find uv executable. Install uv or set UV_BIN." >&2
-    exit 127
+ensure_uv_bin() {
+  if [[ -z "${UV_BIN:-}" ]]; then
+    if ! UV_BIN="$(resolve_uv_bin)"; then
+      echo "Unable to find uv executable. Install uv or set UV_BIN." >&2
+      exit 127
+    fi
   fi
-fi
+}
 
 resolve_node_bin() {
   if command -v node >/dev/null 2>&1 && node --version >/dev/null 2>&1; then
@@ -82,6 +83,7 @@ resolve_pnpm_bin() {
 PNPM_BIN="${PNPM_BIN:-$(resolve_pnpm_bin)}"
 
 run_backend() {
+  ensure_uv_bin
   echo "[sentinelflow] backend: uv sync --extra dev && ruff check && ruff format --check && bandit && pip-audit && mypy && pytest && evals"
   (
     cd "$app_root/backend"
@@ -123,6 +125,7 @@ run_contract_check() {
 }
 
 run_security_check() {
+  ensure_uv_bin
   echo "[sentinelflow] security: running OWASP Top 10, LLM Top 10 & CWE/CVE compliance suite"
   (
     cd "$app_root/backend"

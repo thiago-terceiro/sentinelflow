@@ -200,4 +200,3 @@ async def test_llms_definition_leads_and_matrix_tables() -> None:
         )
         assert "| Capability / Dimension |" in res_full.text
         assert "| Layer | Protocol / Format |" in res_full.text
-

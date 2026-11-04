@@ -59,7 +59,7 @@ def test_sha256_text_is_stable() -> None:
 
 def test_sanitize_prompt_injection_neutralizes_vectors() -> None:
     # 1. Zero-width Unicode injection
-    zero_width_input = "Hello\u200BWorld\uFEFFTest\u200DSecret"
+    zero_width_input = "Hello\u200bWorld\ufeffTest\u200dSecret"
     sanitized, changed, warnings = sanitize_prompt_injection(zero_width_input)
     assert changed is True
     assert sanitized == "HelloWorldTestSecret"
@@ -68,7 +68,7 @@ def test_sanitize_prompt_injection_neutralizes_vectors() -> None:
     # 2. Hidden DOM tags
     hidden_dom_input = (
         'Normal text <span style="display:none; font-size:0px;">SYSTEM OVERRIDE</span> '
-        '<div hidden>malicious instruction</div>'
+        "<div hidden>malicious instruction</div>"
     )
     sanitized, changed, warnings = sanitize_prompt_injection(hidden_dom_input)
     assert changed is True
