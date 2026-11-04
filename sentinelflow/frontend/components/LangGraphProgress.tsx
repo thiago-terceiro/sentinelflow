@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useEffect, useRef } from "react";
 
 type StageKey = "intake" | "investigate" | "collect" | "synthesize" | "approval" | "finalize";
 
@@ -69,6 +69,32 @@ const getAgentDotStyle = (status: string) => {
 
 export const LangGraphProgress = memo(
   ({ currentPhase = "intake", status, reviewerGuidance, agentMessage }: Props) => {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const stageRefs = useRef<Record<StageKey, HTMLDivElement | null>>({
+      intake: null,
+      investigate: null,
+      collect: null,
+      synthesize: null,
+      approval: null,
+      finalize: null,
+    });
+
+    useEffect(() => {
+      const container = containerRef.current;
+      const targetCard = stageRefs.current[currentPhase];
+      if (container && targetCard) {
+        const cardLeft = targetCard.offsetLeft;
+        const cardWidth = targetCard.offsetWidth;
+        const containerWidth = container.clientWidth;
+        // Center the active card in the horizontal container viewport
+        const scrollTarget = cardLeft - containerWidth / 2 + cardWidth / 2;
+        container.scrollTo({
+          left: Math.max(0, scrollTarget),
+          behavior: "smooth",
+        });
+      }
+    }, [currentPhase]);
+
     const stageOrder: Record<StageKey, number> = {
       intake: 0,
       investigate: 1,
@@ -158,40 +184,31 @@ export const LangGraphProgress = memo(
                   </strong>
                 </div>
 
-                {/* Agent Activity inline chip */}
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "4px 10px",
-                    borderRadius: 6,
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid var(--panel-border)",
-                    fontSize: 12,
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      flexShrink: 0,
-                      ...getAgentDotStyle(status),
-                    }}
-                  />
-                  <span
-                    style={{
-                      color: "var(--muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      fontSize: 11,
-                    }}
-                  >
-                    Agent activity:
-                  </span>
-                  <strong style={{ fontWeight: 600, color: "var(--foreground)" }}>
+                {/* Agent Activity responsive chip */}
+                <div className="pipeline-agent-activity-chip">
+                  <div className="pipeline-agent-activity-header">
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        flexShrink: 0,
+                        ...getAgentDotStyle(status),
+                      }}
+                    />
+                    <span
+                      style={{
+                        color: "var(--muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        fontSize: 11,
+                      }}
+                    >
+                      Agent activity:
+                    </span>
+                  </div>
+                  <strong className="pipeline-agent-activity-message">
                     {agentMessage ?? fallbackMessage(status)}
                   </strong>
                 </div>
@@ -216,12 +233,16 @@ export const LangGraphProgress = memo(
         </div>
 
         <div
+          ref={containerRef}
           style={{
             display: "flex",
             alignItems: "center",
             gap: 10,
             overflowX: "auto",
-            paddingBottom: 4,
+            scrollBehavior: "smooth",
+            scrollSnapType: "x mandatory",
+            paddingBottom: 6,
+            scrollbarWidth: "none",
           }}
         >
           {STAGES.map((stage, idx) => {
@@ -249,6 +270,11 @@ export const LangGraphProgress = memo(
             return (
               <div
                 key={stage.key}
+                ref={(el) => {
+                  stageRefs.current[stage.key] = el;
+                }}
+                tabIndex={isCurrent ? 0 : -1}
+                aria-current={isCurrent ? "step" : undefined}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -258,12 +284,20 @@ export const LangGraphProgress = memo(
                   borderRadius: 10,
                   border: `1px solid ${badgeColor}`,
                   background: isCurrent ? "rgba(99,102,241,0.06)" : "transparent",
+                  boxShadow: isCurrent
+                    ? "0 0 0 1px var(--accent), 0 2px 8px rgba(37,99,235,0.15)"
+                    : "none",
                   flex: 1,
                   minWidth: 120,
                   height: 72,
                   minHeight: 72,
                   maxHeight: 72,
                   boxSizing: "border-box",
+                  scrollSnapAlign: "center",
+                  transition:
+                    "border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+                  transform: isCurrent ? "scale(1.02)" : "scale(1)",
+                  outline: "none",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

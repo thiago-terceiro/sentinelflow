@@ -717,6 +717,31 @@ main,
   align-items: start;
 }
 
+/* Pipeline Agent Activity Chip */
+.pipeline-agent-activity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--panel-border);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.pipeline-agent-activity-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pipeline-agent-activity-message {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
 @media (max-width: 900px) {
   .console-timeline-evidence-grid,
   .console-two-col-grid,
@@ -737,6 +762,37 @@ main,
 
   .shell-card {
     padding: 16px !important;
+  }
+
+  /* Fixed height mobile card: Agent activity on top line, info below (calculated for 3 lines, fixed height to prevent layout shifts) */
+  .pipeline-agent-activity-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justifyContent: flex-start;
+    width: 100%;
+    height: 88px;
+    min-height: 88px;
+    max-height: 88px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .pipeline-agent-activity-header {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .pipeline-agent-activity-message {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+    font-size: 12px;
+    color: var(--foreground);
+    width: 100%;
   }
 }
 

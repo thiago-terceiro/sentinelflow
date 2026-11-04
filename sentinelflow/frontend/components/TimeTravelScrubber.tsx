@@ -244,27 +244,8 @@ export const TimeTravelScrubber = memo(
           </div>
         </div>
 
-        {/* Range slider and stepper buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button
-            type="button"
-            onClick={onPrevious}
-            disabled={!hasEvents || currentStep <= 0}
-            aria-label="Step backward in timeline"
-            style={{
-              padding: "4px 10px",
-              borderRadius: 6,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid var(--panel-border)",
-              color: !hasEvents || currentStep <= 0 ? "var(--muted)" : "var(--foreground)",
-              cursor: !hasEvents || currentStep <= 0 ? "not-allowed" : "pointer",
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            ◀ Prev
-          </button>
-
+        {/* Event step scrubber slider */}
+        <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
           <input
             type="range"
             min={0}
@@ -282,35 +263,12 @@ export const TimeTravelScrubber = memo(
               }
             }}
             style={{
-              flex: 1,
+              width: "100%",
               accentColor: isLive ? "var(--accent)" : "#eab308",
               cursor: hasEvents ? "pointer" : "not-allowed",
               opacity: hasEvents ? 1 : 0.5,
             }}
           />
-
-          <button
-            type="button"
-            onClick={onNext}
-            disabled={!hasEvents || isLive || currentStep >= totalSteps - 1}
-            aria-label="Step forward in timeline"
-            style={{
-              padding: "4px 10px",
-              borderRadius: 6,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid var(--panel-border)",
-              color:
-                !hasEvents || isLive || currentStep >= totalSteps - 1
-                  ? "var(--muted)"
-                  : "var(--foreground)",
-              cursor:
-                !hasEvents || isLive || currentStep >= totalSteps - 1 ? "not-allowed" : "pointer",
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            Next ▶
-          </button>
         </div>
       </section>
     );
