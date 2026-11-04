@@ -2,11 +2,35 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 import { useSentinelPulse } from "@/components/SentinelPulseProvider";
 import { listDisputes } from "@/lib/api";
 import type { DisputeSummary } from "@/lib/types";
+
+const AuthErrorAlert = () => {
+  const searchParams = useSearchParams();
+  const authError = searchParams.get("auth_error");
+
+  if (!authError) {
+    return null;
+  }
+
+  return (
+    <section
+      className="shell-card"
+      style={{
+        padding: "18px 24px",
+        borderColor: "rgba(158,47,40,0.25)",
+        color: "var(--danger)",
+        width: "100%",
+        margin: 0,
+      }}
+    >
+      Authentication failed: {authError}
+    </section>
+  );
+};
 
 const HomePage = () => {
   const { hasSession } = useSentinelPulse();
@@ -14,9 +38,6 @@ const HomePage = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const searchParams = useSearchParams();
-
-  const authError = useMemo(() => searchParams.get("auth_error"), [searchParams]);
 
   useEffect(() => {
     if (!hasSession) {
@@ -78,20 +99,9 @@ const HomePage = () => {
         </p>
       </section>
 
-      {authError ? (
-        <section
-          className="shell-card"
-          style={{
-            padding: "18px 24px",
-            borderColor: "rgba(158,47,40,0.25)",
-            color: "var(--danger)",
-            width: "100%",
-            margin: 0,
-          }}
-        >
-          Authentication failed: {authError}
-        </section>
-      ) : null}
+      <Suspense fallback={null}>
+        <AuthErrorAlert />
+      </Suspense>
 
       {!hasSession ? (
         <section
