@@ -38,235 +38,341 @@ def _hash_text(text: str) -> str:
     return hashlib.sha256(_normalize_text(text).encode("utf-8")).hexdigest()
 
 
-# 200 distinct held-out benign transactional & conversational messages
-_BENIGN_SERVICES = [
-    "Google", "Apple", "Microsoft", "Amazon", "Uber", "Lyft", "Discord", "Slack",
-    "GitHub", "Twitter", "WhatsApp", "Telegram", "Steam", "Epic Games", "Coinbase",
-    "Binance", "PayPal", "Venmo", "Okta", "Duo Security", "Stripe", "Auth0",
-    "Intuit", "Dropbox", "Adobe", "Shopify", "Twilio", "Zoom", "Atlassian",
-    "LinkedIn", "Reddit", "TikTok", "Instagram", "Snapchat", "Signal", "Sony PlayStation",
-    "Nintendo", "Roblox", "Spotify", "Netflix"
+# 200 distinct held-out hard benign transactional & conversational messages
+_BENIGN_BANK_ALERTS: list[str] = [
+    f"{b} Fraud Alert: Did you attempt ${35 + i * 12}.50 at Chevron? Reply YES or NO. Msg&data rates apply."
+    for i, b in enumerate([
+        "Chase", "Wells Fargo", "Citi", "BofA", "Capital One", "PNC", "TD Bank", "Discover", "US Bank", "Fidelity",
+        "Chase", "Wells Fargo", "Citi", "BofA", "Capital One", "PNC", "TD Bank", "Discover", "US Bank", "Fidelity",
+        "Chase", "Wells Fargo", "Citi", "BofA", "Capital One"
+    ])
 ]
 
-_BENIGN_OTP_SAMPLES = [
-    f"{svc} security code: {200000 + idx * 7919 % 700000:06d}. Do not share this code with anyone."
-    for idx, svc in enumerate(_BENIGN_SERVICES)
+_BENIGN_CARRIER_NOTICES: list[str] = [
+    "Verizon Info: You've used 85% of your monthly domestic data allowance. Check usage at m.vzw.com/mydata",
+    "T-Mobile: Welcome to France! Your plan includes unlimited texting and 5GB high-speed data. Details: t-mo.co/roaming",
+    "AT&T Free Msg: International day pass active. Cellular data roaming will be billed $10/day. Details: att.com/daypass",
+    "Verizon: Your autopay of $85.00 was successful. Thank you for being a customer.",
+    "T-Mobile: Your bill for account ending in 8912 is ready. View statement at t-mobile.com/pay",
+    "AT&T: Scheduled network maintenance in your area on Oct 14 from 1 AM to 4 AM.",
+    "Sprint/T-Mo: Your high-speed hotspot data has reset for the current billing cycle.",
+    "Verizon: A new device logged into your My Verizon account. If this was you, no action needed.",
+    "T-Mobile: 5G Ultra Capacity is now available in your zip code. Enjoy faster speeds!",
+    "Vodafone: Welcome to the UK! Enjoy roaming with your inclusive passport plan.",
+    "O2: Your monthly airtime bill is ready to view online at o2.co.uk/myo2",
+    "Telstra: Data usage alert: You have reached 90% of your included plan allowance.",
+    "Verizon: Your trade-in kit for device appraisal has shipped. Tracking: vzw.com/track",
+    "AT&T: Your fiber internet installation appointment is confirmed for Thursday 9 AM.",
+    "T-Mobile: Thank you for visiting our retail store today. How was your experience? Reply 1-5.",
+    "Cricket Wireless: Monthly service payment received. Next payment due Nov 2.",
+    "Mint Mobile: Your 3-month plan renewal was successful. 15GB data active.",
+    "Google Fi: Your group plan members used 12.4 GB of data this cycle.",
+    "US Cellular: Severe weather alert in your area. Cell towers operating normally.",
+    "Spectrum Mobile: Free access to nationwide WiFi hotspots is enabled on your line.",
+    "Boost Mobile: Your 90-day plan has been renewed. Thank you for choosing Boost.",
+    "Verizon: Family locator notification: Sarah arrived at West High School.",
+    "T-Mobile: Free Tuesday perks are available today in the T-Life application.",
+    "AT&T: Your paperless billing discount of $10 has been applied to this invoice.",
+    "Xfinity Mobile: Data saver mode is currently active on line ending in 4102."
 ]
 
-_BENIGN_CARRIER_SHIPPING = [
-    ("USPS", "https://tools.usps.com/track"),
-    ("FedEx", "https://fedex.com/tracking"),
-    ("UPS", "https://ups.com/track"),
-    ("DHL Express", "https://dhl.com/track"),
-    ("Amazon Logistics", "https://amazon.com/orders"),
-    ("OnTrac", "https://ontrac.com/tracking"),
-    ("LaserShip", "https://lasership.com/track"),
+_BENIGN_HEALTH_NOTICES: list[str] = [
+    "Stanford Health Care: Dr. Chen scheduled your MRI consultation for Oct 12 at 10:15 AM. Pre-register: myhealth.stanford.edu/checkin",
+    "Mayo Clinic: You have an outstanding copay balance of $35.00 for visit on Sept 14. View statement at portal.mayoclinic.org/pay",
+    "Kaiser Permanente: Your lab requisition order #98210 is ready. View prep instructions at kp.org/labs",
+    "Memorial Sloan: Reminder of your oncology follow-up tomorrow at 8:00 AM. Inquiries: mymskhc.org/appt",
+    "Cleveland Clinic: Pre-procedure instructions for your endoscopy on Friday. Review: cc.org/prep49",
+    "Mount Sinai: Lab results from your blood test are now available to view in MyMountSinai portal.",
+    "Johns Hopkins: Telehealth video consultation confirmed for Tuesday 2 PM: hopkinsmedicine.org/video",
+    "CVS Pharmacy: Prescription RX#492019 is ready for drive-thru pickup at El Camino store.",
+    "Walgreens: Your automatic refill for Lisinopril 10mg is being processed.",
+    "Quest Diagnostics: Fasting reminder for your scheduled blood draw appointment tomorrow at 7:30 AM.",
+    "Labcorp: Appointment check-in confirmed at Main St facility. Take ticket #42 upon arrival.",
+    "Dentist Office: Dr. Miller has an opening tomorrow at 3 PM if you'd like to move up your cleaning.",
+    "Optometry Clinic: Your new prescription glasses have arrived and are ready for fitting.",
+    "Physical Therapy: Reminder of your rehabilitation session on Wednesday at 11 AM.",
+    "Dermatology Associates: Biopsy results are ready. Please call our nurse line at 555-0192.",
+    "Pediatric Clinic: Emma's 4-year wellness checkup is confirmed with Dr. Patel for Monday.",
+    "Orthopedic Center: X-ray imaging results have been uploaded to your patient chart.",
+    "City Hospital: Discharge summary notes and recovery guidelines sent to your registered email.",
+    "Urgent Care Clinic: Thank you for visiting today. Rest and take prescribed fluids.",
+    "Blood Bank: Red Cross: Your blood donation has been delivered to St. Jude Children's Hospital.",
+    "Mental Health Clinic: Telehealth link for session with Dr. Vance: portal.therapy.com/room",
+    "Allergy Clinic: Allergy immunotherapy shot reminder for Thursday afternoon.",
+    "Radiology Center: Preparation guidelines for pelvic ultrasound: drink 32oz water 1h prior.",
+    "Cardiology Specialists: Holter monitor return scheduled for Friday by noon.",
+    "Community Health: Free influenza vaccine clinic open Saturday from 9 AM to 1 PM at civic center."
 ]
-_BENIGN_SHIPPING_SAMPLES: list[str] = []
-for i in range(35):
-    carrier, url = _BENIGN_CARRIER_SHIPPING[i % len(_BENIGN_CARRIER_SHIPPING)]
-    pkg_id = f"PKG{940000 + i * 137}"
-    templates = [
-        f"{carrier}: Package {pkg_id} is scheduled for delivery today by 4:00 PM. Details: {url}",
-        f"{carrier} update: Shipment {pkg_id} has arrived at the local sort facility. Track at {url}",
-        f"{carrier} Delivery: Your package {pkg_id} was delivered near front porch. Photo: {url}",
-        f"{carrier}: Out for delivery! Driver Marcus is arriving shortly with package {pkg_id}. {url}",
-        f"{carrier} Alert: Shipment {pkg_id} departed distribution center on schedule. Status: {url}"
-    ]
-    _BENIGN_SHIPPING_SAMPLES.append(templates[i % len(templates)])
 
-_BENIGN_BANKS = [
-    "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One",
-    "American Express", "Discover", "Fidelity", "Charles Schwab", "Ally Bank",
-    "PNC Bank", "TD Bank", "US Bank", "Navy Federal", "Barclays"
+_BENIGN_SECURITY_2FA: list[str] = [
+    "Google prompt: Tap YES on your phone to approve sign-in from Chrome on Mac OS.",
+    "Apple ID verification code: 492018. Do not share with anyone.",
+    "Microsoft account security code: 910283 for user@domain.com.",
+    "GitHub: Two-factor authentication code: 582910. Valid for 10 minutes.",
+    "Signal verification code: 382910. Never share this pin.",
+    "Slack: 6-digit confirmation code 491028 for team workspace login.",
+    "Auth0: One-time verification token 819203 for enterprise SSO.",
+    "Okta Verify: Tap to approve login attempt from Firefox on Windows.",
+    "Stripe verification code: 719204 to complete merchant checkout.",
+    "Shopify security code: 301928 for customer account access.",
+    "Discord login verification code: 928371. Enter in app prompt.",
+    "Dropbox security alert: New browser login from Chicago, IL.",
+    "Zoom: Verification code 492810 to reset meeting host password.",
+    "Atlassian: Jira verification code 839102 for Cloud workspace.",
+    "DocuSign Security: Passcode 582910 to access completed signing envelope.",
+    "Amazon: 6-digit OTP 391820 for password reset request.",
+    "Uber verification code: 9281. Never share this code with your driver.",
+    "Lyft code 482019. Reply STOP to opt out.",
+    "Twitter/X: Confirmation code 918203 to verify phone number.",
+    "LinkedIn security PIN: 482910 for account recovery.",
+    "PayPal security code: 829104. Use to complete authentication.",
+    "Venmo: One-time code 592019. Venmo employees will never ask for this code.",
+    "Cash App code: 928-103 to complete phone verification.",
+    "Intuit TurboTax: Security verification code 829103 to file tax return.",
+    "Robinhood: Verification code 391029 for instant deposit authorization."
 ]
-_BENIGN_BANKING_SAMPLES: list[str] = []
-for i in range(35):
-    bank = _BENIGN_BANKS[i % len(_BENIGN_BANKS)]
-    last4 = f"{1000 + (i * 239) % 8999}"
-    amt = 15 + i * 7
-    templates = [
-        f"{bank} Alert: Direct deposit of ${1200 + i * 45}.00 posted to account ending in {last4}.",
-        f"{bank} Fraud Alert: Did you use card ending in {last4} for ${amt}.50 at Shell? Reply YES or NO.",
-        f"{bank}: Scheduled payment of ${85 + i * 5}.00 to State Farm was processed successfully.",
-        f"{bank} Notice: Your monthly statement for checking account *{last4} is available online.",
-        f"{bank}: Card {last4} authorized for ${amt}.99 at Trader Joe's. Available balance: ${3400 - i * 30}."
-    ]
-    _BENIGN_BANKING_SAMPLES.append(templates[i % len(templates)])
 
-_BENIGN_AIRLINES = [
-    ("Delta Air Lines", "DL"),
-    ("United Airlines", "UA"),
-    ("American Airlines", "AA"),
-    ("Southwest Airlines", "WN"),
-    ("Alaska Airlines", "AS"),
+_BENIGN_DELIVERY_TRACKING: list[str] = [
+    "USPS: Package #940011189956 is out for delivery today by 6:00 PM.",
+    "FedEx: Shipment 789102847201 delivered to front porch. Photo available at fedex.com",
+    "UPS Ground: Tracking 1Z9999999999999999 scheduled for delivery between 2 PM and 5 PM.",
+    "Amazon Logistics: Package delivered inside resident secure mailroom.",
+    "DHL Express: Waybill 4920182910 cleared customs and is in transit to local delivery hub.",
+    "OnTrac: Package out for delivery with driver Carlos. Estimated 3:30 PM.",
+    "DoorDash: Your driver Maria is approaching with your food order from Sweetgreen.",
+    "Uber Eats: Your dinner from Thai Basil was dropped off at the front door.",
+    "Instacart: Shopper David found all 18 items and is checking out at Whole Foods.",
+    "Postmates: Order delivered! Rate your delivery driver in the app.",
+    "USPS: Delivered, in/at mailbox at 1:45 PM in San Francisco, CA.",
+    "FedEx Express: Signature required for delivery tomorrow morning.",
+    "UPS MyChoice: Package rescheduled for delivery on Monday per your request.",
+    "Amazon Fresh: Grocery delivery window confirmed for tomorrow 7 AM - 9 AM.",
+    "LaserShip: Package arrived at regional sorting facility.",
+    "Grubhub: Your order from Joe's Pizza has been picked up by the courier.",
+    "Walmart Delivery: Driver is 5 minutes away with your grocery order.",
+    "Target Shipt: Shopper is on the way with your same-day delivery order.",
+    "USPS: Package arrived at post office destination facility.",
+    "FedEx Ground: Package departed transit facility in Memphis, TN.",
+    "UPS Freight: Bill of lading BOL#492018 loaded on trailer.",
+    "Amazon Locker: Delivery placed in locker 'Birch' at 7-Eleven. Pickup code: 492018.",
+    "DHL eCommerce: Package tendered to local postal carrier for final mile delivery.",
+    "Roadie: Driver assigned for local furniture delivery from Home Depot.",
+    "USPS: Delivery attempt made, notice left on door. Pickup at local post office."
 ]
-_BENIGN_TRAVEL_SAMPLES: list[str] = []
-for i in range(25):
-    airline, code = _BENIGN_AIRLINES[i % len(_BENIGN_AIRLINES)]
-    flight_num = f"{code}{100 + i * 19}"
-    gate = f"Gate {chr(65 + (i % 4))}{1 + (i % 20)}"
-    templates = [
-        f"{airline}: Flight {flight_num} is on time. Departs from {gate} at {2 + (i % 8)}:30 PM.",
-        f"{airline} Boarding: Now boarding Group {1 + (i % 4)} for flight {flight_num} to Chicago.",
-        f"{airline} Gate Change: Flight {flight_num} will now depart from {gate}.",
-        f"Lyft ride #{i + 1}: Driver Ahmed in a Silver Camry (Plate: {7 + i}XYZ9) is arriving now.",
-        f"Airbnb reservation #{i + 1}: Host Sarah sent check-in instructions for your upcoming stay."
-    ]
-    _BENIGN_TRAVEL_SAMPLES.append(templates[i % len(templates)])
 
-_BENIGN_HEALTHCARE_SAMPLES: list[str] = []
-_health_providers = ["Kaiser Permanente", "Quest Diagnostics", "Labcorp", "CVS Pharmacy", "Walgreens"]
-for i in range(25):
-    prov = _health_providers[i % len(_health_providers)]
-    rx_num = 928400 + i * 31
-    templates = [
-        f"{prov}: Your prescription refill RX#{rx_num} is ready for pickup at Main St branch.",
-        f"{prov} Reminder: Dental hygiene cleaning appointment scheduled for Tuesday #{i + 1} at 9 AM.",
-        f"{prov}: Routine lab test results #{i + 1} have been posted to your secure MyChart portal.",
-        f"{prov} Appointment: Annual wellness exam #{i + 1} confirmed with Dr. Smith for Thursday.",
-        f"{prov}: Vision checkup reminder for appointment #{i + 1} tomorrow at 2:30 PM. Reply 1 to confirm."
-    ]
-    _BENIGN_HEALTHCARE_SAMPLES.append(templates[i % len(templates)])
+_BENIGN_RETAIL_RECEIPTS: list[str] = [
+    "Lowe's Home Improvement: Your curbside order #LOW-49201 is ready for loading in bay #3.",
+    "Target Curbside: Order #892018 is ready in parking space #4.",
+    "Best Buy: Your order for Sony headphones is ready for in-store pickup.",
+    "Costco: Order #492018 has shipped and tracking information is active.",
+    "Apple Store: Your order is ready for pickup at Apple Palo Alto today.",
+    "Starbucks: Order placed! Pickup at counter in 4-7 minutes at University Ave.",
+    "Trader Joe's: Your debit card was authorized for $42.50. Thank you for shopping with us.",
+    "Whole Foods: Prime savings of $8.40 applied at checkout. Digital receipt sent.",
+    "Nordstrom: Order #492018 is packed and ready to ship.",
+    "Sephora: Beauty Insider points updated: 450 points available.",
+    "REI Co-op: Dividend balance of $64.20 available to spend on your next purchase.",
+    "IKEA: Click & Collect order #492018 confirmed for pickup Saturday 10 AM.",
+    "Lowe's: In-store pickup locker PIN 492018 ready at entrance.",
+    "CVS Carepass: Your $10 monthly reward has been loaded to your card.",
+    "Walgreens Cash: You earned $2.50 Walgreens Cash rewards on today's purchase.",
+    "Chipotle Rewards: You unlocked free guacamole on your next entree order!",
+    "Panera Bread: Rapid Pick-Up order placed for pick up on shelf at 12:15 PM.",
+    "McDonald's: Mobile order received. We are preparing your order now.",
+    "Subway: Mobile order #492018 ready for pickup at drive-thru.",
+    "Domino's Pizza: Tracker: Oven! Order for David is in the oven right now.",
+    "Nike: Your order of Air Max 90 has shipped via UPS.",
+    "Lululemon: Your return was processed and $98.00 was refunded to original card.",
+    "Gap: Rewards balance: 1,200 points. Redeem $12 off in store or online.",
+    "Old Navy: E-receipt for in-store transaction #492018 totaling $34.50.",
+    "Barnes & Noble: Member appreciation sale starts Friday. Show your membership card."
+]
 
-_BENIGN_RETAIL_SAMPLES: list[str] = []
-_retailers = ["Home Depot", "Target", "Walmart", "Best Buy", "Apple Store", "Costco", "Starbucks"]
-for i in range(25):
-    ret = _retailers[i % len(_retailers)]
-    ord_id = 49200 + i * 47
-    templates = [
-        f"{ret}: Curbside pickup order #{ord_id} is ready in designated pickup spot #{1 + (i % 8)}.",
-        f"{ret} Receipt: Transaction #{ord_id} paid ${15 + i * 3}.40. E-receipt sent to registered email.",
-        f"{ret} Store Pickup: Your online order #{ord_id} is ready at the customer service desk.",
-        f"DoorDash order #{ord_id}: Your dinner from Chipotle is on the way with dasher Carlos.",
-        f"OpenTable #{ord_id}: Reservation at Bistro Verde for 2 guests confirmed tonight at 7:30 PM."
-    ]
-    _BENIGN_RETAIL_SAMPLES.append(templates[i % len(templates)])
+_BENIGN_CRYPTO_CONFIRMATIONS: list[str] = [
+    "Coinbase: You successfully initiated a withdrawal of 0.25 BTC to external address 3J98t... View on blockchain: coinbase.com/transfers",
+    "Kraken: Your fiat deposit of $1,500.00 via Fedwire has been credited to your balance. Trade now at kraken.com/trade",
+    "Gemini: Security notification: New API key 'TradingBot_1' created with read-only permissions.",
+    "Binance.US: Two-factor authentication change confirmed on your account. If this wasn't you, lock immediately at binance.us/lock",
+    "Bitstamp: Withdrawal of 2.50 ETH completed to wallet address 0x71C... TxId available in account history.",
+    "Ledger Live: Firmware update 2.4.1 available for your Nano X device. Download only from ledger.com/start",
+    "Coinbase: Your limit buy order for 1.50 ETH at $2,600.00 was filled.",
+    "Kraken: Staking reward of 0.0042 ETH credited to your spot balance.",
+    "Gemini Earn: Monthly interest statement for October is available to download.",
+    "Coinbase Pro: Deposit of $5,000.00 via ACH cleared and available for trading.",
+    "Binance: Device authorization: Safari browser on macOS authorized successfully.",
+    "Crypto.com: Visa card topped up with $250.00 from fiat wallet.",
+    "Trezor Suite: Desktop application update 23.10.1 is ready to install.",
+    "Coinbase: Address book whitelist: New external BTC address added. 48h withdrawal lock active.",
+    "Kraken: Password changed successfully on your account. If unauthorized, contact support.",
+    "Gemini: Wire deposit instructions generated for your institutional sub-account.",
+    "Coinbase: Recurring buy of $50.00 BTC executed as scheduled.",
+    "Bitfinex: Settlement of margin funding contract #492018 completed.",
+    "KuCoin: Sub-account API key permissions updated to spot trading only.",
+    "Ledger: Security advisory: Remember Ledger employees will never ask for your 24-word recovery phrase.",
+    "Coinbase: Your 2025 tax report (Form 1099-DA) is ready for download in taxes portal.",
+    "Kraken: Account Tier 3 intermediate verification approved. Higher withdrawal limits active.",
+    "Gemini: ActiveTrader fee discount tier updated to Maker 0.10% / Taker 0.20%.",
+    "Coinbase: Price alert: Bitcoin crossed above $68,000.00 USD.",
+    "Binance.US: USD ACH withdrawal of $1,200.00 initiated to Chase checking *8921."
+]
 
-_BENIGN_P2P_SAMPLES: list[str] = [
-    "Could you send me the recipe for the pasta salad you made last week?",
-    "The plumber just finished fixing the kitchen sink leak.",
-    "Hi Mom, just landed safely at JFK. Will call once I get to the hotel.",
-    "Can you pick up milk and eggs on your way home please?",
-    "Are you taking the train or driving into the city on Wednesday?",
-    "Happy Birthday! Hope you have a wonderful day celebrating with family!",
-    "I left my umbrella by the front door, could you bring it to work?",
-    "Thanks for hosting dinner yesterday, we had such a great time together!",
-    "Heading over to the library now, text me when you get there.",
-    "Let me know if you want to carpool to soccer practice tomorrow morning.",
-    "Did you get the keys from the front desk concierge?",
-    "Sounds great, looking forward to catching up this weekend over brunch!",
-    "Just parked outside your building, come down whenever you are ready.",
-    "Let's grab a coffee before the keynote session begins tomorrow.",
-    "Don't forget we have the neighborhood block party on Saturday afternoon."
+_BENIGN_CONVERSATIONAL_SENSITIVE: list[str] = [
+    "Hey honey, did you remember to file our state tax extension with the CPA before midnight?",
+    "Can you send me $40 on Venmo for the pizza and beer last night?",
+    "I locked the front door and left the spare key under the terracotta pot in the garden.",
+    "The court date for my traffic ticket was postponed until next month thankfully.",
+    "Make sure you don't click any weird links in that email the accountant sent, I'll call them to verify.",
+    "IRS sent us a letter saying our refund check was mailed out last Tuesday.",
+    "The landlord said the rent check cleared without any late fees this month.",
+    "Did the bank unfreeze your debit card after you called their support number?",
+    "We need to settle that hospital bill before it gets sent to collections.",
+    "Process server showed up at the neighbors house looking for the previous tenant.",
+    "Don't worry about the credit card dispute, the merchant agreed to issue a full refund.",
+    "I have jury duty citation next Monday down at the municipal courthouse.",
+    "Did you pay the city parking citation online or do we have to mail a check?",
+    "My passport expired so I have an emergency appointment at the federal building.",
+    "Can you transfer $100 from savings to checking so the autopay doesn't bounce?",
+    "The security guard said the building locks automatically at 7 PM on weekends.",
+    "Remember to shred those old tax returns from 2018 in the filing cabinet.",
+    "My flight got delayed by two hours because of heavy thunderstorms in Atlanta.",
+    "Can you pick up my prescription from CVS on your drive home from work?",
+    "The dentist said I need a crown replacement next Thursday morning.",
+    "Did you get the insurance reimbursement check for the car repair shop?",
+    "I'm at the car dealership getting the oil changed, should take about an hour.",
+    "Let me know when you arrive at the train station and I'll pull up to the curb.",
+    "The kids finished their homework early so we are heading to the playground.",
+    "Can you email me the updated budget spreadsheet before the 3 PM team sync?"
 ]
 
 EVAL_HELD_OUT_BENIGN: list[str] = (
-    _BENIGN_OTP_SAMPLES +          # 40
-    _BENIGN_SHIPPING_SAMPLES +     # 35
-    _BENIGN_BANKING_SAMPLES +      # 35
-    _BENIGN_TRAVEL_SAMPLES +       # 25
-    _BENIGN_HEALTHCARE_SAMPLES +   # 25
-    _BENIGN_RETAIL_SAMPLES +       # 25
-    _BENIGN_P2P_SAMPLES            # 15
+    _BENIGN_BANK_ALERTS +              # 25
+    _BENIGN_CARRIER_NOTICES +          # 25
+    _BENIGN_HEALTH_NOTICES +           # 25
+    _BENIGN_SECURITY_2FA +             # 25
+    _BENIGN_DELIVERY_TRACKING +        # 25
+    _BENIGN_RETAIL_RECEIPTS +          # 25
+    _BENIGN_CRYPTO_CONFIRMATIONS +     # 25
+    _BENIGN_CONVERSATIONAL_SENSITIVE   # 25
 )
 
-# 200 distinct held-out smishing messages
-_SMISH_CARRIERS = ["USPS", "DHL", "FedEx", "UPS"]
-_SMISH_DOMAINS = [
-    "redelivery-parcel.top", "customs-clearance.cc", "duty-payment.xyz",
-    "postal-tracking.info", "package-depot.club", "dispatch-verify.biz"
+# 200 distinct held-out subtle/obfuscated smishing messages
+_SMISH_BANK_PANIC: list[str] = [
+    f"URGENT: {b} security notice: Debit card blocked after suspicious wire transfer of ${600 + i * 25}. Restore card access: http://{b.lower().replace(' ', '')}-{d}/auth"
+    for i, (b, d) in enumerate(zip(
+        [
+            "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One", "PNC Bank", "TD Bank", "SunTrust", "Citizens", "Regions",
+            "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One", "PNC Bank", "TD Bank", "SunTrust", "Citizens", "Regions",
+            "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One", "PNC Bank", "TD Bank", "SunTrust", "Citizens", "Regions"
+        ],
+        [
+            "verify-sec.info", "unlock-card.top", "dispute-online.xyz", "auth-portal.cc", "fraud-dispute.biz", "account-alert.net"
+        ] * 5,
+        strict=True,
+    ))
 ]
-_SMISH_DELIVERY: list[str] = []
-for i in range(40):
-    car = _SMISH_CARRIERS[i % len(_SMISH_CARRIERS)]
-    dom = _SMISH_DOMAINS[i % len(_SMISH_DOMAINS)]
-    delivery_pkg_id = str(948200 + i * 19)
-    templates = [
-        f"{car} Alert: Parcel #{delivery_pkg_id} held due to unpaid customs fee of $1.{90 + (i % 9)}. Pay: http://{car.lower()}-{dom}",
-        f"{car} Notification: Incomplete street address for shipment #{delivery_pkg_id}. Update info: http://{car.lower()}-{dom}",
-        f"{car} Notice: Final delivery attempt failed for item #{delivery_pkg_id}. Reschedule at http://post-{dom}",
-        f"{car} Express: Duty charges pending for parcel #{delivery_pkg_id}. Release package: http://clearance-{dom}",
-    ]
-    _SMISH_DELIVERY.append(templates[i % len(templates)])
 
-_SMISH_BANKS = ["Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One", "PNC Bank", "TD Bank", "SunTrust"]
-_SMISH_BANK_DOMAINS = ["security-verify.net", "unlock-auth.com", "fraud-dispute.info", "card-protect.xyz", "portal-login.org"]
-_SMISH_BANKING: list[str] = []
-for i in range(45):
-    bank = _SMISH_BANKS[i % len(_SMISH_BANKS)]
-    dom = _SMISH_BANK_DOMAINS[i % len(_SMISH_BANK_DOMAINS)]
-    tx_id = 2400 + i * 50
-    templates = [
-        f"URGENT: {bank} detected unauthorized wire transfer of ${tx_id}. If not you, cancel: http://{bank.lower().replace(' ', '')}-{dom}",
-        f"{bank} Alert: Your debit card ending in {1000 + i} is blocked after suspicious activity. Restore: http://{bank.lower().replace(' ', '')}-{dom}",
-        f"{bank} Security: Did you send ${500 + i * 20} via Zelle to John? If NO, secure account: http://zelle-verify-{dom}",
-        f"{bank} Notice: New login from unrecognized device #{i + 1} in Russia. Verify identity: http://login-auth-{dom}",
-        f"{bank} Alert: Account access #{i + 1} suspended due to missing KYC documents. Update now: http://kyc-{dom}"
-    ]
-    _SMISH_BANKING.append(templates[i % len(templates)])
+_SMISH_DELIVERY_FEES: list[str] = [
+    f"{c} Alert: Parcel #{948200 + i * 19} could not be delivered due to unpaid duty fee of $1.85. Settle charge: http://{c.lower().replace(' ', '')}-{d}"
+    for i, (c, d) in enumerate(zip(
+        ["USPS", "DHL Express", "FedEx", "UPS"] * 8,
+        [
+            "customs-parcel.top",
+            "redelivery-fee.xyz",
+            "postal-track.info",
+            "duty-clearance.cc",
+            "dispatch-held.club",
+        ] * 6,
+        strict=False,
+    ))
+][:30]
 
-_SMISH_LEGAL_EXTORTION: list[str] = []
-for i in range(30):
-    case_num = 49200 + i * 23
-    templates = [
-        f"IRS FINAL NOTICE: Delinquent federal tax balance detected for SSN case #{case_num}. Arrest warrant pending. Call 1-800-555-01{10 + i:02d}.",
-        f"State Court Notice: Summons issued for failure to appear for jury duty citation #{case_num}. Pay fine: http://court-settle.info/{case_num}",
-        f"SunPass Toll Violation: Overdue toll invoice #{case_num} of ${12 + (i % 8)}.{40 + i} for vehicle. Settle: http://sunpass-billing.top/{case_num}",
-        f"EZPass Alert: Unpaid toll road citation #{case_num}. Settle immediately to avoid driver license suspension: http://ezpass-toll-resolve.biz/{case_num}",
-        f"URGENT Legal Warning: Process server dispatched to deliver civil lawsuit papers for case #{case_num}. Call 888-555-01{20 + i:02d}."
-    ]
-    _SMISH_LEGAL_EXTORTION.append(templates[i % len(templates)])
+_SMISH_LEGAL_EXTORTION: list[str] = [
+    (
+        f"IRS FINAL NOTICE: Delinquent tax balance detected for case #{49200 + i * 23}. Arrest warrant pending. Call 1-800-555-01{10 + (i % 80):02d}."
+        if i % 5 == 0 else
+        f"State Court Notice: Summons issued for failure to appear for citation #{49200 + i * 23}. Settle fine online: http://court-settle.info/{49200 + i * 23}"
+        if i % 5 == 1 else
+        f"SunPass Toll Violation: Overdue toll road invoice #{49200 + i * 23} of $14.50. Pay balance immediately: http://sunpass-billing.top/{49200 + i * 23}"
+        if i % 5 == 2 else
+        f"EZPass Alert: Unpaid toll violation #{49200 + i * 23}. Avoid driver license suspension: http://ezpass-toll-resolve.biz/{49200 + i * 23}"
+        if i % 5 == 3 else
+        f"URGENT Legal Warning: Process server dispatched for lawsuit case #{49200 + i * 23}. Call 888-555-01{20 + (i % 70):02d} to settle."
+    )
+    for i in range(30)
+]
 
-_SMISH_CRYPTO_GIVEAWAY: list[str] = []
-_crypto_platforms = ["Coinbase", "Trust Wallet", "Metamask", "Binance", "Kraken"]
-for i in range(30):
-    plat = _crypto_platforms[i % len(_crypto_platforms)]
-    crypto_amt = 0.5 + (i % 5) * 0.2
-    templates = [
-        f"{plat} Security: Withdrawal of {crypto_amt:.2f} ETH initiated from IP #{i + 1}. If unauthorized, freeze: http://{plat.lower()}-freeze-{i:02d}.me",
-        f"{plat} Notice: Your secret recovery seed phrase backup #{i + 1} has expired. Re-authenticate: http://{plat.lower()}-auth-{i:02d}.io",
-        f"VIP Crypto Signals: Guaranteed {200 + i * 10}% return daily! Join private Telegram group: https://t.me/crypto_vip_{i:02d}",
-        f"Cash App Giveaway: You have been chosen for the 2026 cash drop! Claim ${750 + i * 10}: http://cashapp-free-{i:02d}.online",
-        f"Walmart Rewards: Your mobile number won 2nd place in customer raffle #{i + 1}! Claim $500 gift card: http://walmart-prizes-{i:02d}.xyz"
-    ]
-    _SMISH_CRYPTO_GIVEAWAY.append(templates[i % len(templates)])
+_SMISH_CRYPTO_LURES: list[str] = [
+    (
+        f"Coinbase Security: Withdrawal of {0.5 + i * 0.15:.2f} ETH from IP 194.26.{20 + i}.{1 + (i % 250)}. If unauthorized, freeze immediately: http://coinbase-freeze-{d}/{i}"
+        if i % 5 == 0 else
+        f"Metamask Alert: Your secret recovery seed phrase backup #{4000 + i} has expired. Re-authenticate wallet: http://metamask-auth-{d}/{i}"
+        if i % 5 == 1 else
+        f"VIP Crypto Signals #{i + 1}: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_{i:02d}"
+        if i % 5 == 2 else
+        f"Cash App Giveaway: You were chosen for the ${750 + i * 10} cash drop! Claim now: http://cashapp-free-{d}/{i}"
+        if i % 5 == 3 else
+        f"Binance Airdrop: {500 + i * 25} USDT deposited to your account! Claim before midnight: http://binance-airdrop-{d}/{i}"
+    )
+    for i, d in enumerate((["claim-crypto.cc", "seed-verify.io", "airdrop-drop.xyz", "wallet-protect.me", "telegram-signals.club"] * 5)[:25])
+]
 
-_SMISH_JOB_TECHSUPPORT: list[str] = []
-_tech_brands = ["Geek Squad", "McAfee", "Norton 360", "Meta Security", "Netflix", "Amazon Security"]
-for i in range(30):
-    brand = _tech_brands[i % len(_tech_brands)]
-    inv = 92840 + i * 17
-    templates = [
-        f"{brand} Auto-Renewal: Your tech care plan #{inv} was charged ${399 + i * 10}. Call 1-888-555-01{30 + i:02d} for cancellation.",
-        f"{brand}: Subscription invoice #{inv} processed for ${449}. To dispute this charge call 800-555-01{40 + i:02d}.",
-        f"Work From Home: Earn ${350 + i * 10}/day reviewing online videos. Contact hiring manager #{i + 1} on Telegram: @hiring_manager_{i:02d}",
-        f"Meta Security: Instagram account #{i:02d} flagged for copyright infringement. Submit appeal #{inv}: http://meta-appeal-{i:02d}.cc",
-        f"Netflix Support: Account #{inv} closed due to billing decline. Update payment details: http://netflix-renew-account-{i:02d}.club"
-    ]
-    _SMISH_JOB_TECHSUPPORT.append(templates[i % len(templates)])
+_SMISH_BROKEN_PHONE: list[str] = [
+    f"Hey mom my phone screen just cracked completely, borrowing friend's phone. Text my temporary WhatsApp: wa.me/1917555{2000 + i:04d}"
+    for i in range(25)
+]
 
-_SMISH_TELCO_SUBS: list[str] = []
-_telcos = ["AT&T", "Verizon", "T-Mobile"]
-for i in range(25):
-    telco = _telcos[i % len(_telcos)]
-    line_num = 1000 + i * 37
-    templates = [
-        f"{telco} Alert: eSIM transfer requested for line ending in {line_num}. If you did not request this, cancel: http://{telco.lower()}-cancel-{i:02d}.info",
-        f"{telco} Notice: SIM card #{line_num} deactivation scheduled in 24 hours. Update KYC documentation: http://{telco.lower()}-kyc-{i:02d}.top",
-        f"WhatsApp Gold: Upgrade account #{line_num} to Gold VIP with exclusive caller ID. Download: http://whatsapp-gold-{i:02d}.me",
-        f"Gov Economic Relief: You qualify for ${1400 + i * 50} federal stimulus grant #{i + 1}. Complete form: http://stimulus-claim-{i:02d}.org",
-        f"{telco} Rewards: Claim your $250 customer loyalty prepaid Mastercard voucher #{line_num}: http://rewards-voucher-{i:02d}.xyz"
-    ]
-    _SMISH_TELCO_SUBS.append(templates[i % len(templates)])
+_SMISH_DOC_INVOICE: list[str] = [
+    (
+        f"DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #{5000 + i}' for your signature. Review: http://docusign-viewer-docs.net/sign/{i}"
+        if i % 5 == 0 else
+        f"QuickBooks: Invoice #INV-2026-{800 + i} from Alpha Tech is past due ($840.00). Settle invoice: http://qb-invoicing-portal.com/pay/{i}"
+        if i % 5 == 1 else
+        f"Zoom meeting invite: 'Mandatory Corporate Policy Review'. Join video call: http://zoom-meeting-room-{i}.cc"
+        if i % 5 == 2 else
+        f"Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/{i}"
+        if i % 5 == 3 else
+        f"Adobe Sign: Document 'Employment_Contract_2026.pdf' requires signature. Sign: http://adobe-sign-review.top/{i}"
+    )
+    for i in range(25)
+]
+
+_SMISH_HOMOGLYPH: list[str] = [
+    (
+        f"P4yP4l Security: Unusual debit of $450.00 to CryptoCorp. Cancel transaction: http://p4ypal-dispute-center.com/{i}"
+        if i % 5 == 0 else
+        f"N3tfl1x: We could not process your recurring membership fee. Update payment: http://netfl1x-renew-account.xyz/{i}"
+        if i % 5 == 1 else
+        f"DHL-tr4ck: Unpaid import customs fee for parcel #89201. Settle fee: http://dhl-tr4ck-parcels.top/{i}"
+        if i % 5 == 2 else
+        f"Ch4se Bank: Suspicious sign-in from iPhone in Amsterdam. Disavow: http://ch4se-online-safety.net/{i}"
+        if i % 5 == 3 else
+        f"Amaz0n: Your Prime order was placed on hold due to billing error. Update card: http://amaz0n-orders-review.com/{i}"
+    )
+    for i in range(20)
+]
+
+_SMISH_CALLBACK_SCAMS: list[str] = [
+    (
+        f"GeekSquad Invoice: $499.00 was auto-debited for 3-Year Total Tech Support. If you did not authorize this charge, call our billing desk immediately at 1-888-555-01{10 + i:02d}."
+        if i % 4 == 0 else
+        f"Norton LifeLock: Annual identity protection subscription renewed for $349.99. Call toll-free 1-800-555-01{20 + i:02d} within 24 hours to dispute."
+        if i % 4 == 1 else
+        f"PayPal Customer Care: Did you transfer $750.00 to Coinbase Inc? If you did not make this transaction, call 1-877-555-01{30 + i:02d} right now to freeze transfer."
+        if i % 4 == 2 else
+        f"Amazon Fraud Alert: iPhone 16 Pro Max ($1,299.00) ordered on your account. To cancel, call fraud department at 888-555-01{40 + i:02d}."
+    )
+    for i in range(15)
+]
 
 EVAL_HELD_OUT_SMISHING: list[str] = (
-    _SMISH_DELIVERY +           # 40
-    _SMISH_BANKING +            # 45
+    _SMISH_BANK_PANIC +        # 30
+    _SMISH_DELIVERY_FEES +      # 30
     _SMISH_LEGAL_EXTORTION +    # 30
-    _SMISH_CRYPTO_GIVEAWAY +    # 30
-    _SMISH_JOB_TECHSUPPORT +    # 30
-    _SMISH_TELCO_SUBS           # 25
+    _SMISH_CRYPTO_LURES +       # 25
+    _SMISH_BROKEN_PHONE +       # 25
+    _SMISH_DOC_INVOICE +        # 25
+    _SMISH_HOMOGLYPH +          # 20
+    _SMISH_CALLBACK_SCAMS       # 15
 )
 
 

@@ -65,24 +65,16 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
         >
           <header className="app-header">
             <div className="app-header-inner">
-              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                <Link
-                  href="/"
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 16,
-                    textDecoration: "none",
-                    color: "var(--foreground)",
-                    letterSpacing: "-0.02em",
-                  }}
-                >
-                  <span className="nav-icon">⚡ </span>SentinelFlow
-                </Link>
+              <Link
+                href="/"
+                className="app-brand-link"
+              >
+                <span className="nav-icon">⚡ </span>SentinelFlow
+              </Link>
 
-                <NavbarLinks hasSession={hasSession} userRole={role ?? null} />
-              </div>
+              <NavbarLinks hasSession={hasSession} userRole={role ?? null} />
 
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div className="app-header-actions">
                 <StyleSwitcher />
                 <NavbarUserControls
                   initialHasSession={hasSession}

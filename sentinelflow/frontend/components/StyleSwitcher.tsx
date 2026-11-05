@@ -220,28 +220,25 @@ export const StyleSwitcher = () => {
         <span aria-hidden="true">🎨</span>
       </button>
 
+      {/* Mobile Backdrop */}
+      {isOpen ? (
+        <div
+          className="appearance-menu-backdrop"
+          onClick={() => {
+            setIsOpen(false);
+            triggerButtonRef.current?.focus();
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+
       {/* Tidy Appearance Dropdown Menu */}
       {isOpen ? (
         <div
           id="accessibility-appearance-menu"
           role="dialog"
           aria-label="Appearance and accessibility preferences"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            width: 320,
-            maxWidth: "92vw",
-            background: "var(--panel, #ffffff)",
-            border: "1px solid var(--panel-border)",
-            borderRadius: 12,
-            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.08)",
-            padding: "16px 18px",
-            zIndex: 100,
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
+          className="appearance-menu-popover"
         >
           {/* Header with Title and Close Button */}
           <div

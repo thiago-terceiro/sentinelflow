@@ -56,7 +56,8 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
         "RULE:DELIVERY_FEE_SCAM",
         re.compile(
             r"\b(?:usps|fedex|ups|dhl|parcel|package)\b.*"
-            r"\b(?:redelivery|customs|fee|unpaid|incomplete address)\b",
+            r"\b(?:redelivery|customs fee|customs duty|unpaid (?:fee|duty|charge)|"
+            r"incomplete address)\b",
             re.IGNORECASE,
         ),
         0.65,
@@ -64,7 +65,8 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:TAX_ARREST_THREAT",
         re.compile(
-            r"\b(?:irs|arrest warrant|delinquent taxes|lawsuit|federal agent|process server)\b",
+            r"\b(?:irs.{0,30}(?:arrest|warrant|delinquent|penalty|police|seiz|debt)|"
+            r"arrest warrant|delinquent taxes|lawsuit pending|process server)\b",
             re.IGNORECASE,
         ),
         0.80,
@@ -89,11 +91,22 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:TECH_SUPPORT_INVOICE_SCAM",
         re.compile(
-            r"\b(?:auto-renewal|tech care|geek squad|mcafee|norton)\b.*"
-            r"\b(?:charged|cancellation|refund|subscription invoice)\b",
+            r"\b(?:auto-renewal|tech care|geek ?squad|mcafee|norton|life ?lock)\b.*"
+            r"\b(?:charged|cancellation|refund|subscription invoice|auto-debited|"
+            r"debited|billing desk)\b",
             re.IGNORECASE,
         ),
         0.70,
+    ),
+    (
+        "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+        re.compile(
+            r"\b(?:broken phone|cracked (?:screen|my screen)|temporary (?:number|mobile|phone)|"
+            r"lost my (?:phone|mobile)|new number)\b.*"
+            r"\b(?:whatsapp|telegram|wa\.me|signal)\b",
+            re.IGNORECASE,
+        ),
+        0.65,
     ),
     (
         "RULE:WORK_FROM_HOME_SCAM",

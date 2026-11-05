@@ -891,4 +891,130 @@ main,
   }
 }
 
+/* ========================================================
+   Responsive Navbar & Appearance Popover (Mobile & Desktop)
+   ======================================================== */
+.app-brand-link {
+  font-weight: 700;
+  font-size: 16px;
+  text-decoration: none;
+  color: var(--foreground);
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.app-nav-links {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-right: auto;
+  margin-left: 8px;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.appearance-menu-backdrop {
+  display: none;
+}
+
+.appearance-menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  max-width: 92vw;
+  background: var(--panel, #ffffff);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.08);
+  padding: 16px 18px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (max-width: 840px) {
+  .app-header-inner {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 10px 14px !important;
+    gap: 8px 12px !important;
+  }
+
+  .app-brand-link {
+    order: 1 !important;
+    font-size: 16px !important;
+  }
+
+  .app-header-actions {
+    order: 2 !important;
+    margin-left: auto !important;
+    gap: 8px !important;
+  }
+
+  .app-nav-links {
+    order: 3 !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding: 2px 0 4px !important;
+  }
+
+  .app-nav-links::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .nav-parentheses {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .appearance-menu-backdrop {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(15, 23, 42, 0.45) !important;
+    backdrop-filter: blur(2px) !important;
+    z-index: 9998 !important;
+  }
+
+  .appearance-menu-popover {
+    position: fixed !important;
+    top: 60px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: 440px !important;
+    margin: 0 auto !important;
+    max-height: calc(100vh - 76px) !important;
+    overflow-y: auto !important;
+    z-index: 9999 !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28) !important;
+  }
+}
+
+
 

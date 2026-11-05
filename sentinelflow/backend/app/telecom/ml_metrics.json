@@ -4,51 +4,49 @@
   "fraud_count": 200,
   "decision_threshold": 0.5,
   "confusion_matrix": {
-    "tp": 173,
-    "fp": 7,
-    "tn": 193,
-    "fn": 27
+    "tp": 154,
+    "fp": 6,
+    "tn": 194,
+    "fn": 46
   },
-  "precision": 0.9611,
-  "recall": 0.865,
-  "f1_score": 0.9105,
-  "roc_auc": 0.988,
-  "pr_auc": 0.9882,
-  "brier_score": 0.0883,
-  "false_positive_rate": 0.035,
-  "false_negative_rate": 0.135,
+  "precision": 0.9625,
+  "recall": 0.77,
+  "f1_score": 0.8556,
+  "roc_auc": 0.9687,
+  "pr_auc": 0.9686,
+  "brier_score": 0.1116,
+  "false_positive_rate": 0.03,
+  "false_negative_rate": 0.23,
   "tier1_escalation": {
     "threshold": 0.4,
     "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
     "confusion_matrix": {
-      "tp": 200,
-      "fp": 16,
-      "tn": 184,
-      "fn": 0
+      "tp": 175,
+      "fp": 24,
+      "tn": 176,
+      "fn": 25
     },
-    "precision": 0.9259,
-    "recall": 1.0,
-    "f1_score": 0.9615,
-    "false_positive_rate": 0.08
+    "precision": 0.8794,
+    "recall": 0.875,
+    "f1_score": 0.8772,
+    "false_positive_rate": 0.12
   },
   "tier2_block": {
     "threshold": 0.75,
     "description": "BLOCK (Immediate Carrier Wire Drop)",
     "confusion_matrix": {
-      "tp": 136,
-      "fp": 0,
-      "tn": 200,
-      "fn": 64
+      "tp": 122,
+      "fp": 2,
+      "tn": 198,
+      "fn": 78
     },
-    "precision": 1.0,
-    "recall": 0.68,
-    "f1_score": 0.8095,
-    "false_positive_rate": 0.0
+    "precision": 0.9839,
+    "recall": 0.61,
+    "f1_score": 0.7531,
+    "false_positive_rate": 0.01
   },
   "evaluator": "ONNXRuntime-CPU",
   "model_artifact": "sms_fraud_model.onnx",
   "model_artifact_size_bytes": 188940,
-  "model_artifact_size_kb": 184.51,
-  "brier_score_before_calibration": 0.0366,
-  "brier_score_after_calibration": 0.0231
+  "model_artifact_size_kb": 184.51
 }
