@@ -12,13 +12,29 @@ interface FontOption {
   fontFamily: string;
 }
 
+interface PatternOption {
+  label: string;
+  value: string;
+}
+
 const THEME_STORAGE_KEY = "sentinelflow_theme";
 const BG_STORAGE_KEY = "sentinelflow_style2_bg";
 const FONT_STORAGE_KEY = "sentinelflow_style2_font";
+const PATTERN_STORAGE_KEY = "sentinelflow_style2_pattern";
 
 // User requested defaults: font 4 Plus Jakarta Sans and bg color soft slate (#f1f5f9)
 const DEFAULT_STYLE2_BG = "#f1f5f9";
 const DEFAULT_STYLE2_FONT = "4. Plus Jakarta Sans";
+const DEFAULT_STYLE2_PATTERN = "animated-drift";
+
+const PATTERN_OPTIONS: PatternOption[] = [
+  { label: "✨ Animated Drift (Moving Dots)", value: "animated-drift" },
+  { label: "🌊 Gentle Slow Drift", value: "animated-gentle" },
+  { label: "Diagonal Dotted Lines", value: "diagonal-lines" },
+  { label: "Diagonal Dots (Matrix)", value: "diagonal-dots" },
+  { label: "Dense Diagonal Mesh", value: "dense-diagonal" },
+  { label: "Plain (None)", value: "none" },
+];
 
 const FONT_OPTIONS: FontOption[] = [
   { label: "1. Nunito (Rounded)", fontFamily: "'Nunito', sans-serif" },
@@ -47,32 +63,39 @@ export const StyleSwitcher = () => {
   const [currentTheme, setCurrentTheme] = useState<"light" | "dark">("light");
   const [currentBg, setCurrentBg] = useState<string>(DEFAULT_STYLE2_BG);
   const [currentFont, setCurrentFont] = useState<string>(DEFAULT_STYLE2_FONT);
+  const [currentPattern, setCurrentPattern] = useState<string>(DEFAULT_STYLE2_PATTERN);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     let savedTheme: string | null = null;
     let savedBg: string | null = null;
     let savedFont: string | null = null;
+    let savedPattern: string | null = null;
     try {
       savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
       savedBg = localStorage.getItem(BG_STORAGE_KEY);
       savedFont = localStorage.getItem(FONT_STORAGE_KEY);
+      savedPattern = localStorage.getItem(PATTERN_STORAGE_KEY);
     } catch {
       savedTheme = null;
       savedBg = null;
       savedFont = null;
+      savedPattern = null;
     }
 
     const initialTheme = savedTheme === "dark" ? "dark" : "light";
     const initialBg = savedBg ?? (initialTheme === "dark" ? "#0f172a" : DEFAULT_STYLE2_BG);
     const initialFont = savedFont ?? DEFAULT_STYLE2_FONT;
+    const initialPattern = savedPattern ?? DEFAULT_STYLE2_PATTERN;
 
     setCurrentTheme(initialTheme);
     setCurrentBg(initialBg);
     setCurrentFont(initialFont);
+    setCurrentPattern(initialPattern);
 
     document.documentElement.setAttribute("data-style", "style-2");
     document.documentElement.setAttribute("data-theme", initialTheme);
+    document.documentElement.setAttribute("data-pattern", initialPattern);
     document.documentElement.style.setProperty("--style2-bg", initialBg);
 
     const matched = FONT_OPTIONS.find((f) => f.label.includes(initialFont)) ?? FONT_OPTIONS[3];
@@ -91,6 +114,16 @@ export const StyleSwitcher = () => {
     }
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // LocalStorage access may be restricted
+    }
+  };
+
+  const handleSelectPattern = (pattern: string) => {
+    setCurrentPattern(pattern);
+    document.documentElement.setAttribute("data-pattern", pattern);
+    try {
+      localStorage.setItem(PATTERN_STORAGE_KEY, pattern);
     } catch {
       // LocalStorage access may be restricted
     }
@@ -128,8 +161,8 @@ export const StyleSwitcher = () => {
       className="style-controls-group"
     >
       {/* Theme Switcher before Font Dropdown */}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-        <label htmlFor="theme-select" style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <label htmlFor="theme-select" style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>
           Theme:
         </label>
         <select
@@ -146,8 +179,8 @@ export const StyleSwitcher = () => {
       </div>
 
       {/* 10-Font Dropdown Selector */}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-        <label htmlFor="font-select" style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <label htmlFor="font-select" style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>
           Font:
         </label>
         <select
@@ -204,6 +237,27 @@ export const StyleSwitcher = () => {
             aria-label="Custom background color picker"
           />
         </label>
+      </div>
+
+      {/* Background Pattern Selector */}
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+        <label htmlFor="pattern-select" style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>
+          Pattern:
+        </label>
+        <select
+          id="pattern-select"
+          value={currentPattern}
+          onChange={(e) => handleSelectPattern(e.target.value)}
+          className="font-picker-select"
+          aria-label="Select background pattern"
+          title="Select background pattern"
+        >
+          {PATTERN_OPTIONS.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );

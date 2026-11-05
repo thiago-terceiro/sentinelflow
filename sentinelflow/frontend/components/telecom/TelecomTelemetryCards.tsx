@@ -10,19 +10,19 @@ type Props = {
 
 const getDriftBadgeStyle = (status: string | undefined): { color: string; bg: string } => {
   if (status === "CRITICAL_DRIFT") {
-    return { color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)" };
+    return { color: "#991b1b", bg: "#fee2e2" };
   }
   if (status === "MODERATE_DRIFT") {
-    return { color: "#eab308", bg: "rgba(234, 179, 8, 0.15)" };
+    return { color: "#78350f", bg: "#fef3c7" };
   }
-  return { color: "#22c55e", bg: "rgba(34, 197, 94, 0.15)" };
+  return { color: "#14532d", bg: "#dcfce7" };
 };
 
 export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
   const driftStyle = getDriftBadgeStyle(drift?.status);
-  const p95Color = metrics.latency.p95_ms < 15 ? "#22c55e" : "#eab308";
-  const p99Color = metrics.latency.p99_ms < 30 ? "#22c55e" : "#ef4444";
-  const fraudRateColor = metrics.fraud_rate_pct > 20 ? "#f97316" : "var(--foreground)";
+  const p95Color = metrics.latency.p95_ms < 15 ? "#14532d" : "#78350f";
+  const p99Color = metrics.latency.p99_ms < 30 ? "#14532d" : "#991b1b";
+  const fraudRateColor = metrics.fraud_rate_pct > 20 ? "#991b1b" : "var(--foreground)";
 
   return (
     <div
@@ -111,13 +111,13 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
             <div style={{ display: "flex", gap: 24 }}>
               <div>
                 <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p50</span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>
+                <span style={{ fontSize: 18, fontWeight: 700, color: "#14532d" }}>
                   {metrics.latency.p50_ms.toFixed(2)}ms
                 </span>
               </div>
               <div>
                 <span style={{ fontSize: 10, color: "var(--muted)", display: "block" }}>p90</span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>
+                <span style={{ fontSize: 18, fontWeight: 700, color: "#14532d" }}>
                   {metrics.latency.p90_ms.toFixed(2)}ms
                 </span>
               </div>
@@ -138,7 +138,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 8, fontSize: 12, color: "#22c55e" }}>
+        <div style={{ marginTop: 8, fontSize: 12, color: "#14532d", fontWeight: 700 }}>
           ✓ Within 15ms target envelope (ONNX + Redis)
         </div>
       </div>
@@ -184,10 +184,10 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
             Share of messages flagged or blocked (~5–8% carrier baseline)
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 11, flexWrap: "wrap" }}>
-          <span style={{ color: "#22c55e" }}>Allow: {metrics.verdicts.allow}</span>
-          <span style={{ color: "#eab308" }}>Flag: {metrics.verdicts.flag}</span>
-          <span style={{ color: "#ef4444" }}>Block: {metrics.verdicts.block}</span>
+        <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 11, flexWrap: "wrap", fontWeight: 700 }}>
+          <span style={{ color: "#14532d" }}>Allow: {metrics.verdicts.allow}</span>
+          <span style={{ color: "#78350f" }}>Flag: {metrics.verdicts.flag}</span>
+          <span style={{ color: "#991b1b" }}>Block: {metrics.verdicts.block}</span>
         </div>
       </div>
 

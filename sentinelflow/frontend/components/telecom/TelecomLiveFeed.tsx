@@ -13,22 +13,22 @@ type Props = {
 const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   if (verdict === "BLOCK") {
     return {
-      bg: "rgba(239, 68, 68, 0.12)",
-      color: "#dc2626",
-      border: "1px solid rgba(239, 68, 68, 0.25)",
+      bg: "#fee2e2",
+      color: "#991b1b",
+      border: "1px solid #b91c1c",
     };
   }
   if (verdict === "FLAG") {
     return {
-      bg: "rgba(234, 179, 8, 0.15)",
-      color: "#b45309",
-      border: "1px solid rgba(234, 179, 8, 0.3)",
+      bg: "#fef3c7",
+      color: "#78350f",
+      border: "1px solid #b45309",
     };
   }
   return {
-    bg: "rgba(34, 197, 94, 0.12)",
-    color: "#16a34a",
-    border: "1px solid rgba(34, 197, 94, 0.25)",
+    bg: "#dcfce7",
+    color: "#14532d",
+    border: "1px solid #15803d",
   };
 };
 
@@ -162,17 +162,19 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
               void resetGateway();
             }}
             title="Reset gateway telemetry and clear buffered messages"
-            aria-label="Clear all buffered messages"
+            aria-label="Reset telemetry and clear all buffered messages"
             style={{
-              fontSize: 11,
-              padding: "4px 10px",
+              fontSize: 13,
+              fontWeight: 700,
+              minHeight: 44,
+              padding: "10px 16px",
               borderRadius: "var(--card-radius, 6px)",
-              border: "1px solid var(--panel-border)",
+              border: "1px solid rgba(15, 23, 42, 0.25)",
               background: "transparent",
-              color: "var(--muted)",
+              color: "#0f172a",
               cursor: isResetting ? "wait" : "pointer",
-              fontWeight: 600,
             }}
+            className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           >
             <span className="page-icon">🗑️ </span>
             {isResetting ? "Resetting..." : "Reset"}
@@ -181,17 +183,20 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
           <button
             type="button"
             aria-pressed={isPaused}
+            aria-label={isPaused ? "Resume real-time telecom message stream" : "Pause real-time telecom message stream"}
             onClick={() => setIsPaused((prev) => !prev)}
             style={{
-              fontSize: 11,
-              padding: "4px 10px",
+              fontSize: 13,
+              fontWeight: 700,
+              minHeight: 44,
+              padding: "10px 16px",
               borderRadius: "var(--card-radius, 6px)",
-              border: "1px solid var(--panel-border)",
-              background: isPaused ? "#ef4444" : "transparent",
-              color: isPaused ? "#fff" : "var(--foreground)",
+              border: isPaused ? "1px solid #7f1d1d" : "1px solid rgba(15, 23, 42, 0.25)",
+              background: isPaused ? "#991b1b" : "transparent",
+              color: isPaused ? "#ffffff" : "#0f172a",
               cursor: "pointer",
-              fontWeight: 600,
             }}
+            className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           >
             {isPaused ? (
               <>
@@ -206,11 +211,11 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
         </div>
       </div>
 
-      {/* Filter Pills with WCAG accessible tabs & focus rings */}
+      {/* Filter Pills with WCAG accessible toggle buttons & focus rings */}
       <div
-        role="tablist"
+        role="group"
         aria-label="Filter events by verdict"
-        style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}
+        style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}
       >
         {["ALL", "BLOCK", "FLAG", "ALLOW", "ESCALATED"].map((f) => {
           const isSelected = filterVerdict === f;
@@ -218,18 +223,19 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
             <button
               key={f}
               type="button"
-              role="tab"
-              aria-selected={isSelected}
+              aria-pressed={isSelected}
+              aria-label={`Filter events by ${f} verdict`}
               onClick={() => setFilterVerdict(f)}
               style={{
-                fontSize: 11,
-                padding: "3px 8px",
-                borderRadius: 4,
-                border: isSelected ? "1px solid var(--accent)" : "1px solid var(--panel-border)",
-                background: isSelected ? "var(--accent-soft, rgba(37, 99, 235, 0.1))" : "transparent",
-                color: isSelected ? "var(--accent)" : "var(--muted)",
+                fontSize: 13,
+                fontWeight: 700,
+                minHeight: 44,
+                padding: "10px 16px",
+                borderRadius: 6,
+                border: isSelected ? "2px solid #1e40af" : "1px solid rgba(15, 23, 42, 0.25)",
+                background: isSelected ? "var(--accent-soft, #dbeafe)" : "transparent",
+                color: isSelected ? "#1e3a8a" : "#0f172a",
                 cursor: "pointer",
-                fontWeight: 600,
               }}
               className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
             >
@@ -328,7 +334,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                     <span style={{ color: "var(--muted)", fontSize: 11 }}>
                       score: {ev.fraud_score}
                     </span>
-                    <span style={{ color: "#22c55e", fontFamily: "monospace", fontSize: 11 }}>
+                    <span style={{ color: "#14532d", fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>
                       {ev.latency_ms}ms
                     </span>
                   </div>
@@ -347,16 +353,18 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                 </p>
 
                 {ev.signals && ev.signals.length > 0 ? (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {ev.signals.map((sig) => (
                       <span
                         key={sig}
                         style={{
-                          fontSize: 10,
-                          padding: "1px 5px",
-                          borderRadius: 3,
-                          background: "var(--panel-border, rgba(15, 23, 42, 0.08))",
-                          color: sig.startsWith("RULE:") ? "#ef4444" : "var(--muted)",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background: sig.startsWith("RULE:") ? "#fee2e2" : "#dbeafe",
+                          color: sig.startsWith("RULE:") ? "#991b1b" : "#1e3a8a",
+                          border: sig.startsWith("RULE:") ? "1px solid #b91c1c" : "1px solid #93c5fd",
                         }}
                       >
                         {sig}
@@ -390,15 +398,17 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 6,
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: 700,
-                          padding: "6px 14px",
-                          borderRadius: "var(--card-radius, 4px)",
-                          background: "var(--accent)",
-                          color: "var(--accent-ink, #ffffff)",
+                          minHeight: 44,
+                          padding: "10px 18px",
+                          borderRadius: "var(--card-radius, 6px)",
+                          background: "var(--accent, #1e3a8a)",
+                          color: "#ffffff",
                           textDecoration: "none",
-                          boxShadow: "0 0 10px rgba(201, 243, 106, 0.3)",
+                          boxShadow: "0 0 10px rgba(30, 58, 138, 0.3)",
                         }}
+                        className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                       >
                         <span>→ Investigate in SentinelFlow {escalated.case_code ? `(${escalated.case_code})` : ""}</span>
                       </Link>
@@ -406,6 +416,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                       <button
                         type="button"
                         disabled={isEscalatingThis}
+                        aria-label={`Escalate ${ev.carrier} alert for ${ev.sender} (${ev.verdict}) to SentinelFlow`}
                         onClick={() => {
                           void handleEscalate(ev);
                         }}
@@ -413,16 +424,18 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 6,
-                          fontSize: 12,
-                          padding: "6px 14px",
-                          borderRadius: "var(--card-radius, 4px)",
-                          background: "var(--accent-soft, rgba(37, 99, 235, 0.12))",
-                          color: "var(--accent, #2563eb)",
-                          border: "1px solid var(--accent, rgba(37, 99, 235, 0.35))",
+                          fontSize: 13,
+                          minHeight: 44,
+                          padding: "10px 18px",
+                          borderRadius: "var(--card-radius, 6px)",
+                          background: "var(--accent-soft, #dbeafe)",
+                          color: "#1e3a8a",
+                          border: "2px solid #1e40af",
                           cursor: isEscalatingThis ? "wait" : "pointer",
                           fontWeight: 700,
                           transition: "all 0.15s ease",
                         }}
+                        className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                       >
                         {isEscalatingThis ? (
                           "Escalating..."

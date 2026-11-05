@@ -13,20 +13,21 @@
   --danger: #9e2f28;
   --shadow: 0 24px 60px rgba(19, 34, 56, 0.12);
   --card-radius: 24px;
+  --dot-color: rgba(30, 41, 59, 0.16);
 }
 
 [data-style="style-2"] {
   --ink: #0f172a;
-  --muted: #64748b;
+  --muted: #334155;
   --canvas: #f1f5f9;
   --panel: #ffffff;
   /* One tone lighter for all borders in Style 2 */
-  --panel-border: rgba(15, 23, 42, 0.08);
+  --panel-border: rgba(15, 23, 42, 0.12);
   --input-bg: #ffffff;
-  --accent: #2563eb;
+  --accent: #1e3a8a;
   --accent-soft: #dbeafe;
-  --success: #16a34a;
-  --danger: #dc2626;
+  --success: #14532d;
+  --danger: #991b1b;
   --shadow: none;
   --card-radius: 0px;
 }
@@ -173,13 +174,96 @@ main {
 /* Full coverage background & Full-Width Navbar in Style 2 */
 [data-style="style-2"] html,
 [data-style="style-2"] body {
-  background: var(--style2-bg, #f1f5f9) !important;
   background-color: var(--style2-bg, #f1f5f9) !important;
-  background-image: none !important;
   color: var(--ink);
   margin: 0 !important;
   padding: 0 !important;
   min-height: 100vh;
+}
+
+/* ========================================================
+   Background Dot Patterns & Smooth Drift Animations
+   ======================================================== */
+
+/* Seamless 45-degree diagonal stream keyframe along y = x */
+@keyframes sentinelDotDrift {
+  0% {
+    background-position: 0 0, 10px 10px, 20px 20px, 30px 30px;
+  }
+  100% {
+    background-position: 40px 40px, 50px 50px, 60px 60px, 70px 70px;
+  }
+}
+
+/* 1. Plain / None */
+[data-pattern="none"] body {
+  background-image: none !important;
+}
+
+/* 2. Animated Drift (Moving Dots in Diagonal Line - 18s smooth pace) */
+[data-pattern="animated-drift"] body {
+  background-image:
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px) !important;
+  background-size: 40px 40px !important;
+  background-position: 0 0, 10px 10px, 20px 20px, 30px 30px !important;
+  background-repeat: repeat !important;
+  animation: sentinelDotDrift 18s linear infinite !important;
+}
+
+/* 3. Gentle Slow Drift (Moving Dots in Diagonal Line - 32s ultra-calm pace) */
+[data-pattern="animated-gentle"] body {
+  background-image:
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px) !important;
+  background-size: 40px 40px !important;
+  background-position: 0 0, 10px 10px, 20px 20px, 30px 30px !important;
+  background-repeat: repeat !important;
+  animation: sentinelDotDrift 32s linear infinite !important;
+}
+
+/* 4. Diagonal Dotted Lines (Static parallel diagonal tracks of small dots) */
+[data-pattern="diagonal-lines"] body {
+  background-image:
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px) !important;
+  background-size: 40px 40px !important;
+  background-position: 0 0, 10px 10px, 20px 20px, 30px 30px !important;
+  background-repeat: repeat !important;
+}
+
+/* 5. Diagonal Dots Matrix (Staggered isometric diagonal dots) */
+[data-pattern="diagonal-dots"] body {
+  background-image:
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px),
+    radial-gradient(circle, var(--dot-color) 1.25px, transparent 1.5px) !important;
+  background-size: 28px 28px !important;
+  background-position: 0 0, 14px 14px !important;
+  background-repeat: repeat !important;
+}
+
+/* 6. Dense Diagonal Mesh (Micro-dots matrix) */
+[data-pattern="dense-diagonal"] body {
+  background-image:
+    radial-gradient(circle, var(--dot-color) 1.1px, transparent 1.4px),
+    radial-gradient(circle, var(--dot-color) 1.1px, transparent 1.4px) !important;
+  background-size: 20px 20px !important;
+  background-position: 0 0, 10px 10px !important;
+  background-repeat: repeat !important;
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-pattern="animated-drift"] body,
+  [data-pattern="animated-gentle"] body {
+    animation: none !important;
+  }
 }
 
 [data-style="style-2"] body {
@@ -371,12 +455,13 @@ main {
    ======================================================== */
 
 .nav-signin-btn {
-  background: #2563eb !important;
+  background: #1e3a8a !important;
   color: #ffffff !important;
-  padding: 6px 14px !important;
+  padding: 10px 18px !important;
+  min-height: 44px !important;
   border-radius: 6px !important;
   font-size: 13px !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
   text-decoration: none !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -385,25 +470,25 @@ main {
 }
 
 .nav-signin-btn:hover {
-  background: #1d4ed8 !important;
+  background: #1e40af !important;
   color: #ffffff !important;
 }
 
 [data-style="style-1"] .nav-signin-btn {
   border-radius: 999px !important;
-  background: #2563eb !important;
+  background: #1e3a8a !important;
   color: #ffffff !important;
 }
 
 [data-style="style-2"] .nav-signin-btn {
   border-radius: 0 !important;
-  background: #2563eb !important;
+  background: #1e3a8a !important;
   color: #ffffff !important;
 }
 
 [data-style="style-3"] .nav-signin-btn {
   border-radius: 6px !important;
-  background: #2563eb !important;
+  background: #1e3a8a !important;
   color: #ffffff !important;
 }
 
@@ -531,15 +616,16 @@ main {
    ======================================================== */
 
 .font-picker-select {
-  padding: 4px 8px;
-  font-size: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
   background: #ffffff;
   border: 1px solid var(--panel-border);
   border-radius: 0;
   cursor: pointer;
-  height: 28px;
+  min-height: 44px;
+  height: 44px;
   transition: border-color 0.15s ease;
 }
 
@@ -560,7 +646,8 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 6px;
+  padding: 4px 6px;
+  min-height: 44px;
   background: rgba(19, 34, 56, 0.04);
   border: 1px solid var(--panel-border);
   transition: all 0.2s ease;
@@ -586,12 +673,16 @@ main {
 }
 
 .bg-palette-swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: 2px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 4px;
   cursor: pointer;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  background-clip: content-box;
+  box-sizing: border-box;
   position: relative;
   transition: transform 0.15s ease, border-color 0.15s ease;
   display: inline-flex;
@@ -622,16 +713,18 @@ main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border: 1px dashed var(--panel-border);
   background: transparent;
   cursor: pointer;
   padding: 0;
-  font-size: 10px;
+  font-size: 14px;
   position: relative;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 [data-style="style-2"] .bg-palette-picker-btn {
@@ -660,6 +753,7 @@ main {
   --panel-border: rgba(255, 255, 255, 0.12);
   --input-bg: #1e293b;
   --canvas: #0f172a;
+  --dot-color: rgba(241, 245, 249, 0.15);
 }
 
 [data-style="style-2"][data-theme="dark"] .shell-card {

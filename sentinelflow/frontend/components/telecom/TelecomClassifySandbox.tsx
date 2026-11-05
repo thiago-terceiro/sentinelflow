@@ -12,22 +12,22 @@ type Props = {
 const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   if (verdict === "BLOCK") {
     return {
-      bg: "rgba(239, 68, 68, 0.12)",
-      color: "#dc2626",
-      border: "1px solid rgba(239, 68, 68, 0.25)",
+      bg: "#fee2e2",
+      color: "#991b1b",
+      border: "1px solid #b91c1c",
     };
   }
   if (verdict === "FLAG") {
     return {
-      bg: "rgba(234, 179, 8, 0.15)",
-      color: "#b45309",
-      border: "1px solid rgba(234, 179, 8, 0.3)",
+      bg: "#fef3c7",
+      color: "#78350f",
+      border: "1px solid #b45309",
     };
   }
   return {
-    bg: "rgba(34, 197, 94, 0.12)",
-    color: "#16a34a",
-    border: "1px solid rgba(34, 197, 94, 0.25)",
+    bg: "#dcfce7",
+    color: "#14532d",
+    border: "1px solid #15803d",
   };
 };
 
@@ -190,9 +190,9 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           </span>
         </div>
         <div
-          role="tablist"
+          role="group"
           aria-label="Quick test preset scenarios"
-          style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
+          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
         >
           {presets.map((p) => {
             const isSelected =
@@ -205,18 +205,19 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
               <button
                 key={p.name}
                 type="button"
-                role="tab"
-                aria-selected={isSelected}
+                aria-pressed={isSelected}
+                aria-label={`Load preset scenario: ${p.name}`}
                 onClick={() => applyPreset(p)}
                 style={{
-                  fontSize: 11,
-                  padding: "3px 8px",
-                  borderRadius: 4,
-                  border: isSelected ? "1px solid var(--accent)" : "1px solid var(--panel-border)",
-                  background: isSelected ? "var(--accent-soft, rgba(37, 99, 235, 0.1))" : "transparent",
-                  color: isSelected ? "var(--accent)" : "var(--muted)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  minHeight: 44,
+                  padding: "10px 16px",
+                  borderRadius: 6,
+                  border: isSelected ? "2px solid #1e40af" : "1px solid rgba(15, 23, 42, 0.25)",
+                  background: isSelected ? "var(--accent-soft, #dbeafe)" : "transparent",
+                  color: isSelected ? "#1e3a8a" : "#0f172a",
                   cursor: "pointer",
-                  fontWeight: 600,
                 }}
                 className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               >
@@ -384,15 +385,17 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           disabled={isClassifying}
           style={{
             width: "100%",
-            padding: "10px 16px",
+            minHeight: 48,
+            padding: "12px 20px",
             borderRadius: "var(--card-radius, 8px)",
-            background: "var(--accent)",
+            background: "var(--accent, #1e3a8a)",
             color: "#ffffff",
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: 15,
             border: "none",
             cursor: isClassifying ? "wait" : "pointer",
           }}
+          className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           {isClassifying ? (
             "Classifying..."
@@ -445,7 +448,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
               </span>
             </div>
 
-            <span style={{ fontSize: 12, fontFamily: "monospace", color: "#22c55e" }}>
+            <span style={{ fontSize: 13, fontFamily: "monospace", color: "#14532d", fontWeight: 700 }}>
               <span className="page-icon">⏱ </span>
               {classificationResult.latency_ms} ms
             </span>
@@ -459,6 +462,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   color: "var(--muted)",
                   display: "block",
                   marginBottom: 4,
+                  fontWeight: 700,
                 }}
               >
                 TRIGGERED SIGNALS:
@@ -469,13 +473,12 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                     key={sig}
                     style={{
                       fontSize: 11,
-                      padding: "2px 8px",
+                      fontWeight: 700,
+                      padding: "3px 8px",
                       borderRadius: 4,
-                      background: sig.startsWith("RULE:")
-                        ? "rgba(239, 68, 68, 0.2)"
-                        : "rgba(201, 243, 106, 0.2)",
-                      color: sig.startsWith("RULE:") ? "#f87171" : "var(--accent)",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: sig.startsWith("RULE:") ? "#fee2e2" : "#dbeafe",
+                      color: sig.startsWith("RULE:") ? "#991b1b" : "#1e3a8a",
+                      border: sig.startsWith("RULE:") ? "1px solid #b91c1c" : "1px solid #93c5fd",
                     }}
                   >
                     {sig}
@@ -538,13 +541,15 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                       gap: 8,
                       fontSize: 13,
                       fontWeight: 700,
-                      padding: "10px 20px",
+                      minHeight: 44,
+                      padding: "12px 20px",
                       borderRadius: "var(--card-radius, 6px)",
-                      background: "var(--accent)",
-                      color: "var(--accent-ink, #ffffff)",
+                      background: "var(--accent, #1e3a8a)",
+                      color: "#ffffff",
                       textDecoration: "none",
-                      boxShadow: "0 0 16px rgba(201, 243, 106, 0.35)",
+                      boxShadow: "0 0 16px rgba(30, 58, 138, 0.35)",
                     }}
+                    className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                   >
                     <span>→ Investigate in SentinelFlow {escalatedDispute.case_code ? `(${escalatedDispute.case_code})` : ""}</span>
                   </Link>
@@ -557,6 +562,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   <button
                     type="button"
                     disabled={isEscalating}
+                    aria-label="Escalate flagged anomaly to SentinelFlow investigation"
                     onClick={() => {
                       void handleEscalateResult();
                     }}
@@ -565,15 +571,17 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                       alignItems: "center",
                       gap: 8,
                       fontSize: 13,
-                      padding: "10px 20px",
+                      minHeight: 44,
+                      padding: "12px 20px",
                       borderRadius: "var(--card-radius, 6px)",
-                      background: "var(--accent-soft, rgba(37, 99, 235, 0.14))",
-                      color: "var(--accent, #2563eb)",
-                      border: "1px solid var(--accent, rgba(37, 99, 235, 0.4))",
+                      background: "var(--accent-soft, #dbeafe)",
+                      color: "#1e3a8a",
+                      border: "2px solid #1e40af",
                       cursor: isEscalating ? "wait" : "pointer",
                       fontWeight: 700,
                       transition: "all 0.15s ease",
                     }}
+                    className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                   >
                     {isEscalating ? (
                       "Escalating to SentinelFlow..."

@@ -158,11 +158,12 @@ const HomePage = () => {
               <span
                 style={{
                   fontSize: 12,
+                  fontWeight: 700,
                   padding: "5px 12px",
                   borderRadius: 6,
-                  background: "rgba(34, 197, 94, 0.12)",
-                  color: "#22c55e",
-                  border: "1px solid rgba(34, 197, 94, 0.25)",
+                  background: "#dcfce7",
+                  color: "#14532d",
+                  border: "1px solid #15803d",
                   fontFamily: "monospace",
                 }}
               >
@@ -171,11 +172,12 @@ const HomePage = () => {
               <span
                 style={{
                   fontSize: 12,
+                  fontWeight: 700,
                   padding: "5px 12px",
                   borderRadius: 6,
-                  background: "rgba(56, 189, 248, 0.12)",
-                  color: "#38bdf8",
-                  border: "1px solid rgba(56, 189, 248, 0.25)",
+                  background: "#dbeafe",
+                  color: "#1e3a8a",
+                  border: "1px solid #1e40af",
                   fontFamily: "monospace",
                 }}
               >

@@ -66,16 +66,18 @@ export const NavbarUserControls = ({ initialHasSession, initialSessionLabel }: P
           aria-label="Reset all disputes and telemetry to defaults"
           title="Reset database disputes, investigations, and telemetry to default state"
           style={{
-            fontSize: 12,
-            padding: "3px 10px",
+            fontSize: 13,
+            minHeight: 44,
+            padding: "8px 14px",
             borderRadius: 999,
             border: "1px solid var(--panel-border)",
             background: "rgba(255,255,255,0.04)",
             color: "var(--muted)",
             cursor: isResetting ? "not-allowed" : "pointer",
-            fontWeight: 500,
+            fontWeight: 600,
             transition: "color 0.15s ease, border-color 0.15s ease",
           }}
+          className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           {isResetting ? "Resetting..." : "↻ Reset"}
         </button>
@@ -85,7 +87,10 @@ export const NavbarUserControls = ({ initialHasSession, initialSessionLabel }: P
         <span
           style={{
             fontSize: 12,
-            padding: "3px 8px",
+            padding: "6px 12px",
+            minHeight: 44,
+            display: "inline-flex",
+            alignItems: "center",
             borderRadius: 999,
             background: "rgba(255,255,255,0.06)",
             color: "var(--foreground)",
@@ -103,12 +108,17 @@ export const NavbarUserControls = ({ initialHasSession, initialSessionLabel }: P
           style={{
             border: 0,
             background: "transparent",
-            padding: 0,
+            minHeight: 44,
+            padding: "8px 12px",
+            display: "inline-flex",
+            alignItems: "center",
             color: "var(--muted)",
             fontSize: 13,
+            fontWeight: 600,
             cursor: isSigningOut ? "not-allowed" : "pointer",
             fontFamily: "inherit",
           }}
+          className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           {isSigningOut ? "Signing out..." : "Sign out"}
         </button>

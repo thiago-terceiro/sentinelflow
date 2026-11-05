@@ -43,6 +43,7 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
     <html
       lang="en"
       data-style="style-2"
+      data-pattern="animated-drift"
       className={`${headline.variable} ${body.variable} ${rounded.variable}`}
     >
       <head>
