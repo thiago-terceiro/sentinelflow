@@ -802,10 +802,14 @@ async def batch_classify_telecom_messages(
     t_batch_start = time.perf_counter()
 
     engine = get_inference_engine()
-    batch_inferences = await asyncio.to_thread(
-        engine.predict_batch,
-        [item.message for item in request.events],
-    )
+    event_messages = [item.message for item in request.events]
+    if len(event_messages) >= 16:
+        batch_inferences = await asyncio.to_thread(
+            engine.predict_batch,
+            event_messages,
+        )
+    else:
+        batch_inferences = engine.predict_batch(event_messages)
     sem = asyncio.Semaphore(50)
 
     async def _bounded_classify(

@@ -7,8 +7,10 @@ optimized ONNX Runtime model with CPU execution provider.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -185,6 +187,126 @@ def build_augmented_dataset() -> tuple[list[str], list[int]]:
             )
             labels.append(0)
 
+    # Augment legit banking notifications (teaching model that legitimate banking alerts exist)
+    legit_banks = [
+        "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One",
+        "PNC Bank", "TD Bank", "US Bank"
+    ]
+    for i, b in enumerate(legit_banks):
+        for j in range(5):
+            texts.append(
+                f"{b} Update: Your checking account ending in {1000 + i * 100 + j} monthly statement is ready to view."
+            )
+            labels.append(0)
+            texts.append(
+                f"{b}: Autopay confirmation for your utility bill payment of ${45 + j * 10}.00 processed."
+            )
+            labels.append(0)
+            texts.append(
+                f"{b} Alert: Direct deposit of ${800 + j * 150}.00 from employer payroll posted successfully."
+            )
+            labels.append(0)
+
+    # Augment legit retail receipts & store pickups
+    retail_chains = ["Target", "Walmart", "Best Buy", "Costco", "Starbucks", "Home Depot"]
+    for i, r in enumerate(retail_chains):
+        for j in range(4):
+            texts.append(
+                f"{r} eReceipt: Order #{20000 + i * 100 + j} was paid in store. Thank you for your business."
+            )
+            labels.append(0)
+            texts.append(
+                f"{r} Curbside: Order #{30000 + i * 100 + j} is ready for pickup in designated space."
+            )
+            labels.append(0)
+
+    # Augment legit travel & airline notifications
+    airlines = ["Delta Air Lines", "United Airlines", "American Airlines", "Southwest Airlines"]
+    for i, a in enumerate(airlines):
+        for j in range(5):
+            texts.append(
+                f"{a}: Flight confirmation #{4000 + i * 10 + j}. Check-in opens 24 hours prior to departure."
+            )
+            labels.append(0)
+            texts.append(
+                f"{a} Gate Info: Your scheduled departure is on time at Gate {chr(65 + i)}{10 + j}."
+            )
+            labels.append(0)
+
+    # Augment legit healthcare notifications
+    for i in range(20):
+        texts.append(
+            f"MyChart Notification: Patient test results #{5000 + i} from Dr. Taylor are now available online."
+        )
+        labels.append(0)
+        texts.append(
+            f"Pharmacy Refill: Prescription #{6000 + i} is filled and ready for pickup at local counter."
+        )
+        labels.append(0)
+
+    # Augment legit conversational messages
+    conversations = [
+        "Are we still on for lunch tomorrow afternoon?",
+        "Don't forget to lock the garage door on your way out.",
+        "The kids had so much fun at the science museum today!",
+        "Can you send over the slides from yesterday's presentation?",
+        "Hope you have a safe and pleasant flight back home!",
+        "See you at soccer practice on Tuesday evening.",
+        "Traffic is a bit heavy on highway 101, will be there shortly.",
+        "Dinner was delicious, thanks for having us over!",
+        "Let me know if you need any help with the garden this weekend.",
+        "Just finished running at the park, heading home now.",
+        "Wishing you a very Happy Birthday and a fantastic year ahead!",
+        "Happy Birthday! Have an amazing day celebrating with friends!",
+        "Let me know if you want to carpool to soccer practice this weekend.",
+        "We can carpool to soccer practice on Saturday morning if you'd like.",
+        "Could you bring my umbrella from the front hallway to the office?",
+        "Don't forget your umbrella today, looks like light rain this afternoon.",
+    ]
+    for c in conversations:
+        texts.append(c)
+        labels.append(0)
+
+    # Augment legit store receipts with digital delivery
+    receipt_retailers = ["Target", "Starbucks", "Apple Store", "Walmart", "Best Buy", "Costco", "Home Depot"]
+    for i, rc in enumerate(receipt_retailers):
+        for j in range(3):
+            texts.append(
+                f"{rc} Receipt: Transaction #{10000 + i * 50 + j} paid ${12 + j * 7}.50. E-receipt sent to registered email."
+            )
+            labels.append(0)
+
+    # Additional legit delivery notices & transit status updates
+    carriers = ["USPS", "FedEx", "UPS", "DHL Express", "Amazon Logistics"]
+    for i in range(15):
+        car = carriers[i % len(carriers)]
+        texts.append(
+            f"{car} Alert: Shipment TRK{70000 + i * 11} departed distribution center on schedule. Status: https://{car.lower().replace(' ', '')}.com/track"
+        )
+        labels.append(0)
+        texts.append(
+            f"{car}: Package #US{80000 + i * 13} delivered at in/at mailbox. Details at tools.usps.com/track"
+        )
+        labels.append(0)
+
+    # Augment fraud with financial and delivery scams
+    banks_fraud = ["Barclays", "HSBC", "Santander", "Lloyds", "NatWest", "Standard Chartered"]
+    scam_domains_extra = [
+        "auth-alert.xyz", "secure-desk.top", "verify-card.cc", "login-gate.club", "resolve-fraud.biz"
+    ]
+    for b in banks_fraud:
+        for d in scam_domains_extra:
+            texts.append(
+                f"URGENT: {b} security alert! Suspicious activity detected. Unlock account: http://{b.lower()}-{d}"
+            )
+            labels.append(1)
+
+    for i in range(25):
+        texts.append(
+            f"Postal Alert: Package #{10000 + i * 7} requires customs fee of $2.50 to release shipment: http://parcel-clearance-{i}.info"
+        )
+        labels.append(1)
+
     return texts, labels
 
 
@@ -209,18 +331,21 @@ def train_and_export_model(
     )
 
     # Strictly verify zero train/test leakage against held-out adversarial evaluation set
+    def _hash_text(t: str) -> str:
+        return hashlib.sha256(re.sub(r"\s+", " ", t.strip().lower()).encode("utf-8")).hexdigest()
+
     held_out_texts, _ = get_held_out_evaluation_set()
-    train_set = set(texts)
-    held_out_set = set(held_out_texts)
-    leakage = train_set.intersection(held_out_set)
+    train_hashes = {_hash_text(t) for t in texts}
+    held_out_hashes = {_hash_text(t) for t in held_out_texts}
+    leakage = train_hashes.intersection(held_out_hashes)
     if leakage:
         raise ValueError(
             f"CRITICAL: Train/Test leakage detected in {len(leakage)} samples: {leakage}"
         )
     logger.info(
-        "Leakage check passed: Zero overlap between training corpus (%d) and held-out test suite (%d).",
-        len(train_set),
-        len(held_out_set),
+        "Leakage check passed: Zero normalized SHA-256 overlap between training corpus (%d) and held-out test suite (%d).",
+        len(train_hashes),
+        len(held_out_hashes),
     )
 
     # Split into train / test sets (80 / 20) with stratification
@@ -360,8 +485,8 @@ def train_and_export_model(
         },
     }
 
-    with open(metadata_file, "w", encoding="utf-8") as f:
-        json.dump(metadata, f, indent=2)
+    with open(metadata_file, "w", encoding="utf-8") as meta_out:
+        json.dump(metadata, meta_out, indent=2)
     logger.info("Saved model metadata to: %s", metadata_file)
 
     return metadata

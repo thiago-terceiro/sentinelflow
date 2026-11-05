@@ -38,7 +38,7 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:SUSPICIOUS_TLD",
         re.compile(
-            r"https?://[a-zA-Z0-9.\-]+\.(?:xyz|top|cc|ru|club|info|biz|site|online|me)/[^\s]*",
+            r"https?://[a-zA-Z0-9.\-&]+\.(?:xyz|top|cc|ru|club|info|biz|site|online|me)(?:/[^\s]*)?",
             re.IGNORECASE,
         ),
         0.65,
@@ -87,10 +87,35 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
         0.70,
     ),
     (
+        "RULE:TECH_SUPPORT_INVOICE_SCAM",
+        re.compile(
+            r"\b(?:auto-renewal|tech care|geek squad|mcafee|norton)\b.*"
+            r"\b(?:charged|cancellation|refund|subscription invoice)\b",
+            re.IGNORECASE,
+        ),
+        0.70,
+    ),
+    (
+        "RULE:WORK_FROM_HOME_SCAM",
+        re.compile(
+            r"\b(?:work from home|earn \$\d+/day)\b.*\b(?:telegram|reviewing|manager)\b",
+            re.IGNORECASE,
+        ),
+        0.65,
+    ),
+    (
+        "RULE:SIM_SWAP_OR_KYC_SCAM",
+        re.compile(
+            r"\b(?:esim transfer|sim card.*deactivation|update kyc)\b",
+            re.IGNORECASE,
+        ),
+        0.70,
+    ),
+    (
         "RULE:STANDALONE_URL",
         re.compile(
             r"https?://(?!bit\.ly/|tinyurl\.com/|t\.co/|is\.gd/|cutt\.ly/|rb\.gy/)"
-            r"[a-zA-Z0-9.\-]+/[^\s]*",
+            r"[a-zA-Z0-9.\-&]+(?:/[^\s]*)?",
             re.IGNORECASE,
         ),
         0.25,
@@ -125,31 +150,28 @@ def compute_composite_score(
     onnx_probability: float,
     velocity_score: float = 0.0,
 ) -> float:
-    """Computes the deterministic composite fraud score combining heuristics, ML, and velocity.
+    """Computes the continuous, strictly monotonic composite fraud score.
 
-    Piecewise Mathematical Formulation:
-    1. Content Risk (S_content):
-       - Authoritative High-Risk Heuristic Override (H >= 0.80):
-         High-risk heuristic rules (e.g. TAX_ARREST_THREAT = 0.80, compound rules >= 0.85)
-         represent definitive malicious patterns that statistical models cannot dilute.
-         S_content = max(H, P_onnx)
-       - Benign Indicator Suppression (H <= 0.40 and P_onnx < 0.30):
-         Single benign indicators (e.g. STANDALONE_URL = 0.25, GENERIC_DELIVERY_KEYWORD = 0.20)
-         frequently appear in legitimate transactional A2P traffic (shipment notices, OTPs).
-         When the calibrated ML model verifies the vocabulary is benign (P_onnx < 0.30),
-         the benign heuristic is dampened by 0.60x, strictly guaranteeing:
-         S_content <= max(0.30, 0.24) < 0.40 (ALLOW) under normal velocity (V = 0.0).
-         S_content = max(P_onnx, 0.60 * H)
-       - Moderate Heuristics / Corroborated Content:
-         S_content = max(H, P_onnx)
+    Mathematical Formulation:
+    1. Authoritative High-Risk Override:
+       If H >= 0.80 (e.g. TAX_ARREST_THREAT = 0.80, compound rules >= 0.85),
+       S_composite = 1.0 (BLOCK). High-confidence criminal extortion cannot be diluted.
 
-    2. Velocity & Threat Scaling (S_composite):
-       - Authoritative Block Condition (V >= 0.75 or S_content >= 0.75):
-         S_composite = min(1.0, max(S_content, V))
-       - Elevated Velocity Scaling (0.0 < V < 0.75):
-         S_composite = min(1.0, max(S_content, S_content + 0.40 * V, V * 0.80))
-       - Normal Velocity (V == 0.0):
-         S_composite = S_content
+    2. Continuous Gated Heuristic Blend:
+       The heuristic gate alpha(P, H) smoothly scales from 0.0 (benign domain) to 1.0 (fraud):
+       alpha(P, H) = clip(max(P - 0.15, H - 0.30, 0.0) / 0.25, 0.0, 1.0)
+
+       Effective heuristic weight:
+       W_H = 0.35 * H + 0.30 * max(0.0, H - 0.30)
+       S_content = P + alpha(P, H) * W_H * (1.0 - P)
+
+       Guarantees d(S_content)/dP >= 0 and d(S_content)/dH >= 0 everywhere on [0, 1] x [0, 1].
+       When H <= 0.25 and P < 0.30, alpha == 0.0 and S_content == P < 0.30 < 0.40 (ALLOW).
+
+    3. Smooth Monotonic Velocity Scaling (Probabilistic Union / Noisy-OR):
+       S_composite = S_content + V * (1.0 - S_content)
+
+       Guarantees d(S_composite)/dV >= 0 and d(S_composite)/dS_content >= 0 everywhere.
 
     Returns:
         float: Composite fraud score bounded strictly in [0.0, 1.0].
@@ -158,23 +180,20 @@ def compute_composite_score(
     p = max(0.0, min(1.0, float(onnx_probability)))
     v = max(0.0, min(1.0, float(velocity_score)))
 
-    # Step 1: Content Risk
+    # Step 1: Authoritative High-Risk Heuristic Override
     if h >= 0.80:
-        s_content = max(h, p)
-    elif h <= 0.40 and p < 0.30:
-        s_content = max(p, 0.60 * h)
-    else:
-        s_content = max(h, p)
+        return 1.0
 
-    # Step 2: Velocity Scaling
-    if v >= 0.75 or s_content >= 0.75:
-        s_composite = min(1.0, max(s_content, v))
-    elif v > 0.0:
-        s_composite = min(1.0, max(s_content, s_content + 0.40 * v, v * 0.80))
-    else:
-        s_composite = s_content
+    # Step 2: Continuous Gated Heuristic Blend
+    alpha = min(1.0, max(0.0, max(p - 0.15, h - 0.30) / 0.25))
+    w_h = 0.35 * h + 0.30 * max(0.0, h - 0.30)
+    s_content = p + alpha * w_h * (1.0 - p)
+    s_content = min(1.0, max(0.0, s_content))
 
-    return round(float(s_composite), 4)
+    # Step 3: Smooth Monotonic Velocity Scaling (Probabilistic Union)
+    s_composite = s_content + v * (1.0 - s_content)
+
+    return round(float(min(1.0, max(0.0, s_composite))), 4)
 
 
 class OnnxInferenceEngine:

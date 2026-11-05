@@ -378,16 +378,16 @@ async def test_telecom_warmup_realistic_ratio_and_reset_endpoint() -> None:
 
 
 def test_composite_scoring_math_and_benign_suppression() -> None:
-    """Verifies deterministic piecewise composite scoring prevents false-positive FLAG."""
+    """Verifies continuous gated composite scoring prevents false-positive FLAG inflation."""
     # 1. Single benign URL indicator (0.25) + low calibrated ML (0.12) + normal velocity (0.0)
-    # Must suppress benign heuristic (0.6 * 0.25 = 0.15), strictly yielding ALLOW (< 0.40)
+    # Gated blend suppresses benign heuristic (alpha == 0), strictly yielding ALLOW (< 0.40)
     score_url_suppressed = compute_composite_score(
         heuristic_score=0.25,
         onnx_probability=0.12,
         velocity_score=0.0,
     )
     assert score_url_suppressed < 0.40
-    assert score_url_suppressed == 0.15
+    assert score_url_suppressed == 0.12
 
     # 2. Benign delivery keyword (0.20) + low calibrated ML (0.08) + normal velocity (0.0)
     score_deliv_suppressed = compute_composite_score(
@@ -396,24 +396,25 @@ def test_composite_scoring_math_and_benign_suppression() -> None:
         velocity_score=0.0,
     )
     assert score_deliv_suppressed < 0.40
-    assert score_deliv_suppressed == 0.12
+    assert score_deliv_suppressed == 0.08
 
-    # 3. High-risk single rule (e.g. TAX_ARREST_THREAT = 0.80) cannot be diluted -> BLOCK (>= 0.75)
+    # 3. High-risk single rule (e.g. TAX_ARREST_THREAT = 0.80) cannot be diluted -> BLOCK (1.0)
     score_tax_override = compute_composite_score(
         heuristic_score=0.80,
         onnx_probability=0.10,
         velocity_score=0.0,
     )
     assert score_tax_override >= 0.75
-    assert score_tax_override == 0.80
+    assert score_tax_override == 1.0
 
-    # 4. Compound heuristic rule (>= 0.85) -> BLOCK
+    # 4. Compound heuristic rule (>= 0.85) -> BLOCK (1.0)
     score_compound = compute_composite_score(
         heuristic_score=0.85,
         onnx_probability=0.05,
         velocity_score=0.0,
     )
     assert score_compound >= 0.75
+    assert score_compound == 1.0
 
     # 5. Normal content (0.15) with active bot flood velocity (0.80) -> BLOCK
     score_velocity_block = compute_composite_score(
@@ -422,7 +423,7 @@ def test_composite_scoring_math_and_benign_suppression() -> None:
         velocity_score=0.80,
     )
     assert score_velocity_block >= 0.75
-    assert score_velocity_block == 0.80
+    assert score_velocity_block == 0.83
 
     # 6. Moderate content (0.35) with moderate burst velocity (0.50) -> FLAG (0.40 - 0.75)
     score_moderate_flag = compute_composite_score(
@@ -431,6 +432,43 @@ def test_composite_scoring_math_and_benign_suppression() -> None:
         velocity_score=0.50,
     )
     assert 0.40 <= score_moderate_flag < 0.75
+
+
+def test_composite_scoring_strict_monotonicity_property() -> None:
+    """Property test: Verifies compute_composite_score is strictly monotonic across [0, 1]^3."""
+    grid = [i / 50.0 for i in range(51)]
+
+    # 1. Monotonicity in P: for all P1 <= P2, S(P1, H, V) <= S(P2, H, V)
+    for h in [0.0, 0.20, 0.25, 0.30, 0.40, 0.55, 0.65, 0.70, 0.75, 0.80, 0.90]:
+        for v in [0.0, 0.20, 0.50, 0.80, 1.0]:
+            prev_s = -1.0
+            for p in grid:
+                s = compute_composite_score(h, p, v)
+                assert s >= prev_s - 1e-9, f"Non-monotonic in P at h={h}, p={p}, v={v}"
+                prev_s = s
+
+    # 2. Monotonicity in H: for all H1 <= H2, S(P, H1, V) <= S(P, H2, V)
+    for p in [0.0, 0.10, 0.20, 0.29, 0.30, 0.50, 0.75, 1.0]:
+        for v in [0.0, 0.20, 0.50, 0.80, 1.0]:
+            prev_s = -1.0
+            for h in grid:
+                s = compute_composite_score(h, p, v)
+                assert s >= prev_s - 1e-9, f"Non-monotonic in H at p={p}, h={h}, v={v}"
+                prev_s = s
+
+    # 3. Monotonicity in V: for all V1 <= V2, S(P, H, V1) <= S(P, H, V2)
+    for p in [0.0, 0.20, 0.50, 0.80, 1.0]:
+        for h in [0.0, 0.25, 0.55, 0.75, 0.80]:
+            prev_s = -1.0
+            for v in grid:
+                s = compute_composite_score(h, p, v)
+                assert s >= prev_s - 1e-9, f"Non-monotonic in V at p={p}, h={h}, v={v}"
+                prev_s = s
+
+    # 4. Benign boundary: H <= 0.25, P < 0.30, V == 0.0 -> strictly < 0.40 (ALLOW)
+    for h in [0.0, 0.10, 0.20, 0.25]:
+        for p in [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.29]:
+            assert compute_composite_score(h, p, 0.0) < 0.40
 
 
 @pytest.mark.asyncio

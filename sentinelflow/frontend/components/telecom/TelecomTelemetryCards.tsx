@@ -10,7 +10,7 @@ type Props = {
 
 const getDriftBadgeStyle = (status: string | undefined): { color: string; bg: string } => {
   if (status === "CRITICAL_DRIFT") {
-    return { color: "#991b1b", bg: "#fee2e2" };
+    return { color: "#7f1d1d", bg: "#fee2e2" };
   }
   if (status === "MODERATE_DRIFT") {
     return { color: "#78350f", bg: "#fef3c7" };
@@ -21,8 +21,8 @@ const getDriftBadgeStyle = (status: string | undefined): { color: string; bg: st
 export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
   const driftStyle = getDriftBadgeStyle(drift?.status);
   const p95Color = metrics.latency.p95_ms < 15 ? "#14532d" : "#78350f";
-  const p99Color = metrics.latency.p99_ms < 30 ? "#14532d" : "#991b1b";
-  const fraudRateColor = metrics.fraud_rate_pct > 20 ? "#991b1b" : "var(--foreground)";
+  const p99Color = metrics.latency.p99_ms < 30 ? "#14532d" : "#7f1d1d";
+  const fraudRateColor = metrics.fraud_rate_pct > 20 ? "#7f1d1d" : "var(--foreground)";
 
   return (
     <div
