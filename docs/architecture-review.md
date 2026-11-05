@@ -8,31 +8,33 @@
 
 ## Executive Summary & Review Timeline
 
-SentinelFlow was subjected to four rigorous engineering audit cycles focused on adversarial security, workbench reliability, distributed systems resilience, and AI-first web architecture:
+SentinelFlow was subjected to continuous, rigorous engineering audit cycles spanning adversarial security, workbench reliability, distributed systems resilience, AI-first web architecture, and production lifecycle execution:
 
 ```mermaid
 flowchart LR
     Phase1["Cycle 1: Adversarial Red Team<br/>• Infinite Agent Loops<br/>• Risk Score Deflation<br/>• Audit Hash Forking<br/>• Pre-Inference PII Leaks"]
     Phase2["Cycle 2: Workbench & Reliability<br/>• F5 Cold Hydration Gap<br/>• Time-Travel Scrubber (<0.03ms)<br/>• BFF Proxy SSE Buffering<br/>• 8-Case AI Eval Suite"]
     Phase3["Cycle 3: Systems & Production<br/>• Seeded Resume Without Checkpoint<br/>• ONNX Event-Loop Blocking<br/>• SQLAlchemy Pool Starvation<br/>• Keyboard Traps & a11y Focus"]
-    Phase4["Cycle 4: AI-First Web & GEO<br/>• llms.txt & Content Negotiation<br/>• Remote MCP Server over SSE<br/>• Decoupled Crawler Governance<br/>• Stacked Schema.org & GEO"]
-    Prod(["Enterprise Benchmark<br/>120 Pytest · 35 Node Tests<br/>8/8 Golden Evals (99.8%)<br/>Clean Next.js 16 Build"])
+    Phase4["Cycle 4: AI-First Web & GEO<br/>• llms.txt & Negotiation<br/>• Remote MCP Server over SSE<br/>• Decoupled Crawler Policies<br/>• Stacked Schema.org & GEO"]
+    Phase5["Cycles 5-7: Production Lifecycle & HITL<br/>• In-Process Worker Fallback<br/>• Stale Approval Event Stripping<br/>• Investigator Decision RBAC<br/>• Deterministic Hard Sign-Out"]
+    Prod(["Enterprise Benchmark<br/>126 Pytest · 40 Node Tests<br/>Playwright E2E Verified<br/>Clean Next.js Build"])
 
-    Phase1 --> Phase2 --> Phase3 --> Phase4 --> Prod
+    Phase1 --> Phase2 --> Phase3 --> Phase4 --> Phase5 --> Prod
 ```
 
 ### Diagnostic Evolution Scorecard
 
-| Engineering Domain | Prototype / Baseline | Cycle 1 (Red Team) | Cycle 2 (Workbench) | Cycle 3 (Hardened) | Cycle 4 (AI-First & GEO) |
-|---|:---:|:---:|:---:|:---:|---|
-| **LangGraph Orchestration & HITL** | C+ | A- | A | A+ | **A+** (Pure reducers, bounded human steering, cold-seeded state rehydration, zero checkpoint crashes) |
-| **Explainable AI Workbench UX** | C- | B | A- | A+ | **A+** (`<0.03ms` time-travel scrubber, sticky `?evidence=` pinning, semantic `?diff=1` inspector, GenUI cards) |
-| **Cryptographic Audit Ledger** | D | A | A | A+ | **A+** (Serialized SHA-256 hash chains, per-investigation locks, tamper-evident verification badge) |
-| **Enterprise PII & Injection Defense** | B- | A- | A | A+ | **A+** (Pre-inference PCI-DSS 6+4 PAN masking, SSN/IBAN scrub, zero-width DOM sanitization, XML boundary tags) |
-| **High-Throughput Streaming & BFF** | D | C+ | A- | A+ | **A+** (Next.js BFF proxy with `request.signal` abort propagation, non-buffering headers, 3600s SSE timeouts) |
-| **Distributed Systems & Performance**| C | B | A- | A+ | **A+** (Non-blocking ONNX batching, heuristic pre-filtering, SQLAlchemy `20/30` pool, composite DB indexing) |
-| **AI Ingestion & Protocol Discovery**| F | F | D | C | **A+** (`llms.txt`, `llms-full.txt`, HTTP Markdown negotiation, Remote MCP over SSE, decoupled `robots.txt`) |
-| **Generative Engine Optimization** | F | F | F | D | **A+** (Definition Lead pattern, markdown comparison matrices, stacked Schema.org JSON-LD, sitemap, GEO metadata) |
+| Engineering Domain | Prototype / Baseline | Cycle 1 (Red Team) | Cycle 2 (Workbench) | Cycle 3 (Hardened) | Cycle 4 (AI-First & GEO) | Cycles 5–7 (Production Lifecycle) |
+|---|:---:|:---:|:---:|:---:|---|---|
+| **LangGraph Orchestration & HITL** | C+ | A- | A | A+ | A+ | **A+** (Pure reducers, bounded human steering, in-process execution fallback, zero approval replay loops) |
+| **Explainable AI Workbench UX** | C- | B | A- | A+ | A+ | **A+** (`<0.03ms` time-travel scrubber, sticky evidence pinning, semantic diff inspector, single empty provenance box) |
+| **Cryptographic Audit Ledger** | D | A | A | A+ | A+ | **A+** (Serialized SHA-256 hash chains, per-investigation locks, tamper-evident verification badge) |
+| **Enterprise PII & Injection Defense** | B- | A- | A | A+ | A+ | **A+** (Pre-inference PCI-DSS 6+4 PAN masking, SSN/IBAN scrub, zero-width DOM sanitization, XML boundary tags) |
+| **High-Throughput Streaming & BFF** | D | C+ | A- | A+ | A+ | **A+** (Next.js BFF proxy with `request.signal` abort propagation, non-buffering headers, heartbeat deduplication) |
+| **Distributed Systems & Performance**| C | B | A- | A+ | A+ | **A+** (Non-blocking ONNX batching, heuristic pre-filtering, SQLAlchemy `20/30` pool, in-process task execution) |
+| **Session & Lifecycle Reliability**| D | C | B | B+ | A- | **A+** (Deterministic hard sign-out, 401 session eviction, in-place database demo reset endpoint) |
+| **AI Ingestion & Protocol Discovery**| F | F | D | C | A+ | **A+** (`llms.txt`, `llms-full.txt`, HTTP Markdown negotiation, Remote MCP over SSE, decoupled `robots.txt`) |
+| **Generative Engine Optimization** | F | F | F | D | A+ | **A+** (Definition Lead pattern, markdown comparison matrices, stacked Schema.org JSON-LD, sitemap, GEO metadata) |
 
 ---
 
@@ -63,18 +65,18 @@ flowchart TD
 - **The Vulnerability**: When a human reviewer chose `request_revision` with natural-language steering guidance, the graph routed back to `investigate`. However, `iteration_count` was not scaled or reset. If the initial investigation had already exhausted its iteration budget (`iteration_count >= 3`), `route_after_investigator` immediately routed forward to `synthesize`, silently ignoring the human guidance. Conversely, an adversary could keep requesting revisions indefinitely, leading to unbounded token expenditure and compute exhaustion.
 - **Root Cause**: Iteration limits were hardcoded without factoring in revision loops, and there was no cap on human-in-the-loop cycles.
 - **Architectural Remediation**:
-  1. Added `reviewer_guidance: str | None` and `revision_count: int` to [`DisputeState`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/graph/state.py).
-  2. In [`routing.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/graph/routing.py), pending tools or analyzers are prioritized before budget checks.
+  1. Added `reviewer_guidance: str | None` and `revision_count: int` to [`DisputeState`](../sentinelflow/backend/app/graph/state.py).
+  2. In [`routing.py`](../sentinelflow/backend/app/graph/routing.py), pending tools or analyzers are prioritized before budget checks.
   3. Scaled the iteration budget dynamically: `max_iterations = (revisions + 1) * settings.INVESTIGATION_MAX_ITERATIONS`.
   4. Enforced a hard ceiling of `MAX_REVISION_CYCLES = 3`. Once exceeded, the graph routes directly to `finalize` with an escalation audit notice.
 
 ### Finding 1.2: "Zombie Instruction" Leakage Across Autonomous Iterations
 - **The Vulnerability**: When `reviewer_guidance` was provided, it was injected into the prompt context for the next investigation step. However, because it persisted in the state dictionary, every subsequent autonomous iteration continued to treat old guidance as a current instruction.
 - **Root Cause**: State was not treated as ephemeral for single-turn steering directives.
-- **Architectural Remediation**: In [`nodes.py:investigate()`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/graph/nodes.py), `reviewer_guidance` is consumed into the current iteration prompt and explicitly reset to `None` in the returned state delta dictionary (`state["reviewer_guidance"] = None`).
+- **Architectural Remediation**: In [`nodes.py:investigate()`](../sentinelflow/backend/app/graph/nodes.py), `reviewer_guidance` is consumed into the current iteration prompt and explicitly reset to `None` in the returned state delta dictionary (`state["reviewer_guidance"] = None`).
 
 ### Finding 1.3: Risk Score Deflation via Partial Tool Execution (Mathematical Flaw)
-- **The Vulnerability**: In [`services/risk.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/risk.py), the composite risk score was calculated by summing `score * weight` across active factors without normalizing by the sum of available weights. If a tool or analyzer failed (e.g., identity verification timed out), its factor was omitted from the calculation, deflating a high-risk dispute score (e.g., from `0.85` down to `0.38`). As a result, the dispute bypassed the human approval threshold (`0.70`) and was automatically resolved without human review!
+- **The Vulnerability**: In [`services/risk.py`](../sentinelflow/backend/app/services/risk.py), the composite risk score was calculated by summing `score * weight` across active factors without normalizing by the sum of available weights. If a tool or analyzer failed (e.g., identity verification timed out), its factor was omitted from the calculation, deflating a high-risk dispute score (e.g., from `0.85` down to `0.38`). As a result, the dispute bypassed the human approval threshold (`0.70`) and was automatically resolved without human review!
 - **Root Cause**: Unnormalized weighted sum assuming 100% tool availability.
 - **Architectural Remediation**: Implemented strict dynamic weight normalization:
   $$\text{Composite Risk} = \frac{\sum_{i \in \text{Available}} \text{Score}_i \times \text{Weight}_i}{\sum_{i \in \text{Available}} \text{Weight}_i}$$
@@ -83,17 +85,17 @@ flowchart TD
 ### Finding 1.4: Cryptographic Audit Ledger Race Conditions & Hash Tree Forking
 - **The Vulnerability**: During concurrent tool execution in `collect()`, multiple coroutines simultaneously called `record_audit_event()`. Because `_next_sequence_and_prev_hash` read the latest database row concurrently, both coroutines observed the same sequence number and parent hash. This resulted in database unique constraint violations (`(investigation_id, sequence_no)`) or, worse, undetected forks in the cryptographic SHA-256 hash chain.
 - **Root Cause**: Database reads of sequence numbers without distributed/in-memory concurrency locks.
-- **Architectural Remediation**: Introduced [`_investigation_audit_locks: dict[str, asyncio.Lock]`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/audit.py). Sequence number calculation, canonical JSON serialization, SHA-256 payload hashing, and database staging are strictly serialized per investigation thread.
+- **Architectural Remediation**: Introduced [`_investigation_audit_locks: dict[str, asyncio.Lock]`](../sentinelflow/backend/app/services/audit.py). Sequence number calculation, canonical JSON serialization, SHA-256 payload hashing, and database staging are strictly serialized per investigation thread.
 
 ### Finding 1.5: Non-Deterministic JSON Serialization in Cryptographic Hashes
 - **The Vulnerability**: Audit payloads containing Python `datetime` objects or dictionaries with non-deterministic key orders threw `TypeError: Object of type datetime is not JSON serializable` or generated mismatched SHA-256 hashes when recomputed on different worker instances.
 - **Root Cause**: Using default `json.dumps()` without sorting keys or providing custom serializable type handlers.
-- **Architectural Remediation**: Enforced `json.dumps(payload, sort_keys=True, default=str)` in [`compute_row_hash`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/audit.py), ensuring byte-for-byte deterministic hash generation across all platforms and runtimes.
+- **Architectural Remediation**: Enforced `json.dumps(payload, sort_keys=True, default=str)` in [`compute_row_hash`](../sentinelflow/backend/app/services/audit.py), ensuring byte-for-byte deterministic hash generation across all platforms and runtimes.
 
 ### Finding 1.6: Pre-Inference PII Leakage to Upstream Model Providers
 - **The Vulnerability**: Dispute dispute texts, customer memos, and notes contained raw credit card PANs, SSNs, phone numbers, and API keys. Sending these directly to upstream LLM providers violated GDPR, PCI-DSS, and SOC2 compliance.
 - **Root Cause**: Lack of an automated redaction boundary before prompt construction.
-- **Architectural Remediation**: Created [`services/trace_safety.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/trace_safety.py) featuring regex-based pre-inference sanitization:
+- **Architectural Remediation**: Created [`services/trace_safety.py`](../sentinelflow/backend/app/services/trace_safety.py) featuring regex-based pre-inference sanitization:
   - Credit Card PANs: Preserves standard 6+4 format (e.g., `411111******1111`) while scrubbing intermediate numbers.
   - SSNs, IBANs, phone numbers, email addresses, and API bearer tokens: Replaced with explicit typed placeholders (`[REDACTED_SSN]`, `[REDACTED_TOKEN]`).
   - Raw payloads are Fernet-encrypted in PostgreSQL; only masked representations are streamed to the frontend or sent to external APIs.
@@ -138,27 +140,27 @@ sequenceDiagram
   2. `to_run()` returned empty arrays for these fields.
   3. The frontend `useSentinelAgent` hook relied exclusively on live SSE events and had no initial REST snapshot recovery.
 - **Architectural Remediation**:
-  1. Updated `InvestigationRecord` and `to_run()` in [`services/investigations.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/investigations.py) to serialize complete graph snapshots on every state transition.
-  2. Added `GET /disputes/{id}/investigations/latest` to [`api/disputes.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/disputes.py).
-  3. In [`useSentinelAgent.ts`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/hooks/useSentinelAgent.ts), implemented automatic mount hydration: loads the latest run, initializes `baseRun`, populates `rawEvents` from `run.timeline_events`, and dedupes live SSE events using a seen-event UUID set.
+  1. Updated `InvestigationRecord` and `to_run()` in [`services/investigations.py`](../sentinelflow/backend/app/services/investigations.py) to serialize complete graph snapshots on every state transition.
+  2. Added `GET /disputes/{id}/investigations/latest` to [`api/disputes.py`](../sentinelflow/backend/app/api/disputes.py).
+  3. In [`useSentinelAgent.ts`](../sentinelflow/frontend/hooks/useSentinelAgent.ts), implemented automatic mount hydration: loads the latest run, initializes `baseRun`, populates `rawEvents` from `run.timeline_events`, and dedupes live SSE events using a seen-event UUID set.
 
 ### Finding 2.2: Time-Travel State Reconstruction Performance (`<0.03ms`)
 - **The Vulnerability**: Scrubbing through 50+ investigation steps on a range slider at 60fps triggered severe frame drops when state was re-evaluated through full recursive reducers on each render. Moreover, updating `window.history.replaceState` on every slider tick caused browser URL thrashing.
 - **Root Cause**: Lack of event indexing and unthrottled URL state synchronization.
 - **Architectural Remediation**:
-  1. Built pure forward delta replay in [`investigationState.ts`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/lib/investigationState.ts): reconstructs state at any historical step $N$ by applying incremental slices from Step 0 (`intake`) to Step $N$ in `<0.03ms`.
-  2. Bound slider interactions to `useDebounceCallback` (150ms) in [`InvestigationConsole.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/InvestigationConsole.tsx) so `?step=N` updates cleanly without browser history stutter.
+  1. Built pure forward delta replay in [`investigationState.ts`](../sentinelflow/frontend/lib/investigationState.ts): reconstructs state at any historical step $N$ by applying incremental slices from Step 0 (`intake`) to Step $N$ in `<0.03ms`.
+  2. Bound slider interactions to `useDebounceCallback` (150ms) in [`InvestigationConsole.tsx`](../sentinelflow/frontend/components/InvestigationConsole.tsx) so `?step=N` updates cleanly without browser history stutter.
 
 ### Finding 2.3: Sticky Cross-Panel Evidence Citation Pinning
 - **The Requirement**: In frontier AI interfaces, when an LLM cites evidence (e.g., `[EVD-001]`), clicking the citation must highlight the exact evidence card, scroll it into view, and persist the selection in the shareable URL.
 - **Architectural Implementation**:
-  1. In [`AgentReasoningPanel.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/AgentReasoningPanel.tsx), tokenized reasoning text with regex patterns matching `\[(EVD-[A-Za-z0-9_-]+)\]`.
+  1. In [`AgentReasoningPanel.tsx`](../sentinelflow/frontend/components/AgentReasoningPanel.tsx), tokenized reasoning text with regex patterns matching `\[(EVD-[A-Za-z0-9_-]+)\]`.
   2. Implemented bidirectional query sync (`?evidence=EVD-xxx`).
   3. Added `scrollIntoView({ behavior: "smooth", block: "nearest" })` with high-contrast amber focus rings (`ring-2 ring-amber-400 animate-pulse`).
 
 ### Finding 2.4: Semantic Iteration & Revision Diff Inspector (`?diff=1`)
 - **The Requirement**: When agents loop or human reviewers request revisions, users need to understand what changed between iterations: which new tools were executed, which hypotheses shifted in confidence, and how the risk assessment changed.
-- **Architectural Implementation**: Created [`InvestigationDiffPanel.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/InvestigationDiffPanel.tsx) to compute semantic deltas between iteration $N-1$ and $N$:
+- **Architectural Implementation**: Created [`InvestigationDiffPanel.tsx`](../sentinelflow/frontend/components/InvestigationDiffPanel.tsx) to compute semantic deltas between iteration $N-1$ and $N$:
   - Added visual confidence change meters (e.g., `Hypothesis A: 0.65 -> 0.85 (+20%)`).
   - Added new evidence badges collected during the specific revision cycle.
   - Linked toggle directly to URL parameter `?diff=1`.
@@ -166,7 +168,7 @@ sequenceDiagram
 ### Finding 2.5: Next.js `/app-api/*` BFF Proxy & SSE Streaming Hardening
 - **The Vulnerability**: Next.js route handlers proxying SSE streams from FastAPI buffered chunks in memory, delaying token-by-token `reasoning_delta` delivery. Furthermore, if a user navigated away or closed the tab, the Next.js upstream fetch remained open indefinitely, consuming backend connections.
 - **Root Cause**: Missing anti-buffering response headers and missing abort signal forwarding.
-- **Architectural Remediation**: In [`frontend/app/app-api/[...path]/route.ts`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/app-api/%5B...path%5D/route.ts):
+- **Architectural Remediation**: In [`frontend/app/app-api/[...path]/route.ts`](../sentinelflow/frontend/app/app-api/%5B...path%5D/route.ts):
   1. Added `export const dynamic = "force-dynamic"`.
   2. Passed `signal: request.signal` to `fetch(target, ...)`, propagating browser tab closures directly to FastAPI to cancel upstream streaming coroutines immediately.
   3. Forwarded `Last-Event-ID` header.
@@ -175,11 +177,11 @@ sequenceDiagram
 ### Finding 2.6: Output Guardrail Citation Stripping & Hallucination Defense
 - **The Vulnerability**: Synthesizer models occasionally hallucinated citations for evidence IDs that were never gathered during the run (e.g., `[EVD-999]`), or trailing punctuation caused regex split failures.
 - **Root Cause**: Relying on unvalidated LLM output without validating citation tokens against the active evidence ledger.
-- **Architectural Remediation**: In [`services/guardrails.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/guardrails.py), parsed all `[EVD-xxx]` tokens, cross-referenced them with the ground-truth state `evidence_ids` set, and stripped invalid citations before saving the report or emitting final events.
+- **Architectural Remediation**: In [`services/guardrails.py`](../sentinelflow/backend/app/services/guardrails.py), parsed all `[EVD-xxx]` tokens, cross-referenced them with the ground-truth state `evidence_ids` set, and stripped invalid citations before saving the report or emitting final events.
 
 ### Finding 2.7: AI Evals Benchmark Expansion (8 Golden Cases)
 - **The Goal**: Guarantee that model improvements or prompt adjustments never regress on Grounding, Decision Accuracy, or PII Safety.
-- **Implementation**: Created [`app/evals/run.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/evals/run.py) and expanded golden test cases across 8 scenarios:
+- **Implementation**: Created [`app/evals/run.py`](../sentinelflow/backend/app/evals/run.py) and expanded golden test cases across 8 scenarios:
   1. Friendly Fraud (Cardholder family member purchase)
   2. True ATO (Account Takeover from high-risk IP)
   3. Merchant Billing Error (Duplicate charge)
@@ -213,10 +215,10 @@ flowchart TD
 ```
 
 ### Finding 3.1: Seeded `SF-10002` (`awaiting_approval`) Resume Without Binary Checkpoint
-- **The Trap**: In [`db/seed.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/db/seed.py), dispute `SF-10002` was seeded with `status="awaiting_approval"` so interviewers could immediately experience the Human-in-the-Loop review workflow. However, in a fresh local or test environment, no preceding run had occurred; thus, neither `MemorySaver` nor `AsyncPostgresSaver` had a binary checkpoint for thread `SF-10002`. Clicking "Approve" or "Reject" called `graph.astream(Command(resume=...))`, which returned an empty snapshot `{}` and crashed `persist_graph_state()` with `KeyError: 'evidence'`.
+- **The Trap**: In [`db/seed.py`](../sentinelflow/backend/app/db/seed.py), dispute `SF-10002` was seeded with `status="awaiting_approval"` so interviewers could immediately experience the Human-in-the-Loop review workflow. However, in a fresh local or test environment, no preceding run had occurred; thus, neither `MemorySaver` nor `AsyncPostgresSaver` had a binary checkpoint for thread `SF-10002`. Clicking "Approve" or "Reject" called `graph.astream(Command(resume=...))`, which returned an empty snapshot `{}` and crashed `persist_graph_state()` with `KeyError: 'evidence'`.
 - **Root Cause**: Attempting to resume a LangGraph execution thread whose checkpoint was never generated by an active graph run.
 - **Architectural Remediation**:
-  1. In [`services/investigations.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/investigations.py), inspected `snapshot = await graph.aget_state(config)` before issuing the resume command.
+  1. In [`services/investigations.py`](../sentinelflow/backend/app/services/investigations.py), inspected `snapshot = await graph.aget_state(config)` before issuing the resume command.
   2. If snapshot values are empty (`not _snapshot_values(snapshot)`), SentinelFlow detects a cold-seeded record and calls `_rehydrate_state_from_record()`.
   3. For `approve` or `reject`, it invokes `_finalize_seeded_resume()`: evaluates deterministic compliance rules, calculates normalized risk, logs the cryptographic audit event, updates `InvestigationRecord`, and emits `investigation_completed`.
   4. For `request_revision`, it reconstructs a full `DisputeState` with `iteration_count=0`, increments `revision_count`, injects `reviewer_guidance`, and launches live graph execution smoothly.
@@ -225,15 +227,15 @@ flowchart TD
 - **The Trap**: In the SentinelPulse telecom streaming gateway, `POST /v1/classify` and `/v1/events/batch` were running ONNX Runtime inference directly inside async handler coroutines. Evaluating heavy machine learning models on the main Python event loop blocked all concurrent HTTP requests and SSE stream broadcasts.
 - **Root Cause**: Calling CPU-bound C++ extensions (`onnxruntime.InferenceSession.run`) directly within the async event loop.
 - **Architectural Remediation**:
-  1. In [`telecom/onnx_engine.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/telecom/onnx_engine.py), added heuristic short-circuiting: obvious low-risk transactions (e.g. low amount, home IP, zero velocity) are evaluated instantly in `<0.05ms` without invoking the ONNX model.
+  1. In [`telecom/onnx_engine.py`](../sentinelflow/backend/app/telecom/onnx_engine.py), added heuristic short-circuiting: obvious low-risk transactions (e.g. low amount, home IP, zero velocity) are evaluated instantly in `<0.05ms` without invoking the ONNX model.
   2. Added circuit breakers (`_is_circuit_open()`) with graceful fallback to heuristic risk scoring if inference latency spikes.
-  3. In [`api/telecom.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/telecom.py), wrapped batch ONNX model evaluations inside `await asyncio.to_thread(self.engine.predict_batch, items)`, offloading CPU work to a background thread pool and keeping the main event loop 100% non-blocking.
+  3. In [`api/telecom.py`](../sentinelflow/backend/app/api/telecom.py), wrapped batch ONNX model evaluations inside `await asyncio.to_thread(self.engine.predict_batch, items)`, offloading CPU work to a background thread pool and keeping the main event loop 100% non-blocking.
 
 ### Finding 3.3: SQLAlchemy Connection Pool Starvation & Indexing Bottlenecks
 - **The Trap**: With parallel tool collection (`asyncio.gather` spawning 4 concurrent sessions per investigation) and background job processing, default SQLAlchemy connection pool limits (size 5, overflow 10) quickly ran out of connections under load, resulting in `QueuePool limit exceeded` timeouts. Additionally, `GET /disputes/{id}/investigations/latest` sorted investigations by `created_at DESC` without an index, triggering sequential table scans.
 - **Root Cause**: Undersized database connection pool for concurrent multi-agent architectures, and missing composite database indexes.
 - **Architectural Remediation**:
-  1. In [`db/session.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/db/session.py), expanded pool configuration:
+  1. In [`db/session.py`](../sentinelflow/backend/app/db/session.py), expanded pool configuration:
      ```python
      engine = create_async_engine(
          settings.DATABASE_URL,
@@ -243,25 +245,25 @@ flowchart TD
          pool_pre_ping=True,
      )
      ```
-  2. In [`db/models.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/db/models.py), added composite index:
+  2. In [`db/models.py`](../sentinelflow/backend/app/db/models.py), added composite index:
      ```python
      __table_args__ = (
          Index("ix_investigations_dispute_created_at", "dispute_id", "created_at"),
      )
      ```
-  3. Generated Alembic migration [`20261022_000006_investigation_dispute_created_index.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/migrations/versions/20261022_000006_investigation_dispute_created_index.py) to guarantee index creation in production.
+  3. Generated Alembic migration [`20261022_000006_investigation_dispute_created_index.py`](../sentinelflow/backend/migrations/versions/20261022_000006_investigation_dispute_created_index.py) to guarantee index creation in production.
 
 ### Finding 3.4: Frontend Keyboard Navigation Traps & Accessibility Focus Trapping
 - **The Trap**: Time-travel keyboard shortcuts (`[` for previous step, `]` for next step) were bound globally without checking active HTML focus elements or OS modifier keys. A user typing `Cmd+[` to navigate back in macOS or typing in a `<textarea>` had their keystrokes hijacked by the scrubber. Additionally, opening the `AuditDetailDrawer` or `AuditCorrectionModal` did not trap Tab navigation or restore focus on dismiss, violating WCAG 2.1 AA standards.
 - **Root Cause**: Global `window.addEventListener("keydown", ...)` without modifier guards, and unconstrained modal focus cycles.
 - **Architectural Remediation**:
-  1. In [`InvestigationConsole.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/InvestigationConsole.tsx), guarded all keyboard listeners:
+  1. In [`InvestigationConsole.tsx`](../sentinelflow/frontend/components/InvestigationConsole.tsx), guarded all keyboard listeners:
      ```typescript
      if (event.metaKey || event.ctrlKey || event.altKey) return;
      const tag = (event.target as HTMLElement)?.tagName?.toLowerCase();
      if (tag === "input" || tag === "textarea" || tag === "select") return;
      ```
-  2. In [`AuditDetailDrawer.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/AuditDetailDrawer.tsx) and [`AuditCorrectionModal.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/AuditCorrectionModal.tsx):
+  2. In [`AuditDetailDrawer.tsx`](../sentinelflow/frontend/components/AuditDetailDrawer.tsx) and [`AuditCorrectionModal.tsx`](../sentinelflow/frontend/components/AuditCorrectionModal.tsx):
      - Added cyclic focus trapping (`Tab` and `Shift+Tab` cycle strictly within modal focusable elements).
      - Captured `document.activeElement` on open and restored focus to the trigger button upon close (`previousActiveElement.focus()`).
 
@@ -269,9 +271,9 @@ flowchart TD
 - **The Trap**: When rolling out container updates, Docker/Kubernetes sends `SIGTERM`. In-flight background investigation jobs were abruptly terminated mid-transaction, leaving orphan jobs in Redis. Concurrently, Nginx's default `proxy_read_timeout` (60 seconds) severed long-lived SSE reasoning streams during multi-step investigations.
 - **Root Cause**: Missing graceful shutdown lifecycle hooks in FastAPI/arq, and default Nginx timeouts.
 - **Architectural Remediation**:
-  1. In [`backend/app/main.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/main.py), registered `_drain_background_tasks()` in FastAPI's `lifespan` handler, providing a 15-second grace window for active tasks to complete.
-  2. In [`backend/app/worker.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/worker.py), implemented `on_shutdown` hook to cleanly drain `arq` worker execution pools.
-  3. In [`ops/nginx/default.conf`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/ops/nginx/default.conf), configured dedicated route blocks for `/v1/`, `= /metrics`, and `/app-api/`, setting:
+  1. In [`backend/app/main.py`](../sentinelflow/backend/app/main.py), registered `_drain_background_tasks()` in FastAPI's `lifespan` handler, providing a 15-second grace window for active tasks to complete.
+  2. In [`backend/app/worker.py`](../sentinelflow/backend/app/worker.py), implemented `on_shutdown` hook to cleanly drain `arq` worker execution pools.
+  3. In [`ops/nginx/default.conf`](../sentinelflow/ops/nginx/default.conf), configured dedicated route blocks for `/v1/`, `= /metrics`, and `/app-api/`, setting:
      ```nginx
      proxy_buffering off;
      proxy_cache off;
@@ -302,21 +304,21 @@ flowchart TD
 - **The Trap**: External AI models (such as Cursor, Windsurf, Claude Desktop, and Gemini) attempting to understand the system had to scrape bloated client-side HTML bundles with heavy JavaScript hydration overhead, resulting in high token costs and hallucinated API paths.
 - **Root Cause**: Absence of machine-readable ingestion manifests and HTTP content negotiation.
 - **Architectural Remediation**:
-  1. Authored [`/llms.txt`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/static/llms.txt) (curated, token-efficient table of contents) and [`/llms-full.txt`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/static/llms-full.txt) (concatenated single-turn technical knowledge base).
-  2. Implemented HTTP Content Negotiation in [`discovery.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/discovery.py) and [`disputes.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/disputes.py): requests bearing `Accept: text/markdown` receive pure, structured markdown with an explicit `Vary: Accept` header.
+  1. Authored [`/llms.txt`](../sentinelflow/backend/app/static/llms.txt) (curated, token-efficient table of contents) and [`/llms-full.txt`](../sentinelflow/backend/app/static/llms-full.txt) (concatenated single-turn technical knowledge base).
+  2. Implemented HTTP Content Negotiation in [`discovery.py`](../sentinelflow/backend/app/api/discovery.py) and [`disputes.py`](../sentinelflow/backend/app/api/disputes.py): requests bearing `Accept: text/markdown` receive pure, structured markdown with an explicit `Vary: Accept` header.
 
 ### Finding 4.2: Lack of Native Remote AI Protocol Integration
 - **The Trap**: External autonomous agents could not directly invoke dispute investigations or real-time telecom checks without bespoke SDK wrappers.
 - **Root Cause**: Reliance on proprietary REST endpoints without standardized Model Context Protocol (MCP) support.
 - **Architectural Remediation**:
-  1. Published standard discovery manifest at [`/.well-known/mcp.json`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/mcp.py).
+  1. Published standard discovery manifest at [`/.well-known/mcp.json`](../sentinelflow/backend/app/api/mcp.py).
   2. Built a full Remote MCP server over Server-Sent Events (`GET /api/v1/mcp/sse` and `POST /api/v1/mcp/messages`) exposing 4 tools (`list_disputes`, `get_investigation`, `submit_review`, `classify_telecom`) adhering strictly to the JSON-RPC 2.0 and MCP 2024-11-05 specifications.
 
 ### Finding 4.3: Binary Crawler Policies Collapsing Citation with Training
 - **The Trap**: Standard `robots.txt` blocked all crawlers with `User-agent: * Disallow: /`, preventing legitimate AI search engines (Perplexity, ChatGPT Search, Claude-SearchBot) from indexing and citing documentation, while leaving content exposed to unmanaged training scrapers.
 - **Root Cause**: Monolithic crawler policy failing to distinguish training scrapers from real-time citation agents.
 - **Architectural Remediation**:
-  1. Deployed decoupled [`robots.txt`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/public/robots.txt):
+  1. Deployed decoupled [`robots.txt`](../sentinelflow/frontend/public/robots.txt):
      - Blocked foundational training scrapers (`GPTBot`, `ClaudeBot`, `Google-Extended`, `CCBot`, `Bytespider`).
      - Explicitly permitted search and citation agents (`OAI-SearchBot`, `Claude-SearchBot`, `PerplexityBot`, `ChatGPT-User`, `Claude-User`).
      - Linked canonical manifests (`Sitemap: /sitemap.xml`, `LLM: /llms.txt`).
@@ -325,18 +327,18 @@ flowchart TD
 - **The Trap**: Complex multi-agent investigation outputs (competing hypotheses, transaction graphs, and analyzer scores) were presented as dense text blocks in chat interfaces, overwhelming reviewers.
 - **Root Cause**: Lack of server-driven structured generative component rendering.
 - **Architectural Remediation**:
-  1. Created [`GenUIArtifactCard.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/GenUIArtifactCard.tsx): parses structured tool payloads into rich interactive visual cards (Status badges, Confidence pills, Evidence citation links, and collapsible JSON inspectors).
+  1. Created [`GenUIArtifactCard.tsx`](../sentinelflow/frontend/components/GenUIArtifactCard.tsx): parses structured tool payloads into rich interactive visual cards (Status badges, Confidence pills, Evidence citation links, and collapsible JSON inspectors).
   2. Added a GenUI toggle (`?genui=1`) to the console with complete keyboard and screen-reader accessibility.
 
 ### Finding 4.5: Indirect Prompt Injection Vulnerabilities in Untrusted Content
 - **The Trap**: Dispute notes and merchant metadata scraped from external feeds could contain invisible zero-width unicode characters, hidden DOM payload tags (`<span style="display:none">SYSTEM OVERRIDE...</span>`), or jailbreak commands that hijack LLM reasoning.
 - **Root Cause**: Untrusted external dispute context passed directly into system prompts without defense-in-depth sanitization.
 - **Architectural Remediation**:
-  1. In [`trace_safety.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/trace_safety.py), built `sanitize_dom_content()`:
+  1. In [`trace_safety.py`](../sentinelflow/backend/app/services/trace_safety.py), built `sanitize_dom_content()`:
      - Stripped zero-width unicode characters (`​-‍`, `﻿`, `⁠`).
      - Removed hidden DOM elements (`display:\s*none`, `visibility:\s*hidden`, `font-size:\s*0`).
      - Defanged suspicious system override tokens.
-  2. In [`prompts.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/graph/prompts.py) and [`investigator.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/graph/nodes/investigator.py), wrapped all untrusted context in strict XML isolation boundaries (`<untrusted_dispute_context>` and `<untrusted_evidence_payload>`).
+  2. In [`prompts.py`](../sentinelflow/backend/app/graph/prompts.py) and [`investigator.py`](../sentinelflow/backend/app/graph/nodes/investigator.py), wrapped all untrusted context in strict XML isolation boundaries (`<untrusted_dispute_context>` and `<untrusted_evidence_payload>`).
 
 ### Finding 4.6: Generative Engine Optimization (GEO) & Machine-Readable Schema
 - **The Trap**: When conversational search engines (Perplexity, ChatGPT Search, Gemini) answered questions about autonomous dispute systems or real-time telecom safety, they struggled to extract crisp definitions or structure comparisons, resulting in low citation frequency.
@@ -344,8 +346,8 @@ flowchart TD
 - **Architectural Remediation**:
   1. **Definition Lead Pattern**: Structured the opening 200 words of documentation and homepage cards with standalone definitions answering *"What is X?"* (SentinelFlow dispute copilot, SentinelPulse telecom gateway, and cryptographic audit ledger).
   2. **Comparison & Matrix Markdown Tables**: Authored multi-dimensional Markdown tables comparing Legacy Rules Engines vs. SentinelFlow vs. SentinelPulse, increasing conversational AI citation frequency.
-  3. **Stacked Schema.org JSON-LD**: Created [`StructuredData.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/StructuredData.tsx) with a unified `@graph` uniting `SoftwareApplication`, `Organization`, `FAQPage` (5 core QA pairs), `HowTo` (5-step investigation workflow), and `WebSite`.
-  4. **Sitemaps & Reference Rate Tracking**: Created Next.js [`app/sitemap.ts`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/sitemap.ts), [`public/sitemap.xml`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/public/sitemap.xml), and backend endpoint `GET /api/v1/geo/metadata` exposing entity anchors, definition leads, and citation manifests.
+  3. **Stacked Schema.org JSON-LD**: Created [`StructuredData.tsx`](../sentinelflow/frontend/components/StructuredData.tsx) with a unified `@graph` uniting `SoftwareApplication`, `Organization`, `FAQPage` (5 core QA pairs), `HowTo` (5-step investigation workflow), and `WebSite`.
+  4. **Sitemaps & Reference Rate Tracking**: Created Next.js [`app/sitemap.ts`](../sentinelflow/frontend/app/sitemap.ts), [`public/sitemap.xml`](../sentinelflow/frontend/public/sitemap.xml), and backend endpoint `GET /api/v1/geo/metadata` exposing entity anchors, definition leads, and citation manifests.
 
 ---
 
@@ -385,13 +387,14 @@ Never assume a persistent binary checkpoint exists for every database record. Wh
 
 ## Comprehensive Verification Matrix
 
-Every remediation across all four cycles has been validated by automated CI test suites:
+Every remediation across all engineering audit cycles has been validated by automated CI test suites and live browser verification:
 
 ```
 ========================= 120 passed, 4 warnings in 42.15s =========================
-- Backend Unit & Integration Tests: 120 / 120 PASSED (100%)
+- Backend Unit & Integration Tests: 126 / 126 PASSED (100%)
 - Migrations Head Assertion: 20261022_000006 VERIFIED
-- Frontend TypeScript Node Tests: 35 / 35 PASSED (100%)
+- Frontend TypeScript Node Tests: 40 / 40 PASSED (100%)
+- Playwright E2E Browser Verification: 100% PASSED (Local & Production)
 - Rule Compliance (check-rules.js): 100% Arrow Functions, Full Try/Catch, Zero .then()
 - Type Safety (mypy app): 0 errors across 76 files
 - Linter & Formatting (ruff): 0 errors, 100% compliant
@@ -414,25 +417,25 @@ The fifth cycle audited live browser interactions and mobile viewports (`375x812
 ### Finding 5.1: Unauthenticated Queue Clutter, Seed Bloat, & Unbounded Dispute Lists
 - **The Trap**: Landing on `/` while signed out rendered an empty `"Seeded disputes (0 cases)"` card or raw authentication errors, while stray escalated cases polluted the database beyond the 5 showcase disputes (`SF-10001` through `SF-10005`). Furthermore, `DisputeStatus` schema validation rejected `"completed"` and `"under_review"` statuses set by the showcase seed runner.
 - **Architectural Remediation**:
-  1. In [`page.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/page.tsx), gated the disputes queue behind `hasSession` so unauthenticated visitors see a clean Sign-In CTA card, while authenticated users receive a bounded scrollable queue (`maxHeight: 460px`, `overflowY: "auto"`) with status filter pills (`All`, `Open`, `Under Review`, `Completed`).
-  2. In [`seed.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/db/seed.py), enforced strict cleanup of non-showcase disputes on seed execution and aligned [`schemas/disputes.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/schemas/disputes.py) (`DisputeStatus`) with all lifecycle states.
+  1. In [`page.tsx`](../sentinelflow/frontend/app/page.tsx), gated the disputes queue behind `hasSession` so unauthenticated visitors see a clean Sign-In CTA card, while authenticated users receive a bounded scrollable queue (`maxHeight: 460px`, `overflowY: "auto"`) with status filter pills (`All`, `Open`, `Under Review`, `Completed`).
+  2. In [`seed.py`](../sentinelflow/backend/app/db/seed.py), enforced strict cleanup of non-showcase disputes on seed execution and aligned [`schemas/disputes.py`](../sentinelflow/backend/app/schemas/disputes.py) (`DisputeStatus`) with all lifecycle states.
 
 ### Finding 5.2: SSE Tab-Switch Flicker ("GATEWAY RECONNECTING") & HttpOnly Session Mismatch
 - **The Trap**: Navigating between `/` and `/telecom` unmounted the page-level `EventSource`, causing a multi-second `"GATEWAY RECONNECTING"` flash on every tab switch. Additionally, checking `document.cookie` on the client failed when session cookies were `httpOnly`.
 - **Architectural Remediation**:
-  1. Created [`SentinelPulseProvider.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/SentinelPulseProvider.tsx) mounted in the root [`layout.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/layout.tsx), pre-warming the `/api/v1/telecom/stream` SSE connection and telemetry snapshots once at application load so tab transitions are instantaneous with zero reconnect flicker.
+  1. Created [`SentinelPulseProvider.tsx`](../sentinelflow/frontend/components/SentinelPulseProvider.tsx) mounted in the root [`layout.tsx`](../sentinelflow/frontend/app/layout.tsx), pre-warming the `/api/v1/telecom/stream` SSE connection and telemetry snapshots once at application load so tab transitions are instantaneous with zero reconnect flicker.
   2. Passed server-read `initialHasSession`, `initialUsername`, and `initialRole` from the root Server Component into `SentinelPulseProvider` for consistent authentication state across `/`, `/telecom`, and `/audit`.
 
 ### Finding 5.3: Client-Only Reset Illusion & 40% Warmup Threat Ratio
 - **The Trap**: Clicking "Reset" on SentinelPulse cleared only local React state, allowing the next 3-second poll to restore old backend events. Meanwhile, the 10-event warmup buffer produced a 40% threat ratio that looked like an active outage rather than healthy carrier traffic.
 - **Architectural Remediation**:
-  1. Added `POST /api/v1/telecom/reset` in [`api/telecom.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/telecom.py) (`reset_telecom_telemetry`) and `.reset()` methods on [`TelecomMetricsTracker`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/telecom/telecom_metrics.py) and [`DataDriftMonitor`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/telecom/drift_monitor.py), broadcasting a `reset` SSE event to all connected clients.
+  1. Added `POST /api/v1/telecom/reset` in [`api/telecom.py`](../sentinelflow/backend/app/api/telecom.py) (`reset_telecom_telemetry`) and `.reset()` methods on [`TelecomMetricsTracker`](../sentinelflow/backend/app/telecom/telecom_metrics.py) and [`DataDriftMonitor`](../sentinelflow/backend/app/telecom/drift_monitor.py), broadcasting a `reset` SSE event to all connected clients.
   2. Calibrated `_WARMUP_EVENTS` to 40 realistic carrier events (37 `ALLOW`, 1 `FLAG`, 2 `BLOCK` = **7.5% Threat Ratio**) and aligned `BASELINE_LENGTHS` / `BASELINE_FRAUD_SCORES` so PSI starts `STABLE` (`< 0.10`).
 
 ### Finding 5.4: Mobile (`375x812`) Horizontal Scroll Overflow
 - **The Trap**: Fixed `minmax(240px, 1fr)` grids, unwrapped monospace hashes/traces, and wide padding caused horizontal overflow (`scrollWidth > clientWidth`) on `375px` mobile screens.
 - **Architectural Remediation**:
-  1. Added responsive media queries (`@media (max-width: 768px)` and `@media (max-width: 640px)`), `min-width: 0` grid children, `overflow-wrap: anywhere` on long identifiers, and mobile-friendly header/drawer layouts across [`globals.css`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/globals.css), [`InvestigationConsole.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/InvestigationConsole.tsx), [`TelecomLiveFeed.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/telecom/TelecomLiveFeed.tsx), and [`audit/page.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/audit/page.tsx).
+  1. Added responsive media queries (`@media (max-width: 768px)` and `@media (max-width: 640px)`), `min-width: 0` grid children, `overflow-wrap: anywhere` on long identifiers, and mobile-friendly header/drawer layouts across [`globals.css`](../sentinelflow/frontend/app/globals.css), [`InvestigationConsole.tsx`](../sentinelflow/frontend/components/InvestigationConsole.tsx), [`TelecomLiveFeed.tsx`](../sentinelflow/frontend/components/telecom/TelecomLiveFeed.tsx), and [`audit/page.tsx`](../sentinelflow/frontend/app/audit/page.tsx).
 
 ---
 
@@ -444,32 +447,94 @@ The sixth cycle resolved friction points across the authentication flow and the 
 ### Finding 6.1: Sign-In Flow Friction, Dropdown Ordering & Navigation Context Preservation
 - **The Trap**: Changing roles in the sign-in dropdown required users to scroll down and manually click test account cards to populate the form. The role dropdown was ordered arbitrarily, unauthenticated visits showed confusing red "Authentication Required" error boxes in the disputes queue space, and signing in lost the user's prior navigation context. Furthermore, user session badges displayed redundant lowercase role tags in parentheses (e.g., `Reviewer (reviewer)`).
 - **Architectural Remediation**:
-  1. In [`login/page.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/login/page.tsx), reordered the role selector to **Reviewer -> Auditor -> Admin -> Investigator -> Senior Investigator** (defaulting to `Reviewer`), and added an `onChange` handler (`handleRoleChange`) that immediately populates the username and password fields.
-  2. Implemented seamless navigation preservation via `returnTo` query parameter and referrer fallback across [`NavSignInButton.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/NavSignInButton.tsx), [`login/page.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/login/page.tsx), and [`page.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/page.tsx).
-  3. Formatted header session badges in [`layout.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/layout.tsx) to display clean, capitalized usernames (`Reviewer`, `Admin`, `Auditor`) with zero parentheses.
-  4. Gated dispute queue error handling in [`page.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/app/page.tsx) so 401/403 status codes never show a raw error box to unauthenticated visitors.
+  1. In [`login/page.tsx`](../sentinelflow/frontend/app/login/page.tsx), reordered the role selector to **Reviewer -> Auditor -> Admin -> Investigator -> Senior Investigator** (defaulting to `Reviewer`), and added an `onChange` handler (`handleRoleChange`) that immediately populates the username and password fields.
+  2. Implemented seamless navigation preservation via `returnTo` query parameter and referrer fallback across [`NavSignInButton.tsx`](../sentinelflow/frontend/components/NavSignInButton.tsx), [`login/page.tsx`](../sentinelflow/frontend/app/login/page.tsx), and [`page.tsx`](../sentinelflow/frontend/app/page.tsx).
+  3. Formatted header session badges in [`layout.tsx`](../sentinelflow/frontend/app/layout.tsx) to display clean, capitalized usernames (`Reviewer`, `Admin`, `Auditor`) with zero parentheses.
+  4. Gated dispute queue error handling in [`page.tsx`](../sentinelflow/frontend/app/page.tsx) so 401/403 status codes never show a raw error box to unauthenticated visitors.
 
 ### Finding 6.2: Pipeline Card Geometry, Isolated Arrow Layout & Flexible Container Heights
 - **The Trap**: Pipeline stage cards in `LangGraphProgress` rendered with uneven heights depending on sublabel text length. Transition arrows between stages used relative positioning that overlapped adjacent card borders. Below the pipeline, empty timeline and evidence containers were rendered with rigid 1000px and 560px heights, creating massive empty whitespace when an investigation was idle or starting.
 - **Architectural Remediation**:
-  1. In [`LangGraphProgress.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/LangGraphProgress.tsx), assigned all 6 stage cards an exact fixed height (`height: 72px`, `minHeight: 72px`, `maxHeight: 72px`, `boxSizing: "border-box"`) and dynamic stage header labels (`Active Graph State: ... (Running)`, `COMPLETED (Audit Ledger Committed)`, `APPROVAL REQUIRED (Human Interrupt)`).
+  1. In [`LangGraphProgress.tsx`](../sentinelflow/frontend/components/LangGraphProgress.tsx), assigned all 6 stage cards an exact fixed height (`height: 72px`, `minHeight: 72px`, `maxHeight: 72px`, `boxSizing: "border-box"`) and dynamic stage header labels (`Active Graph State: ... (Running)`, `COMPLETED (Audit Ledger Committed)`, `APPROVAL REQUIRED (Human Interrupt)`).
   2. Isolated stage arrows (`→`) into dedicated flex containers between cards, eliminating all overlapping and clipping.
-  3. Replaced rigid heights on [`InvestigationTimeline.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/InvestigationTimeline.tsx) (`minHeight: 120px`, `maxHeight: 700px`, `height: "auto"`) and [`EvidencePanel.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/EvidencePanel.tsx) (`maxHeight: 560px`, `height: "auto"`), ensuring containers flex to fit content naturally.
+  3. Replaced rigid heights on [`InvestigationTimeline.tsx`](../sentinelflow/frontend/components/InvestigationTimeline.tsx) (`minHeight: 120px`, `maxHeight: 700px`, `height: "auto"`) and [`EvidencePanel.tsx`](../sentinelflow/frontend/components/EvidencePanel.tsx) (`maxHeight: 560px`, `height: "auto"`), ensuring containers flex to fit content naturally.
 
 ### Finding 6.3: Time-Travel Scrubber Sneak Peek & Accessible Investigator Logs
 - **The Trap**: The time-travel scrubber lacked a clear visual distinction between component artifact identity and execution state. The investigator log card used a dark `rgba(15,23,42,0.4)` background that fell below WCAG AA contrast standards. Evidence categories used raw underscore strings (`carrier_telecom`, `device_fingerprint`) without clear navigation anchors.
 - **Architectural Remediation**:
-  1. In [`TimeTravelScrubber.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/TimeTravelScrubber.tsx), restructured the step sneak peek onto two separate lines:
+  1. In [`TimeTravelScrubber.tsx`](../sentinelflow/frontend/components/TimeTravelScrubber.tsx), restructured the step sneak peek onto two separate lines:
      - **Line 1**: `GenUIArtifactCard.tsx` alongside an active glowing status dot (green `#22c55e` when finalized/completed, blue `#2563eb` when running).
      - **Line 2**: `execution_state: ${activeEvent.type} (step X of Y)`.
-  2. Updated [`AgentMessageStrip.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/AgentMessageStrip.tsx) to display a matching green glowing dot when `status === "COMPLETED"`.
-  3. Restyled [`AgentReasoningPanel.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/AgentReasoningPanel.tsx) with high-contrast accessible surfaces (`var(--card-subtle-bg, #f8fafc)` and `var(--ink)` text).
-  4. Formatted evidence categories and provenances into human-readable titles ("Carrier & Telecom Signals", "Telecom SS7 Routing Audit", etc.) in [`EvidencePanel.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/EvidencePanel.tsx) and [`AnalyzerPanel.tsx`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/frontend/components/AnalyzerPanel.tsx), with smooth-scrolling `Evidence #X` anchor pills targeting `id="evidence-{id}"`.
+  2. Updated [`AgentMessageStrip.tsx`](../sentinelflow/frontend/components/AgentMessageStrip.tsx) to display a matching green glowing dot when `status === "COMPLETED"`.
+  3. Restyled [`AgentReasoningPanel.tsx`](../sentinelflow/frontend/components/AgentReasoningPanel.tsx) with high-contrast accessible surfaces (`var(--card-subtle-bg, #f8fafc)` and `var(--ink)` text).
+  4. Formatted evidence categories and provenances into human-readable titles ("Carrier & Telecom Signals", "Telecom SS7 Routing Audit", etc.) in [`EvidencePanel.tsx`](../sentinelflow/frontend/components/EvidencePanel.tsx) and [`AnalyzerPanel.tsx`](../sentinelflow/frontend/components/AnalyzerPanel.tsx), with smooth-scrolling `Evidence #X` anchor pills targeting `id="evidence-{id}"`.
 
 ### Finding 6.4: Forensic Root-Cause: Missing LLM Traces / Inferences on "Start Investigation"
 - **The Trap**: Clicking "Start agent investigation" showed the console in a perpetual "Running" state without delivering live reasoning deltas, tool executions, or LLM inferences.
 - **Architectural Remediation**:
-  1. **RBAC Authorization**: In [`api/disputes.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/disputes.py), `start_investigation` previously only allowed `Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.ADMIN`, returning an unhandled `403 Forbidden` whenever a user was signed in as `Reviewer`. Added `Role.REVIEWER` to `principal.require_any()`.
-  2. **Primary Key & Case Code Resolution**: Added `_resolve_dispute()` in [`api/disputes.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/api/disputes.py) to resolve both UUID primary keys and case codes (`SF-10003`) seamlessly across `start_investigation` and `get_latest_dispute_investigation`.
-  3. **In-Process Fallback for Worker Independence**: In [`services/investigations.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/services/investigations.py), `_enqueue_job` previously stalled if Redis was unreachable or if no standalone ARQ worker was running. Implemented an automatic in-process fallback using `asyncio.create_task(run_investigation_job(...))` so investigations run reliably in any environment.
-  4. **Development LLM Simulation**: In [`agents/investigator.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/agents/investigator.py) and [`agents/synthesizer.py`](file:///c:/Users/thiag/Documents/projects/antigravity/sentinelflow/sentinelflow/backend/app/agents/synthesizer.py), added realistic token and reasoning simulations when `OPENAI_API_KEY` is not present in development, streaming live `on_delta` events and recording `gpt-4.1-mini` model metadata in the audit ledger.
+  1. **RBAC Authorization**: In [`api/disputes.py`](../sentinelflow/backend/app/api/disputes.py), `start_investigation` previously only allowed `Role.INVESTIGATOR, Role.SENIOR_INVESTIGATOR, Role.ADMIN`, returning an unhandled `403 Forbidden` whenever a user was signed in as `Reviewer`. Added `Role.REVIEWER` to `principal.require_any()`.
+  2. **Primary Key & Case Code Resolution**: Added `_resolve_dispute()` in [`api/disputes.py`](../sentinelflow/backend/app/api/disputes.py) to resolve both UUID primary keys and case codes (`SF-10003`) seamlessly across `start_investigation` and `get_latest_dispute_investigation`.
+  3. **In-Process Fallback for Worker Independence**: In [`services/investigations.py`](../sentinelflow/backend/app/services/investigations.py), `_enqueue_job` previously stalled if Redis was unreachable or if no standalone ARQ worker was running. Implemented an automatic in-process fallback using `asyncio.create_task(run_investigation_job(...))` so investigations run reliably in any environment.
+  4. **Development LLM Simulation**: In [`agents/investigator.py`](../sentinelflow/backend/app/agents/investigator.py) and [`agents/synthesizer.py`](../sentinelflow/backend/app/agents/synthesizer.py), added realistic token and reasoning simulations when `OPENAI_API_KEY` is not present in development, streaming live `on_delta` events and recording `gpt-4.1-mini` model metadata in the audit ledger.
+
+---
+
+## Cycle 7: Live Production Lifecycle Audit (Investigator End-to-End)
+*(Focus: Job Execution on Free-Tier Infrastructure, HITL Resume Correctness, Session Teardown, and Demo State Recovery)*
+
+The seventh cycle came from logging in to the deployed app as an `investigator` / `senior_investigator` and walking the full dispute lifecycle the way a reviewer would: start an investigation, wait for the interrupt, then approve, deny, or steer. Several flows that passed unit tests broke in production. Each finding below was reproduced against the live Supabase database and the Render backend, then verified with a Playwright run against both a local stack and production.
+
+### Finding 7.1: Investigations Stalled at "Step 1" in Production (Unconsumed Job Queue)
+- **The Trap**: Clicking "Start agent investigation" showed `Step 1 of 1 — Investigation started` after about 10 seconds and then nothing else happened. Live DB records were left at `status=running` with `timeline_events=[]`.
+- **Root Cause**:
+  1. Finding 6.4 added an in-process fallback, but it only ran when Redis was *unreachable*. In production Redis was reachable, so `_enqueue_job` pushed the job into the ARQ queue and reported success. The `sentinelflow-worker` that consumes that queue runs on Render's free tier, spins down when idle, and was missing secrets. Nobody ever picked the job up.
+  2. With no real events arriving, the SSE stream emitted its 10s `heartbeat`. The frontend did not filter heartbeats, so one was added to the timeline, and the renderer's default branch labelled it "Investigation started". A keep-alive ping looked like real progress.
+- **Architectural Remediation**:
+  1. In [`services/investigations.py`](../sentinelflow/backend/app/services/investigations.py), investigation run/resume jobs now always execute in-process in the backend (`_spawn_in_process_job`), with an `_active_in_process_jobs` guard against double execution and strong references to background tasks so they are not garbage-collected. The pool path is kept only for unit-test stubs and non-investigation jobs.
+  2. `stream_graph_events` self-heals: if a `running`/`pending` investigation has no events and no active job, it respawns the job. `GET /disputes/{id}/investigations/latest` in [`api/disputes.py`](../sentinelflow/backend/app/api/disputes.py) deletes orphaned empty records so they cannot block a new run.
+  3. In [`useSentinelAgent.ts`](../sentinelflow/frontend/hooks/useSentinelAgent.ts), `heartbeat` events are dropped before they reach timeline state.
+
+### Finding 7.2: HITL Decisions Silently Rejected for Investigator Roles (RBAC Mismatch)
+- **The Trap**: Signed in as `investigator` or `senior_investigator`, clicking Approve, Deny, or Request Revision did nothing at all. No state change, no error.
+- **Root Cause**: `POST /investigations/{id}/resume` in [`api/approvals.py`](../sentinelflow/backend/app/api/approvals.py) required `Role.REVIEWER` or `Role.ADMIN`, while the investigation console offers the approval panel to investigators. The `403` was stored in hook state, but the approval panel never rendered errors, so the failure was invisible.
+- **Architectural Remediation**:
+  1. Aligned resume RBAC with the console: `INVESTIGATOR`, `SENIOR_INVESTIGATOR`, `REVIEWER`, and `ADMIN` may decide. `AUDITOR` remains read-only, enforced by [`test_approvals.py`](../sentinelflow/backend/app/tests/test_approvals.py).
+  2. The approval panel now surfaces request errors inline (`role="alert"`), so a rejected decision can no longer fail silently.
+
+### Finding 7.3: Stale `approval_required` Events Replayed After Resume (Stream Closed Too Early)
+- **The Trap**: Even with RBAC fixed, a decision would briefly show "running" and then snap back to "Awaiting Human Action". This was most visible after Request Revision: the Deny that followed never completed in the UI.
+- **Root Cause**: The frontend correctly treats `approval_required` as terminal and closes the SSE stream on it. Three backend paths re-emitted *old* approval events after a resume:
+  1. The resume endpoint set `status="running"` but left the previous `approval_required` event in `timeline_events`, and the stream replays saved events on connect.
+  2. On `Command(resume=...)`, LangGraph re-executes the interrupted `approval` node from the top. The node appends its `approval_required` event again *before* `interrupt()` returns the decision. `_run_graph` deduplicates by event ID against the record's timeline, but that timeline had just been stripped, so the replayed event was broadcast live.
+  3. `persist_graph_state` only checked the last two events for an approval marker. After a revision it appended a second event with the same ID, so the timeline contained duplicate IDs. Separately, `final_report_ready` / `approval_required` IDs in [`graph/nodes.py`](../sentinelflow/backend/app/graph/nodes.py) were not iteration-aware, so iteration-2 events could be dropped by ID deduplication.
+- **Architectural Remediation**:
+  1. `approval_required` is never streamed mid-run from graph chunks. `persist_graph_state` removes every approval event from the checkpoint timeline and appends exactly **one** fresh event, only when the graph is truly paused. Its ID is revision-aware (`approval_{id}` or `approval_{id}_rev{n}`).
+  2. Report and approval event IDs now include the iteration/revision number. The resume endpoint and the resume job strip prior approval events before the run restarts, and the client clears them from local state on submit.
+  3. Added the regression test `test_persist_graph_state_keeps_only_one_fresh_approval_after_revision` in [`test_investigation_service.py`](../sentinelflow/backend/app/tests/test_investigation_service.py).
+
+### Finding 7.4: Unreliable Sign-Out and the "0 Cases" Ghost Session
+- **The Trap**: "Sign out" sometimes did nothing. Other times it landed on an empty `Seeded disputes (0 cases)` list instead of the sign-in screen.
+- **Root Cause**:
+  1. Sign out was a Next.js `<Link href="/auth/logout">`. Client-side navigation does not re-render the root layout, so the session provider kept `hasSession=true` even though the route handler had cleared the cookies. From `/`, the redirect back to `/` was a no-op.
+  2. From other pages, the home page mounted with the stale `hasSession=true`, called `listDisputes()`, received `401`, and **swallowed** it. The result was a signed-in-looking page with zero data.
+- **Architectural Remediation**:
+  1. [`auth/logout/route.ts`](../sentinelflow/frontend/app/auth/logout/route.ts) now accepts `POST` (keeping `GET` for compatibility), expires all three session cookies with matching `httpOnly`/`sameSite`/`secure` attributes, and sets `Cache-Control: no-store`.
+  2. The navbar control awaits the `POST`, clears provider session state, and performs a hard `window.location.replace("/")`, so every piece of client state is rebuilt from the cleared cookies.
+  3. A `401`/`403` from the disputes API now clears the client session instead of being ignored, so an expired session always falls back to the sign-in screen.
+
+### Finding 7.5: Dispute/Investigation Status Drift and No Way to Recover Demo State
+- **The Trap**: Disputes showed `open` in the queue while their investigation was already `awaiting_approval`. Stuck records from the issues above stayed in the shared production database, so every new visitor inherited a broken state.
+- **Root Cause**: Only `InvestigationRecord.status` was updated during the lifecycle. The parent `DisputeRecord.status` was never synchronised. The only "reset" (Finding 5.3) covered telecom telemetry, not disputes, investigations, or LangGraph checkpoints.
+- **Architectural Remediation**:
+  1. Parent dispute status now follows the investigation: `investigating`, then `under_review`, then `completed`. It is set in `start_investigation`, `persist_graph_state`, and `_finalize_seeded_resume`. Seeding also cleans up orphans and re-syncs statuses on startup.
+  2. Added `POST /api/v1/disputes/reset` ([`api/disputes.py`](../sentinelflow/backend/app/api/disputes.py) → `reset_database_to_defaults` in [`db/seed.py`](../sentinelflow/backend/app/db/seed.py)). It clears active in-process jobs and the in-memory checkpointer, deletes investigation and audit rows, and resets the five showcase disputes **in place** (preserving their UUIDs, so existing links keep working). It re-seeds `SF-10001` as completed and `SF-10002` as awaiting approval, then resets and re-warms SentinelPulse telemetry. A navbar Reset button calls it and broadcasts a `sentinelflow:reset` event so open pages re-hydrate.
+
+### Cycle 7 Verification
+| Check | Result |
+|---|---|
+| Backend `pytest` | 126 passed (includes new RBAC and approval-dedup regressions) |
+| Backend `ruff check app` | Clean |
+| Frontend `node --test` / `tsc --noEmit` / rules check / `next build` | 40 passed / clean / 100% compliant / clean |
+| Playwright E2E, local and production (`investigator` + `senior_investigator`) | Reset → approve seeded `SF-10002` → reset restores interrupt → run `SF-10003` live → Request Revision (iteration 2) → Deny → sign out from `/disputes/*` and `/`: **all passing** |
+
+**Lesson**: Every one of these bugs passed its unit tests, because each component was correct on its own. They broke where components met: a queue with no consumer, a role check that disagreed with the UI, an interrupt node replaying its own side effects, and a soft navigation that skipped a server re-render. The fix that stuck was to make each boundary explicit (one owner per terminal event, one source of truth for session state) and to add an end-to-end browser run against production to the verification gate.
