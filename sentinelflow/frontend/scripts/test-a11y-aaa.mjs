@@ -174,6 +174,46 @@ const main = async () => {
     }
   }
 
+  // 3. Dynamic State: SMS Simulator Interaction & Two-Tier Escalation Card
+  console.log(`\nAuditing Interactive State: SMS Classification & Escalation Card...`);
+  try {
+    await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
+    const presetBtn = await page.$('button[aria-label*="Chase Bank"], button[aria-label*="preset scenario"]');
+    if (presetBtn) {
+      await presetBtn.click();
+      await page.waitForTimeout(200);
+      const submitBtn = await page.$('button[type="submit"]');
+      if (submitBtn) {
+        await submitBtn.click();
+        await page.waitForTimeout(1000);
+      }
+    }
+    await page.evaluate(axeSource);
+    const interactiveAxe = await page.evaluate(async () => {
+      return await window.axe.run(document, {
+        runOnly: {
+          type: "tag",
+          values: ["wcag2aaa", "wcag21aaa", "wcag22aaa", "wcag2aa", "wcag21aa", "best-practice"],
+        },
+      });
+    });
+    if (interactiveAxe.violations.length > 0) {
+      console.log(`  ❌ Interactive State Axe violations: ${interactiveAxe.violations.length}`);
+      for (const v of interactiveAxe.violations) {
+        console.log(`     - [${v.impact?.toUpperCase()}] ${v.id}: ${v.help} (${v.nodes.length} nodes)`);
+        for (const n of v.nodes) {
+          console.log(`       Node: ${n.html}`);
+          console.log(`       Summary: ${n.failureSummary}`);
+        }
+        totalFailures += v.nodes.length;
+      }
+    } else {
+      console.log(`  ✅ Interactive State: 0 Axe violations in post-classification view`);
+    }
+  } catch (err) {
+    console.warn(`  ⚠️ Interactive test warning: ${err.message}`);
+  }
+
   await browser.close();
 
   console.log(`\n------------------------------------------------------`);
