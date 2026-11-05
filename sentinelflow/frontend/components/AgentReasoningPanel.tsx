@@ -340,7 +340,7 @@ export const AgentReasoningPanel = memo(
                                   background: isFocused
                                     ? "rgba(220,38,38,0.08)"
                                     : "rgba(220,53,69,0.1)",
-                                  color: isFocused ? "var(--danger)" : "var(--danger)",
+                                  color: "var(--danger)",
                                   border: isFocused
                                     ? "1px solid var(--danger)"
                                     : "1px solid rgba(220,53,69,0.25)",

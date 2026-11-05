@@ -58,7 +58,7 @@ export const getStructuredDataGraph = (): StructuredDataGraph => {
             name: "What is SentinelPulse?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "SentinelPulse is a high-throughput, synchronous telecom trust-and-safety gateway delivering sub-15ms SMS and voice fraud classification using quantized ONNX Runtime CPU models and Redis sliding-window velocity aggregators.",
+              text: "SentinelPulse is a high-throughput telecom trust-and-safety gateway delivering synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm in-graph ONNX C++ execution) using a compiled in-graph TF-IDF + sigmoid-calibrated linear classifier ONNX Runtime CPU model and Redis sliding-window velocity aggregators.",
             },
           },
           {

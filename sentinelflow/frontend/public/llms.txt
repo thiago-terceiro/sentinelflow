@@ -1,11 +1,11 @@
 # SentinelFlow & SentinelPulse
-> SentinelFlow is an enterprise autonomous AI dispute investigation copilot built on LangGraph that orchestrates multi-agent evidence collection, deterministic risk evaluation, and human-in-the-loop steering. SentinelPulse is a high-throughput, synchronous telecom trust-and-safety gateway delivering sub-15ms SMS and voice fraud classification using quantized ONNX Runtime CPU models and Redis sliding-window velocity aggregators.
+> SentinelFlow is an enterprise autonomous AI dispute investigation copilot built on LangGraph that orchestrates multi-agent evidence collection, deterministic risk evaluation, and human-in-the-loop steering. SentinelPulse is a high-throughput telecom trust-and-safety gateway delivering synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm in-graph ONNX C++ execution) using a compiled in-graph TF-IDF + sigmoid-calibrated linear classifier ONNX Runtime CPU model and Redis sliding-window velocity aggregators.
 
 ## System Capability Comparison Matrix
 
 | Capability / Dimension | Legacy Rules Engine (2020) | SentinelFlow Dispute Copilot | SentinelPulse Telecom Gateway |
 | :--- | :--- | :--- | :--- |
-| **Primary Architecture** | Static If-Else & Decision Trees | LangGraph Multi-Agent State Graph | Quantized ONNX Runtime CPU Pipeline |
+| **Primary Architecture** | Static If-Else & Decision Trees | LangGraph Multi-Agent State Graph | In-Graph TF-IDF + Calibrated Linear ONNX CPU Pipeline |
 | **Latency SLA** | 50ms – 500ms (Database bound) | Asynchronous Multi-Step (Background Workers) | **<15ms Synchronous** (p99 < 8ms) |
 | **Decision Grounding** | Static Thresholds & Heuristics | Parallel Async Evidence Retrieval (`asyncio.gather`) | Multi-Window Velocity Aggregation (10s, 60s, 1h) |
 | **Human Oversight** | Offline Ticketing Queue | Native LangGraph `interrupt()` at Risk >= 0.70 | Real-Time Inline `FLAG` Verdict & Feedback Loop |

@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
 from app.db.models import Base
 from app.main import app
 from app.telecom.drift_monitor import calculate_psi, get_drift_monitor
-from app.telecom.onnx_engine import get_inference_engine
-from app.telecom.velocity_store import get_velocity_store
+from app.telecom.onnx_engine import (
+    OnnxInferenceEngine,
+    compute_composite_score,
+    get_inference_engine,
+)
+from app.telecom.velocity_store import RedisVelocityStore, get_velocity_store
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -49,7 +55,7 @@ def test_regex_heuristic_rules() -> None:
     """Verifies fast-path regex rules trigger with appropriate minimum risk scores."""
     engine = get_inference_engine()
 
-    # Delivery scam
+    # Delivery scam (compound indicator: carrier/package + fee/customs)
     score_deliv, sigs_deliv = engine.evaluate_heuristics(
         "USPS Alert: Package 928301 held. Pay customs fee now."
     )
@@ -69,6 +75,33 @@ def test_regex_heuristic_rules() -> None:
     )
     assert "RULE:CRYPTO_OR_GIVEAWAY_PROMISE" in sigs_crypto
     assert score_crypto >= 0.70
+
+    # Single benign signals: Standalone URL (low/moderate weight 0.20–0.40, no short-circuit)
+    score_url, sigs_url = engine.evaluate_heuristics(
+        "Please review our updated privacy policy at https://company.com/privacy-policy"
+    )
+    assert "RULE:STANDALONE_URL" in sigs_url
+    assert 0.20 <= score_url <= 0.40
+    assert "HEURISTIC:COMPOUND_SIGNALS" not in sigs_url
+    assert score_url < 0.85
+
+    # Single benign signals: Benign package / delivery update (0.20–0.40, no short-circuit)
+    score_pkg, sigs_pkg = engine.evaluate_heuristics(
+        "Your package is out for delivery with UPS Ground and will arrive by 5 PM."
+    )
+    assert "RULE:GENERIC_DELIVERY_KEYWORD" in sigs_pkg
+    assert 0.20 <= score_pkg <= 0.40
+    assert "HEURISTIC:COMPOUND_SIGNALS" not in sigs_pkg
+    assert score_pkg < 0.85
+
+    # Compound smishing escalation: High-risk tax threat + shortlink triggers >= 0.85
+    score_compound, sigs_compound = engine.evaluate_heuristics(
+        "IRS FINAL NOTICE: Arrest warrant issued. Pay taxes immediately: http://bit.ly/irs-pay"
+    )
+    assert "RULE:TAX_ARREST_THREAT" in sigs_compound
+    assert "RULE:HIGH_RISK_SHORTLINK" in sigs_compound
+    assert "HEURISTIC:COMPOUND_SIGNALS" in sigs_compound
+    assert score_compound >= 0.85
 
 
 @pytest.mark.asyncio
@@ -342,3 +375,187 @@ async def test_telecom_warmup_realistic_ratio_and_reset_endpoint() -> None:
 
         # Restore warmup state for any subsequent tests
         seed_telecom_warmup(force=True)
+
+
+def test_composite_scoring_math_and_benign_suppression() -> None:
+    """Verifies deterministic piecewise composite scoring prevents false-positive FLAG."""
+    # 1. Single benign URL indicator (0.25) + low calibrated ML (0.12) + normal velocity (0.0)
+    # Must suppress benign heuristic (0.6 * 0.25 = 0.15), strictly yielding ALLOW (< 0.40)
+    score_url_suppressed = compute_composite_score(
+        heuristic_score=0.25,
+        onnx_probability=0.12,
+        velocity_score=0.0,
+    )
+    assert score_url_suppressed < 0.40
+    assert score_url_suppressed == 0.15
+
+    # 2. Benign delivery keyword (0.20) + low calibrated ML (0.08) + normal velocity (0.0)
+    score_deliv_suppressed = compute_composite_score(
+        heuristic_score=0.20,
+        onnx_probability=0.08,
+        velocity_score=0.0,
+    )
+    assert score_deliv_suppressed < 0.40
+    assert score_deliv_suppressed == 0.12
+
+    # 3. High-risk single rule (e.g. TAX_ARREST_THREAT = 0.80) cannot be diluted -> BLOCK (>= 0.75)
+    score_tax_override = compute_composite_score(
+        heuristic_score=0.80,
+        onnx_probability=0.10,
+        velocity_score=0.0,
+    )
+    assert score_tax_override >= 0.75
+    assert score_tax_override == 0.80
+
+    # 4. Compound heuristic rule (>= 0.85) -> BLOCK
+    score_compound = compute_composite_score(
+        heuristic_score=0.85,
+        onnx_probability=0.05,
+        velocity_score=0.0,
+    )
+    assert score_compound >= 0.75
+
+    # 5. Normal content (0.15) with active bot flood velocity (0.80) -> BLOCK
+    score_velocity_block = compute_composite_score(
+        heuristic_score=0.0,
+        onnx_probability=0.15,
+        velocity_score=0.80,
+    )
+    assert score_velocity_block >= 0.75
+    assert score_velocity_block == 0.80
+
+    # 6. Moderate content (0.35) with moderate burst velocity (0.50) -> FLAG (0.40 - 0.75)
+    score_moderate_flag = compute_composite_score(
+        heuristic_score=0.35,
+        onnx_probability=0.35,
+        velocity_score=0.50,
+    )
+    assert 0.40 <= score_moderate_flag < 0.75
+
+
+@pytest.mark.asyncio
+async def test_multi_dimensional_velocity_tracking() -> None:
+    """Verifies velocity tracking across domain/prefix dimensions for SIM-farm detection."""
+    store = RedisVelocityStore(redis_url="redis://127.0.0.1:59999/9")  # In-memory mode
+    phishing_domain = "chase-update-account.xyz"
+
+    # Distributed SIM-farm: rotating sender numbers, but reusing same phishing domain
+    last_res = None
+    for i in range(10):
+        sender_rotated = f"+1555000{i:04d}"
+        msg = f"Alert: Verify account immediately at http://{phishing_domain}/login"
+        last_res = await store.record_and_evaluate(
+            sender=sender_rotated,
+            message=msg,
+        )
+
+    assert last_res is not None
+    assert last_res.domain_count_60s >= 8
+    assert "VELOCITY:DOMAIN_BURST_60S" in last_res.signals
+    assert last_res.risk_contribution >= 0.30
+    assert last_res.url_domain == phishing_domain
+
+
+@pytest.mark.asyncio
+async def test_chaos_redis_connection_refused_fallback() -> None:
+    """Failure Mode 1: Verifies immediate fail-open to in-memory deque on Redis refusal."""
+    dead_store = RedisVelocityStore(redis_url="redis://127.0.0.1:59999/9")
+
+    # First call encounters connection error and immediately fails open
+    res1 = await dead_store.record_and_evaluate(
+        sender="+15551110001",
+        ip="192.0.2.10",
+    )
+    assert res1.velocity_10s == 1
+    assert dead_store._use_in_memory_fallback is True
+
+    # Second call continues in-memory without attempting failed network socket
+    res2 = await dead_store.record_and_evaluate(
+        sender="+15551110001",
+        ip="192.0.2.10",
+    )
+    assert res2.velocity_10s == 2
+
+
+@pytest.mark.asyncio
+async def test_chaos_redis_socket_timeout_circuit_breaker() -> None:
+    """Failure Mode 2: Verifies that elevated latency/timeout triggers the 30s circuit breaker."""
+    store = RedisVelocityStore(redis_url="redis://127.0.0.1:59999/9")
+
+    # Mock client pipeline to raise a socket TimeoutError
+    mock_client = MagicMock()
+    mock_pipeline = MagicMock()
+
+    async def raise_timeout(*args: Any, **kwargs: Any) -> Any:
+        raise TimeoutError("Simulated Redis socket timeout exceeding 15ms SLA budget")
+
+    mock_pipeline.__aenter__.return_value = mock_pipeline
+    mock_pipeline.__aexit__.side_effect = raise_timeout
+    mock_client.pipeline.return_value = mock_pipeline
+
+    store._client = mock_client
+    store._use_in_memory_fallback = False
+
+    res = await store.record_and_evaluate(sender="+15552220002")
+    assert res.velocity_10s == 1
+    # Circuit breaker must be active
+    assert store._use_in_memory_fallback is True
+
+
+@pytest.mark.asyncio
+async def test_chaos_redis_circuit_breaker_automatic_recovery() -> None:
+    """Failure Mode 3: Verifies automatic recovery after circuit breaker window expires."""
+    store = RedisVelocityStore(redis_url="redis://127.0.0.1:59999/9")
+    store._circuit_cooldown_seconds = 0.05  # Short 50ms cooldown for fast test
+
+    # Trip circuit breaker
+    store._use_in_memory_fallback = True
+    assert store._use_in_memory_fallback is True
+
+    # Wait for cooldown to elapse
+    await asyncio.sleep(0.06)
+
+    # Circuit breaker has healed and will attempt normal path
+    assert store._use_in_memory_fallback is False
+
+
+def test_chaos_onnx_inference_failure_fallback_to_heuristics() -> None:
+    """Failure Mode 4: Verifies ONNX session failure gracefully falls back to heuristic engine."""
+    engine = OnnxInferenceEngine()
+
+    # Mock session.run to simulate C++ runtime exception
+    mock_session = MagicMock()
+    mock_session.run.side_effect = RuntimeError("Simulated AVX-512 ONNX CPU fault")
+    engine._session = mock_session
+    engine.session = mock_session
+
+    fraud_text = "IRS FINAL NOTICE: Delinquent tax payment due. Arrest warrant issued!"
+    res = engine.predict(fraud_text)
+
+    assert "ENGINE:ONNX_FALLBACK" in res.signals
+    assert "RULE:TAX_ARREST_THREAT" in res.signals
+    assert res.verdict == "BLOCK"
+    assert res.fraud_score >= 0.75
+
+
+@pytest.mark.asyncio
+async def test_chaos_multi_worker_degraded_counter_isolation() -> None:
+    """Failure Mode 5: Verifies documented multi-worker degraded counter isolation trade-off."""
+    # Worker 1 and Worker 2 run in isolated fallback mode (simulating separate Uvicorn processes)
+    worker_1 = RedisVelocityStore(redis_url="redis://127.0.0.1:59999/9")
+    worker_2 = RedisVelocityStore(redis_url="redis://127.0.0.1:59999/9")
+    target_sender = "+15558889999"
+
+    # Round-robin: 3 requests to worker 1, 3 requests to worker 2 (6 total)
+    for _ in range(3):
+        await worker_1.record_and_evaluate(sender=target_sender)
+        await worker_2.record_and_evaluate(sender=target_sender)
+
+    # Documented trade-off: each worker maintains independent in-memory state
+    res_w1 = await worker_1.record_and_evaluate(sender=target_sender)
+    res_w2 = await worker_2.record_and_evaluate(sender=target_sender)
+
+    # Each worker has recorded 4 events locally (not 8)
+    assert res_w1.velocity_10s == 4
+    assert res_w2.velocity_10s == 4
+

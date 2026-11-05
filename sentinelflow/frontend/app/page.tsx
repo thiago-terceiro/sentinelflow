@@ -1,332 +1,243 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
-
+import React from "react";
 import { useSentinelPulse } from "@/components/SentinelPulseProvider";
-import { listDisputes } from "@/lib/api";
-import type { DisputeSummary } from "@/lib/types";
+import { TelecomClassifySandbox } from "@/components/telecom/TelecomClassifySandbox";
+import { TelecomLiveFeed } from "@/components/telecom/TelecomLiveFeed";
+import { TelecomTelemetryCards } from "@/components/telecom/TelecomTelemetryCards";
+import type { DriftReport, MetricsSummary, TelecomPreset } from "@/components/telecom/types";
 
-const AuthErrorAlert = () => {
-  const searchParams = useSearchParams();
-  const authError = searchParams.get("auth_error");
+const PRESETS: TelecomPreset[] = [
+  {
+    name: "Legit 2FA Security Code",
+    sender: "+14155552671",
+    carrier: "Verizon Wireless",
+    message: "Carrier security code: 492018. Valid for 5 minutes. Do not share this code.",
+  },
+  {
+    name: "Chase Bank Smishing",
+    sender: "+15550001234",
+    carrier: "TextNow",
+    message:
+      "URGENT: Chase Bank alert. Account suspended! Verify immediately: http://bit.ly/chase-verify-now",
+  },
+  {
+    name: "USPS Delivery Fee Scam",
+    sender: "+15558883344",
+    carrier: "Bandwidth.com",
+    message:
+      "USPS Alert: Package 928301 held due to incomplete address. Pay $1.99 fee: http://tinyurl.com/usps-fee",
+  },
+  {
+    name: "Crypto 300% Telegram Scam",
+    sender: "+15557779922",
+    carrier: "Sinch Virtual",
+    message:
+      "Exclusive Crypto VIP signal: Earn 300% guaranteed return in 24h! Join Telegram: https://t.me/cryptogains999",
+  },
+];
 
-  if (!authError) {
-    return null;
-  }
+const BASELINE_DRIFT: DriftReport = {
+  status: "HEALTHY",
+  ks_statistic: 0.0,
+  ks_p_value: 1.0,
+  ks_drift_detected: false,
+  psi_score: 0.0,
+  psi_status: "STABLE",
+  sample_count: 0,
+  baseline_sample_count: 1000,
+  mean_live_length: 0,
+  mean_baseline_length: 64.0,
+  recommendation: "Baseline calibrated. Distribution healthy.",
+};
 
-  return (
-    <section
-      className="shell-card"
-      style={{
-        padding: "18px 24px",
-        borderColor: "rgba(158,47,40,0.25)",
-        color: "var(--danger)",
-        width: "100%",
-        margin: 0,
-      }}
-    >
-      Authentication failed: {authError}
-    </section>
-  );
+const EMPTY_METRICS: MetricsSummary = {
+  total_requests: 0,
+  throughput_eps: 0,
+  verdicts: { allow: 0, flag: 0, block: 0 },
+  fraud_rate_pct: 0,
+  latency: { p50_ms: 0, p90_ms: 0, p95_ms: 0, p99_ms: 0, avg_ms: 0 },
+  recent_feed: [],
 };
 
 const HomePage = () => {
-  const { hasSession, clearSession } = useSentinelPulse();
-  const [disputes, setDisputes] = useState<DisputeSummary[]>([]);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [resetCount, setResetCount] = useState<number>(0);
-
-  useEffect(() => {
-    const handleReset = () => {
-      setResetCount((prev) => prev + 1);
-    };
-    window.addEventListener("sentinelflow:reset", handleReset);
-    return () => {
-      window.removeEventListener("sentinelflow:reset", handleReset);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!hasSession) {
-      setDisputes([]);
-      setFetchError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    const loadDisputes = async (): Promise<void> => {
-      setIsLoading(true);
-      try {
-        const nextDisputes = await listDisputes();
-        setDisputes(nextDisputes);
-        setFetchError(null);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to load disputes.";
-        const isAuthError =
-          message.toLowerCase().includes("auth") ||
-          message.includes("401") ||
-          message.includes("403");
-        if (isAuthError) {
-          setFetchError(null);
-          clearSession();
-        } else {
-          setFetchError(message);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadDisputes();
-  }, [hasSession, clearSession, resetCount]);
-
-  const filteredDisputes = useMemo(() => {
-    if (statusFilter === "ALL") {
-      return disputes;
-    }
-    return disputes.filter((d) => d.status.toUpperCase() === statusFilter);
-  }, [disputes, statusFilter]);
+  const { metrics: ctxMetrics, drift: ctxDrift, connected, refreshTelemetry } = useSentinelPulse();
+  const metrics = ctxMetrics ?? EMPTY_METRICS;
+  const drift = ctxDrift ?? BASELINE_DRIFT;
 
   return (
-    <main
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 24,
-      }}
-    >
-      <section className="shell-card" style={{ padding: "28px 32px", width: "100%", margin: 0 }}>
-        <h1 style={{ margin: "8px 0 12px", fontSize: "clamp(1.85rem, 4.5vw, 3.6rem)" }}>
-          SentinelFlow
-        </h1>
-        <p style={{ maxWidth: 780, margin: 0, color: "var(--muted)", lineHeight: 1.6 }}>
-          SentinelFlow is an autonomous AI dispute investigation copilot built on LangGraph that
-          coordinates parallel multi-agent evidence collection, deterministic risk scoring, and
-          human-in-the-loop steering. Paired with SentinelPulse, a sub-15ms telecom fraud
-          intelligence gateway powered by ONNX Runtime CPU.
-        </p>
-      </section>
-
-      <Suspense fallback={null}>
-        <AuthErrorAlert />
-      </Suspense>
-
-      {!hasSession ? (
-        <section
-          className="shell-card"
+    <main style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Two-Tier Architecture Hero Banner */}
+      <section
+        className="shell-card"
+        style={{
+          padding: "26px 30px",
+          margin: 0,
+          background:
+            "linear-gradient(135deg, rgba(201, 243, 106, 0.08) 0%, rgba(14, 92, 75, 0.12) 60%, rgba(37, 99, 235, 0.06) 100%)",
+          border: "1px solid rgba(201, 243, 106, 0.35)",
+        }}
+      >
+        <div
           style={{
-            padding: "32px 28px",
-            width: "100%",
-            margin: 0,
             display: "flex",
-            flexDirection: "column",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
             gap: 16,
           }}
         >
-          <div>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "var(--accent)",
-              }}
-            >
-              Authenticated Workbench Access
-            </span>
-            <h2 style={{ margin: "6px 0 8px", fontSize: 22 }}>
-              Sign in to inspect seeded disputes &amp; live LangGraph investigations
-            </h2>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 14, maxWidth: 680, lineHeight: 1.6 }}>
-              Access the 5 showcase dispute archetypes (including pre-hydrated multi-iteration
-              time-travel runs and human-in-the-loop interrupt checkpoints) using a role-based test
-              account, or inspect real-time SMS traffic in SentinelPulse.
-            </p>
-          </div>
-
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <Link
-              href="/login?returnTo=/"
+          <div style={{ minWidth: 0, flex: "1 1 540px" }}>
+            <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                padding: "10px 22px",
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  backgroundColor: connected ? "#22c55e" : "#eab308",
+                  boxShadow: connected ? "0 0 8px #22c55e" : "none",
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: "0.08em",
+                  color: "var(--muted)",
+                  textTransform: "uppercase",
+                }}
+              >
+                {connected ? "LIVE GATEWAY STREAM ACTIVE" : "GATEWAY RECONNECTING"}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "var(--accent-soft, rgba(201, 243, 106, 0.15))",
+                  color: "var(--accent, #2563eb)",
+                  border: "1px solid var(--panel-border)",
+                }}
+              >
+                STAGE 1 · WIRE INGRESS
+              </span>
+            </div>
+
+            <h1
+              style={{
+                margin: "4px 0 10px",
+                fontSize: "clamp(1.85rem, 4vw, 3.2rem)",
+                letterSpacing: "-0.03em",
+                lineHeight: 1.15,
+                overflowWrap: "anywhere",
+              }}
+            >
+              <span className="page-icon">📡 </span>SentinelPulse: Real-Time Telecom Ingress
+            </h1>
+
+            <p style={{ maxWidth: 740, margin: "0 0 16px", color: "var(--muted)", lineHeight: 1.6, fontSize: 14 }}>
+              Production-grade, sub-15ms carrier fraud &amp; smishing inspection gateway powered by
+              an optimized ONNX Runtime CPU model and Redis sliding-window velocity counters. High-risk
+              anomalies escalate seamlessly to SentinelFlow (Stage 2) for autonomous multi-agent dispute investigation.
+            </p>
+
+            {/* Two-Tier Architecture Summary Pills */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  padding: "5px 12px",
+                  borderRadius: 6,
+                  background: "rgba(34, 197, 94, 0.12)",
+                  color: "#22c55e",
+                  border: "1px solid rgba(34, 197, 94, 0.25)",
+                  fontFamily: "monospace",
+                }}
+              >
+                Stage 1: &lt;15ms ONNX CPU
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  padding: "5px 12px",
+                  borderRadius: 6,
+                  background: "rgba(56, 189, 248, 0.12)",
+                  color: "#38bdf8",
+                  border: "1px solid rgba(56, 189, 248, 0.25)",
+                  fontFamily: "monospace",
+                }}
+              >
+                Stage 2: LangGraph + GPT-4
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", flexShrink: 0 }}>
+            <span
+              className="sla-pill"
+              style={{
+                fontSize: 12,
+                padding: "6px 12px",
+                borderRadius: "var(--card-radius, 8px)",
+                background: "var(--input-bg, #ffffff)",
+                border: "1px solid var(--panel-border)",
+                color: "var(--foreground)",
+                fontFamily: "monospace",
+              }}
+            >
+              SLA: &lt;15ms p95 | Ops: 5k RPS
+            </span>
+
+            <Link
+              href="/disputes"
+              prefetch={true}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 18px",
                 borderRadius: "var(--card-radius, 8px)",
                 background: "var(--accent)",
                 color: "var(--accent-ink, #ffffff)",
                 fontWeight: 700,
                 fontSize: 13,
                 textDecoration: "none",
+                boxShadow: "0 0 14px rgba(201, 243, 106, 0.3)",
+                transition: "transform 0.15s ease",
               }}
             >
-              Sign in to Investigation Console →
-            </Link>
-            <Link
-              href="/telecom"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "10px 20px",
-                borderRadius: "var(--card-radius, 8px)",
-                border: "1px solid var(--panel-border)",
-                background: "rgba(255,255,255,0.04)",
-                color: "var(--foreground)",
-                fontWeight: 600,
-                fontSize: 13,
-                textDecoration: "none",
-              }}
-            >
-              📡 Explore SentinelPulse Live Gateway
+              <span>⚡ View SentinelFlow Workbench (Stage 2) →</span>
             </Link>
           </div>
-        </section>
-      ) : (
-        <>
-          {fetchError ? (
-            <section
-              className="shell-card"
-              style={{
-                padding: "18px 24px",
-                borderColor: "rgba(158,47,40,0.25)",
-                color: "var(--danger)",
-                width: "100%",
-                margin: 0,
-              }}
-            >
-              {fetchError}
-            </section>
-          ) : null}
+        </div>
+      </section>
 
-          <section className="shell-card" style={{ padding: "24px 28px", width: "100%", margin: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 12,
-                paddingBottom: 14,
-                marginBottom: 14,
-                borderBottom: "1px solid var(--panel-border)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <h2 style={{ margin: 0, fontSize: 20 }}>Seeded disputes</h2>
-                <span
-                  style={{
-                    color: "var(--muted)",
-                    fontSize: 12,
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    border: "1px solid var(--panel-border)",
-                  }}
-                >
-                  {filteredDisputes.length} cases
-                </span>
-              </div>
+      {/* Telemetry Cards Grid */}
+      <TelecomTelemetryCards metrics={metrics} drift={drift} />
 
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {[
-                  { key: "ALL", label: "All" },
-                  { key: "OPEN", label: "Open" },
-                  { key: "UNDER_REVIEW", label: "Under Review" },
-                  { key: "COMPLETED", label: "Completed" },
-                ].map((pill) => {
-                  const active = statusFilter === pill.key;
-                  return (
-                    <button
-                      key={pill.key}
-                      type="button"
-                      onClick={() => setStatusFilter(pill.key)}
-                      style={{
-                        fontSize: 11,
-                        padding: "4px 10px",
-                        borderRadius: 999,
-                        border: active
-                          ? "1px solid var(--accent)"
-                          : "1px solid var(--panel-border)",
-                        background: active
-                          ? "var(--accent-soft, rgba(37, 99, 235, 0.12))"
-                          : "transparent",
-                        color: active ? "var(--accent)" : "var(--muted)",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {pill.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+      {/* Main Two-Column Layout */}
+      <div
+        className="telecom-two-cards-grid"
+        style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}
+      >
+        {/* Interactive Simulator Section */}
+        <TelecomClassifySandbox presets={PRESETS} onClassificationSuccess={refreshTelemetry} />
 
-            <div
-              role="region"
-              aria-label="Seeded disputes queue"
-              tabIndex={0}
-              style={{
-                display: "grid",
-                gap: 12,
-                width: "100%",
-                maxHeight: 460,
-                overflowY: "auto",
-                paddingRight: 4,
-              }}
-            >
-              {isLoading ? (
-                <p style={{ margin: 0, color: "var(--muted)" }}>Loading disputes...</p>
-              ) : null}
-              {!isLoading && filteredDisputes.length === 0 ? (
-                <p style={{ margin: 0, color: "var(--muted)" }}>
-                  No disputes matching current filter.
-                </p>
-              ) : null}
-              {filteredDisputes.map((dispute) => (
-                <Link
-                  key={dispute.id}
-                  href={`/disputes/${dispute.id}`}
-                  className="shell-card dispute-card-item"
-                  style={{
-                    padding: "16px 20px",
-                    display: "block",
-                    width: "100%",
-                    textDecoration: "none",
-                    margin: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      flexWrap: "wrap",
-                      gap: 12,
-                    }}
-                  >
-                    <div style={{ minWidth: 0, flex: "1 1 200px" }}>
-                      <strong style={{ fontSize: 15 }}>{dispute.case_code}</strong>
-                      <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
-                        {dispute.title}
-                      </p>
-                    </div>
-                    <div style={{ textAlign: "right", color: "var(--muted)", fontSize: 13 }}>
-                      <div style={{ fontWeight: 600, color: "var(--foreground)" }}>
-                        {dispute.currency} {dispute.amount.toFixed(2)}
-                      </div>
-                      <div style={{ marginTop: 4 }}>{dispute.status}</div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+        {/* Live Event Stream Feed */}
+        <TelecomLiveFeed initialFeed={metrics.recent_feed} />
+      </div>
     </main>
   );
 };

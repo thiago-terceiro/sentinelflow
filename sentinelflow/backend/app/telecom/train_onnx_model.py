@@ -12,11 +12,19 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from app.telecom.evaluate_model import (
+    evaluate_onnx_model,
+    export_ml_metrics,
+    get_held_out_evaluation_set,
+)
 from skl2onnx import to_onnx
 from skl2onnx.common.data_types import StringTensorType
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
+    average_precision_score,
+    brier_score_loss,
     classification_report,
     f1_score,
     precision_score,
@@ -200,6 +208,21 @@ def train_and_export_model(
         labels.count(1),
     )
 
+    # Strictly verify zero train/test leakage against held-out adversarial evaluation set
+    held_out_texts, _ = get_held_out_evaluation_set()
+    train_set = set(texts)
+    held_out_set = set(held_out_texts)
+    leakage = train_set.intersection(held_out_set)
+    if leakage:
+        raise ValueError(
+            f"CRITICAL: Train/Test leakage detected in {len(leakage)} samples: {leakage}"
+        )
+    logger.info(
+        "Leakage check passed: Zero overlap between training corpus (%d) and held-out test suite (%d).",
+        len(train_set),
+        len(held_out_set),
+    )
+
     # Split into train / test sets (80 / 20) with stratification
     x_train, x_test, y_train, y_test = train_test_split(
         texts,
@@ -209,8 +232,39 @@ def train_and_export_model(
         stratify=labels,
     )
 
-    # NLP Pipeline: TF-IDF with sublinear tf scaling and 1-2 ngrams + Logistic Regression
-    pipeline = Pipeline(
+    # Base Logistic Regression classifier
+    base_clf = LogisticRegression(
+        C=1.5,
+        max_iter=1000,
+        class_weight="balanced",
+        random_state=42,
+    )
+
+    # 1. Uncalibrated pipeline (baseline for Brier score measurement)
+    tfidf = TfidfVectorizer(
+        ngram_range=(1, 2),
+        sublinear_tf=True,
+        max_features=2500,
+        min_df=1,
+    )
+    uncalibrated_pipeline = Pipeline([("tfidf", tfidf), ("clf", base_clf)])
+    uncalibrated_pipeline.fit(x_train, y_train)
+    y_prob_uncal = uncalibrated_pipeline.predict_proba(x_test)[:, 1]
+    brier_before = float(brier_score_loss(y_test, y_prob_uncal))
+
+    # 2. Fully calibrated pipeline using 5-fold cross-validated Platt scaling (sigmoid)
+    logger.info("Training CalibratedClassifierCV(LogisticRegression, method='sigmoid', cv=5)...")
+    calibrated_clf = CalibratedClassifierCV(
+        estimator=LogisticRegression(
+            C=1.5,
+            max_iter=1000,
+            class_weight="balanced",
+            random_state=42,
+        ),
+        method="sigmoid",
+        cv=5,
+    )
+    calibrated_pipeline = Pipeline(
         [
             (
                 "tfidf",
@@ -221,67 +275,79 @@ def train_and_export_model(
                     min_df=1,
                 ),
             ),
-            (
-                "clf",
-                LogisticRegression(
-                    C=1.5,
-                    max_iter=1000,
-                    class_weight="balanced",
-                    random_state=42,
-                ),
-            ),
+            ("clf", calibrated_clf),
         ]
     )
+    calibrated_pipeline.fit(x_train, y_train)
 
-    logger.info("Fitting TF-IDF + Logistic Regression pipeline...")
-    pipeline.fit(x_train, y_train)
-
-    # Evaluate on held-out test set
-    y_pred = pipeline.predict(x_test)
-    y_prob = pipeline.predict_proba(x_test)[:, 1]
+    # Evaluate calibrated model on stratified validation split
+    y_pred = calibrated_pipeline.predict(x_test)
+    y_prob = calibrated_pipeline.predict_proba(x_test)[:, 1]
 
     precision = float(precision_score(y_test, y_pred))
     recall = float(recall_score(y_test, y_pred))
     f1 = float(f1_score(y_test, y_pred))
     roc_auc = float(roc_auc_score(y_test, y_prob))
+    pr_auc = float(average_precision_score(y_test, y_prob))
+    brier_after = float(brier_score_loss(y_test, y_prob))
     report = classification_report(y_test, y_pred, output_dict=True)
 
-    logger.info("Evaluation Results:")
+    logger.info("Stratified Validation Split Results:")
+    logger.info("  Brier Score (Before Calibration): %.4f", brier_before)
+    logger.info("  Brier Score (After Calibration):  %.4f", brier_after)
     logger.info("  Precision: %.4f", precision)
     logger.info("  Recall:    %.4f", recall)
     logger.info("  F1 Score:  %.4f", f1)
     logger.info("  ROC-AUC:   %.4f", roc_auc)
+    logger.info("  PR-AUC:    %.4f", pr_auc)
 
-    # Export to ONNX with string tensor input
-    logger.info("Exporting pipeline to ONNX format (opset 14)...")
+    # Export calibrated pipeline to ONNX with string tensor input
+    logger.info("Exporting calibrated pipeline to ONNX format (opset 14)...")
     initial_type = [("text", StringTensorType([None, 1]))]
-    onnx_model = to_onnx(pipeline, initial_types=initial_type, target_opset=14)
+    onnx_model = to_onnx(calibrated_pipeline, initial_types=initial_type, target_opset=14)
 
     # Serialize ONNX model to disk
     with open(onnx_file, "wb") as f:
         f.write(onnx_model.SerializeToString())
-    logger.info("Saved ONNX model to: %s", onnx_file)
+    logger.info("Saved ONNX model to: %s (%d bytes)", onnx_file, onnx_file.stat().st_size)
 
-    # Save metadata & evaluation baseline
+    # Execute empirical evaluation on strictly held-out adversarial test set
+    logger.info("Running empirical evaluation on held-out adversarial test suite...")
+    held_out_metrics = evaluate_onnx_model(onnx_file)
+    held_out_metrics["brier_score_before_calibration"] = round(brier_before, 4)
+    held_out_metrics["brier_score_after_calibration"] = round(brier_after, 4)
+    export_ml_metrics(held_out_metrics)
+
+    # Save comprehensive metadata
     metadata = {
         "model_name": "SentinelPulse-SMS-Fraud-ONNX",
         "version": "1.0.0",
-        "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True) -> LogisticRegression(C=1.5, class_weight=balanced)",
+        "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True) -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=5)",
         "framework": "scikit-learn + skl2onnx + onnxruntime",
         "opset": 14,
+        "calibration": {
+            "method": "sigmoid",
+            "cv_folds": 5,
+            "brier_score_before": round(brier_before, 4),
+            "brier_score_after": round(brier_after, 4),
+            "brier_score_improvement": round(brier_before - brier_after, 4),
+        },
         "input_signature": {"text": "StringTensor([None, 1])"},
         "output_signature": {
             "label": "Int64Tensor([None])",
             "probabilities": "Sequence[Map[Int64, Float]]",
         },
-        "metrics": {
+        "validation_metrics": {
             "test_sample_count": len(y_test),
             "precision": round(precision, 4),
             "recall": round(recall, 4),
             "f1_score": round(f1, 4),
             "roc_auc": round(roc_auc, 4),
+            "pr_auc": round(pr_auc, 4),
+            "brier_score": round(brier_after, 4),
             "detailed_report": report,
         },
+        "held_out_adversarial_metrics": held_out_metrics,
         "operating_thresholds": {
             "allow_below": 0.40,
             "flag_threshold": 0.40,

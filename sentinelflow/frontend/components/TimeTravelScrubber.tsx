@@ -86,19 +86,6 @@ export const TimeTravelScrubber = memo(
             <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em" }}>
               ⏱️ Time-Travel State Scrubber
             </span>
-            <span
-              style={{
-                fontSize: 11,
-                padding: "2px 8px",
-                borderRadius: 999,
-                background: badgeStyle.bg,
-                color: badgeStyle.text,
-                fontWeight: 600,
-                fontFamily: "monospace",
-              }}
-            >
-              {eventTypeLabel}
-            </span>
 
             {/* Quick Prev / Next Stepper Arrows */}
             <div
@@ -175,6 +162,20 @@ export const TimeTravelScrubber = memo(
 
             <span style={{ fontSize: 12, color: "var(--muted)" }}>
               {hasEvents ? `Step ${currentStep + 1} of ${totalSteps}` : "Standby (0 events)"}
+            </span>
+
+            <span
+              style={{
+                fontSize: 11,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: badgeStyle.bg,
+                color: badgeStyle.text,
+                fontWeight: 600,
+                fontFamily: "monospace",
+              }}
+            >
+              {eventTypeLabel}
             </span>
           </div>
 

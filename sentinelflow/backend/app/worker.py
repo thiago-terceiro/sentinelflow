@@ -27,8 +27,31 @@ async def shutdown(_ctx: dict[str, Any]) -> None:
     await engine.dispose()
 
 
+async def persist_escalated_dispute_job(_ctx: dict[str, Any], payload: dict[str, Any]) -> None:
+    """Durable arq worker job to persist an escalated telecom anomaly dispute record."""
+    from app.api.telecom import _persist_escalated_dispute
+
+    await _persist_escalated_dispute(
+        dispute_id=payload["dispute_id"],
+        case_code=payload["case_code"],
+        sender=payload["sender"],
+        recipient=payload["recipient"],
+        message=payload["message"],
+        carrier=payload.get("carrier"),
+        verdict=payload["verdict"],
+        fraud_score=payload["fraud_score"],
+        signals=payload.get("signals", []),
+        velocity=payload.get("velocity", {}),
+        event_id=payload.get("event_id"),
+    )
+
+
 class WorkerSettings:
-    functions = [run_investigation_job, run_resume_investigation_job]
+    functions = [
+        run_investigation_job,
+        run_resume_investigation_job,
+        persist_escalated_dispute_job,
+    ]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(settings.QUEUE_REDIS_URL)

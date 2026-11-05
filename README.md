@@ -11,12 +11,12 @@ Welcome to the **SentinelFlow & SentinelPulse** distributed systems workspace.
 
 1. **📡 SentinelPulse: High-Throughput Real-Time SMS Fraud & Spam Intelligence Gateway**
    - **Target Role:** Traffic Intelligence & Communications ML (Tier-1 Telecom / Global CPaaS Messaging Infrastructure).
-   - **Inference SLA:** Sub-15ms p95 latency on CPU; actual raw ONNX runtime latency is **0.032ms** (32 µs).
-   - **Velocity Counters:** High-throughput sliding-window Redis sorted set aggregation (10s, 60s, 1h) with single round-trip pipelines.
-   - **MLOps:** Kolmogorov-Smirnov (KS) two-sample test and Population Stability Index (PSI) online distribution drift detection.
+   - **Inference SLA & Architecture:** Synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm in-graph ONNX C++ execution) via compiled in-graph `TfidfVectorizer + CalibratedClassifierCV (LogisticRegression)` pipeline on AVX-512 CPU (actual raw ONNX runtime latency is **0.032ms** / 32 µs; zero GPU dependency).
+   - **Velocity Counters:** High-throughput sliding-window Redis sorted set aggregation (10s, 60s, 1h) using non-transactional single round-trip pipelines with 30s in-memory deque fail-open fallback.
+   - **MLOps & Active Learning:** Kolmogorov-Smirnov (KS) two-sample test (feature drift) and Population Stability Index (PSI, prediction drift) paired with asynchronous escalation of ambiguous `FLAG` (`0.40–0.75`) disputes into SentinelFlow for human-in-the-loop ground-truth labeling.
    - **Load Testing & Simulation:** Locust load-testing suite configured for 1,000–5,000 RPS and standalone telecom traffic generator.
    - **Full-Stack Live Dashboard:** Next.js console with real-time SSE streaming, live throughput gauge, color-coded latency percentiles, and interactive SMS tester.
-   - **System Design Deep Dive:** [SYSTEM_DESIGN.md](./sentinelflow/SYSTEM_DESIGN.md) covers 100k RPS Kafka partitioning, dynamic batching, cold-start elimination, and fail-open degraded service fallbacks.
+   - **System Design Deep Dive:** [SYSTEM_DESIGN.md](./sentinelflow/SYSTEM_DESIGN.md) covers 100k RPS Kafka partitioning, dynamic batching, cold-start elimination, non-transactional pipelining, and fail-open degraded service fallbacks.
 
 2. **⚡ SentinelFlow: Autonomous Dispute Investigation & Cryptographic Audit Ledger**
    - **Architecture:** Human-in-the-loop LangGraph workflow with deterministic compliance/risk services, parallel `asyncio.gather` tool sessions, token-by-token `reasoning_delta` streaming, client-side time-travel state scrubbing (`?step=`), semantic iteration diffs (`?diff=1`), sticky cross-panel citation pinning (`?evidence=`), and PostgreSQL persistence.

@@ -1,0 +1,153 @@
+{
+  "timestamp": "2026-11-05T21:23:20Z",
+  "environment": {
+    "cpu_model": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "cpu_cores": 12,
+    "os_platform": "Windows 11 (AMD64)",
+    "python_version": "3.12.7",
+    "onnxruntime_version": "1.31.0",
+    "scikit_learn_version": "1.9.1",
+    "model_artifact": "sms_fraud_model.onnx",
+    "model_artifact_size_bytes": 116583,
+    "model_artifact_size_kb": 113.85
+  },
+  "evaluation": {
+    "sample_count": 50,
+    "benign_count": 25,
+    "fraud_count": 25,
+    "decision_threshold": 0.5,
+    "confusion_matrix": {
+      "tp": 23,
+      "fp": 3,
+      "tn": 22,
+      "fn": 2
+    },
+    "precision": 0.8846,
+    "recall": 0.92,
+    "f1_score": 0.902,
+    "roc_auc": 0.96,
+    "pr_auc": 0.964,
+    "brier_score": 0.1556,
+    "false_positive_rate": 0.12,
+    "false_negative_rate": 0.08,
+    "evaluator": "ONNXRuntime-CPU",
+    "model_artifact": "sms_fraud_model.onnx",
+    "model_artifact_size_bytes": 116583,
+    "model_artifact_size_kb": 113.85,
+    "brier_score_before_calibration": 0.0991,
+    "brier_score_after_calibration": 0.0899
+  },
+  "benchmarks": {
+    "cold_start": {
+      "sklearn_fit_and_first_infer_ms": 90.754,
+      "onnx_session_init_and_first_infer_ms": 35.91
+    },
+    "batches": {
+      "batch_1": {
+        "batch_size": 1,
+        "warm_runs": 2000,
+        "sklearn": {
+          "p50_us": 4324.55,
+          "p90_us": 6912.64,
+          "p95_us": 7859.68,
+          "p99_us": 10648.48,
+          "mean_us": 4854.74
+        },
+        "onnx": {
+          "p50_us": 75.9,
+          "p90_us": 132.91,
+          "p95_us": 171.0,
+          "p99_us": 370.91,
+          "mean_us": 99.34
+        },
+        "speedup_multiplier": 48.87
+      },
+      "batch_32": {
+        "batch_size": 32,
+        "warm_runs": 2000,
+        "sklearn": {
+          "p50_us": 5021.7,
+          "p90_us": 7903.99,
+          "p95_us": 8952.87,
+          "p99_us": 12449.42,
+          "mean_us": 5622.81
+        },
+        "onnx": {
+          "p50_us": 761.55,
+          "p90_us": 1176.28,
+          "p95_us": 1296.62,
+          "p99_us": 1716.59,
+          "mean_us": 858.48
+        },
+        "speedup_multiplier": 6.55
+      },
+      "batch_100": {
+        "batch_size": 100,
+        "warm_runs": 2000,
+        "sklearn": {
+          "p50_us": 5457.1,
+          "p90_us": 7470.64,
+          "p95_us": 8811.8,
+          "p99_us": 11209.46,
+          "mean_us": 6022.64
+        },
+        "onnx": {
+          "p50_us": 1944.35,
+          "p90_us": 2537.4,
+          "p95_us": 2854.27,
+          "p99_us": 4163.26,
+          "mean_us": 2123.18
+        },
+        "speedup_multiplier": 2.84
+      }
+    },
+    "components": {
+      "heuristics_regex_us": {
+        "p50_us": 32.7,
+        "p90_us": 34.5,
+        "p95_us": 38.3,
+        "p99_us": 49.7,
+        "mean_us": 33.81
+      },
+      "velocity_store_ms": {
+        "p50_ms": 0.017,
+        "p90_ms": 0.019,
+        "p95_ms": 0.02,
+        "p99_ms": 0.026,
+        "mean_ms": 0.036
+      }
+    },
+    "concurrency": {
+      "concurrency_1": {
+        "concurrency": 1,
+        "total_requests": 100,
+        "throughput_req_per_sec": 181.1,
+        "p50_ms": 4.18,
+        "p90_ms": 6.27,
+        "p95_ms": 7.5,
+        "p99_ms": 10.66,
+        "mean_ms": 5.49
+      },
+      "concurrency_10": {
+        "concurrency": 10,
+        "total_requests": 100,
+        "throughput_req_per_sec": 278.1,
+        "p50_ms": 31.82,
+        "p90_ms": 39.78,
+        "p95_ms": 40.78,
+        "p99_ms": 42.13,
+        "mean_ms": 30.68
+      },
+      "concurrency_50": {
+        "concurrency": 50,
+        "total_requests": 100,
+        "throughput_req_per_sec": 260.8,
+        "p50_ms": 158.21,
+        "p90_ms": 200.3,
+        "p95_ms": 202.79,
+        "p99_ms": 206.07,
+        "mean_ms": 156.69
+      }
+    }
+  }
+}

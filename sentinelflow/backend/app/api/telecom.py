@@ -17,9 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import DisputeRecord
 from app.db.session import SessionLocal
+from app.services.investigations import get_redis_pool
 from app.services.trace_safety import redact_text
 from app.telecom.drift_monitor import get_drift_monitor
-from app.telecom.onnx_engine import InferenceResult, get_inference_engine
+from app.telecom.onnx_engine import (
+    InferenceResult,
+    compute_composite_score,
+    get_inference_engine,
+)
 from app.telecom.telecom_metrics import export_prometheus_metrics, get_metrics_tracker
 from app.telecom.velocity_store import get_velocity_store
 
@@ -234,21 +239,57 @@ def _spawn_escalation_task(
     event_id: str | None = None,
     background_tasks: BackgroundTasks | None = None,
 ) -> asyncio.Task[None]:
-    bg_task = asyncio.create_task(
-        _persist_escalated_dispute(
-            dispute_id=dispute_id,
-            case_code=case_code,
-            sender=sender,
-            recipient=recipient,
-            message=message,
-            carrier=carrier,
-            verdict=verdict,
-            fraud_score=fraud_score,
-            signals=signals,
-            velocity=velocity,
-            event_id=event_id,
-        )
-    )
+    async def _durable_escalate_wrapper() -> None:
+        enqueued_durable = False
+        try:
+            pool = await get_redis_pool()
+            if pool is not None and type(pool).__module__.startswith("arq"):
+                payload = {
+                    "dispute_id": dispute_id,
+                    "case_code": case_code,
+                    "sender": sender,
+                    "recipient": recipient,
+                    "message": message,
+                    "carrier": carrier,
+                    "verdict": verdict,
+                    "fraud_score": fraud_score,
+                    "signals": signals,
+                    "velocity": velocity,
+                    "event_id": event_id,
+                }
+                job = await pool.enqueue_job(
+                    "persist_escalated_dispute_job",
+                    payload,
+                    _job_id=f"esc_{dispute_id}",
+                )
+                if job is not None:
+                    enqueued_durable = True
+                    logger.info("Enqueued durable arq escalation job: esc_%s", dispute_id)
+                    return
+        except Exception as exc:
+            logger.warning(
+                "Redis pool enqueue failed for escalation job esc_%s (%s); "
+                "falling back to in-process execution",
+                dispute_id,
+                exc,
+            )
+
+        if not enqueued_durable:
+            await _persist_escalated_dispute(
+                dispute_id=dispute_id,
+                case_code=case_code,
+                sender=sender,
+                recipient=recipient,
+                message=message,
+                carrier=carrier,
+                verdict=verdict,
+                fraud_score=fraud_score,
+                signals=signals,
+                velocity=velocity,
+                event_id=event_id,
+            )
+
+    bg_task = asyncio.create_task(_durable_escalate_wrapper())
     _background_tasks.add(bg_task)
     bg_task.add_done_callback(_background_tasks.discard)
     if background_tasks is not None:
@@ -271,11 +312,12 @@ async def _process_single_message(
     metrics = get_metrics_tracker()
     drift = get_drift_monitor()
 
-    # 1. Feature Store / Sliding-window velocity lookup
+    # 1. Feature Store / Sliding-window velocity lookup across dimensions
     velocity_metrics = await velocity_store.record_and_evaluate(
         sender=req.sender,
         ip=req.ip,
         carrier=req.carrier,
+        message=req.message,
     )
 
     # 2. Heuristic + ONNX Runtime ML classification
@@ -283,10 +325,12 @@ async def _process_single_message(
         precomputed_inference if precomputed_inference is not None else engine.predict(req.message)
     )
 
-    # 3. Composite score calculation
-    # If velocity signals indicate an active flood/bot attack, escalate risk
-    composite_score = max(inference_result.fraud_score, velocity_metrics.risk_contribution)
-    composite_score = min(1.0, composite_score)
+    # 3. Composite score calculation via deterministic piecewise formulation
+    composite_score = compute_composite_score(
+        heuristic_score=inference_result.heuristic_score,
+        onnx_probability=inference_result.onnx_probability,
+        velocity_score=velocity_metrics.risk_contribution,
+    )
 
     # Combine signals from both layers
     combined_signals = list(dict.fromkeys(inference_result.signals + velocity_metrics.signals))

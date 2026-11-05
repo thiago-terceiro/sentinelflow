@@ -61,9 +61,11 @@ def get_geo_metadata() -> dict[str, Any]:
                 "risk evaluation, and human-in-the-loop steering."
             ),
             "sentinelpulse": (
-                "SentinelPulse is a high-throughput, synchronous telecom trust-and-safety gateway "
-                "delivering sub-15ms SMS and voice fraud classification using quantized ONNX "
-                "Runtime CPU models and Redis sliding-window velocity aggregators."
+                "SentinelPulse is a high-throughput telecom trust-and-safety gateway "
+                "delivering synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm "
+                "in-graph ONNX C++ execution) using a compiled in-graph TF-IDF + "
+                "sigmoid-calibrated linear classifier ONNX Runtime CPU model and Redis "
+                "sliding-window velocity aggregators."
             ),
             "cryptographic_audit": (
                 "SentinelFlow's audit ledger is an append-only sequence of immutable records "

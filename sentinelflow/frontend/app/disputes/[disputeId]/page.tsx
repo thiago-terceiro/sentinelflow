@@ -21,7 +21,7 @@ const DisputePage = async ({ params }: Props) => {
         }}
       >
         <Link
-          href="/"
+          href="/disputes"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -37,7 +37,7 @@ const DisputePage = async ({ params }: Props) => {
         </Link>
 
         <Link
-          href="/telecom?filter=ESCALATED#inspection-feed"
+          href="/?filter=ESCALATED#inspection-feed"
           style={{
             display: "inline-flex",
             alignItems: "center",

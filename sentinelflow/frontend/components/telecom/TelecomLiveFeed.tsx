@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { memo, useEffect, useState } from "react";
 import { useSentinelPulse } from "@/components/SentinelPulseProvider";
 import type { TelecomFeedItem, TelecomVerdict } from "./types";
@@ -33,7 +34,6 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
 
 export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
   const {
-    hasSession,
     liveFeed: ctxLiveFeed,
     isPaused,
     setIsPaused,
@@ -71,10 +71,6 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
   }, []);
 
   const handleEscalate = async (item: TelecomFeedItem) => {
-    if (!hasSession) {
-      window.location.href = "/login?returnTo=/telecom";
-      return;
-    }
     const itemKey = item.id || `${item.sender}-${item.timestamp}`;
     setEscalatingIds((prev) => ({ ...prev, [itemKey]: true }));
     try {
@@ -373,29 +369,39 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                 {ev.verdict === "FLAG" || ev.verdict === "BLOCK" ? (
                   <div
                     style={{
-                      marginTop: 8,
-                      paddingTop: 6,
+                      marginTop: 10,
+                      paddingTop: 8,
                       borderTop: "1px solid var(--panel-border)",
                       display: "flex",
-                      justifyContent: "flex-end",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: 8,
                     }}
                   >
+                    <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 500 }}>
+                      Stage 2 Escalation:
+                    </span>
                     {escalated ? (
-                      <a
+                      <Link
                         href={escalated.url}
+                        prefetch={true}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: 4,
-                          fontSize: 11,
-                          color: "var(--accent)",
-                          textDecoration: "none",
+                          gap: 6,
+                          fontSize: 12,
                           fontWeight: 700,
+                          padding: "6px 14px",
+                          borderRadius: "var(--card-radius, 4px)",
+                          background: "var(--accent)",
+                          color: "var(--accent-ink, #ffffff)",
+                          textDecoration: "none",
+                          boxShadow: "0 0 10px rgba(201, 243, 106, 0.3)",
                         }}
                       >
-                        <span className="page-icon">🔍 </span>View Case in SentinelFlow{" "}
-                        {escalated.case_code ? `(${escalated.case_code})` : ""} →
-                      </a>
+                        <span>→ Investigate in SentinelFlow {escalated.case_code ? `(${escalated.case_code})` : ""}</span>
+                      </Link>
                     ) : (
                       <button
                         type="button"
@@ -404,24 +410,26 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                           void handleEscalate(ev);
                         }}
                         style={{
-                          fontSize: 11,
-                          padding: "4px 10px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          padding: "6px 14px",
                           borderRadius: "var(--card-radius, 4px)",
-                          background: "var(--accent-soft, rgba(37, 99, 235, 0.1))",
+                          background: "var(--accent-soft, rgba(37, 99, 235, 0.12))",
                           color: "var(--accent, #2563eb)",
-                          border: "1px solid var(--panel-border)",
+                          border: "1px solid var(--accent, rgba(37, 99, 235, 0.35))",
                           cursor: isEscalatingThis ? "wait" : "pointer",
-                          fontWeight: 600,
+                          fontWeight: 700,
+                          transition: "all 0.15s ease",
                         }}
                       >
                         {isEscalatingThis ? (
                           "Escalating..."
                         ) : (
                           <>
-                            <span className="page-icon">⚡ </span>
-                            {hasSession
-                              ? "Escalate to SentinelFlow"
-                              : "Sign in to Escalate to SentinelFlow"}
+                            <span>⚡</span>
+                            <span>Escalate to SentinelFlow</span>
                           </>
                         )}
                       </button>

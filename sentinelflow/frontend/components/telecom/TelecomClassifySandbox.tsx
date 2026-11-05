@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import React, { memo, useId, useRef, useState } from "react";
-import { useSentinelPulse } from "@/components/SentinelPulseProvider";
 import type { TelecomFeedItem, TelecomPreset, TelecomVerdict } from "./types";
 
 type Props = {
@@ -33,7 +33,6 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
 
 export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }: Props) => {
   const formId = useId();
-  const { hasSession } = useSentinelPulse();
 
   const [testSender, setTestSender] = useState<string>("+14155552671");
   const [testRecipient, setTestRecipient] = useState<string>("+14155559876");
@@ -52,8 +51,12 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
     case_code?: string;
     url: string;
   } | null>(null);
+  const [selectedPresetName, setSelectedPresetName] = useState<string | null>(
+    presets[0]?.name ?? null
+  );
 
   const applyPreset = (preset: TelecomPreset) => {
+    setSelectedPresetName(preset.name);
     setTestSender(preset.sender);
     setTestCarrier(preset.carrier);
     setTestMessage(preset.message);
@@ -115,10 +118,6 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
     if (!classificationResult) {
       return;
     }
-    if (!hasSession) {
-      window.location.href = "/login?returnTo=/telecom";
-      return;
-    }
     setIsEscalating(true);
     try {
       const res = await fetch("/app-api/telecom/escalate", {
@@ -167,36 +166,64 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
 
       {/* Presets */}
       <div style={{ marginBottom: 16 }}>
-        <span
+        <div
           style={{
-            fontSize: 11,
-            color: "var(--muted)",
-            fontWeight: 600,
-            display: "block",
-            marginBottom: 6,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 8,
           }}
         >
-          QUICK TEST PRESETS:
-        </span>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {presets.map((p) => (
-            <button
-              key={p.name}
-              type="button"
-              onClick={() => applyPreset(p)}
-              style={{
-                fontSize: 12,
-                padding: "5px 10px",
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "rgba(255,255,255,0.04)",
-                color: "var(--foreground)",
-                cursor: "pointer",
-              }}
-            >
-              {p.name}
-            </button>
-          ))}
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--muted)",
+              fontWeight: 700,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+            }}
+          >
+            Quick Test Presets
+          </span>
+          <span style={{ fontSize: 11, color: "var(--muted)", opacity: 0.85 }}>
+            Select scenario
+          </span>
+        </div>
+        <div
+          role="tablist"
+          aria-label="Quick test preset scenarios"
+          style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
+        >
+          {presets.map((p) => {
+            const isSelected =
+              selectedPresetName === p.name ||
+              (selectedPresetName === null &&
+                p.sender === testSender &&
+                p.carrier === testCarrier &&
+                p.message === testMessage);
+            return (
+              <button
+                key={p.name}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                onClick={() => applyPreset(p)}
+                style={{
+                  fontSize: 11,
+                  padding: "3px 8px",
+                  borderRadius: 4,
+                  border: isSelected ? "1px solid var(--accent)" : "1px solid var(--panel-border)",
+                  background: isSelected ? "var(--accent-soft, rgba(37, 99, 235, 0.1))" : "transparent",
+                  color: isSelected ? "var(--accent)" : "var(--muted)",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+                className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              >
+                {p.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -237,7 +264,10 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
               id={`${formId}-sender`}
               type="text"
               value={testSender}
-              onChange={(e) => setTestSender(e.target.value)}
+              onChange={(e) => {
+                setTestSender(e.target.value);
+                setSelectedPresetName(null);
+              }}
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -262,7 +292,10 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
               id={`${formId}-carrier`}
               type="text"
               value={testCarrier}
-              onChange={(e) => setTestCarrier(e.target.value)}
+              onChange={(e) => {
+                setTestCarrier(e.target.value);
+                setSelectedPresetName(null);
+              }}
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -312,7 +345,10 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
             id={`${formId}-message`}
             rows={3}
             value={testMessage}
-            onChange={(e) => setTestMessage(e.target.value)}
+            onChange={(e) => {
+              setTestMessage(e.target.value);
+              setSelectedPresetName(null);
+            }}
             style={{
               width: "100%",
               padding: "10px 12px",
@@ -471,56 +507,84 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           {classificationResult.verdict === "FLAG" || classificationResult.verdict === "BLOCK" ? (
             <div
               style={{
-                marginTop: 12,
-                paddingTop: 10,
-                borderTop: "1px solid rgba(255,255,255,0.08)",
+                marginTop: 14,
+                padding: "16px 18px",
+                borderRadius: "var(--card-radius, 8px)",
+                background:
+                  "linear-gradient(135deg, rgba(201, 243, 106, 0.08) 0%, rgba(37, 99, 235, 0.08) 100%)",
+                border: "1px solid var(--accent, rgba(201, 243, 106, 0.35))",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: "column",
+                gap: 12,
               }}
             >
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>Two-Tier Escalation:</span>
+              <div>
+                <strong style={{ fontSize: 13, color: "var(--foreground)", display: "block" }}>
+                  ⚡ Two-Tier Anomaly Escalation
+                </strong>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                  Synchronous inline ingress (&lt;15ms SLA) flagged this anomaly ({classificationResult.verdict}). Escalate to Stage 2 for autonomous multi-agent dispute investigation.
+                </span>
+              </div>
+
               {escalatedDispute ? (
-                <a
-                  href={escalatedDispute.url}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    fontSize: 11,
-                    color: "var(--accent)",
-                    textDecoration: "none",
-                    fontWeight: 700,
-                  }}
-                >
-                  <span className="page-icon">🔍 </span>View Case in SentinelFlow{" "}
-                  {escalatedDispute.case_code ? `(${escalatedDispute.case_code})` : ""} →
-                </a>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <Link
+                    href={escalatedDispute.url}
+                    prefetch={true}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      padding: "10px 20px",
+                      borderRadius: "var(--card-radius, 6px)",
+                      background: "var(--accent)",
+                      color: "var(--accent-ink, #ffffff)",
+                      textDecoration: "none",
+                      boxShadow: "0 0 16px rgba(201, 243, 106, 0.35)",
+                    }}
+                  >
+                    <span>→ Investigate in SentinelFlow {escalatedDispute.case_code ? `(${escalatedDispute.case_code})` : ""}</span>
+                  </Link>
+                  <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                    Dispute record created. Ready for LangGraph investigation.
+                  </span>
+                </div>
               ) : (
-                <button
-                  type="button"
-                  disabled={isEscalating}
-                  onClick={handleEscalateResult}
-                  style={{
-                    fontSize: 11,
-                    padding: "4px 10px",
-                    borderRadius: "var(--card-radius, 4px)",
-                    background: "var(--accent-soft, rgba(37, 99, 235, 0.1))",
-                    color: "var(--accent, #2563eb)",
-                    border: "1px solid var(--panel-border)",
-                    cursor: isEscalating ? "wait" : "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  {isEscalating ? (
-                    "Escalating..."
-                  ) : (
-                    <>
-                      <span className="page-icon">⚡ </span>
-                      {hasSession ? "Escalate to SentinelFlow" : "Sign in to Escalate to SentinelFlow"}
-                    </>
-                  )}
-                </button>
+                <div>
+                  <button
+                    type="button"
+                    disabled={isEscalating}
+                    onClick={() => {
+                      void handleEscalateResult();
+                    }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 13,
+                      padding: "10px 20px",
+                      borderRadius: "var(--card-radius, 6px)",
+                      background: "var(--accent-soft, rgba(37, 99, 235, 0.14))",
+                      color: "var(--accent, #2563eb)",
+                      border: "1px solid var(--accent, rgba(37, 99, 235, 0.4))",
+                      cursor: isEscalating ? "wait" : "pointer",
+                      fontWeight: 700,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {isEscalating ? (
+                      "Escalating to SentinelFlow..."
+                    ) : (
+                      <>
+                        <span>⚡</span>
+                        <span>Escalate to SentinelFlow</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           ) : null}

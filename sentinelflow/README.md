@@ -255,7 +255,7 @@ uv run alembic downgrade -1
 # SentinelPulse: Real-Time SMS Fraud & Spam Intelligence Gateway
 
 > **Tailored for Global CPaaS Traffic Intelligence & Communications ML Teams**  
-> Sub-15ms ML Inference · Sliding-Window Redis Velocity Counters · MLOps Drift Monitoring · Locust Load Suite
+> Synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm in-graph ONNX C++ execution) · Non-Transactional Redis Velocity Pipelining · MLOps Drift Monitoring (KS + PSI) · Locust Load Suite
 
 SentinelPulse is an ultra-low-latency telecom intelligence gateway integrated into SentinelFlow. It protects messaging networks from high-volume SMS pumping, account takeover smishing, and SIM farm abuse.
 
@@ -263,40 +263,40 @@ SentinelPulse is an ultra-low-latency telecom intelligence gateway integrated in
 
 | Benchmark Metric | Target SLA | Measured Performance | Architecture Layer |
 | :--- | :--- | :--- | :--- |
-| **Raw ONNX CPU Inference (p50)** | $< 1.0\text{ ms}$ | **0.022 ms** (22 µs) | ONNX Runtime (AVX-512) |
-| **Raw ONNX CPU Inference (p95)** | $< 5.0\text{ ms}$ | **0.032 ms** (32 µs) | ONNX Runtime (AVX-512) |
-| **Raw ONNX CPU Inference (p99)** | $< 10.0\text{ ms}$ | **0.086 ms** (86 µs) | ONNX Runtime (AVX-512) |
-| **Compiled Regex Heuristics** | $< 0.5\text{ ms}$ | **0.040 ms** | Fast-path Python regex |
-| **Redis Sliding Window Pipeline** | $< 5.0\text{ ms}$ | **1.200 ms** RTT | Async `ZSET` pipeline (1 roundtrip) |
-| **End-to-End Decision (p95)** | **$< 20.0\text{ ms}$** | **4.200 ms** | Full Dual-Layer Gateway |
+| **Raw ONNX CPU Inference (p50)** | $< 1.0\text{ ms}$ | **0.022 ms** (22 µs) | ONNX Runtime AVX-512 (In-graph TF-IDF + Sigmoid-Calibrated Linear Classifier) |
+| **Raw ONNX CPU Inference (p95)** | $< 5.0\text{ ms}$ | **0.032 ms** (32 µs) | ONNX Runtime AVX-512 (In-graph TF-IDF + Sigmoid-Calibrated Linear Classifier) |
+| **Raw ONNX CPU Inference (p99)** | $< 10.0\text{ ms}$ | **0.086 ms** (86 µs) | ONNX Runtime AVX-512 (In-graph TF-IDF + Sigmoid-Calibrated Linear Classifier) |
+| **Compiled Regex Heuristics** | $< 0.5\text{ ms}$ | **0.040 ms** | Fast-path Python regex (Single: 0.20–0.40, Compound: $\ge 0.85$) |
+| **Redis Sliding Window Pipeline** | $< 5.0\text{ ms}$ | **1.200 ms** RTT | Async non-transactional `ZSET` pipeline (1 roundtrip) |
+| **End-to-End Decision (p95)** | **$< 15.0\text{ ms}$** | **4.200 ms** | Full Dual-Layer Gateway |
 | **Throughput Capacity** | $> 1,000\text{ RPS}$ | **5,000+ RPS** | Per container instance |
 
 ### Core Gateway Endpoints
 
-- `POST /v1/classify` (or `/api/v1/telecom/classify`): Real-time synchronous decision (<15ms SLA):
+- `POST /v1/classify` (or `/api/v1/telecom/classify`): Synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm in-graph ONNX C++ execution):
   ```json
   {
     "verdict": "BLOCK",
     "fraud_score": 0.82,
     "latency_ms": 3.41,
-    "signals": ["RULE:HIGH_RISK_SHORTLINK", "RULE:URGENT_ACCOUNT_LOCKOUT", "VELOCITY:BURST_10S"],
+    "signals": ["RULE:HIGH_RISK_SHORTLINK", "RULE:URGENT_ACCOUNT_LOCKOUT", "HEURISTIC:COMPOUND_SIGNALS", "VELOCITY:BURST_10S"],
     "velocity": { "velocity_10s": 7, "velocity_60s": 14, "velocity_1h": 42, "carrier": "textnow" },
     "model_version": "1.0.0"
   }
   ```
 - `POST /v1/events/batch`: High-throughput batch ingestion endpoint.
 - `GET /metrics`: Standard Prometheus exposition scraping counter and latency histograms (`telecom_requests_total`, `telecom_latency_seconds`).
-- `GET /api/v1/telecom/drift`: Kolmogorov-Smirnov test and Population Stability Index (PSI) drift monitoring.
+- `GET /api/v1/telecom/drift`: Kolmogorov-Smirnov test (feature drift) and Population Stability Index (PSI, prediction drift) monitoring.
 - `GET /api/v1/telecom/stream`: Server-Sent Events (SSE) live feed of inspected telecom traffic.
 
 ### Quickstart & Load Testing Commands
 
 ```bash
-# 1. Run the Pytest verification suite (114 passing tests across the full backend suite, plus 32 frontend Node tests)
+# 1. Run the Pytest verification suite (126 passing tests across the full backend suite, plus 32 frontend Node tests)
 cd backend
 uv run pytest app/tests/test_telecom_gateway.py
 
-# 2. Train and export the ONNX model from scratch
+# 2. Train and export the ONNX model from scratch (in-graph TF-IDF + sigmoid-calibrated Logistic Regression)
 uv run python -m app.telecom.train_onnx_model
 
 # 3. Simulate high-volume carrier traffic (100–1,000 req/sec)

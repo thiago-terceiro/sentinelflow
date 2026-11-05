@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { NavSignInButton } from "@/components/NavSignInButton";
@@ -11,10 +12,12 @@ type Props = {
 };
 
 export const NavbarUserControls = ({ initialHasSession, initialSessionLabel }: Props) => {
+  const pathname = usePathname();
   const { hasSession, username, isResetting, clearSession, resetAllToDefaults } =
     useSentinelPulse();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  const hideResetButton = pathname === "/" || pathname === "/disputes" || pathname === "/login";
   const effectiveHasSession = hasSession && !isSigningOut;
   const formattedUsername = username
     ? username.charAt(0).toUpperCase() + username.slice(1)
@@ -55,26 +58,28 @@ export const NavbarUserControls = ({ initialHasSession, initialSessionLabel }: P
         whiteSpace: "nowrap",
       }}
     >
-      <button
-        type="button"
-        onClick={() => void handleReset()}
-        disabled={isResetting}
-        aria-label="Reset all disputes and telemetry to defaults"
-        title="Reset database disputes, investigations, and telemetry to default state"
-        style={{
-          fontSize: 12,
-          padding: "3px 10px",
-          borderRadius: 999,
-          border: "1px solid var(--panel-border)",
-          background: "rgba(255,255,255,0.04)",
-          color: "var(--muted)",
-          cursor: isResetting ? "not-allowed" : "pointer",
-          fontWeight: 500,
-          transition: "color 0.15s ease, border-color 0.15s ease",
-        }}
-      >
-        {isResetting ? "Resetting..." : "↻ Reset"}
-      </button>
+      {!hideResetButton ? (
+        <button
+          type="button"
+          onClick={() => void handleReset()}
+          disabled={isResetting}
+          aria-label="Reset all disputes and telemetry to defaults"
+          title="Reset database disputes, investigations, and telemetry to default state"
+          style={{
+            fontSize: 12,
+            padding: "3px 10px",
+            borderRadius: 999,
+            border: "1px solid var(--panel-border)",
+            background: "rgba(255,255,255,0.04)",
+            color: "var(--muted)",
+            cursor: isResetting ? "not-allowed" : "pointer",
+            fontWeight: 500,
+            transition: "color 0.15s ease, border-color 0.15s ease",
+          }}
+        >
+          {isResetting ? "Resetting..." : "↻ Reset"}
+        </button>
+      ) : null}
 
       {effectiveHasSession && formattedUsername ? (
         <span

@@ -1,8 +1,37 @@
 """MLOps Data Drift Monitor for SentinelPulse.
 
 Performs online distribution drift analysis on production telecom traffic using
-Kolmogorov-Smirnov (KS) two-sample test on message length and Population Stability
-Index (PSI) on fraud score distributions against the training baseline.
+Kolmogorov-Smirnov (KS) two-sample test on message length (feature drift),
+non-ASCII/URL-density telemetry, and Population Stability Index (PSI) on fraud score
+distributions (prediction drift) against the training baseline.
+
+Systems & ML Architecture Trade-Off (Honest Drift & Ground-Truth Governance):
+1. Delayed Ground-Truth Problem & Unsupervised Early-Warning Triggers:
+   - Telecom carriers do not possess wire-speed ground-truth labels at ingress (<15ms).
+     Smishing reports and credit card chargebacks arrive days or weeks later. Traditional
+     supervised metrics (real-time accuracy, precision, F1) cannot run online.
+   - SentinelPulse relies on unsupervised statistical early-warning triggers:
+     * Feature Drift: Two-sample KS test on message character lengths plus tracking of
+       non-ASCII character ratios (homoglyph/zero-width attacks) and URL density.
+       A KS p-value < 0.05 rejects the null hypothesis of identical feature distributions.
+     * Prediction Drift: Population Stability Index (PSI) across score deciles.
+       PSI < 0.10 indicates stable operation, 0.10 <= PSI < 0.25 indicates moderate shift,
+       and PSI >= 0.25 flags critical distribution shift warranting investigation.
+
+2. Provenance-Gated Active Learning Staging Pipeline:
+   - Ambiguous traffic in the FLAG range (0.40–0.75) and high-severity anomalies are escalated
+     durably via Redis arq into SentinelFlow.
+   - SentinelFlow's multi-agent LangGraph workflow conducts deep forensic evidence gathering
+     and triggers human-in-the-loop steering via native interrupt().
+   - Strict Active Learning Governance Gate:
+     Adjudicated human reviewer decisions NEVER immediately modify production weights.
+     Instead, reviewer decisions enter an isolated STAGING CANDIDATE DATASET requiring:
+       a. Multi-reviewer consensus or confirmed carrier chargeback verification (preventing
+          subjective single-operator bias from corrupting model boundaries).
+       b. Deduplication and cryptographic SHA-256 provenance linkage in the dispute ledger.
+       c. Automated offline evaluation regression pass via evaluate_model.py ensuring that
+          the candidate retrained ONNX model passes accuracy/F1/ROC-AUC floors and exhibits
+          zero performance regressions on hard negative transactional SMS before promotion.
 """
 
 from __future__ import annotations
@@ -150,6 +179,8 @@ class DataDriftMonitor:
         self.window_size = window_size
         self._message_lengths: collections.deque[int] = collections.deque(maxlen=window_size)
         self._fraud_scores: collections.deque[float] = collections.deque(maxlen=window_size)
+        self._non_ascii_counts: collections.deque[int] = collections.deque(maxlen=window_size)
+        self._url_presence: collections.deque[int] = collections.deque(maxlen=window_size)
         self._baseline_lengths = np.array(BASELINE_LENGTHS, dtype=float)
         self._baseline_scores = np.array(BASELINE_FRAUD_SCORES, dtype=float)
         self._cached_report: DriftReport | None = None
@@ -160,13 +191,19 @@ class DataDriftMonitor:
         """Clears live observation windows and invalidates the cached drift report."""
         self._message_lengths.clear()
         self._fraud_scores.clear()
+        self._non_ascii_counts.clear()
+        self._url_presence.clear()
         self._cached_report = None
         self._cached_at = 0.0
 
     def record_observation(self, message: str, fraud_score: float) -> None:
-        """Records an incoming message's length and resulting fraud score."""
+        """Records an incoming message's length, encoding density, and resulting fraud score."""
         self._message_lengths.append(len(message))
         self._fraud_scores.append(float(fraud_score))
+        non_ascii = sum(1 for c in message if ord(c) > 127)
+        self._non_ascii_counts.append(non_ascii)
+        has_url = 1 if ("http://" in message or "https://" in message) else 0
+        self._url_presence.append(has_url)
 
     def evaluate_drift(self, force: bool = False) -> DriftReport:
         """Runs Kolmogorov-Smirnov test and Population Stability Index against baseline."""
