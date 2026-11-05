@@ -6,6 +6,7 @@ import Link from "next/link";
 import { NavbarLinks } from "@/components/NavbarLinks";
 import { NavbarUserControls } from "@/components/NavbarUserControls";
 import { SentinelPulseProvider } from "@/components/SentinelPulseProvider";
+import { SentinelWaveDotsCanvas } from "@/components/SentinelWaveDotsCanvas";
 import { StructuredData } from "@/components/StructuredData";
 import { StyleSwitcher } from "@/components/StyleSwitcher";
 import { ACCESS_TOKEN_COOKIE_NAME, TEST_USER_COOKIE_NAME } from "@/lib/testAuth";
@@ -43,7 +44,7 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
     <html
       lang="en"
       data-style="style-2"
-      data-pattern="animated-drift"
+      data-pattern="wave-drift"
       className={`${headline.variable} ${body.variable} ${rounded.variable}`}
     >
       <head>
@@ -56,6 +57,7 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
         <StructuredData />
       </head>
       <body>
+        <SentinelWaveDotsCanvas />
         <SentinelPulseProvider
           initialHasSession={hasSession}
           initialUsername={username || null}

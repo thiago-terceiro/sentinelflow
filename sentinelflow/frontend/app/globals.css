@@ -195,7 +195,8 @@ main {
   }
 }
 
-/* 1. Plain / None */
+/* 1. Wave Drift (Handled by high-performance GPU-composited SentinelWaveDotsCanvas) & Plain / None */
+[data-pattern="wave-drift"] body,
 [data-pattern="none"] body {
   background-image: none !important;
 }

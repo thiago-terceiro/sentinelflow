@@ -25,9 +25,10 @@ const PATTERN_STORAGE_KEY = "sentinelflow_style2_pattern";
 // User requested defaults: font 4 Plus Jakarta Sans and bg color soft slate (#f1f5f9)
 const DEFAULT_STYLE2_BG = "#f1f5f9";
 const DEFAULT_STYLE2_FONT = "4. Plus Jakarta Sans";
-const DEFAULT_STYLE2_PATTERN = "animated-drift";
+const DEFAULT_STYLE2_PATTERN = "wave-drift";
 
 const PATTERN_OPTIONS: PatternOption[] = [
+  { label: "🌊 Wave Drift (Lifting Dots)", value: "wave-drift" },
   { label: "✨ Animated Drift (Moving Dots)", value: "animated-drift" },
   { label: "🌊 Gentle Slow Drift", value: "animated-gentle" },
   { label: "Diagonal Dotted Lines", value: "diagonal-lines" },
