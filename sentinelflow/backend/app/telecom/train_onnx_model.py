@@ -267,28 +267,6 @@ def build_augmented_dataset() -> tuple[list[str], list[int]]:
         texts.append(c)
         labels.append(0)
 
-    # Augment legit store receipts with digital delivery
-    receipt_retailers = ["Target", "Starbucks", "Apple Store", "Walmart", "Best Buy", "Costco", "Home Depot"]
-    for i, rc in enumerate(receipt_retailers):
-        for j in range(3):
-            texts.append(
-                f"{rc} Receipt: Transaction #{10000 + i * 50 + j} paid ${12 + j * 7}.50. E-receipt sent to registered email."
-            )
-            labels.append(0)
-
-    # Additional legit delivery notices & transit status updates
-    carriers = ["USPS", "FedEx", "UPS", "DHL Express", "Amazon Logistics"]
-    for i in range(15):
-        car = carriers[i % len(carriers)]
-        texts.append(
-            f"{car} Alert: Shipment TRK{70000 + i * 11} departed distribution center on schedule. Status: https://{car.lower().replace(' ', '')}.com/track"
-        )
-        labels.append(0)
-        texts.append(
-            f"{car}: Package #US{80000 + i * 13} delivered at in/at mailbox. Details at tools.usps.com/track"
-        )
-        labels.append(0)
-
     # Augment fraud with financial and delivery scams
     banks_fraud = ["Barclays", "HSBC", "Santander", "Lloyds", "NatWest", "Standard Chartered"]
     scam_domains_extra = [

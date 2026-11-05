@@ -7,9 +7,9 @@
   "calibration": {
     "method": "sigmoid",
     "cv_folds": 5,
-    "brier_score_before": 0.0316,
-    "brier_score_after": 0.0171,
-    "brier_score_improvement": 0.0145
+    "brier_score_before": 0.0366,
+    "brier_score_after": 0.0231,
+    "brier_score_improvement": 0.0136
   },
   "input_signature": {
     "text": "StringTensor([None, 1])"
@@ -19,38 +19,38 @@
     "probabilities": "Sequence[Map[Int64, Float]]"
   },
   "validation_metrics": {
-    "test_sample_count": 107,
+    "test_sample_count": 97,
     "precision": 1.0,
-    "recall": 0.9231,
-    "f1_score": 0.96,
-    "roc_auc": 1.0,
-    "pr_auc": 1.0,
-    "brier_score": 0.0171,
+    "recall": 0.8846,
+    "f1_score": 0.9388,
+    "roc_auc": 0.9995,
+    "pr_auc": 0.9986,
+    "brier_score": 0.0231,
     "detailed_report": {
       "0": {
-        "precision": 0.9759036144578314,
+        "precision": 0.9594594594594594,
         "recall": 1.0,
-        "f1-score": 0.9878048780487805,
-        "support": 81.0
+        "f1-score": 0.9793103448275862,
+        "support": 71.0
       },
       "1": {
         "precision": 1.0,
-        "recall": 0.9230769230769231,
-        "f1-score": 0.96,
+        "recall": 0.8846153846153846,
+        "f1-score": 0.9387755102040817,
         "support": 26.0
       },
-      "accuracy": 0.9813084112149533,
+      "accuracy": 0.9690721649484536,
       "macro avg": {
-        "precision": 0.9879518072289157,
-        "recall": 0.9615384615384616,
-        "f1-score": 0.9739024390243902,
-        "support": 107.0
+        "precision": 0.9797297297297297,
+        "recall": 0.9423076923076923,
+        "f1-score": 0.9590429275158339,
+        "support": 97.0
       },
       "weighted avg": {
-        "precision": 0.9817588109447135,
-        "recall": 0.9813084112149533,
-        "f1-score": 0.9810485525416002,
-        "support": 107.0
+        "precision": 0.9703259960991919,
+        "recall": 0.9690721649484536,
+        "f1-score": 0.9684453376089148,
+        "support": 97.0
       }
     }
   },
@@ -60,32 +60,32 @@
     "fraud_count": 200,
     "decision_threshold": 0.5,
     "confusion_matrix": {
-      "tp": 183,
-      "fp": 0,
-      "tn": 200,
-      "fn": 17
+      "tp": 173,
+      "fp": 7,
+      "tn": 193,
+      "fn": 27
     },
-    "precision": 1.0,
-    "recall": 0.915,
-    "f1_score": 0.9556,
-    "roc_auc": 1.0,
-    "pr_auc": 1.0,
-    "brier_score": 0.0661,
-    "false_positive_rate": 0.0,
-    "false_negative_rate": 0.085,
+    "precision": 0.9611,
+    "recall": 0.865,
+    "f1_score": 0.9105,
+    "roc_auc": 0.988,
+    "pr_auc": 0.9882,
+    "brier_score": 0.0883,
+    "false_positive_rate": 0.035,
+    "false_negative_rate": 0.135,
     "tier1_escalation": {
       "threshold": 0.4,
       "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
       "confusion_matrix": {
         "tp": 200,
-        "fp": 0,
-        "tn": 200,
+        "fp": 16,
+        "tn": 184,
         "fn": 0
       },
-      "precision": 1.0,
+      "precision": 0.9259,
       "recall": 1.0,
-      "f1_score": 1.0,
-      "false_positive_rate": 0.0
+      "f1_score": 0.9615,
+      "false_positive_rate": 0.08
     },
     "tier2_block": {
       "threshold": 0.75,
@@ -103,10 +103,10 @@
     },
     "evaluator": "ONNXRuntime-CPU",
     "model_artifact": "sms_fraud_model.onnx",
-    "model_artifact_size_bytes": 200279,
-    "model_artifact_size_kb": 195.58,
-    "brier_score_before_calibration": 0.0316,
-    "brier_score_after_calibration": 0.0171
+    "model_artifact_size_bytes": 188940,
+    "model_artifact_size_kb": 184.51,
+    "brier_score_before_calibration": 0.0366,
+    "brier_score_after_calibration": 0.0231
   },
   "operating_thresholds": {
     "allow_below": 0.4,

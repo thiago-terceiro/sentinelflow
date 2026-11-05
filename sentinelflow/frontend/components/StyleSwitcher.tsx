@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface BgPreset {
   label: string;
@@ -64,7 +64,11 @@ export const StyleSwitcher = () => {
   const [currentBg, setCurrentBg] = useState<string>(DEFAULT_STYLE2_BG);
   const [currentFont, setCurrentFont] = useState<string>(DEFAULT_STYLE2_FONT);
   const [currentPattern, setCurrentPattern] = useState<string>(DEFAULT_STYLE2_PATTERN);
+  const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let savedTheme: string | null = null;
@@ -103,6 +107,33 @@ export const StyleSwitcher = () => {
 
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+        triggerButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   const handleSelectTheme = (theme: "light" | "dark") => {
     setCurrentTheme(theme);
@@ -155,110 +186,223 @@ export const StyleSwitcher = () => {
   }
 
   return (
-    <div
-      role="group"
-      aria-label="Theme and Typography Controls"
-      className="style-controls-group"
-    >
-      {/* Theme Switcher before Font Dropdown */}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <label htmlFor="theme-select" style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>
-          Theme:
-        </label>
-        <select
-          id="theme-select"
-          value={currentTheme}
-          onChange={(e) => handleSelectTheme(e.target.value as "light" | "dark")}
-          className="font-picker-select"
-          aria-label="Select theme mode"
-          title="Select theme mode (Light or Dark)"
-        >
-          <option value="light">☀️ Light</option>
-          <option value="dark">🌙 Dark</option>
-        </select>
-      </div>
-
-      {/* 10-Font Dropdown Selector */}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <label htmlFor="font-select" style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>
-          Font:
-        </label>
-        <select
-          id="font-select"
-          value={currentFont}
-          onChange={(e) => handleSelectFont(e.target.value)}
-          className="font-picker-select"
-          aria-label="Select typography font"
-          title="Select one of 10 fonts to preview"
-        >
-          {FONT_OPTIONS.map((f) => (
-            <option key={f.label} value={f.label}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Simple Background Color Palette Control */}
-      <div
-        role="radiogroup"
-        aria-label="Background Color Palette"
-        className="bg-palette-toolbar"
+    <div style={{ position: "relative" }} ref={containerRef}>
+      {/* Tidy Navbar Trigger Button */}
+      <button
+        ref={triggerButtonRef}
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        aria-controls="accessibility-appearance-menu"
+        aria-label="Appearance and accessibility preferences"
+        title="Appearance & accessibility preferences (Theme, Font, Background)"
+        style={{
+          minWidth: 44,
+          minHeight: 44,
+          width: 44,
+          height: 44,
+          padding: 0,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 8,
+          border: "1px solid var(--panel-border)",
+          background: isOpen ? "var(--accent-soft, #dbeafe)" : "transparent",
+          color: isOpen ? "var(--accent, #1e3a8a)" : "var(--foreground)",
+          cursor: "pointer",
+          fontSize: 18,
+          transition: "background 0.15s ease, border-color 0.15s ease",
+        }}
+        className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
       >
-        <span className="bg-palette-label">BG:</span>
-        {BG_PRESETS.map((preset) => (
-          <button
-            key={preset.value}
-            type="button"
-            role="radio"
-            aria-checked={currentBg.toLowerCase() === preset.value.toLowerCase()}
-            aria-label={`Set background color to ${preset.label}`}
-            title={`${preset.label} (${preset.value})`}
-            onClick={() => handleSelectBg(preset.value)}
-            className={`bg-palette-swatch ${
-              currentBg.toLowerCase() === preset.value.toLowerCase() ? "is-active" : ""
-            }`}
-            style={{ backgroundColor: preset.value }}
-          />
-        ))}
+        <span aria-hidden="true">🎨</span>
+      </button>
 
-        {/* Custom Color Input Swatch */}
-        <label
-          title="Custom background color"
-          className="bg-palette-picker-btn"
-          aria-label="Pick custom background color"
+      {/* Tidy Appearance Dropdown Menu */}
+      {isOpen ? (
+        <div
+          id="accessibility-appearance-menu"
+          role="dialog"
+          aria-label="Appearance and accessibility preferences"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 0,
+            width: 320,
+            maxWidth: "92vw",
+            background: "var(--panel, #ffffff)",
+            border: "1px solid var(--panel-border)",
+            borderRadius: 12,
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.08)",
+            padding: "16px 18px",
+            zIndex: 100,
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
         >
-          <span aria-hidden="true">🎨</span>
-          <input
-            type="color"
-            value={currentBg}
-            onChange={(e) => handleSelectBg(e.target.value)}
-            className="bg-palette-picker-input"
-            aria-label="Custom background color picker"
-          />
-        </label>
-      </div>
+          {/* Header with Title and Close Button */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingBottom: 10,
+              borderBottom: "1px solid var(--panel-border)",
+            }}
+          >
+            <div>
+              <strong style={{ fontSize: 13, color: "var(--foreground)", display: "block" }}>
+                Appearance Preferences
+              </strong>
+              <span style={{ fontSize: 11, color: "var(--muted)" }}>
+                Theme, typography &amp; background
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                triggerButtonRef.current?.focus();
+              }}
+              aria-label="Close preferences menu"
+              style={{
+                minWidth: 44,
+                minHeight: 44,
+                background: "transparent",
+                border: "none",
+                color: "var(--foreground)",
+                fontSize: 16,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 6,
+              }}
+              className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            >
+              ✕
+            </button>
+          </div>
 
-      {/* Background Pattern Selector */}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-        <label htmlFor="pattern-select" style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>
-          Pattern:
-        </label>
-        <select
-          id="pattern-select"
-          value={currentPattern}
-          onChange={(e) => handleSelectPattern(e.target.value)}
-          className="font-picker-select"
-          aria-label="Select background pattern"
-          title="Select background pattern"
-        >
-          {PATTERN_OPTIONS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          {/* Theme Mode Selector */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="theme-select"
+              style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}
+            >
+              Theme Mode:
+            </label>
+            <select
+              id="theme-select"
+              value={currentTheme}
+              onChange={(e) => handleSelectTheme(e.target.value as "light" | "dark")}
+              className="font-picker-select"
+              style={{ minHeight: 44, height: 44, width: "100%", borderRadius: 6 }}
+              aria-label="Select theme mode"
+            >
+              <option value="light">☀️ Light Mode</option>
+              <option value="dark">🌙 Dark Mode</option>
+            </select>
+          </div>
+
+          {/* Typography Font Selector */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="font-select"
+              style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}
+            >
+              Typography Font:
+            </label>
+            <select
+              id="font-select"
+              value={currentFont}
+              onChange={(e) => handleSelectFont(e.target.value)}
+              className="font-picker-select"
+              style={{ minHeight: 44, height: 44, width: "100%", borderRadius: 6 }}
+              aria-label="Select typography font"
+            >
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.label} value={f.label}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Background Canvas Palette */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <span
+              id="bg-palette-heading"
+              style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}
+            >
+              Background Canvas:
+            </span>
+            <div
+              role="radiogroup"
+              aria-labelledby="bg-palette-heading"
+              style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
+            >
+              {BG_PRESETS.map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={currentBg.toLowerCase() === preset.value.toLowerCase()}
+                  aria-label={`Set background color to ${preset.label}`}
+                  title={`${preset.label} (${preset.value})`}
+                  onClick={() => handleSelectBg(preset.value)}
+                  className={`bg-palette-swatch ${
+                    currentBg.toLowerCase() === preset.value.toLowerCase() ? "is-active" : ""
+                  }`}
+                  style={{ backgroundColor: preset.value }}
+                />
+              ))}
+
+              <label
+                title="Custom background color"
+                className="bg-palette-picker-btn"
+                aria-label="Pick custom background color"
+              >
+                <span aria-hidden="true">🎨</span>
+                <input
+                  type="color"
+                  value={currentBg}
+                  onChange={(e) => handleSelectBg(e.target.value)}
+                  className="bg-palette-picker-input"
+                  aria-label="Custom background color picker"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Background Pattern Selector */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="pattern-select"
+              style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}
+            >
+              Background Pattern:
+            </label>
+            <select
+              id="pattern-select"
+              value={currentPattern}
+              onChange={(e) => handleSelectPattern(e.target.value)}
+              className="font-picker-select"
+              style={{ minHeight: 44, height: 44, width: "100%", borderRadius: 6 }}
+              aria-label="Select background pattern"
+            >
+              {PATTERN_OPTIONS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

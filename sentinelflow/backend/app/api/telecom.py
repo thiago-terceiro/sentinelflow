@@ -50,6 +50,8 @@ _subscribers_lock = asyncio.Lock()
 
 async def broadcast_telecom_event(event: dict[str, Any]) -> None:
     """Dispatches a real-time event to all connected dashboard SSE streams."""
+    if not _subscribers:
+        return
     async with _subscribers_lock:
         active_subs = list(_subscribers)
 
@@ -407,23 +409,24 @@ async def _process_single_message(
         escalated_dispute_url=escalated_dispute_url,
     )
 
-    # 6. Stream live event to connected frontend dashboard (with PII redacted)
-    stream_payload = {
-        "id": eid,
-        "timestamp": time.time(),
-        "sender": masked_sender,
-        "recipient": masked_recipient,
-        "message": safe_message,
-        "verdict": verdict,
-        "fraud_score": round(composite_score, 4),
-        "latency_ms": total_latency_ms,
-        "signals": combined_signals,
-        "carrier": velocity_metrics.carrier,
-        "velocity": velocity_dict,
-        "escalated_dispute_id": escalated_dispute_id,
-        "escalated_dispute_url": escalated_dispute_url,
-    }
-    await broadcast_telecom_event(stream_payload)
+    # 6. Stream live event to connected frontend dashboard (with PII redacted) if subscribers active
+    if _subscribers:
+        stream_payload = {
+            "id": eid,
+            "timestamp": time.time(),
+            "sender": masked_sender,
+            "recipient": masked_recipient,
+            "message": safe_message,
+            "verdict": verdict,
+            "fraud_score": round(composite_score, 4),
+            "latency_ms": total_latency_ms,
+            "signals": combined_signals,
+            "carrier": velocity_metrics.carrier,
+            "velocity": velocity_dict,
+            "escalated_dispute_id": escalated_dispute_id,
+            "escalated_dispute_url": escalated_dispute_url,
+        }
+        await broadcast_telecom_event(stream_payload)
 
     return response_payload
 

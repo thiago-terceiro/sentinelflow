@@ -214,6 +214,41 @@ const main = async () => {
     console.warn(`  ⚠️ Interactive test warning: ${err.message}`);
   }
 
+  // 4. Dynamic State: Appearance & Accessibility Preferences Dropdown Menu
+  console.log(`\nAuditing Interactive State: Appearance & Preferences Dropdown Menu...`);
+  try {
+    await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
+    const menuBtn = await page.$('button[aria-label="Appearance and accessibility preferences"]');
+    if (menuBtn) {
+      await menuBtn.click();
+      await page.waitForTimeout(300);
+      await page.evaluate(axeSource);
+      const menuAxe = await page.evaluate(async () => {
+        return await window.axe.run(document, {
+          runOnly: {
+            type: "tag",
+            values: ["wcag2aaa", "wcag21aaa", "wcag22aaa", "wcag2aa", "wcag21aa", "best-practice"],
+          },
+        });
+      });
+      if (menuAxe.violations.length > 0) {
+        console.log(`  ❌ Appearance Menu Axe violations: ${menuAxe.violations.length}`);
+        for (const v of menuAxe.violations) {
+          console.log(`     - [${v.impact?.toUpperCase()}] ${v.id}: ${v.help} (${v.nodes.length} nodes)`);
+          for (const n of v.nodes) {
+            console.log(`       Node: ${n.html}`);
+            console.log(`       Summary: ${n.failureSummary}`);
+          }
+          totalFailures += v.nodes.length;
+        }
+      } else {
+        console.log(`  ✅ Appearance Menu: 0 Axe violations with menu opened`);
+      }
+    }
+  } catch (err) {
+    console.warn(`  ⚠️ Appearance menu test warning: ${err.message}`);
+  }
+
   await browser.close();
 
   console.log(`\n------------------------------------------------------`);

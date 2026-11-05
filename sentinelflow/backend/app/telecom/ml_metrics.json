@@ -1,181 +1,54 @@
 {
-  "timestamp": "2026-11-05T22:19:09Z",
-  "environment": {
-    "cpu_model": "12th Gen Intel(R) Core(TM) i5-12450H",
-    "cpu_cores": 12,
-    "os_platform": "Windows 11 (AMD64)",
-    "python_version": "3.12.7",
-    "onnxruntime_version": "1.31.0",
-    "scikit_learn_version": "1.9.1",
-    "model_artifact": "sms_fraud_model.onnx",
-    "model_artifact_size_bytes": 200279,
-    "model_artifact_size_kb": 195.58
+  "sample_count": 400,
+  "benign_count": 200,
+  "fraud_count": 200,
+  "decision_threshold": 0.5,
+  "confusion_matrix": {
+    "tp": 173,
+    "fp": 7,
+    "tn": 193,
+    "fn": 27
   },
-  "evaluation": {
-    "sample_count": 400,
-    "benign_count": 200,
-    "fraud_count": 200,
-    "decision_threshold": 0.5,
+  "precision": 0.9611,
+  "recall": 0.865,
+  "f1_score": 0.9105,
+  "roc_auc": 0.988,
+  "pr_auc": 0.9882,
+  "brier_score": 0.0883,
+  "false_positive_rate": 0.035,
+  "false_negative_rate": 0.135,
+  "tier1_escalation": {
+    "threshold": 0.4,
+    "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
     "confusion_matrix": {
-      "tp": 183,
+      "tp": 200,
+      "fp": 16,
+      "tn": 184,
+      "fn": 0
+    },
+    "precision": 0.9259,
+    "recall": 1.0,
+    "f1_score": 0.9615,
+    "false_positive_rate": 0.08
+  },
+  "tier2_block": {
+    "threshold": 0.75,
+    "description": "BLOCK (Immediate Carrier Wire Drop)",
+    "confusion_matrix": {
+      "tp": 136,
       "fp": 0,
       "tn": 200,
-      "fn": 17
+      "fn": 64
     },
     "precision": 1.0,
-    "recall": 0.915,
-    "f1_score": 0.9556,
-    "roc_auc": 1.0,
-    "pr_auc": 1.0,
-    "brier_score": 0.0661,
-    "false_positive_rate": 0.0,
-    "false_negative_rate": 0.085,
-    "tier1_escalation": {
-      "threshold": 0.4,
-      "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
-      "confusion_matrix": {
-        "tp": 200,
-        "fp": 0,
-        "tn": 200,
-        "fn": 0
-      },
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1_score": 1.0,
-      "false_positive_rate": 0.0
-    },
-    "tier2_block": {
-      "threshold": 0.75,
-      "description": "BLOCK (Immediate Carrier Wire Drop)",
-      "confusion_matrix": {
-        "tp": 136,
-        "fp": 0,
-        "tn": 200,
-        "fn": 64
-      },
-      "precision": 1.0,
-      "recall": 0.68,
-      "f1_score": 0.8095,
-      "false_positive_rate": 0.0
-    },
-    "evaluator": "ONNXRuntime-CPU",
-    "model_artifact": "sms_fraud_model.onnx",
-    "model_artifact_size_bytes": 200279,
-    "model_artifact_size_kb": 195.58,
-    "brier_score_before_calibration": 0.0316,
-    "brier_score_after_calibration": 0.0171
+    "recall": 0.68,
+    "f1_score": 0.8095,
+    "false_positive_rate": 0.0
   },
-  "benchmarks": {
-    "cold_start": {
-      "sklearn_fit_and_first_infer_ms": 121.139,
-      "onnx_session_init_and_first_infer_ms": 63.043
-    },
-    "batches": {
-      "batch_1": {
-        "batch_size": 1,
-        "warm_runs": 2000,
-        "sklearn": {
-          "p50_us": 6279.6,
-          "p90_us": 7813.14,
-          "p95_us": 8584.86,
-          "p99_us": 11210.57,
-          "mean_us": 6527.84
-        },
-        "onnx": {
-          "p50_us": 176.15,
-          "p90_us": 228.21,
-          "p95_us": 274.4,
-          "p99_us": 532.07,
-          "mean_us": 197.65
-        },
-        "speedup_multiplier": 33.03
-      },
-      "batch_32": {
-        "batch_size": 32,
-        "warm_runs": 2000,
-        "sklearn": {
-          "p50_us": 7566.95,
-          "p90_us": 9128.11,
-          "p95_us": 9870.08,
-          "p99_us": 12037.18,
-          "mean_us": 7792.79
-        },
-        "onnx": {
-          "p50_us": 1852.3,
-          "p90_us": 2120.63,
-          "p95_us": 2307.86,
-          "p99_us": 2893.18,
-          "mean_us": 1725.68
-        },
-        "speedup_multiplier": 4.52
-      },
-      "batch_100": {
-        "batch_size": 100,
-        "warm_runs": 2000,
-        "sklearn": {
-          "p50_us": 9710.8,
-          "p90_us": 11552.84,
-          "p95_us": 12506.45,
-          "p99_us": 15215.9,
-          "mean_us": 9641.84
-        },
-        "onnx": {
-          "p50_us": 5438.15,
-          "p90_us": 6465.95,
-          "p95_us": 7000.74,
-          "p99_us": 8391.42,
-          "mean_us": 5422.19
-        },
-        "speedup_multiplier": 1.78
-      }
-    },
-    "components": {
-      "heuristics_regex_us": {
-        "p50_us": 69.3,
-        "p90_us": 91.6,
-        "p95_us": 94.01,
-        "p99_us": 217.28,
-        "mean_us": 79.45
-      },
-      "velocity_store_ms": {
-        "p50_ms": 0.01,
-        "p90_ms": 0.018,
-        "p95_ms": 0.021,
-        "p99_ms": 0.027,
-        "mean_ms": 0.041
-      }
-    },
-    "concurrency": {
-      "concurrency_1": {
-        "concurrency": 1,
-        "total_requests": 100,
-        "throughput_req_per_sec": 117.0,
-        "p50_ms": 7.03,
-        "p90_ms": 8.35,
-        "p95_ms": 8.87,
-        "p99_ms": 11.72,
-        "mean_ms": 8.5
-      },
-      "concurrency_4": {
-        "concurrency": 4,
-        "total_requests": 100,
-        "throughput_req_per_sec": 187.1,
-        "p50_ms": 17.62,
-        "p90_ms": 24.71,
-        "p95_ms": 25.47,
-        "p99_ms": 30.07,
-        "mean_ms": 19.0
-      },
-      "concurrency_8": {
-        "concurrency": 8,
-        "total_requests": 100,
-        "throughput_req_per_sec": 182.8,
-        "p50_ms": 36.96,
-        "p90_ms": 43.51,
-        "p95_ms": 44.84,
-        "p99_ms": 45.66,
-        "mean_ms": 36.82
-      }
-    }
-  }
+  "evaluator": "ONNXRuntime-CPU",
+  "model_artifact": "sms_fraud_model.onnx",
+  "model_artifact_size_bytes": 188940,
+  "model_artifact_size_kb": 184.51,
+  "brier_score_before_calibration": 0.0366,
+  "brier_score_after_calibration": 0.0231
 }
