@@ -14,8 +14,8 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   if (verdict === "BLOCK") {
     return {
       bg: "#fee2e2",
-      color: "#991b1b",
-      border: "1px solid #b91c1c",
+      color: "#7f1d1d",
+      border: "1px solid #991b1b",
     };
   }
   if (verdict === "FLAG") {
@@ -363,8 +363,8 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                           padding: "2px 6px",
                           borderRadius: 4,
                           background: sig.startsWith("RULE:") ? "#fee2e2" : "#dbeafe",
-                          color: sig.startsWith("RULE:") ? "#991b1b" : "#1e3a8a",
-                          border: sig.startsWith("RULE:") ? "1px solid #b91c1c" : "1px solid #93c5fd",
+                          color: sig.startsWith("RULE:") ? "#7f1d1d" : "#1e3a8a",
+                          border: sig.startsWith("RULE:") ? "1px solid #991b1b" : "1px solid #93c5fd",
                         }}
                       >
                         {sig}
@@ -394,6 +394,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                       <Link
                         href={escalated.url}
                         prefetch={true}
+                        aria-label={`Investigate in SentinelFlow: dispute ${escalated.case_code || ev.sender}`}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
@@ -416,7 +417,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                       <button
                         type="button"
                         disabled={isEscalatingThis}
-                        aria-label={`Escalate ${ev.carrier} alert for ${ev.sender} (${ev.verdict}) to SentinelFlow`}
+                        aria-label={`Escalate to SentinelFlow: ${ev.carrier} alert for ${ev.sender} (${ev.verdict})`}
                         onClick={() => {
                           void handleEscalate(ev);
                         }}

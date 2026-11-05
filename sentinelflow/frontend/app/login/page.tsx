@@ -182,14 +182,18 @@ const LoginPage = () => {
             type="submit"
             style={{
               marginTop: 6,
-              padding: "10px 16px",
+              minHeight: 44,
+              padding: "12px 20px",
               borderRadius: 8,
               border: "1px solid var(--border-strong)",
-              background: "var(--accent)",
+              background: "var(--accent, #1e3a8a)",
               color: "white",
+              fontWeight: 700,
+              fontSize: 14,
               cursor: "pointer",
               width: "fit-content",
             }}
+            className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           >
             Sign in
           </button>
@@ -229,28 +233,37 @@ const LoginPage = () => {
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
                     type="button"
+                    aria-label={`Use account: credentials for ${user.label}`}
                     onClick={() => applyAccount(user.role, user.username, user.password)}
                     style={{
-                      padding: "8px 12px",
+                      minHeight: 44,
+                      padding: "10px 16px",
                       borderRadius: 8,
                       border: "1px solid var(--border-strong)",
                       background: "transparent",
+                      color: "var(--foreground)",
+                      fontWeight: 600,
                       cursor: "pointer",
                     }}
+                    className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                   >
                     Use account
                   </button>
                   <button
                     type="button"
+                    aria-label={`Copy credentials for ${user.label}`}
                     onClick={() => void copyAccount(user.role, user.username, user.password)}
                     style={{
-                      padding: "8px 12px",
+                      minHeight: 44,
+                      padding: "10px 16px",
                       borderRadius: 8,
                       border: "1px solid var(--border)",
                       background: "transparent",
-                      color: "var(--muted)",
+                      color: "var(--foreground)",
+                      fontWeight: 600,
                       cursor: "pointer",
                     }}
+                    className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                   >
                     Copy
                   </button>

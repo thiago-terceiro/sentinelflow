@@ -13,8 +13,8 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   if (verdict === "BLOCK") {
     return {
       bg: "#fee2e2",
-      color: "#991b1b",
-      border: "1px solid #b91c1c",
+      color: "#7f1d1d",
+      border: "1px solid #991b1b",
     };
   }
   if (verdict === "FLAG") {
@@ -185,7 +185,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           >
             Quick Test Presets
           </span>
-          <span style={{ fontSize: 11, color: "var(--muted)", opacity: 0.85 }}>
+          <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>
             Select scenario
           </span>
         </div>
