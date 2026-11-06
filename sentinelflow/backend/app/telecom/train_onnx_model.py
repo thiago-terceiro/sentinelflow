@@ -16,6 +16,7 @@ from typing import Any
 
 from app.telecom.evaluate_model import (
     evaluate_onnx_model,
+    export_markdown_report,
     export_ml_metrics,
     get_held_out_evaluation_set,
 )
@@ -127,23 +128,49 @@ FRAUDULENT_MESSAGES: list[str] = [
 ]
 
 
+def extract_template_family_id(
+    text: str, label: int, explicit_family: str | None = None
+) -> str:
+    """Assigns a stable template_family_id based on normalized base text structure without variables.
+
+    Normalizes variable components: URLs, codes, phone numbers, monetary amounts,
+    reference IDs, digits, and whitespace, hashing the canonical structure into a
+    deterministic identifier.
+    """
+    if explicit_family is not None:
+        return explicit_family
+
+    norm = text
+    norm = re.sub(r"https?://\S+|www\.\S+", "<URL>", norm, flags=re.IGNORECASE)
+    norm = re.sub(r"[\$€£]\s*\d+(?:[.,]\d+)?", "<MONEY>", norm)
+    norm = re.sub(r"#\s*[A-Za-z0-9_\-]+", "<REF_ID>", norm)
+    norm = re.sub(r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b", "<PHONE>", norm)
+    norm = re.sub(r"\b\d{4,}\b", "<CODE>", norm)
+    norm = re.sub(r"\b\d+\b", "<DIGIT>", norm)
+    norm = re.sub(r"\s+", " ", norm).strip().lower()
+    h = hashlib.sha256(norm.encode("utf-8")).hexdigest()[:12]
+    tag = "fraud" if label == 1 else "legit"
+    return f"{tag}_tf_{h}"
+
+
 def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
     """Generates an augmented, balanced dataset of telecom SMS samples with template-family grouping."""
     texts: list[str] = []
     labels: list[int] = []
     groups: list[str] = []
 
-    # Add base legitimate messages
-    for idx, msg in enumerate(LEGITIMATE_MESSAGES):
+    def _add_sample(msg: str, lbl: int, explicit_family: str | None = None) -> None:
         texts.append(msg)
-        labels.append(0)
-        groups.append(f"legit_base_{idx}")
+        labels.append(lbl)
+        groups.append(extract_template_family_id(msg, lbl, explicit_family))
+
+    # Add base legitimate messages
+    for msg in LEGITIMATE_MESSAGES:
+        _add_sample(msg, 0)
 
     # Add base fraudulent messages
-    for idx, msg in enumerate(FRAUDULENT_MESSAGES):
-        texts.append(msg)
-        labels.append(1)
-        groups.append(f"fraud_base_{idx}")
+    for msg in FRAUDULENT_MESSAGES:
+        _add_sample(msg, 1)
 
     # Augment with variations (sender numbers, token variants, brand names)
     brands = [
@@ -166,11 +193,10 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
     for brand in brands:
         brand_key = brand.lower().replace(" ", "")
         for domain in scam_domains:
-            texts.append(
-                f"URGENT: {brand} security alert! Unusual sign-in detected. Confirm identity: http://{brand_key}-{domain}"
+            _add_sample(
+                f"URGENT: {brand} security alert! Unusual sign-in detected. Confirm identity: http://{brand_key}-{domain}",
+                1,
             )
-            labels.append(1)
-            groups.append(f"fraud_brand_{brand_key}")
 
     # Augment legit 2FA & transactional notifications
     service_names = [
@@ -186,13 +212,11 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
         "Discord",
     ]
     for service in service_names:
-        srv_key = service.lower()
         for code in [192840, 582910, 394821, 910283, 401928]:
-            texts.append(
-                f"{service} security code: {code}. It expires in 5 minutes. Never share this with anyone."
+            _add_sample(
+                f"{service} security code: {code}. It expires in 5 minutes. Never share this with anyone.",
+                0,
             )
-            labels.append(0)
-            groups.append(f"legit_2fa_{srv_key}")
 
     # Augment legit banking notifications (teaching model that legitimate banking alerts exist)
     legit_banks = [
@@ -200,92 +224,78 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
         "PNC Bank", "TD Bank", "US Bank"
     ]
     for i, b in enumerate(legit_banks):
-        b_key = b.lower().replace(" ", "")
         for j in range(5):
-            texts.append(
-                f"{b} Update: Your checking account ending in {1000 + i * 100 + j} monthly statement is ready to view."
+            _add_sample(
+                f"{b} Update: Your checking account ending in {1000 + i * 100 + j} monthly statement is ready to view.",
+                0,
             )
-            labels.append(0)
-            groups.append(f"legit_bank_{b_key}")
-            texts.append(
-                f"{b}: Autopay confirmation for your utility bill payment of ${45 + j * 10}.00 processed."
+            _add_sample(
+                f"{b}: Autopay confirmation for your utility bill payment of ${45 + j * 10}.00 processed.",
+                0,
             )
-            labels.append(0)
-            groups.append(f"legit_bank_{b_key}")
-            texts.append(
-                f"{b} Alert: Direct deposit of ${800 + j * 150}.00 from employer payroll posted successfully."
+            _add_sample(
+                f"{b} Alert: Direct deposit of ${800 + j * 150}.00 from employer payroll posted successfully.",
+                0,
             )
-            labels.append(0)
-            groups.append(f"legit_bank_{b_key}")
 
     # Augment legit retail receipts & store pickups
     retail_chains = ["Target", "Walmart", "Best Buy", "Costco", "Starbucks", "Home Depot"]
     for i, r in enumerate(retail_chains):
-        r_key = r.lower().replace(" ", "")
         for j in range(4):
-            texts.append(
-                f"{r} eReceipt: Order #{20000 + i * 100 + j} was paid in store. Thank you for your business."
+            _add_sample(
+                f"{r} eReceipt: Order #{20000 + i * 100 + j} was paid in store. Thank you for your business.",
+                0,
             )
-            labels.append(0)
-            groups.append(f"legit_retail_{r_key}")
-            texts.append(
-                f"{r} Curbside: Order #{30000 + i * 100 + j} is ready for pickup in designated space."
+            _add_sample(
+                f"{r} Curbside: Order #{30000 + i * 100 + j} is ready for pickup in designated space.",
+                0,
             )
-            labels.append(0)
-            groups.append(f"legit_retail_{r_key}")
 
     # Augment legit travel & airline notifications
     airlines = ["Delta Air Lines", "United Airlines", "American Airlines", "Southwest Airlines"]
     for i, a in enumerate(airlines):
-        a_key = a.lower().replace(" ", "")
         for j in range(5):
-            texts.append(
-                f"{a}: Flight confirmation #{4000 + i * 10 + j}. Check-in opens 24 hours prior to departure."
+            _add_sample(
+                f"{a}: Flight confirmation #{4000 + i * 10 + j}. Check-in opens 24 hours prior to departure.",
+                0,
             )
-            labels.append(0)
-            groups.append(f"legit_airline_{a_key}")
-            texts.append(
-                f"{a} Gate Info: Your scheduled departure is on time at Gate {chr(65 + i)}{10 + j}."
+            _add_sample(
+                f"{a} Gate Info: Your scheduled departure is on time at Gate {chr(65 + i)}{10 + j}.",
+                0,
             )
-            labels.append(0)
-            groups.append(f"legit_airline_{a_key}")
 
     # Augment legit healthcare notifications
     for i in range(20):
-        texts.append(
-            f"MyChart Notification: Patient test results #{5000 + i} from Dr. Taylor are now available online."
+        _add_sample(
+            f"MyChart Notification: Patient test results #{5000 + i} from Dr. Taylor are now available online.",
+            0,
         )
-        labels.append(0)
-        groups.append(f"legit_health_mychart_{i // 4}")
-        texts.append(
-            f"Pharmacy Refill: Prescription #{6000 + i} is filled and ready for pickup at local counter."
+        _add_sample(
+            f"Pharmacy Refill: Prescription #{6000 + i} is filled and ready for pickup at local counter.",
+            0,
         )
-        labels.append(0)
-        groups.append(f"legit_health_pharmacy_{i // 4}")
 
     # Augment legit conversational messages
     conversations = [
-        ("Are we still on for lunch tomorrow afternoon?", "legit_convo_lunch"),
-        ("Don't forget to lock the garage door on your way out.", "legit_convo_garage"),
-        ("The kids had so much fun at the science museum today!", "legit_convo_museum"),
-        ("Can you send over the slides from yesterday's presentation?", "legit_convo_slides"),
-        ("Hope you have a safe and pleasant flight back home!", "legit_convo_flight"),
-        ("See you at soccer practice on Tuesday evening.", "legit_convo_soccer"),
-        ("Traffic is a bit heavy on highway 101, will be there shortly.", "legit_convo_traffic"),
-        ("Dinner was delicious, thanks for having us over!", "legit_convo_dinner"),
-        ("Let me know if you need any help with the garden this weekend.", "legit_convo_garden"),
-        ("Just finished running at the park, heading home now.", "legit_convo_park"),
-        ("Wishing you a very Happy Birthday and a fantastic year ahead!", "legit_convo_birthday"),
-        ("Happy Birthday! Have an amazing day celebrating with friends!", "legit_convo_birthday"),
-        ("Let me know if you want to carpool to soccer practice this weekend.", "legit_convo_carpool"),
-        ("We can carpool to soccer practice on Saturday morning if you'd like.", "legit_convo_carpool"),
-        ("Could you bring my umbrella from the front hallway to the office?", "legit_convo_umbrella"),
-        ("Don't forget your umbrella today, looks like light rain this afternoon.", "legit_convo_umbrella"),
+        "Are we still on for lunch tomorrow afternoon?",
+        "Don't forget to lock the garage door on your way out.",
+        "The kids had so much fun at the science museum today!",
+        "Can you send over the slides from yesterday's presentation?",
+        "Hope you have a safe and pleasant flight back home!",
+        "See you at soccer practice on Tuesday evening.",
+        "Traffic is a bit heavy on highway 101, will be there shortly.",
+        "Dinner was delicious, thanks for having us over!",
+        "Let me know if you need any help with the garden this weekend.",
+        "Just finished running at the park, heading home now.",
+        "Wishing you a very Happy Birthday and a fantastic year ahead!",
+        "Happy Birthday! Have an amazing day celebrating with friends!",
+        "Let me know if you want to carpool to soccer practice this weekend.",
+        "We can carpool to soccer practice on Saturday morning if you'd like.",
+        "Could you bring my umbrella from the front hallway to the office?",
+        "Don't forget your umbrella today, looks like light rain this afternoon.",
     ]
-    for c_text, c_grp in conversations:
-        texts.append(c_text)
-        labels.append(0)
-        groups.append(c_grp)
+    for c_text in conversations:
+        _add_sample(c_text, 0)
 
     # Augment fraud with financial and delivery scams
     banks_fraud = ["Barclays", "HSBC", "Santander", "Lloyds", "NatWest", "Standard Chartered"]
@@ -295,18 +305,16 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
     for b in banks_fraud:
         b_key = b.lower().replace(" ", "")
         for d in scam_domains_extra:
-            texts.append(
-                f"URGENT: {b} security alert! Suspicious activity detected. Unlock account: http://{b_key}-{d}"
+            _add_sample(
+                f"URGENT: {b} security alert! Suspicious activity detected. Unlock account: http://{b_key}-{d}",
+                1,
             )
-            labels.append(1)
-            groups.append(f"fraud_bank_uk_{b_key}")
 
     for i in range(25):
-        texts.append(
-            f"Postal Alert: Package #{10000 + i * 7} requires customs fee of $2.50 to release shipment: http://parcel-clearance-{i}.info"
+        _add_sample(
+            f"Postal Alert: Package #{10000 + i * 7} requires customs fee of $2.50 to release shipment: http://parcel-clearance-{i}.info",
+            1,
         )
-        labels.append(1)
-        groups.append(f"fraud_postal_customs_{i // 5}")
 
     return texts, labels, groups
 
@@ -323,13 +331,13 @@ def train_and_export_model(
     metadata_file = output_path / metadata_name
 
     logger.info("Generating augmented telecom dataset...")
-    texts, labels, groups = build_augmented_dataset()
+    texts, labels, template_family_ids = build_augmented_dataset()
     logger.info(
-        "Total dataset size: %d samples (Legit: %d, Fraud: %d) across %d template groups",
+        "Total dataset size: %d samples (Legit: %d, Fraud: %d) across %d template families",
         len(texts),
         labels.count(0),
         labels.count(1),
-        len(set(groups)),
+        len(set(template_family_ids)),
     )
 
     # Strictly verify zero train/test leakage against held-out adversarial evaluation set
@@ -353,19 +361,19 @@ def train_and_export_model(
 
     # Group-based train / validation split (80 / 20) with StratifiedGroupKFold
     sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
-    train_idx, val_idx = next(sgkf.split(texts, labels, groups=groups))
+    train_idx, val_idx = next(sgkf.split(texts, labels, groups=template_family_ids))
     x_train = [texts[i] for i in train_idx]
     y_train = [labels[i] for i in train_idx]
     x_test = [texts[i] for i in val_idx]
     y_test = [labels[i] for i in val_idx]
 
-    groups_train = {groups[i] for i in train_idx}
-    groups_val = {groups[i] for i in val_idx}
+    groups_train = {template_family_ids[i] for i in train_idx}
+    groups_val = {template_family_ids[i] for i in val_idx}
     if not groups_train.isdisjoint(groups_val):
         overlap = groups_train.intersection(groups_val)
         raise ValueError(f"CRITICAL: Template-family leakage between train and val: {overlap}")
     logger.info(
-        "Group split verified: %d train groups (%d samples, %d legit / %d fraud) | %d val groups (%d samples, %d legit / %d fraud) | Group overlap: 0",
+        "Group split verified: %d train template families (%d samples, %d legit / %d fraud) | %d val template families (%d samples, %d legit / %d fraud) | Template family overlap: 0",
         len(groups_train),
         len(x_train),
         y_train.count(0),
@@ -445,10 +453,38 @@ def train_and_export_model(
     logger.info("  ROC-AUC:   %.4f", roc_auc)
     logger.info("  PR-AUC:    %.4f", pr_auc)
 
-    # Export calibrated pipeline to ONNX with string tensor input
+    # 3. Fit production calibrated pipeline on full augmented dataset for ONNX export
+    logger.info("Fitting production pipeline on all %d samples for ONNX export...", len(texts))
+    prod_calibrated_clf = CalibratedClassifierCV(
+        estimator=LogisticRegression(
+            C=1.5,
+            max_iter=1000,
+            class_weight="balanced",
+            random_state=42,
+        ),
+        method="sigmoid",
+        cv=5,
+    )
+    prod_pipeline = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    sublinear_tf=True,
+                    max_features=2500,
+                    min_df=1,
+                ),
+            ),
+            ("clf", prod_calibrated_clf),
+        ]
+    )
+    prod_pipeline.fit(texts, labels)
+
+    # Export calibrated production pipeline to ONNX with string tensor input
     logger.info("Exporting calibrated pipeline to ONNX format (opset 14)...")
     initial_type = [("text", StringTensorType([None, 1]))]
-    onnx_model = to_onnx(calibrated_pipeline, initial_types=initial_type, target_opset=14)
+    onnx_model = to_onnx(prod_pipeline, initial_types=initial_type, target_opset=14)
 
     # Serialize ONNX model to disk
     with open(onnx_file, "wb") as f:
@@ -517,6 +553,10 @@ def train_and_export_model(
     with open(metadata_file, "w", encoding="utf-8") as meta_out:
         json.dump(metadata, meta_out, indent=2)
     logger.info("Saved model metadata to: %s", metadata_file)
+
+    # Simultaneously export Markdown report to docs/ to guarantee 100% artifact parity
+    export_markdown_report(held_out_metrics)
+    logger.info("Exported synchronized Markdown report to docs/ml_evaluation_report.md")
 
     return metadata
 

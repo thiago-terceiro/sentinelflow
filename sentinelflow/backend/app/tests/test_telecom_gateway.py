@@ -107,6 +107,70 @@ def test_regex_heuristic_rules() -> None:
 
 
 @pytest.mark.asyncio
+async def test_evaluation_live_runtime_scoring_parity() -> None:
+    """Verifies 100% numerical scoring parity between evaluation scripts and live runtime.
+
+    Tests ambiguous compound smishing messages to confirm that:
+    1. evaluate_model.compute_heuristic_score(msg)
+    2. onnx_engine.evaluate_heuristics(msg)[0]
+    3. engine.predict(msg).heuristic_score and fraud_score
+    4. live POST /v1/classify endpoint
+    produce identical numerical outputs without drift.
+    """
+    from app.telecom.evaluate_model import compute_heuristic_score as eval_heuristic_fn
+
+    engine = get_inference_engine()
+
+    test_messages = [
+        # Compound delivery fee scam + shortlink
+        "USPS: Package 928301 delivery exception. Unpaid customs fee of $2.40: http://bit.ly/usps-fee",
+        # Urgent account lockout + suspicious TLD
+        "URGENT: Your Bank account has been locked. Verify identity immediately: http://bank-secure.xyz",
+        # Explicit standalone override block rule (RULE:TAX_ARREST_THREAT = 0.80)
+        "IRS FINAL NOTICE: Arrest warrant issued for delinquent taxes. Call immediately.",
+        # Benign transactional update (no compound escalation)
+        "Your package is out for delivery with UPS Ground and will arrive by 5 PM.",
+        # Standalone shortlink with conversational text
+        "Hey! Check out these photos from our trip: http://bit.ly/vacation-pics-2026",
+    ]
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        for idx, msg in enumerate(test_messages):
+            # 1. Evaluation script heuristic calculation
+            eval_h = eval_heuristic_fn(msg)
+
+            # 2. Engine heuristic evaluation
+            engine_h, engine_sigs = engine.evaluate_heuristics(msg)
+            assert abs(eval_h - engine_h) < 1e-6, (
+                f"Heuristic mismatch for msg {idx}: eval={eval_h}, engine={engine_h}"
+            )
+
+            # 3. Engine synchronous inference
+            engine_res = engine.predict(msg)
+            assert abs(engine_res.heuristic_score - engine_h) < 1e-6
+
+            # 4. Live runtime API invocation (using unique sender per request to ensure V=0.0)
+            payload = {
+                "sender": f"+1555888{idx:04d}",
+                "recipient": "+14155551234",
+                "message": msg,
+                "carrier": "Verizon Wireless",
+                "ip": f"198.51.100.{100 + idx}",
+            }
+            resp = await client.post("/v1/classify", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+
+            # Verify identical verdict and composite fraud score (under V=0.0)
+            assert data["verdict"] == engine_res.verdict
+            assert abs(data["fraud_score"] - engine_res.fraud_score) < 1e-4, (
+                f"Composite score parity failure for msg {idx}: "
+                f"api={data['fraud_score']}, engine={engine_res.fraud_score}"
+            )
+
+
+@pytest.mark.asyncio
 async def test_velocity_store_sliding_window_and_carrier() -> None:
     """Verifies sliding-window burst tracking and carrier reputation scoring."""
     store = get_velocity_store()

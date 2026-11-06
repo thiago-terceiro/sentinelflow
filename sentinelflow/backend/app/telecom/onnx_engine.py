@@ -101,7 +101,8 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
         re.compile(
-            r"\b(?:broken phone|cracked (?:screen|my screen)|temporary (?:number|mobile|phone)|"
+            r"\b(?:broken phone|cracked (?:screen|my screen)|phone screen.*cracked|"
+            r"temporary (?:number|mobile|phone|whatsapp)|"
             r"lost my (?:phone|mobile)|new number)\b.*"
             r"\b(?:whatsapp|telegram|wa\.me|signal)\b",
             re.IGNORECASE,
@@ -197,10 +198,11 @@ def compute_composite_score(
     Mathematical Formulation:
     1. Authoritative High-Risk Override:
        If H >= 0.80, S_composite = 1.0 (BLOCK). Forces an immediate wire drop.
-       Individual rule trigger: RULE:TAX_ARREST_THREAT (weight 0.80) is the only single
-       rule whose base score reaches 0.80 independently. High-severity rules with weight
-       >= 0.70 (e.g. URGENT_ACCOUNT_LOCKOUT, UNPAID_TOLL_INVOICE) can reach >= 0.82 via
-       compound-rule escalation (+0.12 boost) when paired with a secondary risk signal.
+       Individual rule trigger: RULE:TAX_ARREST_THREAT (weight 0.80) is the explicit
+       rule capable of triggering an immediate standalone override block. High-severity
+       rules with weight >= 0.70 (e.g. URGENT_ACCOUNT_LOCKOUT, UNPAID_TOLL_INVOICE) can
+       reach >= 0.82 via compound-rule escalation (+0.12 boost) when paired with a
+       secondary risk signal.
 
     2. Continuous Gated Heuristic Blend:
        The heuristic gate alpha(P, H) smoothly scales from 0.0 (benign domain) to 1.0 (fraud):
@@ -211,7 +213,9 @@ def compute_composite_score(
        S_content = P + alpha(P, H) * W_H * (1.0 - P)
 
        Guarantees monotonic non-decreasing output: d(S_content)/dP >= 0 and
-       d(S_content)/dH >= 0 everywhere on [0, 1] x [0, 1].
+       d(S_content)/dH >= 0 everywhere on [0, 1] x [0, 1]. Terminology note:
+       the formulation is mathematically monotonic non-decreasing (rather than strictly
+       monotonic) due to flat boundary plateaus where H >= 0.80 forces S_composite = 1.0.
        When H <= 0.25 and P < 0.30, alpha == 0.0 and S_content == P < 0.30 < 0.40 (ALLOW).
 
     3. Smooth Monotonic Non-Decreasing Velocity Scaling (Probabilistic Union / Noisy-OR):

@@ -378,6 +378,8 @@ Measurements conducted across **$N = 2,000$ warm runs** per batch tier:
   - `p99`: `{benchmarks['components']['velocity_store_ms']['p99_ms']} ms`
 
 ### End-to-End API Ingress Latency (`POST /v1/classify`)
+*In-process ASGI endpoint microbenchmarks (100 requests per concurrency level, single Uvicorn event loop)*
+
 Measured under in-process concurrent async loads ($N = 100$ requests per concurrency tier) using `httpx.ASGITransport` on a single Python event loop:
 
 | Concurrency Tier | Throughput | Server p50 | Server p90 | Server p95 | Server p99 | Client E2E p95* | Sub-15ms Ingress SLA |
@@ -386,7 +388,7 @@ Measured under in-process concurrent async loads ($N = 100$ requests per concurr
 | **Concurrency = 4** | `{benchmarks['concurrency']['concurrency_4']['throughput_req_per_sec']} req/s` | `{benchmarks['concurrency']['concurrency_4']['server_p50_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p90_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p95_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p99_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['client_p95_ms']} ms` | **PASS (<15ms)** |
 | **Concurrency = 8** | `{benchmarks['concurrency']['concurrency_8']['throughput_req_per_sec']} req/s` | `{benchmarks['concurrency']['concurrency_8']['server_p50_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p90_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p95_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p99_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['client_p95_ms']} ms` | **PASS (<15ms)** |
 
-*Note: In-process ASGI benchmark measuring single-event-loop concurrency via `httpx.ASGITransport`. It does not measure multi-worker OS process isolation, IPC, or real socket network overhead. Server latency measures pure gateway execution (`latency_ms`: ONNX Runtime CPU + compiled regex heuristics + in-memory sliding-window velocity + continuous gated blend + policy decision); Client E2E latency includes Python asyncio task scheduling, transport abstraction, and event-loop queuing on the shared thread.*
+*Note: In-process ASGI endpoint microbenchmarks (100 requests per concurrency level, single Uvicorn event loop) measuring single-event-loop concurrency via `httpx.ASGITransport`. It does not measure multi-worker OS process isolation, IPC, or real socket network overhead. Server latency measures pure gateway execution (`latency_ms`: ONNX Runtime CPU + compiled regex heuristics + in-memory sliding-window velocity + continuous gated blend + policy decision); Client E2E latency includes Python asyncio task scheduling, transport abstraction, and event-loop queuing on the shared thread.*
 
 ---
 
@@ -412,9 +414,9 @@ S_{{\\text{{content}}}} + V \\cdot (1 - S_{{\\text{{content}}}}) & \\text{{other
 \\end{{aligned}}$$
 
 ### Mathematical Invariants & Monotonicity
-1. **Monotonic Non-Decreasing Property:** $\\frac{{\\partial S_{{\\text{{composite}}}}}}{{\\partial P}} \\ge 0$, $\\frac{{\\partial S_{{\\text{{composite}}}}}}{{\\partial H}} \\ge 0$, and $\\frac{{\\partial S_{{\\text{{composite}}}}}}{{\\partial V}} \\ge 0$ everywhere on $[0, 1]^3$. Output is strictly bounded within $[0.0, 1.0]$. Zero discontinuities or non-monotonic dips.
+1. **Monotonic Non-Decreasing Property:** $\\frac{{\\partial S_{{\\text{{composite}}}}}}{{\\partial P}} \\ge 0$, $\\frac{{\\partial S_{{\\text{{composite}}}}}}{{\\partial H}} \\ge 0$, and $\\frac{{\\partial S_{{\\text{{composite}}}}}}{{\\partial V}} \\ge 0$ everywhere on $[0, 1]^3$. Output is strictly bounded within $[0.0, 1.0]$. Zero discontinuities or non-monotonic dips. Note: terminology is strictly *monotonic non-decreasing* rather than strictly monotonic due to the flat boundary plateau where $H \\ge 0.80$ forces $S_{{\\text{{composite}}}} = 1.0$.
 2. **Benign Indicator Suppression:** When $H \\le 0.25$ and $P < 0.30$, $\\alpha(P, H) = 0.0$ and $S_{{\\text{{content}}}} = P < 0.30 < 0.40$, strictly avoiding false-positive customer friction.
-3. **Authoritative Heuristic Override ($H \\ge 0.80$):** High-confidence threat rules immediately override to $S_{{\\text{{composite}}}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` (weight 0.80) is the only single rule that triggers this boundary independently; other high-severity rules (e.g. `URGENT_ACCOUNT_LOCKOUT`, `UNPAID_TOLL_INVOICE`) reach $\\ge 0.82$ via compound rule escalation (+0.12 boost) when paired with a secondary risk signal.
+3. **Authoritative Heuristic Override ($H \\ge 0.80$):** High-confidence threat rules immediately override to $S_{{\\text{{composite}}}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` ($H = 0.80$) is the explicit rule capable of triggering an immediate standalone override block. Other high-severity rules (e.g. `URGENT_ACCOUNT_LOCKOUT`, `UNPAID_TOLL_INVOICE`) reach $\\ge 0.82$ via compound rule escalation (+0.12 boost) when paired with a secondary risk signal.
 """
     return md
 
