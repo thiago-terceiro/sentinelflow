@@ -65,21 +65,25 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
         >
           <header className="app-header">
             <div className="app-header-inner">
-              <Link
-                href="/"
-                className="app-brand-link"
-              >
-                <span className="nav-icon">⚡ </span>SentinelFlow
-              </Link>
+              <div className="app-header-top">
+                <Link
+                  href="/"
+                  className="app-brand-link"
+                >
+                  <span className="nav-icon">⚡ </span>SentinelFlow
+                </Link>
 
-              <NavbarLinks hasSession={hasSession} userRole={role ?? null} />
+                <div className="app-header-actions">
+                  <StyleSwitcher />
+                  <NavbarUserControls
+                    initialHasSession={hasSession}
+                    initialSessionLabel={sessionLabel}
+                  />
+                </div>
+              </div>
 
-              <div className="app-header-actions">
-                <StyleSwitcher />
-                <NavbarUserControls
-                  initialHasSession={hasSession}
-                  initialSessionLabel={sessionLabel}
-                />
+              <div className="app-header-bottom">
+                <NavbarLinks hasSession={hasSession} userRole={role ?? null} />
               </div>
             </div>
           </header>

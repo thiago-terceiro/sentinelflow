@@ -892,11 +892,45 @@ main,
 }
 
 /* ========================================================
-   Responsive Navbar & Appearance Popover (Mobile & Desktop)
+   Header Navigation Architecture (Title Above, Links Below)
    ======================================================== */
+.app-header {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--panel-border) !important;
+  background: var(--style2-bg, #f1f5f9) !important;
+  position: relative;
+  z-index: 50;
+}
+
+.app-header-inner,
+[data-style="style-2"] .app-header-inner {
+  width: var(--container-width, min(1800px, 90vw)) !important;
+  max-width: 1800px !important;
+  margin: 0 auto !important;
+  padding: 10px 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+}
+
+.app-header-top {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
 .app-brand-link {
   font-weight: 700;
-  font-size: 16px;
+  font-size: 17px;
   text-decoration: none;
   color: var(--foreground);
   letter-spacing: -0.02em;
@@ -905,21 +939,69 @@ main,
   min-height: 44px;
 }
 
-.app-nav-links {
-  display: flex;
-  gap: 12px;
-  font-size: 13px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-right: auto;
-  margin-left: 8px;
-}
-
 .app-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: nowrap;
+  gap: 10px;
+}
+
+.app-header-bottom {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  padding-top: 2px;
+}
+
+[data-theme="dark"] .app-header-bottom {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.app-nav-links {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  white-space: nowrap !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  padding: 2px 0 4px !important;
+}
+
+.app-nav-links::-webkit-scrollbar {
+  display: none !important;
+}
+
+.app-nav-link {
+  min-height: 44px;
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.app-nav-link:hover {
+  color: var(--foreground);
+}
+
+.nav-dash {
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background-color: var(--accent);
+  border-radius: 2px;
 }
 
 .appearance-menu-backdrop {
@@ -943,55 +1025,25 @@ main,
   gap: 14px;
 }
 
-@media (max-width: 840px) {
-  .app-header-inner {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    padding: 10px 14px !important;
-    gap: 8px 12px !important;
+@media (max-width: 640px) {
+  .app-header {
+    padding: 6px 14px !important;
   }
-
+  .app-header-inner,
+  [data-style="style-2"] .app-header-inner {
+    padding: 2px 0 !important;
+    gap: 4px !important;
+  }
   .app-brand-link {
-    order: 1 !important;
     font-size: 16px !important;
   }
-
   .app-header-actions {
-    order: 2 !important;
-    margin-left: auto !important;
     gap: 8px !important;
   }
-
   .app-nav-links {
-    order: 3 !important;
-    width: 100% !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
     gap: 6px !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-    scrollbar-width: none !important;
-    padding: 2px 0 4px !important;
   }
 
-  .app-nav-links::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  .nav-parentheses {
-    display: none !important;
-  }
-}
-
-@media (max-width: 640px) {
   .appearance-menu-backdrop {
     display: block !important;
     position: fixed !important;

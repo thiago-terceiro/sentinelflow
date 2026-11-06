@@ -19,25 +19,28 @@ export const NavbarLinks = ({ hasSession, userRole }: Props) => {
   const canSeeAudit = hasSession && (userRole === "auditor" || userRole === "admin");
 
   return (
-    <nav style={{ display: "flex", gap: 12, fontSize: 13, alignItems: "center", flexWrap: "wrap" }}>
+    <nav className="app-nav-links">
       <Link
         href="/"
         prefetch={true}
+        className="app-nav-link"
         style={{
           color: isTelecomActive ? "var(--foreground)" : "var(--muted)",
           textDecoration: "none",
           fontWeight: isTelecomActive ? 700 : 600,
           minHeight: 44,
-          padding: "8px 12px",
+          padding: "8px 14px",
           display: "inline-flex",
-          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           position: "relative",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
         }}
       >
         <span>
-          <span className="nav-icon">📡 </span>SentinelPulse (Wire Ingress)
+          <span className="nav-icon">📡 </span>
+          <span className="nav-label-title">SentinelPulse</span>
         </span>
         {isTelecomActive ? <span className="nav-dash" aria-hidden="true" /> : null}
       </Link>
@@ -45,21 +48,24 @@ export const NavbarLinks = ({ hasSession, userRole }: Props) => {
       <Link
         href="/disputes"
         prefetch={true}
+        className="app-nav-link"
         style={{
           color: isDisputesActive ? "var(--foreground)" : "var(--muted)",
           textDecoration: "none",
           fontWeight: isDisputesActive ? 700 : 600,
           minHeight: 44,
-          padding: "8px 12px",
+          padding: "8px 14px",
           display: "inline-flex",
-          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           position: "relative",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
         }}
       >
         <span>
-          <span className="nav-icon">⚡ </span>SentinelFlow (Disputes &amp; Multi-Agent Copilot)
+          <span className="nav-icon">⚡ </span>
+          <span className="nav-label-title">SentinelFlow</span>
         </span>
         {isDisputesActive ? <span className="nav-dash" aria-hidden="true" /> : null}
       </Link>
@@ -68,21 +74,24 @@ export const NavbarLinks = ({ hasSession, userRole }: Props) => {
         <Link
           href="/audit"
           prefetch={true}
+          className="app-nav-link"
           style={{
             color: isAuditActive ? "var(--foreground)" : "var(--muted)",
             textDecoration: "none",
             fontWeight: isAuditActive ? 700 : 600,
             minHeight: 44,
-            padding: "8px 12px",
+            padding: "8px 14px",
             display: "inline-flex",
-            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             position: "relative",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           <span>
-            <span className="nav-icon">🔒 </span>Audit Ledger (Tamper-Proof Ledger)
+            <span className="nav-icon">🔒 </span>
+            <span className="nav-label-title">Audit Ledger</span>
           </span>
           {isAuditActive ? <span className="nav-dash" aria-hidden="true" /> : null}
         </Link>
