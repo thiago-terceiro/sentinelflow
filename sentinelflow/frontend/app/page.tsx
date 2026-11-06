@@ -138,15 +138,11 @@ const HomePage = () => {
               letterSpacing: "-0.03em",
               lineHeight: 1.15,
               overflowWrap: "anywhere",
-              display: "flex",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 8,
             }}
           >
             <svg
-              width="30"
-              height="30"
+              width="0.9em"
+              height="0.9em"
               viewBox="0 0 24 24"
               fill="var(--bolt-purple, #c084fc)"
               stroke="var(--bolt-purple, #c084fc)"
@@ -154,14 +150,14 @@ const HomePage = () => {
               aria-hidden="true"
               style={{
                 display: "inline-block",
-                verticalAlign: "middle",
+                verticalAlign: "-0.08em",
+                marginRight: "0.2em",
                 filter: "drop-shadow(0 0 8px rgba(192, 132, 252, 0.45))",
-                flexShrink: 0,
               }}
             >
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
-            <span>SentinelPulse: Real-Time Telecom Ingress</span>
+            SentinelPulse: Real-Time Telecom Ingress
           </h1>
 
           <p style={{ maxWidth: 740, margin: "0 0 16px", color: "var(--muted)", lineHeight: 1.6, fontSize: 14 }}>

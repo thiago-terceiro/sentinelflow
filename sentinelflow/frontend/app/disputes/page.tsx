@@ -110,7 +110,35 @@ const DisputesPage = () => {
           border: "1px solid var(--panel-border)",
         }}
       >
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        {/* Line 1: Stage 2 Badge */}
+        <div style={{ marginBottom: 8 }}>
+          <span
+            style={{
+              display: "inline-block",
+              fontSize: 11,
+              fontWeight: 800,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              padding: "4px 10px",
+              borderRadius: 6,
+              background: "var(--accent-soft, rgba(201, 243, 106, 0.15))",
+              color: "var(--accent, #2563eb)",
+              border: "1px solid var(--panel-border)",
+            }}
+          >
+            Stage 2: Asynchronous Multi-Agent Copilot
+          </span>
+        </div>
+
+        {/* Line 2: Investigation Status */}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 10,
+          }}
+        >
           <span
             style={{
               display: "inline-block",
@@ -131,21 +159,6 @@ const DisputesPage = () => {
             }}
           >
             LANGGRAPH + GPT-4 INVESTIGATION ACTIVE
-          </span>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              padding: "4px 10px",
-              borderRadius: 6,
-              background: "var(--accent-soft, rgba(201, 243, 106, 0.15))",
-              color: "var(--accent, #2563eb)",
-              border: "1px solid var(--panel-border)",
-            }}
-          >
-            Stage 2: Asynchronous Multi-Agent Copilot
           </span>
         </div>
 
@@ -296,8 +309,12 @@ const DisputesPage = () => {
                         type="button"
                         onClick={() => setStatusFilter(pill.key)}
                         style={{
-                          fontSize: 11,
-                          padding: "4px 10px",
+                          fontSize: 12,
+                          padding: "8px 14px",
+                          minHeight: 44,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                           borderRadius: 999,
                           border: active
                             ? "1px solid var(--accent)"

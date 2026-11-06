@@ -52,9 +52,10 @@ export const AuditTable = ({ records, isLoading, onSelectRecord, onOpenCorrectio
               style={{
                 padding: "3px 8px",
                 borderRadius: 6,
-                background: isLLM ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.06)",
-                color: isLLM ? "#a5b4fc" : "inherit",
+                background: isLLM ? "var(--accent-soft)" : "rgba(255,255,255,0.06)",
+                color: isLLM ? "var(--accent)" : "inherit",
                 fontSize: 12,
+                fontWeight: isLLM ? 600 : 400,
               }}
             >
               {r.event_name}
@@ -91,16 +92,21 @@ export const AuditTable = ({ records, isLoading, onSelectRecord, onOpenCorrectio
             {r.row_hash ? `${r.row_hash.slice(0, 10)}...` : "None"}
           </td>
           <td style={{ padding: "12px", textAlign: "right" }}>
-            <div style={{ display: "inline-flex", gap: 8 }}>
+            <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
               <button
                 onClick={() => onSelectRecord(r)}
                 style={{
                   padding: "4px 10px",
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   borderRadius: 6,
                   border: "1px solid var(--panel-border)",
                   background: "rgba(255,255,255,0.04)",
                   color: "inherit",
                   fontSize: 12,
+                  fontWeight: 600,
                   cursor: "pointer",
                 }}
               >
@@ -110,11 +116,16 @@ export const AuditTable = ({ records, isLoading, onSelectRecord, onOpenCorrectio
                 onClick={() => onOpenCorrection(r)}
                 style={{
                   padding: "4px 10px",
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   borderRadius: 6,
-                  border: "1px solid rgba(224,168,0,0.3)",
-                  background: "rgba(224,168,0,0.08)",
-                  color: "#f3c452",
+                  border: "1px solid var(--badge-flag-border, #b45309)",
+                  background: "var(--badge-flag-bg, #fef3c7)",
+                  color: "var(--badge-flag-color, #78350f)",
                   fontSize: 12,
+                  fontWeight: 600,
                   cursor: "pointer",
                 }}
               >

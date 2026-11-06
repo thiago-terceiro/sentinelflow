@@ -148,7 +148,9 @@ export const AuditPage = () => {
     return (
       <main>
         <div className="shell-card" style={{ padding: 48, textAlign: "center", color: "var(--muted)" }}>
-          Checking authorization permissions...
+          <h1 style={{ margin: 0, fontSize: 18, color: "var(--muted)" }}>
+            Checking authorization permissions...
+          </h1>
         </div>
       </main>
     );
@@ -165,9 +167,9 @@ export const AuditPage = () => {
             border: "1px solid rgba(158,47,40,0.25)",
           }}
         >
-          <h2 style={{ margin: "0 0 12px", color: "var(--danger)", fontSize: 24, fontWeight: 700 }}>
+          <h1 style={{ margin: "0 0 12px", color: "var(--danger)", fontSize: 24, fontWeight: 700 }}>
             Access Restricted: Auditor or Admin Role Required
-          </h2>
+          </h1>
           <p
             style={{
               color: "var(--muted)",
@@ -180,15 +182,17 @@ export const AuditPage = () => {
             The SentinelFlow Audit Ledger and AI Governance Portal contain sensitive compliance traces
             and can only be accessed by users authenticated with the Auditor or Admin role.
           </p>
-          <div style={{ display: "inline-flex", gap: 12 }}>
+          <div style={{ display: "inline-flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
             <Link
               href="/login?returnTo=/audit"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
                 padding: "10px 24px",
                 background: "var(--accent)",
-                color: "white",
+                color: "var(--accent-ink, #ffffff)",
                 fontWeight: 600,
                 fontSize: 13,
                 textDecoration: "none",
@@ -202,6 +206,8 @@ export const AuditPage = () => {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
                 padding: "10px 24px",
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid var(--panel-border)",
@@ -285,6 +291,7 @@ export const AuditPage = () => {
               border: "1px solid var(--panel-border)",
               borderRadius: 999,
               padding: "10px 18px",
+              minHeight: 44,
               background: "rgba(255,255,255,0.05)",
               color: "inherit",
               fontSize: 13,
@@ -305,6 +312,7 @@ export const AuditPage = () => {
               border: "1px solid var(--panel-border)",
               borderRadius: 999,
               padding: "10px 18px",
+              minHeight: 44,
               background: "rgba(255,255,255,0.05)",
               color: "inherit",
               fontSize: 13,
@@ -322,13 +330,15 @@ export const AuditPage = () => {
             style={{
               borderRadius: 999,
               padding: "10px 20px",
+              minHeight: 44,
               background: "var(--accent)",
-              color: "white",
+              color: "var(--accent-ink, #ffffff)",
               fontSize: 13,
               fontWeight: 600,
               textDecoration: "none",
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               whiteSpace: "nowrap",
               flexShrink: 0,
             }}
@@ -344,6 +354,10 @@ export const AuditPage = () => {
           onClick={() => setActiveTab("ledger")}
           style={{
             padding: "10px 18px",
+            minHeight: 44,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             borderRadius: 999,
             fontSize: 13,
             fontWeight: 600,
@@ -363,6 +377,10 @@ export const AuditPage = () => {
           onClick={() => setActiveTab("evals")}
           style={{
             padding: "10px 18px",
+            minHeight: 44,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             borderRadius: 999,
             fontSize: 13,
             fontWeight: 600,
@@ -418,6 +436,7 @@ export const AuditPage = () => {
                 onChange={(e) => setDisputeIdInput(e.target.value)}
                 style={{
                   padding: "8px 14px",
+                  minHeight: 44,
                   borderRadius: 8,
                   border: "1px solid var(--panel-border)",
                   background: "var(--input-bg, #ffffff)",
@@ -432,10 +451,14 @@ export const AuditPage = () => {
                 className="audit-search-btn"
                 style={{
                   padding: "8px 16px",
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   borderRadius: "var(--card-radius, 8px)",
                   border: 0,
                   background: "var(--accent)",
-                  color: "white",
+                  color: "var(--accent-ink, #ffffff)",
                   fontWeight: 600,
                   fontSize: 13,
                   cursor: "pointer",
@@ -452,6 +475,7 @@ export const AuditPage = () => {
                 onChange={(e) => setEventFilter(e.target.value)}
                 style={{
                   padding: "8px 12px",
+                  minHeight: 44,
                   borderRadius: 8,
                   border: "1px solid var(--panel-border)",
                   background: "var(--input-bg, #ffffff)",
@@ -474,6 +498,7 @@ export const AuditPage = () => {
                 onChange={(e) => setLimit(Number(e.target.value))}
                 style={{
                   padding: "8px 12px",
+                  minHeight: 44,
                   borderRadius: 8,
                   border: "1px solid var(--panel-border)",
                   background: "var(--input-bg, #ffffff)",

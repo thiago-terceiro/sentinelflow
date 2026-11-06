@@ -132,7 +132,7 @@ export const AnalyzerPanel = memo(
                       border: "1px solid rgba(239, 68, 68, 0.3)",
                       marginBottom: 10,
                       fontSize: 12,
-                      color: "#f87171",
+                      color: "var(--telecom-danger, #fee2e2)",
                     }}
                   >
                     <strong>Contradictions Detected:</strong> {item.contradictions.join("; ")}
@@ -170,7 +170,11 @@ export const AnalyzerPanel = memo(
                             }
                           }}
                           style={{
-                            padding: "3px 8px",
+                            padding: "6px 10px",
+                            minHeight: 44,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             borderRadius: 4,
                             background: isLinked ? "rgba(37,99,235,0.08)" : "rgba(255,255,255,0.06)",
                             color: isLinked ? "var(--accent)" : "var(--foreground)",

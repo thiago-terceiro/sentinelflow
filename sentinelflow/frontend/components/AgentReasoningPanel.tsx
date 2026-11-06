@@ -79,10 +79,13 @@ export const AgentReasoningPanel = memo(
                 onClick={() => setShowDiff((prev) => !prev)}
                 style={{
                   fontSize: 12,
-                  padding: "5px 12px",
+                  padding: "8px 14px",
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
                   borderRadius: 6,
                   border: showDiff ? "1px solid var(--accent)" : "1px solid var(--panel-border)",
-                  background: showDiff ? "rgba(201, 243, 106, 0.15)" : "rgba(255, 255, 255, 0.04)",
+                  background: showDiff ? "var(--accent-soft)" : "rgba(255, 255, 255, 0.04)",
                   color: showDiff ? "var(--accent)" : "var(--foreground)",
                   cursor: "pointer",
                   fontWeight: 600,
@@ -119,7 +122,7 @@ export const AgentReasoningPanel = memo(
               background: "rgba(56, 189, 248, 0.08)",
               border: "1px solid rgba(56, 189, 248, 0.3)",
               fontSize: 13,
-              color: "#38bdf8",
+              color: "var(--accent, #93c5fd)",
               display: "flex",
               alignItems: "center",
               gap: 10,
@@ -136,7 +139,7 @@ export const AgentReasoningPanel = memo(
             style={{
               padding: 16,
               borderRadius: 12,
-              background: "var(--card-subtle-bg, #f8fafc)",
+              background: "var(--card-subtle-bg, rgba(255, 255, 255, 0.04))",
               border: "1px solid var(--panel-border)",
             }}
           >
@@ -162,7 +165,7 @@ export const AgentReasoningPanel = memo(
 
         {reasoningSteps.length > 0 ? (
           <div>
-            <h4
+            <h3
               style={{
                 fontSize: 13,
                 margin: "0 0 10px 0",
@@ -171,7 +174,7 @@ export const AgentReasoningPanel = memo(
               }}
             >
               Deductive Reasoning Steps
-            </h4>
+            </h3>
             <div style={{ display: "grid", gap: 8 }}>
               {reasoningSteps.map((step, index) => (
                 <div
@@ -203,7 +206,7 @@ export const AgentReasoningPanel = memo(
         ) : null}
 
         <div>
-          <h4
+          <h3
             style={{
               fontSize: 13,
               margin: "0 0 10px 0",
@@ -212,7 +215,7 @@ export const AgentReasoningPanel = memo(
             }}
           >
             Active Competing Hypotheses ({hypotheses.length})
-          </h4>
+          </h3>
           {hypotheses.length === 0 ? (
             <p style={{ color: "var(--muted)", fontSize: 13 }}>
               No hypotheses evaluated yet. Waiting for investigator agent iteration.
@@ -291,7 +294,11 @@ export const AgentReasoningPanel = memo(
                                   }
                                 }}
                                 style={{
-                                  padding: "2px 6px",
+                                  padding: "6px 10px",
+                                  minHeight: 44,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
                                   borderRadius: 4,
                                   background: isFocused
                                     ? "rgba(37,99,235,0.08)"
@@ -335,7 +342,11 @@ export const AgentReasoningPanel = memo(
                                   }
                                 }}
                                 style={{
-                                  padding: "2px 6px",
+                                  padding: "6px 10px",
+                                  minHeight: 44,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
                                   borderRadius: 4,
                                   background: isFocused
                                     ? "rgba(220,38,38,0.08)"

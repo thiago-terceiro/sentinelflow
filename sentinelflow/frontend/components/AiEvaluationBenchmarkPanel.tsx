@@ -67,12 +67,17 @@ export const AiEvaluationBenchmarkPanel = () => {
           onClick={() => void loadBenchmarkData()}
           style={{
             padding: "8px 16px",
+            minHeight: 44,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             borderRadius: 6,
             border: "1px solid rgba(255,255,255,0.2)",
             background: "rgba(255,255,255,0.05)",
             color: "var(--foreground)",
             cursor: "pointer",
             fontSize: 12,
+            fontWeight: 600,
           }}
         >
           Retry Loading
@@ -217,7 +222,7 @@ export const AiEvaluationBenchmarkPanel = () => {
         }}
       >
         <div>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Golden Archetype Benchmark Trajectories</h3>
+          <h2 style={{ margin: 0, fontSize: 16 }}>Golden Archetype Benchmark Trajectories</h2>
           <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "var(--muted)" }}>
             Automated evaluation of ReAct loop, tool efficiency, risk calibration, and steering
             compliance.
@@ -228,6 +233,10 @@ export const AiEvaluationBenchmarkPanel = () => {
           disabled={isRunningLive}
           style={{
             padding: "8px 16px",
+            minHeight: 44,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             borderRadius: 999,
             border: "1px solid var(--accent)",
             background: "rgba(59, 130, 246, 0.15)",
@@ -325,9 +334,9 @@ export const AiEvaluationBenchmarkPanel = () => {
                 >
                   {selectedCase.evaluation_category}
                 </span>
-                <h4 style={{ margin: "2px 0 0 0", fontSize: 15 }}>
+                <h3 style={{ margin: "2px 0 0 0", fontSize: 15 }}>
                   {selectedCase.case_code}: {selectedCase.title}
-                </h4>
+                </h3>
               </div>
               <span
                 style={{

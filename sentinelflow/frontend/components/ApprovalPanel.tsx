@@ -88,9 +88,10 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDe
             padding: "4px 10px",
             borderRadius: 999,
             fontSize: 12,
-            background: "rgba(224,168,0,0.15)",
-            color: "#f3c452",
-            border: "1px solid rgba(224,168,0,0.3)",
+            fontWeight: 700,
+            background: "var(--badge-flag-bg, #fef3c7)",
+            color: "var(--badge-flag-color, #78350f)",
+            border: "1px solid var(--badge-flag-border, #b45309)",
           }}
         >
           Awaiting Human Action
@@ -132,7 +133,7 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDe
               marginBottom: 6,
               fontSize: 13,
               fontWeight: 600,
-              color: "#818cf8",
+              color: "var(--accent)",
             }}
           >
             🎯 Agent Re-Investigation Steering Guidance
@@ -184,9 +185,13 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDe
             border: 0,
             borderRadius: 999,
             padding: "10px 20px",
-            background: "var(--success)",
-            color: "white",
-            fontWeight: 600,
+            minHeight: 44,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#14532d",
+            color: "#ffffff",
+            fontWeight: 700,
             cursor: isSubmitting ? "not-allowed" : "pointer",
           }}
         >
@@ -200,9 +205,13 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDe
             border: 0,
             borderRadius: 999,
             padding: "10px 20px",
-            background: "var(--danger)",
-            color: "white",
-            fontWeight: 600,
+            minHeight: 44,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#991b1b",
+            color: "#ffffff",
+            fontWeight: 700,
             cursor: isSubmitting ? "not-allowed" : "pointer",
           }}
         >
@@ -214,12 +223,16 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDe
             onClick={() => setIsSteeringOpen(true)}
             disabled={isSubmitting}
             style={{
-              border: "1px solid rgba(99,102,241,0.4)",
+              border: "1px solid var(--panel-border)",
               borderRadius: 999,
               padding: "10px 20px",
-              background: "rgba(99,102,241,0.15)",
-              color: "#a5b4fc",
-              fontWeight: 600,
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "var(--accent-soft)",
+              color: "var(--accent)",
+              fontWeight: 700,
               cursor: "pointer",
             }}
           >
@@ -233,9 +246,13 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDe
               border: 0,
               borderRadius: 999,
               padding: "10px 20px",
-              background: "#6366f1",
-              color: "white",
-              fontWeight: 600,
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#1e3a8a",
+              color: "#ffffff",
+              fontWeight: 700,
               cursor: isSubmitting ? "not-allowed" : "pointer",
             }}
           >

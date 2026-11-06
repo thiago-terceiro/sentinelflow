@@ -221,10 +221,11 @@ export const LangGraphProgress = memo(
                 padding: "4px 10px",
                 borderRadius: 999,
                 fontSize: 11,
-                background: "rgba(99,102,241,0.15)",
-                color: "#818cf8",
-                border: "1px solid rgba(99,102,241,0.3)",
+                background: "var(--accent-soft)",
+                color: "var(--accent)",
+                border: "1px solid var(--panel-border)",
                 whiteSpace: "nowrap",
+                fontWeight: 600,
               }}
             >
               ⟲ Human Steering Loop Active
@@ -344,18 +345,18 @@ export const LangGraphProgress = memo(
             ? "rgba(99, 102, 241, 0.06)"
             : "rgba(255, 255, 255, 0.02)",
           borderLeft: reviewerGuidance
-            ? "3px solid #818cf8"
+            ? "3px solid var(--accent)"
             : "3px solid var(--panel-border)",
           transition: "background 0.15s ease, border-color 0.15s ease",
         }}
       >
         {reviewerGuidance ? (
           <div>
-            <strong style={{ color: "#a5b4fc" }}>Reviewer Steering Guidance Applied: </strong>
+            <strong style={{ color: "var(--accent, #93c5fd)" }}>Reviewer Steering Guidance Applied: </strong>
             <span style={{ color: "var(--foreground)" }}>{reviewerGuidance}</span>
           </div>
         ) : (
-          <span style={{ color: "var(--muted)", opacity: 0.7 }}>
+          <span style={{ color: "var(--muted)" }}>
             No reviewer steering guidance applied · Autonomous execution baseline
           </span>
         )}

@@ -18,7 +18,7 @@ export const AuditComplianceCards = ({ integrity, recordCount }: Props) => {
           <span className="page-icon" style={{ fontSize: 16 }}>
             🔒
           </span>
-          <h4 style={{ margin: 0, fontSize: 14 }}>SHA-256 Tamper-Evidence</h4>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>SHA-256 Tamper-Evidence</h2>
         </div>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 10px 0" }}>
           Each audit row cryptographically seals <code>prev_hash</code> into sequence{" "}
@@ -45,7 +45,7 @@ export const AuditComplianceCards = ({ integrity, recordCount }: Props) => {
           <span className="page-icon" style={{ fontSize: 16 }}>
             🛡️
           </span>
-          <h4 style={{ margin: 0, fontSize: 14 }}>PII Scrubbing & PCI-DSS</h4>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>PII Scrubbing & PCI-DSS</h2>
         </div>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 10px 0" }}>
           Card numbers, SSN, email, and IP addresses automatically sanitized prior to storage and
@@ -56,8 +56,8 @@ export const AuditComplianceCards = ({ integrity, recordCount }: Props) => {
             fontSize: 12,
             padding: "3px 8px",
             borderRadius: 6,
-            background: "rgba(59,130,246,0.15)",
-            color: "#93c5fd",
+            background: "var(--accent-soft)",
+            color: "var(--accent)",
             fontWeight: 600,
           }}
         >
@@ -71,7 +71,7 @@ export const AuditComplianceCards = ({ integrity, recordCount }: Props) => {
           <span className="page-icon" style={{ fontSize: 16 }}>
             📜
           </span>
-          <h4 style={{ margin: 0, fontSize: 14 }}>EU AI Act Article 12 Logging</h4>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>EU AI Act Article 12 Logging</h2>
         </div>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 10px 0" }}>
           Continuous logging of model inputs, reasoning tokens, template versions, and human

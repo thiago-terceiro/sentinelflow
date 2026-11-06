@@ -14,27 +14,24 @@ type Props = {
 
 const getEventBadgeColor = (type: StreamEvent["type"]): { bg: string; text: string } => {
   if (type === "evidence_added") {
-    return { bg: "rgba(34,197,94,0.15)", text: "#22c55e" };
+    return { bg: "var(--badge-allow-bg, rgba(34,197,94,0.15))", text: "var(--telecom-good, #22c55e)" };
   }
   if (type === "tool_started" || type === "tool_completed") {
-    return { bg: "rgba(56,189,248,0.15)", text: "#38bdf8" };
+    return { bg: "var(--accent-soft)", text: "var(--accent)" };
   }
   if (type === "analyzer_started" || type === "analyzer_completed") {
-    return { bg: "rgba(168,85,247,0.15)", text: "#c084fc" };
+    return { bg: "rgba(168,85,247,0.15)", text: "var(--bolt-purple, #c084fc)" };
   }
-  if (type === "hypothesis_updated") {
-    return { bg: "rgba(234,179,8,0.15)", text: "#eab308" };
-  }
-  if (type === "risk_updated") {
-    return { bg: "rgba(249,115,22,0.15)", text: "#f97316" };
+  if (type === "hypothesis_updated" || type === "risk_updated") {
+    return { bg: "var(--badge-flag-bg, rgba(234,179,8,0.15))", text: "var(--telecom-warning, #fde047)" };
   }
   if (type === "approval_required" || type === "final_report_ready") {
-    return { bg: "rgba(201,243,106,0.15)", text: "var(--accent)" };
+    return { bg: "var(--accent-soft)", text: "var(--accent)" };
   }
   if (type === "run_failed") {
-    return { bg: "rgba(239,68,68,0.15)", text: "#ef4444" };
+    return { bg: "var(--badge-block-bg, rgba(239,68,68,0.15))", text: "var(--telecom-danger, #fee2e2)" };
   }
-  return { bg: "rgba(255,255,255,0.08)", text: "var(--muted)" };
+  return { bg: "var(--card-subtle-bg, rgba(255,255,255,0.08))", text: "var(--muted)" };
 };
 
 export const TimeTravelScrubber = memo(
@@ -109,15 +106,17 @@ export const TimeTravelScrubber = memo(
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 24,
-                  height: 22,
+                  width: 44,
+                  height: 44,
+                  minWidth: 44,
+                  minHeight: 44,
                   padding: 0,
                   borderRadius: 4,
                   background: !hasEvents || currentStep <= 0 ? "transparent" : "rgba(255, 255, 255, 0.06)",
                   border: 0,
                   color: !hasEvents || currentStep <= 0 ? "var(--muted)" : "var(--foreground)",
                   cursor: !hasEvents || currentStep <= 0 ? "not-allowed" : "pointer",
-                  fontSize: 10,
+                  fontSize: 12,
                   lineHeight: 1,
                   opacity: !hasEvents || currentStep <= 0 ? 0.35 : 1,
                   transition: "none",
@@ -135,8 +134,10 @@ export const TimeTravelScrubber = memo(
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 24,
-                  height: 22,
+                  width: 44,
+                  height: 44,
+                  minWidth: 44,
+                  minHeight: 44,
                   padding: 0,
                   borderRadius: 4,
                   background:
@@ -150,7 +151,7 @@ export const TimeTravelScrubber = memo(
                       : "var(--foreground)",
                   cursor:
                     !hasEvents || isLive || currentStep >= totalSteps - 1 ? "not-allowed" : "pointer",
-                  fontSize: 10,
+                  fontSize: 12,
                   lineHeight: 1,
                   opacity: !hasEvents || isLive || currentStep >= totalSteps - 1 ? 0.35 : 1,
                   transition: "none",
@@ -265,6 +266,8 @@ export const TimeTravelScrubber = memo(
             }}
             style={{
               width: "100%",
+              height: 44,
+              minHeight: 44,
               accentColor: isLive ? "var(--accent)" : "#eab308",
               cursor: hasEvents ? "pointer" : "not-allowed",
               opacity: hasEvents ? 1 : 0.5,

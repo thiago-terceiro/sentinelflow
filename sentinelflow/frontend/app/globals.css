@@ -7,6 +7,7 @@
   --panel: rgba(255, 255, 255, 0.72);
   --panel-border: rgba(19, 34, 56, 0.12);
   --input-bg: rgba(255, 255, 255, 0.6);
+  --card-subtle-bg: rgba(0, 0, 0, 0.03);
   --accent: #b54f2d;
   --accent-soft: #f4d2b7;
   --accent-ink: #ffffff;
@@ -26,6 +27,7 @@
   /* One tone lighter for all borders in Style 2 */
   --panel-border: rgba(15, 23, 42, 0.12);
   --input-bg: #ffffff;
+  --card-subtle-bg: rgba(0, 0, 0, 0.03);
   --accent: #1e3a8a;
   --accent-soft: #dbeafe;
   --accent-ink: #ffffff;
@@ -731,10 +733,10 @@ main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border: 1px dashed var(--panel-border);
   background: transparent;
   cursor: pointer;
@@ -753,8 +755,10 @@ main {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   opacity: 0;
   cursor: pointer;
 }
@@ -770,6 +774,7 @@ main {
   --panel: #1e293b;
   --panel-border: rgba(255, 255, 255, 0.18);
   --input-bg: #1e293b;
+  --card-subtle-bg: rgba(255, 255, 255, 0.04);
   --canvas: #0f172a;
   --style2-bg: #0f172a !important;
   --dot-color: rgba(241, 245, 249, 0.15);
@@ -777,7 +782,9 @@ main {
   --accent-ink: #090d16;
   --accent-soft: rgba(30, 58, 138, 0.4);
   --bolt-purple: #c084fc;
-  --telecom-good: #4ade80;
+  --success: #86efac;
+  --danger: #fee2e2;
+  --telecom-good: #86efac;
   --telecom-warning: #fde047;
   --telecom-danger: #fee2e2;
   --telecom-info: #93c5fd;
