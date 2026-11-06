@@ -153,54 +153,11 @@ const DisputesPage = () => {
           ⚡ SentinelFlow: Seeded Disputes Workbench
         </h1>
 
-        <p style={{ maxWidth: 820, margin: "0 0 20px", color: "var(--muted)", fontSize: 15, lineHeight: 1.6 }}>
+        <p style={{ maxWidth: 820, margin: 0, color: "var(--muted)", fontSize: 15, lineHeight: 1.6 }}>
           SentinelFlow coordinates parallel agent evidence gathering, deterministic risk scoring,
           and human-in-the-loop steering. All decisions and time-travel revisions are securely
           anchored to a SHA-256 tamper-proof ledger.
         </p>
-
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <Link
-            href="/"
-            prefetch={true}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              minHeight: 44,
-              padding: "10px 20px",
-              borderRadius: "var(--card-radius, 8px)",
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid var(--panel-border)",
-              color: "var(--foreground)",
-              fontWeight: 600,
-              fontSize: 13,
-              textDecoration: "none",
-            }}
-          >
-            <span>📡 ← Back to Stage 1: SentinelPulse Wire Ingress</span>
-          </Link>
-          <Link
-            href="/audit"
-            prefetch={true}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              minHeight: 44,
-              padding: "10px 20px",
-              borderRadius: "var(--card-radius, 8px)",
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid var(--panel-border)",
-              color: "var(--foreground)",
-              fontWeight: 600,
-              fontSize: 13,
-              textDecoration: "none",
-            }}
-          >
-            <span>🔒 View Tamper-Proof Audit Ledger →</span>
-          </Link>
-        </div>
       </section>
 
       <div id="seeded-disputes-section" style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>

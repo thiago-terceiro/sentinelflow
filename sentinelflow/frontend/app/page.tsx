@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import React from "react";
 import { useSentinelPulse } from "@/components/SentinelPulseProvider";
 import { TelecomClassifySandbox } from "@/components/telecom/TelecomClassifySandbox";
@@ -79,117 +78,104 @@ const HomePage = () => {
           border: "1px solid rgba(201, 243, 106, 0.35)",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            flexWrap: "wrap",
-            gap: 16,
-          }}
-        >
-          <div style={{ minWidth: 0, flex: "1 1 540px" }}>
-            <div
+        <div style={{ maxWidth: 860 }}>
+          {/* Line 1: Stage 1 Badge */}
+          <div style={{ marginBottom: 8 }}>
+            <span
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 8,
+                display: "inline-block",
+                fontSize: 11,
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                padding: "4px 10px",
+                borderRadius: 6,
+                background: "var(--accent-soft, rgba(201, 243, 106, 0.15))",
+                color: "var(--accent, #2563eb)",
+                border: "1px solid var(--panel-border)",
               }}
             >
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  backgroundColor: connected ? "#22c55e" : "#eab308",
-                  boxShadow: connected ? "0 0 8px #22c55e" : "none",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  letterSpacing: "0.08em",
-                  color: "var(--muted)",
-                  textTransform: "uppercase",
-                }}
-              >
-                {connected ? "LIVE GATEWAY STREAM ACTIVE" : "GATEWAY RECONNECTING"}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  background: "var(--accent-soft, rgba(201, 243, 106, 0.15))",
-                  color: "var(--accent, #2563eb)",
-                  border: "1px solid var(--panel-border)",
-                }}
-              >
-                Stage 1: Wire Ingress
-              </span>
-            </div>
-
-            <h1
-              style={{
-                margin: "4px 0 10px",
-                fontSize: "clamp(1.85rem, 4vw, 3.2rem)",
-                letterSpacing: "-0.03em",
-                lineHeight: 1.15,
-                overflowWrap: "anywhere",
-              }}
-            >
-              <span className="page-icon">📡 </span>SentinelPulse: Real-Time Telecom Ingress
-            </h1>
-
-            <p style={{ maxWidth: 740, margin: "0 0 16px", color: "var(--muted)", lineHeight: 1.6, fontSize: 14 }}>
-              Production-grade, sub-15ms carrier fraud &amp; smishing inspection gateway powered by
-              an optimized ONNX Runtime CPU model and Redis sliding-window velocity counters. High-risk
-              anomalies escalate seamlessly to SentinelFlow (Stage 2) for autonomous multi-agent dispute investigation.
-            </p>
-
-            {/* Two-Tier Architecture Summary Pills */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  background: "var(--badge-allow-bg, #dcfce7)",
-                  color: "var(--badge-allow-color, #14532d)",
-                  border: "1px solid var(--badge-allow-border, #15803d)",
-                  fontFamily: "monospace",
-                }}
-              >
-                Step 1: &lt;15ms ONNX CPU
-              </span>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  background: "var(--accent-soft, #dbeafe)",
-                  color: "var(--accent, #1e3a8a)",
-                  border: "1px solid var(--accent, #1e40af)",
-                  fontFamily: "monospace",
-                }}
-              >
-                Step 2: LangGraph + GPT-4
-              </span>
-            </div>
+              Stage 1: Wire Ingress
+            </span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", flexShrink: 0 }}>
+          {/* Line 2: Live Gateway Stream Status */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 10,
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: connected ? "#22c55e" : "#eab308",
+                boxShadow: connected ? "0 0 8px #22c55e" : "none",
+              }}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                color: "var(--muted)",
+                textTransform: "uppercase",
+              }}
+            >
+              {connected ? "LIVE GATEWAY STREAM ACTIVE" : "GATEWAY RECONNECTING"}
+            </span>
+          </div>
+
+          <h1
+            style={{
+              margin: "4px 0 10px",
+              fontSize: "clamp(1.85rem, 4vw, 3.2rem)",
+              letterSpacing: "-0.03em",
+              lineHeight: 1.15,
+              overflowWrap: "anywhere",
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <svg
+              width="30"
+              height="30"
+              viewBox="0 0 24 24"
+              fill="var(--bolt-purple, #c084fc)"
+              stroke="var(--bolt-purple, #c084fc)"
+              strokeWidth="0.5"
+              aria-hidden="true"
+              style={{
+                display: "inline-block",
+                verticalAlign: "middle",
+                filter: "drop-shadow(0 0 8px rgba(192, 132, 252, 0.45))",
+                flexShrink: 0,
+              }}
+            >
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+            <span>SentinelPulse: Real-Time Telecom Ingress</span>
+          </h1>
+
+          <p style={{ maxWidth: 740, margin: "0 0 16px", color: "var(--muted)", lineHeight: 1.6, fontSize: 14 }}>
+            Production-grade, sub-15ms carrier fraud &amp; smishing inspection gateway powered by
+            an optimized ONNX Runtime CPU model and Redis sliding-window velocity counters. High-risk
+            anomalies escalate seamlessly to SentinelFlow (Stage 2) for autonomous multi-agent dispute investigation.
+          </p>
+
+          {/* Left-Aligned SLA Card */}
+          <div>
             <span
               className="sla-pill"
               style={{
+                display: "inline-block",
                 fontSize: 12,
                 padding: "6px 12px",
                 borderRadius: "var(--card-radius, 8px)",
@@ -201,28 +187,6 @@ const HomePage = () => {
             >
               SLA: &lt;15ms p95 | Ops: 5k RPS
             </span>
-
-            <Link
-              href="/disputes"
-              prefetch={true}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                minHeight: 44,
-                padding: "10px 18px",
-                borderRadius: "var(--card-radius, 8px)",
-                background: "var(--accent)",
-                color: "var(--accent-ink, #ffffff)",
-                fontWeight: 700,
-                fontSize: 13,
-                textDecoration: "none",
-                boxShadow: "0 0 14px rgba(201, 243, 106, 0.3)",
-                transition: "transform 0.15s ease",
-              }}
-            >
-              <span>⚡ View SentinelFlow Workbench (Stage 2) →</span>
-            </Link>
           </div>
         </div>
       </section>
