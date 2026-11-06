@@ -124,14 +124,14 @@ const HomePage = () => {
                   fontWeight: 800,
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
-                  padding: "2px 8px",
-                  borderRadius: 999,
+                  padding: "4px 10px",
+                  borderRadius: 6,
                   background: "var(--accent-soft, rgba(201, 243, 106, 0.15))",
                   color: "var(--accent, #2563eb)",
                   border: "1px solid var(--panel-border)",
                 }}
               >
-                STAGE 1 · WIRE INGRESS
+                Stage 1: Wire Ingress
               </span>
             </div>
 
@@ -161,13 +161,13 @@ const HomePage = () => {
                   fontWeight: 700,
                   padding: "5px 12px",
                   borderRadius: 6,
-                  background: "#dcfce7",
-                  color: "#14532d",
-                  border: "1px solid #15803d",
+                  background: "var(--badge-allow-bg, #dcfce7)",
+                  color: "var(--badge-allow-color, #14532d)",
+                  border: "1px solid var(--badge-allow-border, #15803d)",
                   fontFamily: "monospace",
                 }}
               >
-                Stage 1: &lt;15ms ONNX CPU
+                Step 1: &lt;15ms ONNX CPU
               </span>
               <span
                 style={{
@@ -175,13 +175,13 @@ const HomePage = () => {
                   fontWeight: 700,
                   padding: "5px 12px",
                   borderRadius: 6,
-                  background: "#dbeafe",
-                  color: "#1e3a8a",
-                  border: "1px solid #1e40af",
+                  background: "var(--accent-soft, #dbeafe)",
+                  color: "var(--accent, #1e3a8a)",
+                  border: "1px solid var(--accent, #1e40af)",
                   fontFamily: "monospace",
                 }}
               >
-                Stage 2: LangGraph + GPT-4
+                Step 2: LangGraph + GPT-4
               </span>
             </div>
           </div>
@@ -209,6 +209,7 @@ const HomePage = () => {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
+                minHeight: 44,
                 padding: "10px 18px",
                 borderRadius: "var(--card-radius, 8px)",
                 background: "var(--accent)",

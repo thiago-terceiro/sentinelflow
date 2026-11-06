@@ -110,24 +110,42 @@ const DisputesPage = () => {
           border: "1px solid var(--panel-border)",
         }}
       >
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: "#22c55e",
+              boxShadow: "0 0 8px #22c55e",
+            }}
+          />
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              color: "var(--muted)",
+              textTransform: "uppercase",
+            }}
+          >
+            LANGGRAPH + GPT-4 INVESTIGATION ACTIVE
+          </span>
           <span
             style={{
               fontSize: 11,
               fontWeight: 800,
               textTransform: "uppercase",
               letterSpacing: "0.08em",
-              padding: "3px 10px",
-              borderRadius: 999,
+              padding: "4px 10px",
+              borderRadius: 6,
               background: "var(--accent-soft, rgba(201, 243, 106, 0.15))",
               color: "var(--accent, #2563eb)",
               border: "1px solid var(--panel-border)",
             }}
           >
-            Stage 2 · Asynchronous Multi-Agent Copilot
-          </span>
-          <span style={{ fontSize: 12, color: "var(--muted)" }}>
-            LangGraph + GPT-4 Investigation &amp; Audit
+            Stage 2: Asynchronous Multi-Agent Copilot
           </span>
         </div>
 
@@ -149,6 +167,7 @@ const DisputesPage = () => {
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
+              minHeight: 44,
               padding: "10px 20px",
               borderRadius: "var(--card-radius, 8px)",
               background: "rgba(255, 255, 255, 0.05)",
@@ -168,6 +187,7 @@ const DisputesPage = () => {
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
+              minHeight: 44,
               padding: "10px 20px",
               borderRadius: "var(--card-radius, 8px)",
               background: "rgba(255, 255, 255, 0.05)",
@@ -228,6 +248,7 @@ const DisputesPage = () => {
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
+                  minHeight: 44,
                   padding: "10px 22px",
                   borderRadius: "var(--card-radius, 8px)",
                   background: "var(--accent)",
@@ -244,6 +265,7 @@ const DisputesPage = () => {
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
+                  minHeight: 44,
                   padding: "10px 20px",
                   borderRadius: "var(--card-radius, 8px)",
                   border: "1px solid var(--panel-border)",

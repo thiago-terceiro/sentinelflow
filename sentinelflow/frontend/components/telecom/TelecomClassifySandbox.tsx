@@ -12,22 +12,22 @@ type Props = {
 const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   if (verdict === "BLOCK") {
     return {
-      bg: "#fee2e2",
-      color: "#7f1d1d",
-      border: "1px solid #991b1b",
+      bg: "var(--badge-block-bg, #fee2e2)",
+      color: "var(--badge-block-color, #7f1d1d)",
+      border: "1px solid var(--badge-block-border, #991b1b)",
     };
   }
   if (verdict === "FLAG") {
     return {
-      bg: "#fef3c7",
-      color: "#78350f",
-      border: "1px solid #b45309",
+      bg: "var(--badge-flag-bg, #fef3c7)",
+      color: "var(--badge-flag-color, #78350f)",
+      border: "1px solid var(--badge-flag-border, #b45309)",
     };
   }
   return {
-    bg: "#dcfce7",
-    color: "#14532d",
-    border: "1px solid #15803d",
+    bg: "var(--badge-allow-bg, #dcfce7)",
+    color: "var(--badge-allow-color, #14532d)",
+    border: "1px solid var(--badge-allow-border, #15803d)",
   };
 };
 
@@ -214,9 +214,9 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   minHeight: 44,
                   padding: "10px 16px",
                   borderRadius: 6,
-                  border: isSelected ? "2px solid #1e40af" : "1px solid rgba(15, 23, 42, 0.25)",
+                  border: isSelected ? "2px solid var(--accent, #1e40af)" : "1px solid var(--panel-border)",
                   background: isSelected ? "var(--accent-soft, #dbeafe)" : "transparent",
-                  color: isSelected ? "#1e3a8a" : "#0f172a",
+                  color: isSelected ? "var(--accent, #1e3a8a)" : "var(--foreground)",
                   cursor: "pointer",
                 }}
                 className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
@@ -271,7 +271,8 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
               }}
               style={{
                 width: "100%",
-                padding: "8px 12px",
+                minHeight: 44,
+                padding: "10px 12px",
                 borderRadius: 8,
                 background: "rgba(0,0,0,0.2)",
                 border: "1px solid var(--border)",
@@ -299,7 +300,8 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
               }}
               style={{
                 width: "100%",
-                padding: "8px 12px",
+                minHeight: 44,
+                padding: "10px 12px",
                 borderRadius: 8,
                 background: "rgba(0,0,0,0.2)",
                 border: "1px solid var(--border)",
@@ -324,7 +326,8 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
             onChange={(e) => setTestRecipient(e.target.value)}
             style={{
               width: "100%",
-              padding: "8px 12px",
+              minHeight: 44,
+              padding: "10px 12px",
               borderRadius: 8,
               background: "rgba(0,0,0,0.2)",
               border: "1px solid var(--border)",
@@ -363,13 +366,13 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, minHeight: 44 }}>
           <input
             id={`${formId}-auto-escalate`}
             type="checkbox"
             checked={autoEscalate}
             onChange={(e) => setAutoEscalate(e.target.checked)}
-            style={{ accentColor: "var(--accent)", cursor: "pointer", width: 16, height: 16 }}
+            style={{ accentColor: "var(--accent)", cursor: "pointer", width: 20, height: 20, minWidth: 44, minHeight: 44 }}
           />
           <label
             htmlFor={`${formId}-auto-escalate`}
@@ -389,7 +392,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
             padding: "12px 20px",
             borderRadius: "var(--card-radius, 8px)",
             background: "var(--accent, #1e3a8a)",
-            color: "#ffffff",
+            color: "var(--accent-ink, #ffffff)",
             fontWeight: 700,
             fontSize: 15,
             border: "none",
@@ -448,7 +451,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
               </span>
             </div>
 
-            <span style={{ fontSize: 13, fontFamily: "monospace", color: "#14532d", fontWeight: 700 }}>
+            <span style={{ fontSize: 13, fontFamily: "monospace", color: "var(--telecom-good, #14532d)", fontWeight: 700 }}>
               <span className="page-icon">⏱ </span>
               {classificationResult.latency_ms} ms
             </span>
@@ -476,9 +479,9 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                       fontWeight: 700,
                       padding: "3px 8px",
                       borderRadius: 4,
-                      background: sig.startsWith("RULE:") ? "#fee2e2" : "#dbeafe",
-                      color: sig.startsWith("RULE:") ? "#991b1b" : "#1e3a8a",
-                      border: sig.startsWith("RULE:") ? "1px solid #b91c1c" : "1px solid #93c5fd",
+                      background: sig.startsWith("RULE:") ? "var(--badge-block-bg, #fee2e2)" : "var(--accent-soft, #dbeafe)",
+                      color: sig.startsWith("RULE:") ? "var(--badge-block-color, #991b1b)" : "var(--accent, #1e3a8a)",
+                      border: sig.startsWith("RULE:") ? "1px solid var(--badge-block-border, #b91c1c)" : "1px solid var(--panel-border, #93c5fd)",
                     }}
                   >
                     {sig}
@@ -545,7 +548,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                       padding: "12px 20px",
                       borderRadius: "var(--card-radius, 6px)",
                       background: "var(--accent, #1e3a8a)",
-                      color: "#ffffff",
+                      color: "var(--accent-ink, #ffffff)",
                       textDecoration: "none",
                       boxShadow: "0 0 16px rgba(30, 58, 138, 0.35)",
                     }}
@@ -575,8 +578,8 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                       padding: "12px 20px",
                       borderRadius: "var(--card-radius, 6px)",
                       background: "var(--accent-soft, #dbeafe)",
-                      color: "#1e3a8a",
-                      border: "2px solid #1e40af",
+                      color: "var(--accent, #1e3a8a)",
+                      border: "2px solid var(--accent, #1e40af)",
                       cursor: isEscalating ? "wait" : "pointer",
                       fontWeight: 700,
                       transition: "all 0.15s ease",

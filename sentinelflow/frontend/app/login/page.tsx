@@ -161,7 +161,7 @@ const LoginPage = () => {
               required
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)" }}
+              style={{ padding: "10px 12px", minHeight: 44, borderRadius: 8, border: "1px solid var(--border)" }}
             />
           </label>
 
@@ -174,7 +174,7 @@ const LoginPage = () => {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)" }}
+              style={{ padding: "10px 12px", minHeight: 44, borderRadius: 8, border: "1px solid var(--border)" }}
             />
           </label>
 
@@ -187,7 +187,7 @@ const LoginPage = () => {
               borderRadius: 8,
               border: "1px solid var(--border-strong)",
               background: "var(--accent, #1e3a8a)",
-              color: "white",
+              color: "var(--accent-ink, #ffffff)",
               fontWeight: 700,
               fontSize: 14,
               cursor: "pointer",
@@ -274,7 +274,16 @@ const LoginPage = () => {
         </div>
 
         <p style={{ marginTop: 16, marginBottom: 0 }}>
-          <Link href="/" style={{ color: "var(--muted)", textDecoration: "underline" }}>
+          <Link
+            href="/"
+            style={{
+              color: "var(--muted)",
+              textDecoration: "underline",
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
             Back to home
           </Link>
         </p>

@@ -13,22 +13,22 @@ type Props = {
 const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   if (verdict === "BLOCK") {
     return {
-      bg: "#fee2e2",
-      color: "#7f1d1d",
-      border: "1px solid #991b1b",
+      bg: "var(--badge-block-bg, #fee2e2)",
+      color: "var(--badge-block-color, #7f1d1d)",
+      border: "1px solid var(--badge-block-border, #991b1b)",
     };
   }
   if (verdict === "FLAG") {
     return {
-      bg: "#fef3c7",
-      color: "#78350f",
-      border: "1px solid #b45309",
+      bg: "var(--badge-flag-bg, #fef3c7)",
+      color: "var(--badge-flag-color, #78350f)",
+      border: "1px solid var(--badge-flag-border, #b45309)",
     };
   }
   return {
-    bg: "#dcfce7",
-    color: "#14532d",
-    border: "1px solid #15803d",
+    bg: "var(--badge-allow-bg, #dcfce7)",
+    color: "var(--badge-allow-color, #14532d)",
+    border: "1px solid var(--badge-allow-border, #15803d)",
   };
 };
 
@@ -169,9 +169,9 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
               minHeight: 44,
               padding: "10px 16px",
               borderRadius: "var(--card-radius, 6px)",
-              border: "1px solid rgba(15, 23, 42, 0.25)",
+              border: "1px solid var(--panel-border)",
               background: "transparent",
-              color: "#0f172a",
+              color: "var(--foreground)",
               cursor: isResetting ? "wait" : "pointer",
             }}
             className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
@@ -191,9 +191,9 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
               minHeight: 44,
               padding: "10px 16px",
               borderRadius: "var(--card-radius, 6px)",
-              border: isPaused ? "1px solid #7f1d1d" : "1px solid rgba(15, 23, 42, 0.25)",
-              background: isPaused ? "#991b1b" : "transparent",
-              color: isPaused ? "#ffffff" : "#0f172a",
+              border: isPaused ? "1px solid var(--badge-block-border, #7f1d1d)" : "1px solid var(--panel-border)",
+              background: isPaused ? "var(--badge-block-bg, #991b1b)" : "transparent",
+              color: isPaused ? "var(--badge-block-color, #ffffff)" : "var(--foreground)",
               cursor: "pointer",
             }}
             className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
@@ -232,9 +232,9 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                 minHeight: 44,
                 padding: "10px 16px",
                 borderRadius: 6,
-                border: isSelected ? "2px solid #1e40af" : "1px solid rgba(15, 23, 42, 0.25)",
+                border: isSelected ? "2px solid var(--accent)" : "1px solid var(--panel-border)",
                 background: isSelected ? "var(--accent-soft, #dbeafe)" : "transparent",
-                color: isSelected ? "#1e3a8a" : "#0f172a",
+                color: isSelected ? "var(--accent, #1e3a8a)" : "var(--foreground)",
                 cursor: "pointer",
               }}
               className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
@@ -334,7 +334,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                     <span style={{ color: "var(--muted)", fontSize: 11 }}>
                       score: {ev.fraud_score}
                     </span>
-                    <span style={{ color: "#14532d", fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>
+                    <span style={{ color: "var(--telecom-good, #14532d)", fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>
                       {ev.latency_ms}ms
                     </span>
                   </div>
@@ -362,9 +362,9 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                           fontWeight: 700,
                           padding: "2px 6px",
                           borderRadius: 4,
-                          background: sig.startsWith("RULE:") ? "#fee2e2" : "#dbeafe",
-                          color: sig.startsWith("RULE:") ? "#7f1d1d" : "#1e3a8a",
-                          border: sig.startsWith("RULE:") ? "1px solid #991b1b" : "1px solid #93c5fd",
+                          background: sig.startsWith("RULE:") ? "var(--badge-block-bg, #fee2e2)" : "var(--accent-soft, #dbeafe)",
+                          color: sig.startsWith("RULE:") ? "var(--badge-block-color, #7f1d1d)" : "var(--accent, #1e3a8a)",
+                          border: sig.startsWith("RULE:") ? "1px solid var(--badge-block-border, #991b1b)" : "1px solid var(--panel-border, #93c5fd)",
                         }}
                       >
                         {sig}
@@ -405,7 +405,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                           padding: "10px 18px",
                           borderRadius: "var(--card-radius, 6px)",
                           background: "var(--accent, #1e3a8a)",
-                          color: "#ffffff",
+                          color: "var(--accent-ink, #ffffff)",
                           textDecoration: "none",
                           boxShadow: "0 0 10px rgba(30, 58, 138, 0.3)",
                         }}
@@ -430,8 +430,8 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                           padding: "10px 18px",
                           borderRadius: "var(--card-radius, 6px)",
                           background: "var(--accent-soft, #dbeafe)",
-                          color: "#1e3a8a",
-                          border: "2px solid #1e40af",
+                          color: "var(--accent, #1e3a8a)",
+                          border: "2px solid var(--accent, #1e40af)",
                           cursor: isEscalatingThis ? "wait" : "pointer",
                           fontWeight: 700,
                           transition: "all 0.15s ease",
