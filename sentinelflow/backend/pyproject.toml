@@ -84,8 +84,8 @@ src = ["app"]
 select = ["E", "F", "I", "B", "UP", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"app/tests/**" = ["S101", "S105", "S106"]
-"app/telecom/train_onnx_model.py" = ["E501"]
+"app/tests/**" = ["S101", "S105", "S106", "E501"]
+"app/telecom/train_onnx_model.py" = ["E501", "S106"]
 "app/telecom/evaluate_model.py" = ["E501"]
 
 

@@ -233,14 +233,15 @@ To prevent SciPy statistical evaluations from blocking the asyncio event loop on
        - **Multi-Reviewer Consensus:** Independent confirmation by $\ge 2$ senior fraud analysts, OR
        - **External Chargeback Reconciliation:** Carrier-confirmed smishing report or downstream cardholder chargeback notice.
   3. **Strict Offline Evaluation Gate (`evaluate_model.py`):**
-     * Before any retrained `.onnx` artifact is promoted to production, it must execute `evaluate_model.py` against a deduplicated, strictly separated held-out benchmark containing hard-negative benign transactional templates (OTP, delivery alerts, shortlinks) and unseen adversarial smishing attacks.
+     * Before any retrained `.onnx` artifact is promoted to production, it must execute `evaluate_model.py` against a deduplicated, adversarial development & validation benchmark suite (N = 400) containing hard-negative benign transactional templates (OTP, delivery alerts, shortlinks) and adversarial smishing attacks.
+     * *Evaluation Integrity Note:* The 400-message benchmark suite served iteratively during engineering to tune heuristics and verify calibration. Unbiased production promotion requires single-shot evaluation against quarantined telecom optical-tap telemetry.
      * **Promotion Acceptance Criteria:**
        - Precision $\ge 88.0\%$
        - Recall $\ge 90.0\%$
        - F1-Score $\ge 0.900$
        - ROC-AUC $\ge 0.950$
        - PR-AUC $\ge 0.950$
-       - Calibrated Validation Brier Score $\le 0.100$ (Held-out $\le 0.160$)
+       - Calibrated Validation Brier Score $\le 0.100$ (Benchmark Suite $\le 0.160$)
        - False Positive Rate $\le 12.0\%$ (Zero regression on hard-negative 2FA templates)
      * If all gates pass, the compiled pipeline is exported via `skl2onnx`, validated with test inferences, and atomically swapped into the live ONNX inference engine without service interruption.
 

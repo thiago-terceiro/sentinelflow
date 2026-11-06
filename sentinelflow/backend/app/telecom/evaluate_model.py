@@ -1,9 +1,15 @@
-"""Empirical ML Evaluation Suite for SentinelPulse SMS Fraud & Spam Classifier.
+"""Empirical ML Development & Validation Benchmark Suite for SentinelPulse SMS Fraud & Spam Classifier.
 
-Evaluates trained models on a strictly separated, deduplicated held-out test set (N = 400)
+Evaluates trained models on a rigorous, deduplicated development/validation benchmark set (N = 400)
 including hard negative benign transactional SMS (delivery/OTP/shortlinks) and
-unseen smishing templates with zero train/test leakage, reporting dual-threshold
+adversarial smishing templates with zero train/test hash leakage, reporting dual-threshold
 operational metrics (Tier 1 FLAG+BLOCK >= 0.40 vs Tier 2 BLOCK >= 0.75).
+
+Note on Evaluation Integrity:
+This 400-message dataset has been used iteratively during engineering to guide heuristic
+development and verify calibration stability. It functions as an empirical Development &
+Validation Benchmark rather than an untouched independent holdout. Independent evaluation
+requires a segregated, quarantined dataset with documented telecom tap provenance.
 """
 
 from __future__ import annotations
@@ -416,7 +422,11 @@ def get_held_out_samples_with_metadata() -> list[dict[str, Any]]:
 
 
 def get_held_out_evaluation_set() -> tuple[list[str], list[int]]:
-    """Returns the deduplicated held-out test texts (N=400) and ground truth labels (0=Legit, 1=Fraud)."""
+    """Returns the deduplicated development & validation benchmark texts (N=400) and ground truth labels (0=Legit, 1=Fraud).
+
+    Note: This suite serves as a development & validation benchmark (Dev/Val N=400) used during
+    iteration and regression testing, not an untouched external holdout.
+    """
     samples = get_held_out_samples_with_metadata()
     texts = [s["text"] for s in samples]
     labels = [int(s["label"]) for s in samples]
@@ -428,6 +438,10 @@ def get_held_out_evaluation_set() -> tuple[list[str], list[int]]:
     if len(hashes) != len(set(hashes)):
         raise ValueError("Held-out evaluation set contains duplicate samples!")
     return texts, labels
+
+
+# Alias for explicit benchmark naming
+get_benchmark_evaluation_set = get_held_out_evaluation_set
 
 
 def compute_heuristic_score(text: str) -> float:
@@ -856,9 +870,9 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
     errors = metrics.get("error_analysis", {})
 
     lines = [
-        "# SentinelPulse Empirical ML Evaluation & Performance Report",
+        "# SentinelPulse Empirical ML Development & Validation Benchmark Report (Dev/Val N=400)",
         "",
-        "> **Reproducibility Stamp:** All metrics, confusion matrices, and breakdowns are generated directly from execution against the compiled ONNX model artifact and held-out test suite (N = 400). Zero simulated or synthetic figures.",
+        "> **Reproducibility Stamp:** All metrics, confusion matrices, and breakdowns are generated directly from execution against the compiled ONNX model artifact and development/validation benchmark suite (N = 400). Zero simulated or synthetic figures.",
         "",
         "## 1. Reproducibility & Environment Stamp",
         "",
@@ -869,6 +883,15 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
         f"- **Evaluator Engine:** `{repro.get('evaluator', 'ONNXRuntime-CPU')}`",
         f"- **Software Versions:** `onnxruntime={repro.get('software_versions', {}).get('onnxruntime')}`, `numpy={repro.get('software_versions', {}).get('numpy')}`, `scikit-learn={repro.get('software_versions', {}).get('scikit_learn')}`",
         f"- **Dataset Size:** {metrics['sample_count']} samples ({metrics['benign_count']} Benign, {metrics['fraud_count']} Fraud)",
+        "",
+        "### Evaluation Integrity & Provenance Clarification",
+        "The 400-message benchmark suite (200 hard benign, 200 adversarial smishing) was curated and utilized iteratively during development to guide heuristic tuning, rule escalation validation, and calibration verification. Consequently, it represents an empirical **Development & Validation Benchmark** rather than an untouched, single-use external holdout. While exact normalized SHA-256 hash overlap against the training corpus is strictly 0, iterative engineering inspection occurred during model tuning.",
+        "",
+        "**Independent Evaluation Strategy:**",
+        "To measure unbiased real-world generalization, production release candidates must be evaluated against a quarantined, independently collected carrier telemetry test suite with the following governance controls:",
+        "1. **Independent Provenance:** Samples sourced directly from live telecom gateway optical taps across multiple geographical routing nodes, verified with carrier ground-truth CDRs (Call Detail Records).",
+        "2. **Cryptographic Quarantine & Zero Developer Access:** Quarantined test corpus is cryptographically hashed with SHA-256 upon ingestion and sealed in an access-restricted vault with zero developer access.",
+        "3. **Single-Shot Release Gate:** The quarantined test suite is executed exclusively by automated CI/CD release pipelines with strict single-shot evaluation to prevent iterative optimization and information leakage.",
         "",
         "## 2. Core Discriminative & Calibration Metrics (Raw ML Model at P >= 0.50)",
         "",
@@ -952,6 +975,7 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
         "1. **Monotonic Non-Decreasing Property:** $\\frac{\\partial S_{\\text{composite}}}{\\partial P} \\ge 0$, $\\frac{\\partial S_{\\text{composite}}}{\\partial H} \\ge 0$, and $\\frac{\\partial S_{\\text{composite}}}{\\partial V} \\ge 0$ everywhere on $[0, 1]^3$. Output is strictly bounded within $[0.0, 1.0]$. Terminology note: the function is strictly *monotonic non-decreasing* rather than strictly monotonic due to the flat boundary plateau where $H \\ge 0.80$ forces $S_{\\text{composite}} = 1.0$.",
         "2. **Benign Indicator Suppression:** When $H \\le 0.25$ and $P < 0.30$, $\\alpha(P, H) = 0.0$ and $S_{\\text{content}} = P < 0.30 < 0.40$, strictly avoiding false-positive customer friction.",
         "3. **Authoritative Heuristic Override ($H \\ge 0.80$):** High-confidence threat rules immediately override to $S_{\\text{composite}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` ($H = 0.80$) is the explicit rule capable of triggering an immediate standalone override block. High-severity rules with base score $\\ge 0.70$ (e.g. `URGENT_ACCOUNT_LOCKOUT`, `UNPAID_TOLL_INVOICE`) reach $\\ge 0.82$ via compound rule escalation (+0.12 boost) when paired with a secondary risk signal.",
+        "4. **Individual Heuristic Threshold Clarification ($H = 0.65$):** A heuristic score of $H = 0.65$ (e.g. `RULE:FAMILY_IMPERSONATION_MESSAGING_LURE`) does *not* force Tier 1 escalation ($S_{\\text{composite}} \\ge 0.40$) on its own when ML suspicion is zero ($P = 0.0, V = 0.0$). At $P = 0.0$, $W_H = 0.3325$ and $S_{\\text{composite}} = 0.3325 < 0.40$ (`ALLOW`). Escalation to Tier 1 without velocity requires baseline ML suspicion $P \\ge 0.1012$.",
         "",
     ])
 
@@ -1010,7 +1034,7 @@ def main() -> None:
     repro = metrics.get("reproducibility", {})
 
     print("\n" + "=" * 70)
-    print("SENTINELPULSE EMPIRICAL ML EVALUATION REPORT (N = 400)")
+    print("SENTINELPULSE EMPIRICAL ML DEVELOPMENT & VALIDATION BENCHMARK REPORT (Dev/Val N = 400)")
     print("=" * 70)
     print(f"Model Artifact:    {repro.get('model_artifact', metrics.get('model_artifact'))} ({repro.get('model_artifact_size_kb', metrics.get('model_artifact_size_kb'))} KB)")
     print(f"Model SHA-256:     {repro.get('model_sha256', metrics.get('model_sha256'))}")

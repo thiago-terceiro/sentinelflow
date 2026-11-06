@@ -15,6 +15,7 @@ from app.telecom.evaluate_model import (
     evaluate_onnx_model,
     extract_error_analysis,
     generate_markdown_report,
+    get_benchmark_evaluation_set,
     get_held_out_evaluation_set,
     get_held_out_samples_with_metadata,
 )
@@ -41,11 +42,15 @@ def test_held_out_dataset_integrity_and_categorization() -> None:
     ]
     assert len(hashes) == len(set(hashes)), "Held-out test set contains duplicate samples"
 
-    # Backward compatibility with get_held_out_evaluation_set
+    # Backward compatibility and explicit alias
     texts, labels = get_held_out_evaluation_set()
     assert len(texts) == 400
     assert len(labels) == 400
     assert labels == [s["label"] for s in samples]
+
+    texts_bench, labels_bench = get_benchmark_evaluation_set()
+    assert texts_bench == texts
+    assert labels_bench == labels
 
 
 def test_category_metrics_computation() -> None:
@@ -179,7 +184,7 @@ def test_markdown_report_formatting() -> None:
     metrics = evaluate_onnx_model()
     report = generate_markdown_report(metrics)
 
-    assert "# SentinelPulse Empirical ML Evaluation & Performance Report" in report
+    assert "# SentinelPulse Empirical ML Development & Validation Benchmark Report" in report
     assert "Reproducibility & Environment Stamp" in report
     assert "Dual-Threshold Operational Tiers" in report
     assert "Tier 1: Escalation Queue" in report

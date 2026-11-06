@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import httpx
+import numpy as np
 import pytest
 from app.db.models import Base
 from app.main import app
@@ -673,6 +674,7 @@ def test_calibrated_classifier_cv_platt_parity() -> None:
         "URGENT: Chase Bank alert. Account suspended! Verify at http://bit.ly/chase",
         "Hey! Are you still free for lunch today?",
         "Toll violation notice: Pay $4.50 now to avoid suspension: http://toll-pay.xyz",
+        "Bitstamp: Withdrawal of 2.50 ETH completed to wallet address 0x71C... TxId available in account history.",
     ]
 
     # ONNX probabilities
@@ -680,20 +682,228 @@ def test_calibrated_classifier_cv_platt_parity() -> None:
     for p in onnx_probs:
         assert 0.0 <= p <= 1.0, f"ONNX probability {p} outside [0, 1]"
 
-    # Quick scikit-learn reference pipeline with cv=5
+    # Quick scikit-learn reference pipeline with aligned token pattern
     texts, labels, _ = build_augmented_dataset()
     base_clf = LogisticRegression(C=1.5, class_weight="balanced", max_iter=1000, random_state=42)
     calibrated_clf = CalibratedClassifierCV(base_clf, method="sigmoid", cv=5)
     pipe = Pipeline([
-        ("tfidf", TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, max_features=2500)),
+        (
+            "tfidf",
+            TfidfVectorizer(
+                ngram_range=(1, 2),
+                sublinear_tf=True,
+                max_features=2500,
+                token_pattern=r"\b[a-zA-Z0-9_]+\b",
+            ),
+        ),
         ("clf", calibrated_clf),
     ])
     pipe.fit(texts, labels)
     sk_probs = pipe.predict_proba(sample_texts)[:, 1].tolist()
 
     for p_onnx, p_sk in zip(onnx_probs, sk_probs, strict=True):
-        # Allow tiny float precision divergence between ONNX C++ and SciPy
-        assert abs(p_onnx - p_sk) < 0.08, f"Calibration parity drift: ONNX={p_onnx}, Sklearn={p_sk}"
+        assert abs(p_onnx - p_sk) < 0.05, f"Calibration parity drift: ONNX={p_onnx}, Sklearn={p_sk}"
+
+
+def test_onnx_sklearn_full_benchmark_parity() -> None:
+    """Verifies ONNX Runtime vs scikit-learn probability parity across all 400 benchmark samples."""
+    from app.telecom.evaluate_model import get_held_out_evaluation_set
+    from app.telecom.train_onnx_model import build_augmented_dataset
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    engine = get_inference_engine()
+    benchmark_texts, _ = get_held_out_evaluation_set()
+    assert len(benchmark_texts) == 400
+
+    # Fit production-equivalent scikit-learn reference pipeline
+    texts, labels, _ = build_augmented_dataset()
+    calibrated_clf = CalibratedClassifierCV(
+        estimator=LogisticRegression(C=1.5, class_weight="balanced", max_iter=1000, random_state=42),
+        method="sigmoid",
+        cv=5,
+    )
+    pipe = Pipeline([
+        (
+            "tfidf",
+            TfidfVectorizer(
+                ngram_range=(1, 2),
+                sublinear_tf=True,
+                max_features=2500,
+                token_pattern=r"\b[a-zA-Z0-9_]+\b",
+            ),
+        ),
+        ("clf", calibrated_clf),
+    ])
+    pipe.fit(texts, labels)
+
+    sk_probs = pipe.predict_proba(benchmark_texts)[:, 1]
+    onnx_probs = np.array(engine.predict_proba_batch(benchmark_texts))
+
+    abs_diffs = np.abs(sk_probs - onnx_probs)
+    max_diff = float(np.max(abs_diffs))
+    mean_diff = float(np.mean(abs_diffs))
+    large_diff_count = int(np.sum(abs_diffs > 0.05))
+
+    assert max_diff < 0.05, f"Maximum ONNX/Sklearn probability divergence exceeded 0.05: {max_diff}"
+    assert mean_diff < 0.005, f"Mean ONNX/Sklearn probability divergence exceeded 0.005: {mean_diff}"
+    assert large_diff_count == 0, f"Found {large_diff_count} samples with divergence > 0.05"
+
+    # Decision parity: 100% agreement at binary decision boundary 0.50 and Tier 2 boundary 0.75
+    sk_decision = sk_probs >= 0.50
+    onnx_decision = onnx_probs >= 0.50
+    assert np.array_equal(sk_decision, onnx_decision), "Decision disparity at binary threshold 0.50"
+
+    sk_tier2 = sk_probs >= 0.75
+    onnx_tier2 = onnx_probs >= 0.75
+    assert np.array_equal(sk_tier2, onnx_tier2), "Decision disparity at Tier 2 threshold 0.75"
+
+    # At Tier 1 boundary 0.40, allow at most 1 boundary boundary-straddling sample (float precision within 0.012)
+    tier1_crossings = int(np.sum((sk_probs >= 0.40) != (onnx_probs >= 0.40)))
+    assert tier1_crossings <= 1, f"Unexpected decision disparity at Tier 1 (0.40): {tier1_crossings} samples"
+
+
+def test_template_family_grouping_under_and_over_grouping() -> None:
+    """Verifies template family extractor prevents both under-grouping and over-grouping."""
+    from app.telecom.train_onnx_model import extract_template_family_id
+
+    # 1. Under-grouping prevention: Templates that differ only by brand/entity name MUST share group
+    chase_alert = "URGENT: Chase security alert! Unusual sign-in detected. Confirm identity: http://verify.info"
+    wells_alert = "URGENT: Wells Fargo security alert! Unusual sign-in detected. Confirm identity: http://verify.info"
+    citi_alert = "URGENT: Citibank security alert! Unusual sign-in detected. Confirm identity: http://verify.info"
+
+    fam_chase = extract_template_family_id(chase_alert, 1)
+    fam_wells = extract_template_family_id(wells_alert, 1)
+    fam_citi = extract_template_family_id(citi_alert, 1)
+
+    assert fam_chase == fam_wells == fam_citi, (
+        f"Under-grouping detected: Different family IDs for identical brand templates: "
+        f"{fam_chase} vs {fam_wells} vs {fam_citi}"
+    )
+
+    # 2. Over-grouping prevention: Structurally distinct templates MUST remain in distinct families
+    msg_2fa = "Your verification code is 849201. It expires in 5 minutes."
+    msg_statement = "Your checking account monthly statement is ready to view."
+    msg_arrest = "IRS FINAL NOTICE: You owe delinquent taxes. Arrest warrant issued."
+    msg_flight = "Flight confirmation #4020. Check-in opens 24 hours prior."
+
+    fams = {
+        extract_template_family_id(msg_2fa, 0),
+        extract_template_family_id(msg_statement, 0),
+        extract_template_family_id(msg_arrest, 1),
+        extract_template_family_id(msg_flight, 0),
+    }
+    assert len(fams) == 4, f"Over-grouping detected: distinct messages merged into {len(fams)} families"
+
+
+def test_template_family_grouping_cross_validation_disjointness() -> None:
+    """Verifies that all 5 cross-validation folds have strictly zero template family leakage."""
+    from app.telecom.train_onnx_model import build_augmented_dataset
+    from sklearn.model_selection import StratifiedGroupKFold
+
+    texts, labels, template_family_ids = build_augmented_dataset()
+    sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+
+    for fold, (train_idx, val_idx) in enumerate(sgkf.split(texts, labels, groups=template_family_ids)):
+        train_groups = {template_family_ids[i] for i in train_idx}
+        val_groups = {template_family_ids[i] for i in val_idx}
+
+        overlap = train_groups.intersection(val_groups)
+        assert len(overlap) == 0, f"Fold {fold} has {len(overlap)} overlapping template families: {overlap}"
+
+        y_train = [labels[i] for i in train_idx]
+        y_val = [labels[i] for i in val_idx]
+        assert y_train.count(0) > 0 and y_train.count(1) > 0, f"Fold {fold} train split has empty class"
+        assert y_val.count(0) > 0 and y_val.count(1) > 0, f"Fold {fold} val split has empty class"
+
+
+def test_family_impersonation_rule_precision_and_alternative_channels() -> None:
+    """Verifies refined RULE:FAMILY_IMPERSONATION_MESSAGING_LURE precision and coverage."""
+    engine = get_inference_engine()
+
+    # 1. Legitimate phone repair notifications MUST NOT trigger the rule and MUST be ALLOW
+    legit_repairs = [
+        "Hi John, your broken phone screen is repaired and ready for pickup. Message us on WhatsApp for questions.",
+        "Repair quote: Your cracked screen repair is completed at the service center. Technician note on WhatsApp.",
+        "Your mobile device repair is ready for pickup at our Main Street counter.",
+    ]
+    for msg in legit_repairs:
+        score, signals = engine.evaluate_heuristics(msg)
+        assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" not in signals, (
+            f"False positive rule trigger on repair message: {msg}"
+        )
+        res = engine.predict(msg)
+        assert res.verdict == "ALLOW", f"Repair message not ALLOW: {msg} -> {res.verdict}"
+
+    # 2. Casual conversations about broken phones MUST NOT trigger the rule
+    casual_chats = [
+        "Hey, my phone broke so I'm using an old one, text me on WhatsApp",
+        "Can you pick up my repaired phone from the shop?",
+    ]
+    for msg in casual_chats:
+        score, signals = engine.evaluate_heuristics(msg)
+        assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" not in signals, (
+            f"False positive rule trigger on casual chat: {msg}"
+        )
+
+    # 3. Adversarial smishing family lures (WhatsApp redirection) MUST trigger
+    smish_whatsapp = (
+        "Hey mom my phone screen just cracked completely, borrowing friend's phone. "
+        "Text my temporary WhatsApp: wa.me/19175552000"
+    )
+    score, signals = engine.evaluate_heuristics(smish_whatsapp)
+    assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" in signals
+    assert score >= 0.65
+
+    # 4. Alternative payment channel smishing lures (Zelle, Venmo) MUST trigger
+    smish_venmo = "Hi dad, dropped my phone in water, using temporary number. Please send $350 via Venmo for emergency rent."
+    score_v, signals_v = engine.evaluate_heuristics(smish_venmo)
+    assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" in signals_v
+    assert score_v >= 0.65
+
+    smish_zelle = "Hey mum, broke my phone and lost my SIM. Need to pay an urgent bill, can you transfer $450 to my Zelle?"
+    score_z, signals_z = engine.evaluate_heuristics(smish_zelle)
+    assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" in signals_z
+    assert score_z >= 0.65
+
+
+def test_legitimate_bank_fraud_alerts_allow_verdict() -> None:
+    """Verifies that legitimate two-way interactive bank fraud verification alerts pass with ALLOW."""
+    engine = get_inference_engine()
+
+    benign_bank_alerts = [
+        "Chase Fraud Alert: Did you attempt $35.50 at Chevron? Reply YES or NO. Msg&data rates apply.",
+        "Wells Fargo Fraud Alert: Did you attempt $89.20 at Target? Reply YES or NO.",
+        "Citi Security Alert: Unusual charge of $120.00 at Walmart. Text 1 if authorized, 2 if not.",
+        "Bank of America Alert: Did you authorize $45.00 transaction at Shell? Reply Y or N. FreeMsg.",
+    ]
+    for msg in benign_bank_alerts:
+        res = engine.predict(msg)
+        assert res.verdict == "ALLOW", (
+            f"Legitimate bank alert received {res.verdict} (fraud_score={res.fraud_score}): {msg}"
+        )
+        assert res.fraud_score < 0.40
+
+
+def test_mathematical_monotonicity_and_h065_derivation() -> None:
+    """Verifies composite scoring mathematical invariants and H=0.65 escalation threshold."""
+    # 1. H=0.65 with P=0.0 MUST NOT trigger Tier 1 (0.40)
+    score_p0 = compute_composite_score(heuristic_score=0.65, onnx_probability=0.0, velocity_score=0.0)
+    assert score_p0 == 0.3325, f"Expected exactly 0.3325, got {score_p0}"
+    assert score_p0 < 0.40, "H=0.65 alone must NOT escalate to Tier 1 without baseline ML suspicion"
+
+    # 2. P required to reach 0.40 with H=0.65 is ~0.1012
+    score_p_just_below = compute_composite_score(heuristic_score=0.65, onnx_probability=0.10, velocity_score=0.0)
+    assert score_p_just_below < 0.40
+
+    score_p_reaches_tier1 = compute_composite_score(heuristic_score=0.65, onnx_probability=0.1012, velocity_score=0.0)
+    assert score_p_reaches_tier1 >= 0.40
+
+    # 3. Authoritative override H >= 0.80 forces S=1.0 regardless of P
+    assert compute_composite_score(heuristic_score=0.80, onnx_probability=0.0, velocity_score=0.0) == 1.0
+    assert compute_composite_score(heuristic_score=0.85, onnx_probability=0.0, velocity_score=0.0) == 1.0
 
 
 @pytest.mark.asyncio

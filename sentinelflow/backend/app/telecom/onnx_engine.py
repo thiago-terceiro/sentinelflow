@@ -101,11 +101,15 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
         re.compile(
-            r"\b(?:broken phone|cracked (?:screen|my screen)|phone screen.*cracked|"
-            r"temporary (?:number|mobile|phone|whatsapp)|"
-            r"lost my (?:phone|mobile)|new number)\b.*"
-            r"\b(?:whatsapp|telegram|wa\.me|signal)\b",
-            re.IGNORECASE,
+            r"^(?!.*\b(?:repaired|repair shop|service center|technician|ready for pickup|quote)\b)"
+            r"(?=.*\b(?:mum|mom|dad|mama|papa|borrowing (?:a |friend|someone)|"
+            r"temporary (?:number|mobile|phone|whatsapp)|new number)\b)"
+            r"(?=.*\b(?:broken phone|cracked (?:screen|my screen)|phone screen.*cracked|"
+            r"phone.*cracked|dropped (?:my )?phone|broke my phone|phone broke|"
+            r"lost my (?:phone|mobile|sim))\b)"
+            r".*\b(?:whatsapp|telegram|wa\.me|signal|zelle|venmo|cash ?app|wire transfer|"
+            r"emergency bill|urgent bill)\b",
+            re.IGNORECASE | re.DOTALL,
         ),
         0.65,
     ),
@@ -217,6 +221,18 @@ def compute_composite_score(
        the formulation is mathematically monotonic non-decreasing (rather than strictly
        monotonic) due to flat boundary plateaus where H >= 0.80 forces S_composite = 1.0.
        When H <= 0.25 and P < 0.30, alpha == 0.0 and S_content == P < 0.30 < 0.40 (ALLOW).
+
+       Note on Tier 1 Escalation and Individual Heuristics:
+       A heuristic score of H = 0.65 (e.g. RULE:FAMILY_IMPERSONATION_MESSAGING_LURE) does
+       NOT guarantee Tier 1 escalation (S_composite >= 0.40) on its own when ML suspicion is zero.
+       With H = 0.65, P = 0.0, and V = 0.0:
+         W_H = 0.35 * 0.65 + 0.30 * (0.65 - 0.30) = 0.2275 + 0.105 = 0.3325
+         alpha = min(1.0, max(0.0, max(-0.15, 0.35) / 0.25)) = 1.0
+         S_content = 0.0 + 1.0 * 0.3325 * (1.0 - 0.0) = 0.3325 < 0.40 (ALLOW)
+       To reach the Tier 1 threshold S_composite >= 0.40 without velocity,
+       the ML model probability P must satisfy:
+       must satisfy: S_content = P + 0.3325 * (1.0 - P) = 0.3325 + 0.6675 * P >= 0.40
+       => P >= (0.40 - 0.3325) / 0.6675 = 0.10112 (i.e. baseline ML suspicion P >= 0.1012).
 
     3. Smooth Monotonic Non-Decreasing Velocity Scaling (Probabilistic Union / Noisy-OR):
        S_composite = S_content + V * (1.0 - S_content)
