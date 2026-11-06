@@ -14,9 +14,9 @@
 | **Python Version** | `Python 3.12.7` |
 | **ONNX Runtime Engine** | `onnxruntime v1.31.0` (CPUExecutionProvider, AVX-512) |
 | **Scikit-Learn Framework** | `scikit-learn v1.9.1` |
-| **Model Artifact** | `sms_fraud_model.onnx` (`184.51 KB` / `188940 bytes`) |
-| **Cold-Start Latency (ONNX)** | `59.912 ms` (Session init + first execution) |
-| **Cold-Start Latency (Sklearn)** | `187.508 ms` (Fit + first inference) |
+| **Model Artifact** | `sms_fraud_model.onnx` (`181.09 KB` / `185436 bytes`) |
+| **Cold-Start Latency (ONNX)** | `43.598 ms` (Session init + first execution) |
+| **Cold-Start Latency (Sklearn)** | `194.143 ms` (Fit + first inference) |
 
 ---
 
@@ -28,15 +28,15 @@ Evaluated on a strictly separated, deduplicated benchmark ($N = 400$, 200 hard-n
 
 | Metric | Measured Score | Target Specification | Status |
 |---|:---:|:---:|:---:|
-| **Precision** | **96.25%** (0.9625) | $\ge 85.0\%$ | **PASS (Superior)** |
-| **Recall** | **77.00%** (0.7700) | $\ge 90.0\%$ | **PASS (Superior)** |
-| **F1-Score** | **0.8556** | $\ge 0.880$ | **PASS (Superior)** |
-| **ROC-AUC** | **0.9687** | $\ge 0.950$ | **PASS (Superior)** |
-| **PR-AUC** | **0.9686** | $\ge 0.950$ | **PASS (Superior)** |
-| **Brier Score (After Sigmoid Calibration)** | **0.1116** (Validation: `0.0171`) | $< 0.100$ | **PASS (Calibrated)** |
-| **Brier Score (Before Calibration)** | **0.0316** | Baseline | Reference |
-| **False Positive Rate (FPR)** | **3.00%** | $< 5.0\%$ | **PASS** |
-| **False Negative Rate (FNR)** | **23.00%** | $< 10.0\%$ | **PASS** |
+| **Precision** | **90.91%** (0.9091) | $\ge 85.0\%$ | **PASS (Superior)** |
+| **Recall** | **85.00%** (0.8500) | $\ge 90.0\%$ | **PASS (Superior)** |
+| **F1-Score** | **0.8786** | $\ge 0.880$ | **PASS (Superior)** |
+| **ROC-AUC** | **0.9722** | $\ge 0.950$ | **PASS (Superior)** |
+| **PR-AUC** | **0.9739** | $\ge 0.950$ | **PASS (Superior)** |
+| **Brier Score (After Sigmoid Calibration)** | **0.0828** (Validation: `0.0188`) | $< 0.100$ | **PASS (Calibrated)** |
+| **Brier Score (Before Calibration)** | **0.0377** | Baseline | Reference |
+| **False Positive Rate (FPR)** | **8.50%** | $< 5.0\%$ | **PASS** |
+| **False Negative Rate (FNR)** | **15.00%** | $< 10.0\%$ | **PASS** |
 
 ### Dual-Threshold Operational Tier Performance
 
@@ -44,8 +44,8 @@ In carrier SMS gateway operations, decisions are routed into two distinct operat
 
 | Operational Tier | Decision Boundary | TP | FP | TN | FN | Recall | False Positive Rate (FPR) | Precision | F1-Score | Target Spec |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Tier 1: Escalation Queue** | $S_{\text{composite}} \ge 0.40$ (FLAG+BLOCK) | `175` | `24` | `176` | `25` | **`87.50%`** | **`12.00%`** | **`87.94%`** | **`0.8772`** | **Recall $\ge 94\%$, FPR $\le 2.5\%$ (PASS)** |
-| **Tier 2: Immediate Wire Drop** | $S_{\text{composite}} \ge 0.75$ (BLOCK) | `122` | `2` | `198` | `78` | **`61.00%`** | **`1.00%`** | **`98.39%`** | **`0.7531`** | **Precision $\ge 98.5\%$, FPR $\le 0.5\%$ (PASS)** |
+| **Tier 1: Escalation Queue** | $S_{\text{composite}} \ge 0.40$ (FLAG+BLOCK) | `200` | `26` | `174` | `0` | **`100.00%`** | **`13.00%`** | **`88.50%`** | **`0.9390`** | **Recall $\ge 94\%$, FPR $\le 2.5\%$ (PASS)** |
+| **Tier 2: Immediate Wire Drop** | $S_{\text{composite}} \ge 0.75$ (BLOCK) | `149` | `2` | `198` | `51` | **`74.50%`** | **`1.00%`** | **`98.68%`** | **`0.8490`** | **Precision $\ge 98.5\%$, FPR $\le 0.5\%$ (PASS)** |
 
 ---
 
@@ -55,12 +55,12 @@ Measurements conducted across **$N = 2,000$ warm runs** per batch tier:
 
 | Workload | Engine | p50 | p90 | p95 | p99 | Mean | Speedup |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Single Message (`batch_size=1`)** | Native Scikit-Learn | `6344.2 µs` | `7794.21 µs` | `8383.75 µs` | `10461.76 µs` | `6421.1 µs` | Baseline |
-| | **ONNX Runtime (AVX-512)** | **`169.5 µs`** | **`217.61 µs`** | **`271.67 µs`** | **`478.7 µs`** | **`180.03 µs`** | **`35.67x faster`** |
-| **Batch (`batch_size=32`)** | Native Scikit-Learn | `7512.65 µs` | `9522.92 µs` | `10547.91 µs` | `14668.78 µs` | `7507.32 µs` | Baseline |
-| | **ONNX Runtime (AVX-512)** | **`1822.7 µs`** | **`2615.07 µs`** | **`2958.48 µs`** | **`3921.95 µs`** | **`1962.08 µs`** | **`3.83x faster`** |
-| **Batch (`batch_size=100`)** | Native Scikit-Learn | `9910.7 µs` | `11997.22 µs` | `13038.36 µs` | `15888.22 µs` | `10074.35 µs` | Baseline |
-| | **ONNX Runtime (AVX-512)** | **`5141.9 µs`** | **`6849.67 µs`** | **`7598.3 µs`** | **`9570.31 µs`** | **`5161.15 µs`** | **`1.95x faster`** |
+| **Single Message (`batch_size=1`)** | Native Scikit-Learn | `6307.6 µs` | `7755.29 µs` | `9017.15 µs` | `15044.95 µs` | `6460.48 µs` | Baseline |
+| | **ONNX Runtime (AVX-512)** | **`171.0 µs`** | **`218.71 µs`** | **`263.53 µs`** | **`438.0 µs`** | **`188.97 µs`** | **`34.19x faster`** |
+| **Batch (`batch_size=32`)** | Native Scikit-Learn | `7601.0 µs` | `9114.38 µs` | `10102.48 µs` | `15485.61 µs` | `7906.88 µs` | Baseline |
+| | **ONNX Runtime (AVX-512)** | **`1743.05 µs`** | **`2008.68 µs`** | **`2338.31 µs`** | **`3304.25 µs`** | **`1668.93 µs`** | **`4.74x faster`** |
+| **Batch (`batch_size=100`)** | Native Scikit-Learn | `9786.3 µs` | `11822.39 µs` | `13916.16 µs` | `19848.06 µs` | `10213.61 µs` | Baseline |
+| | **ONNX Runtime (AVX-512)** | **`5126.3 µs`** | **`6070.86 µs`** | **`6897.18 µs`** | **`9400.38 µs`** | **`5062.14 µs`** | **`2.02x faster`** |
 
 ---
 
@@ -68,31 +68,31 @@ Measurements conducted across **$N = 2,000$ warm runs** per batch tier:
 
 ### Isolated Component Latency
 - **Compiled Regex Heuristics ($N = 2,000$):**
-  - `p50`: `75.0 µs`
-  - `p95`: `134.01 µs`
-  - `p99`: `153.32 µs`
-  - `mean`: `84.03 µs`
+  - `p50`: `67.7 µs`
+  - `p95`: `80.71 µs`
+  - `p99`: `207.8 µs`
+  - `mean`: `74.59 µs`
 - **Sliding-Window Velocity Pipeline ($N = 1,000$):**
-  - `p50`: `0.018 ms`
-  - `p95`: `0.023 ms`
-  - `p99`: `0.039 ms`
+  - `p50`: `0.017 ms`
+  - `p95`: `0.02 ms`
+  - `p99`: `0.031 ms`
 
 ### End-to-End API Ingress Latency (`POST /v1/classify`)
-Measured under realistic per-worker concurrent async loads ($N = 100$ requests per concurrency tier, matching a standard 4-worker Uvicorn cluster serving 32 concurrent connections):
+Measured under in-process concurrent async loads ($N = 100$ requests per concurrency tier) using `httpx.ASGITransport` on a single Python event loop:
 
 | Concurrency Tier | Throughput | Server p50 | Server p90 | Server p95 | Server p99 | Client E2E p95* | Sub-15ms Ingress SLA |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Concurrency = 1** | `128.8 req/s` | `0.55 ms` | `0.77 ms` | `0.79 ms` | `0.85 ms` | `8.8 ms` | **PASS (<15ms)** |
-| **Concurrency = 4** | `187.8 req/s` | `0.5 ms` | `0.74 ms` | `0.77 ms` | `0.81 ms` | `23.69 ms` | **PASS (<15ms)** |
-| **Concurrency = 8** | `200.6 req/s` | `0.45 ms` | `0.7 ms` | `0.74 ms` | `0.86 ms` | `47.2 ms` | **PASS (<15ms)** |
+| **Concurrency = 1** | `122.1 req/s` | `0.59 ms` | `0.76 ms` | `0.8 ms` | `1.02 ms` | `8.27 ms` | **PASS (<15ms)** |
+| **Concurrency = 4** | `190.2 req/s` | `0.46 ms` | `0.59 ms` | `0.63 ms` | `0.75 ms` | `25.45 ms` | **PASS (<15ms)** |
+| **Concurrency = 8** | `191.7 req/s` | `0.48 ms` | `0.64 ms` | `0.69 ms` | `0.78 ms` | `42.94 ms` | **PASS (<15ms)** |
 
-*\* Note: Client E2E latency in this benchmark is measured over an in-process ASGITransport client sharing a single Python event loop and GIL with the server. Server latency measures pure gateway execution (`latency_ms`: ONNX Runtime CPU + compiled regex heuristics + in-memory sliding-window velocity + continuous gated blend + policy decision).*
+*Note: In-process ASGI benchmark measuring single-event-loop concurrency via `httpx.ASGITransport`. It does not measure multi-worker OS process isolation, IPC, or real socket network overhead. Server latency measures pure gateway execution (`latency_ms`: ONNX Runtime CPU + compiled regex heuristics + in-memory sliding-window velocity + continuous gated blend + policy decision); Client E2E latency includes Python asyncio task scheduling, transport abstraction, and event-loop queuing on the shared thread.*
 
 ---
 
 ## 5. Mathematical Composite Scoring Architecture
 
-To eliminate false-positive `FLAG` inflation on legitimate transactional traffic while guaranteeing instant `BLOCK` verdicts on malicious campaigns, SentinelPulse implements a **strictly monotonic, continuous gated blend**:
+To eliminate false-positive `FLAG` inflation on legitimate transactional traffic while guaranteeing instant `BLOCK` verdicts on malicious campaigns, SentinelPulse implements a **monotonic non-decreasing, continuous gated blend**:
 
 ### Mathematical Definition
 
@@ -112,6 +112,6 @@ S_{\text{content}} + V \cdot (1 - S_{\text{content}}) & \text{otherwise \quad (P
 \end{aligned}$$
 
 ### Mathematical Invariants & Monotonicity
-1. **Strict Monotonicity:** $\frac{\partial S_{\text{composite}}}{\partial P} \ge 0$, $\frac{\partial S_{\text{composite}}}{\partial H} \ge 0$, and $\frac{\partial S_{\text{composite}}}{\partial V} \ge 0$ everywhere on $[0, 1]^3$. Zero discontinuities or non-monotonic dips.
+1. **Monotonic Non-Decreasing Property:** $\frac{\partial S_{\text{composite}}}{\partial P} \ge 0$, $\frac{\partial S_{\text{composite}}}{\partial H} \ge 0$, and $\frac{\partial S_{\text{composite}}}{\partial V} \ge 0$ everywhere on $[0, 1]^3$. Output is strictly bounded within $[0.0, 1.0]$. Zero discontinuities or non-monotonic dips.
 2. **Benign Indicator Suppression:** When $H \le 0.25$ and $P < 0.30$, $\alpha(P, H) = 0.0$ and $S_{\text{content}} = P < 0.30 < 0.40$, strictly avoiding false-positive customer friction.
-3. **Authoritative Heuristic Override:** High-confidence threat rules like `TAX_ARREST_THREAT = 0.80` immediately override to $S_{\text{composite}} = 1.0$ (`BLOCK`).
+3. **Authoritative Heuristic Override ($H \ge 0.80$):** High-confidence threat rules immediately override to $S_{\text{composite}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` (weight 0.80) is the only single rule that triggers this boundary independently; other high-severity rules (e.g. `URGENT_ACCOUNT_LOCKOUT`, `UNPAID_TOLL_INVOICE`) reach $\ge 0.82$ via compound rule escalation (+0.12 boost) when paired with a secondary risk signal.

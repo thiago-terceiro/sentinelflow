@@ -2,7 +2,16 @@
 
 Tracks sender phone-number velocity across 10s, 60s, and 1h sliding windows,
 IP reputation, multi-dimensional domain/carrier prefix velocity, and carrier
-risk scores using async Redis connection pooling and Redis Cluster single-slot hash tags.
+risk scores using async Redis connection pooling.
+
+Architecture & Redis Deployment:
+- Production uses standalone Redis (image: redis:7-alpine).
+- All 3 sender sliding-window ZSET keys share the identical hash tag {sender_hash}
+  for potential future Redis Cluster slot affinity.
+- Note on Clustering: IP ({ip_hash}), domain ({domain_hash}), and prefix ({prefix_hash})
+  keys use separate hash tags and do NOT share the sender slot; in a Redis Cluster deployment,
+  cross-dimension keys route to different hash slots and cannot execute in a single-slot pipeline.
+  In the current standalone Redis deployment, all operations pipeline in 1 network RTT.
 
 Multi-Worker Local Fallback Trade-Off:
 When Redis is unreachable or socket timeouts trigger the 30s circuit breaker,
@@ -238,10 +247,12 @@ class RedisVelocityStore:
             try:
                 client = self._get_client()
 
-                # Redis Cluster Single-Slot Guarantee:
-                # All 3 sliding-window ZSET keys share the identical hash tag {sender_hash}.
-                # Redis Cluster hashes ONLY the substring inside {...}, mathematically
-                # guaranteeing identical CRC16 slot placement and 1-RTT pipelining.
+                # Standalone Redis Deployment & Slot Tagging:
+                # All 3 sender sliding-window ZSET keys share the identical hash tag {sender_hash}
+                # ensuring single-slot affinity for sender operations if migrated to Redis Cluster.
+                # Note: IP ({ip_hash}), domain ({domain_hash}), and prefix ({prefix_hash}) keys
+                # use separate hash tags and do NOT share the sender slot. In standalone Redis
+                # (redis:7-alpine), all keys pipeline together in 1 RTT regardless of hash tags.
                 sender_hash = hashlib.sha256(sender.strip().encode()).hexdigest()[:16]
                 sender_10s_key = f"pulse:vel:{{{sender_hash}}}:10s"
                 sender_60s_key = f"pulse:vel:{{{sender_hash}}}:60s"

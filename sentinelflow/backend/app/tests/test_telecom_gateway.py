@@ -13,8 +13,10 @@ from app.db.models import Base
 from app.main import app
 from app.telecom.drift_monitor import calculate_psi, get_drift_monitor
 from app.telecom.onnx_engine import (
+    HEURISTIC_RULES,
     OnnxInferenceEngine,
     compute_composite_score,
+    evaluate_heuristics,
     get_inference_engine,
 )
 from app.telecom.velocity_store import RedisVelocityStore, get_velocity_store
@@ -434,8 +436,10 @@ def test_composite_scoring_math_and_benign_suppression() -> None:
     assert 0.40 <= score_moderate_flag < 0.75
 
 
-def test_composite_scoring_strict_monotonicity_property() -> None:
-    """Property test: Verifies compute_composite_score is strictly monotonic across [0, 1]^3."""
+def test_composite_scoring_monotonic_non_decreasing_property() -> None:
+    """Property test: Verifies compute_composite_score is monotonic non-decreasing
+    and bounded on [0, 1]^3.
+    """
     grid = [i / 50.0 for i in range(51)]
 
     # 1. Monotonicity in P: for all P1 <= P2, S(P1, H, V) <= S(P2, H, V)
@@ -445,6 +449,7 @@ def test_composite_scoring_strict_monotonicity_property() -> None:
             for p in grid:
                 s = compute_composite_score(h, p, v)
                 assert s >= prev_s - 1e-9, f"Non-monotonic in P at h={h}, p={p}, v={v}"
+                assert 0.0 <= s <= 1.0, f"Score out of bounds: {s} at h={h}, p={p}, v={v}"
                 prev_s = s
 
     # 2. Monotonicity in H: for all H1 <= H2, S(P, H1, V) <= S(P, H2, V)
@@ -454,6 +459,7 @@ def test_composite_scoring_strict_monotonicity_property() -> None:
             for h in grid:
                 s = compute_composite_score(h, p, v)
                 assert s >= prev_s - 1e-9, f"Non-monotonic in H at p={p}, h={h}, v={v}"
+                assert 0.0 <= s <= 1.0, f"Score out of bounds: {s} at p={p}, h={h}, v={v}"
                 prev_s = s
 
     # 3. Monotonicity in V: for all V1 <= V2, S(P, H, V1) <= S(P, H, V2)
@@ -463,12 +469,167 @@ def test_composite_scoring_strict_monotonicity_property() -> None:
             for v in grid:
                 s = compute_composite_score(h, p, v)
                 assert s >= prev_s - 1e-9, f"Non-monotonic in V at p={p}, h={h}, v={v}"
+                assert 0.0 <= s <= 1.0, f"Score out of bounds: {s} at p={p}, h={h}, v={v}"
                 prev_s = s
 
     # 4. Benign boundary: H <= 0.25, P < 0.30, V == 0.0 -> strictly < 0.40 (ALLOW)
     for h in [0.0, 0.10, 0.20, 0.25]:
         for p in [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.29]:
             assert compute_composite_score(h, p, 0.0) < 0.40
+
+    # 5. Boundary behavior at H >= 0.80 forces immediate BLOCK (S = 1.0)
+    for p in [0.0, 0.20, 0.50, 0.90, 1.0]:
+        for v in [0.0, 0.30, 0.70, 1.0]:
+            assert compute_composite_score(0.80, p, v) == 1.0
+            assert compute_composite_score(0.95, p, v) == 1.0
+
+
+def test_single_rule_heuristic_short_circuit_invariant() -> None:
+    """Verifies that RULE:TAX_ARREST_THREAT (0.80) is the only single rule reaching H >= 0.80."""
+    high_rules = [
+        (name, weight)
+        for name, _, weight in HEURISTIC_RULES
+        if weight >= 0.80
+    ]
+    # Exactly one single rule should reach 0.80 independently
+    assert len(high_rules) == 1
+    assert high_rules[0][0] == "RULE:TAX_ARREST_THREAT"
+    assert high_rules[0][1] == 0.80
+
+    # All other rules must be strictly < 0.80
+    lower_rules = [
+        (name, weight)
+        for name, _, weight in HEURISTIC_RULES
+        if name != "RULE:TAX_ARREST_THREAT"
+    ]
+    for name, weight in lower_rules:
+        assert weight <= 0.75, f"Rule {name} has weight {weight} >= 0.80"
+
+
+def test_template_family_group_leakage_prevention() -> None:
+    """Verifies that template-family grouping strictly prevents cross-fold leakage."""
+    from app.telecom.train_onnx_model import build_augmented_dataset
+    from sklearn.model_selection import StratifiedGroupKFold
+
+    # 1. Synthetic test: create template variants and verify split prevents family leakage
+    toy_texts = [
+        "Variant A1 of template Alpha",
+        "Variant A2 of template Alpha",
+        "Variant B1 of template Beta",
+        "Variant B2 of template Beta",
+        "Variant G1 of template Gamma",
+        "Variant G2 of template Gamma",
+        "Variant D1 of template Delta",
+        "Variant D2 of template Delta",
+    ]
+    toy_labels = [0, 0, 1, 1, 0, 0, 1, 1]
+    toy_groups = [
+        "group_alpha", "group_alpha",
+        "group_beta", "group_beta",
+        "group_gamma", "group_gamma",
+        "group_delta", "group_delta",
+    ]
+
+    sgkf = StratifiedGroupKFold(n_splits=2, shuffle=True, random_state=42)
+    for tr_idx, v_idx in sgkf.split(toy_texts, toy_labels, groups=toy_groups):
+        tr_g = {toy_groups[i] for i in tr_idx}
+        v_g = {toy_groups[i] for i in v_idx}
+        assert tr_g.isdisjoint(v_g), "Synthetic template variant leaked between train and val"
+
+    # 2. Production dataset test: verify actual dataset split
+    texts, labels, groups = build_augmented_dataset()
+    assert len(texts) == len(labels) == len(groups)
+    assert len(set(groups)) >= 100
+
+    sgkf_prod = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    train_idx, val_idx = next(sgkf_prod.split(texts, labels, groups=groups))
+    groups_train = {groups[i] for i in train_idx}
+    groups_val = {groups[i] for i in val_idx}
+    assert groups_train.isdisjoint(groups_val), "Production template family leakage detected"
+
+
+def test_production_runtime_vs_evaluation_scoring_parity() -> None:
+    """Verifies scoring parity between production runtime inference and evaluation scoring."""
+    engine = get_inference_engine()
+
+    test_messages = [
+        "Your Google verification code is 849201. Do not share this code.",
+        "URGENT: Chase Bank alert. Account suspended! Verify at http://bit.ly/chase-verify-now",
+        "USPS Alert: Package 928301 held. Pay customs fee now.",
+        "IRS FINAL NOTICE: Arrest warrant issued for delinquent taxes.",
+        "Please review our updated privacy policy at https://company.com/privacy-policy",
+        "Your package is out for delivery with UPS Ground and will arrive by 5 PM.",
+        "Dinner was delicious, thanks for having us over!",
+        "You have (1) pending package awaiting clearance. Confirm: http://dhl-clearance.net",
+    ]
+
+    for msg in test_messages:
+        # Production runtime scoring (content-only, velocity=0)
+        prod_res = engine.predict(msg)
+
+        # Evaluation scoring path
+        eval_h, eval_signals = evaluate_heuristics(msg)
+        eval_p = engine.predict_proba_batch([msg])[0]
+        eval_composite = compute_composite_score(
+            heuristic_score=eval_h,
+            onnx_probability=eval_p,
+            velocity_score=0.0,
+        )
+
+        # Both paths must match to numerical precision
+        assert abs(prod_res.fraud_score - eval_composite) < 1e-6, (
+            f"Composite mismatch on '{msg}': prod={prod_res.fraud_score}, eval={eval_composite}"
+        )
+        assert abs(prod_res.heuristic_score - eval_h) < 1e-6, (
+            f"Heuristic mismatch on '{msg}': prod={prod_res.heuristic_score}, eval={eval_h}"
+        )
+
+
+def test_calibrated_classifier_cv_platt_parity() -> None:
+    """Verifies Platt sigmoid calibration parity between scikit-learn
+    and the exported ONNX model.
+    """
+    from pathlib import Path
+
+    from app.telecom.train_onnx_model import build_augmented_dataset
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    engine = get_inference_engine()
+    model_path = Path("app/telecom/models/sms_fraud_model.onnx")
+    if not model_path.exists():
+        model_path = Path("sentinelflow/backend/app/telecom/models/sms_fraud_model.onnx")
+
+    assert model_path.exists(), "Exported ONNX model artifact must exist"
+
+    sample_texts = [
+        "Your security code is 849201. Do not share.",
+        "URGENT: Chase Bank alert. Account suspended! Verify at http://bit.ly/chase",
+        "Hey! Are you still free for lunch today?",
+        "Toll violation notice: Pay $4.50 now to avoid suspension: http://toll-pay.xyz",
+    ]
+
+    # ONNX probabilities
+    onnx_probs = engine.predict_proba_batch(sample_texts)
+    for p in onnx_probs:
+        assert 0.0 <= p <= 1.0, f"ONNX probability {p} outside [0, 1]"
+
+    # Quick scikit-learn reference pipeline with cv=5
+    texts, labels, _ = build_augmented_dataset()
+    base_clf = LogisticRegression(C=1.5, class_weight="balanced", max_iter=1000, random_state=42)
+    calibrated_clf = CalibratedClassifierCV(base_clf, method="sigmoid", cv=5)
+    pipe = Pipeline([
+        ("tfidf", TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, max_features=2500)),
+        ("clf", calibrated_clf),
+    ])
+    pipe.fit(texts, labels)
+    sk_probs = pipe.predict_proba(sample_texts)[:, 1].tolist()
+
+    for p_onnx, p_sk in zip(onnx_probs, sk_probs, strict=True):
+        # Allow tiny float precision divergence between ONNX C++ and SciPy
+        assert abs(p_onnx - p_sk) < 0.08, f"Calibration parity drift: ONNX={p_onnx}, Sklearn={p_sk}"
 
 
 @pytest.mark.asyncio

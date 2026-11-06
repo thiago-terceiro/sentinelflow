@@ -12,11 +12,15 @@ import hashlib
 import json
 import logging
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-from app.telecom.onnx_engine import HEURISTIC_RULES, compute_composite_score
+from app.telecom.onnx_engine import (
+    compute_composite_score,
+    evaluate_heuristics,
+)
 from sklearn.metrics import (
     average_precision_score,
     brier_score_loss,
@@ -391,11 +395,8 @@ def get_held_out_evaluation_set() -> tuple[list[str], list[int]]:
 
 
 def compute_heuristic_score(text: str) -> float:
-    """Evaluates compiled regex heuristics against message text."""
-    score = 0.0
-    for _, pattern, weight in HEURISTIC_RULES:
-        if pattern.search(text):
-            score = max(score, weight)
+    """Evaluates shared compiled regex heuristics and compound escalation against message text."""
+    score, _ = evaluate_heuristics(text)
     return score
 
 
@@ -423,11 +424,15 @@ def compute_evaluation_metrics(
     fpr = float(fp / (fp + tn)) if (fp + tn) > 0 else 0.0
     fnr = float(fn / (fn + tp)) if (fn + tp) > 0 else 0.0
 
-    # Operational composite scores combining calibrated ML + heuristics
+    # Operational composite scores combining calibrated ML + authoritative shared heuristics (velocity_score=0.0)
     composite_scores: list[float] = []
     for text, p in zip(texts, y_prob_arr, strict=False):
-        h = compute_heuristic_score(text)
-        s_comp = compute_composite_score(heuristic_score=h, onnx_probability=float(p), velocity_score=0.0)
+        h, _ = evaluate_heuristics(text)
+        s_comp = compute_composite_score(
+            heuristic_score=h,
+            onnx_probability=float(p),
+            velocity_score=0.0,
+        )
         composite_scores.append(s_comp)
     comp_arr = np.asarray(composite_scores, dtype=float)
 
@@ -513,10 +518,25 @@ def evaluate_onnx_model(
     y_prob = [float(pm.get(1, 0.0)) for pm in prob_maps]
 
     metrics = compute_evaluation_metrics(labels, y_prob, texts=texts)
+    model_bytes = model_path.read_bytes()
+    model_sha256 = hashlib.sha256(model_bytes).hexdigest()
+    eval_dataset_sha256 = hashlib.sha256(
+        "".join(f"{t}:{lbl}" for t, lbl in zip(texts, labels, strict=True)).encode("utf-8")
+    ).hexdigest()
+
     metrics["evaluator"] = "ONNXRuntime-CPU"
     metrics["model_artifact"] = str(model_path.name)
-    metrics["model_artifact_size_bytes"] = model_path.stat().st_size
-    metrics["model_artifact_size_kb"] = round(model_path.stat().st_size / 1024, 2)
+    metrics["model_sha256"] = model_sha256
+    metrics["evaluation_dataset_sha256"] = eval_dataset_sha256
+    metrics["evaluation_mode"] = "content_only_zero_velocity"
+    metrics["velocity_score_fixed"] = 0.0
+    metrics["evaluation_timestamp"] = datetime.now(UTC).isoformat()
+    metrics["software_versions"] = {
+        "onnxruntime": ort.__version__,
+        "numpy": np.__version__,
+    }
+    metrics["model_artifact_size_bytes"] = len(model_bytes)
+    metrics["model_artifact_size_kb"] = round(len(model_bytes) / 1024, 2)
 
     return metrics
 

@@ -158,17 +158,49 @@ class InferenceResult:
     heuristic_score: float = 0.0
 
 
+def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
+    """Authoritative fast regex pattern matching and compound escalation for SMS text.
+
+    Single benign signals (e.g. standalone standard URL or benign delivery keyword)
+    only contribute low/moderate weights (0.20–0.40) and never trigger the >= 0.80
+    heuristic short-circuit unless paired with compound smishing indicators.
+
+    Compound rule escalation: multiple distinct risk triggers where at least
+    one is high-risk (>= 0.50) adds a +0.12 compound boost (capped at 0.95).
+    """
+    signals: list[str] = []
+    max_heuristic = 0.0
+
+    for rule_name, pattern, score in HEURISTIC_RULES:
+        if pattern.search(text):
+            signals.append(rule_name)
+            if score > max_heuristic:
+                max_heuristic = score
+
+    has_high_risk = any(
+        score >= 0.50 for name, _, score in HEURISTIC_RULES if name in signals
+    )
+    if len(signals) >= 2 and has_high_risk:
+        max_heuristic = min(0.95, max_heuristic + 0.12)
+        signals.append("HEURISTIC:COMPOUND_SIGNALS")
+
+    return max_heuristic, signals
+
+
 def compute_composite_score(
     heuristic_score: float,
     onnx_probability: float,
     velocity_score: float = 0.0,
 ) -> float:
-    """Computes the continuous, strictly monotonic composite fraud score.
+    """Computes the continuous, monotonic non-decreasing composite fraud score.
 
     Mathematical Formulation:
     1. Authoritative High-Risk Override:
-       If H >= 0.80 (e.g. TAX_ARREST_THREAT = 0.80, compound rules >= 0.85),
-       S_composite = 1.0 (BLOCK). High-confidence criminal extortion cannot be diluted.
+       If H >= 0.80, S_composite = 1.0 (BLOCK). Forces an immediate wire drop.
+       Individual rule trigger: RULE:TAX_ARREST_THREAT (weight 0.80) is the only single
+       rule whose base score reaches 0.80 independently. High-severity rules with weight
+       >= 0.70 (e.g. URGENT_ACCOUNT_LOCKOUT, UNPAID_TOLL_INVOICE) can reach >= 0.82 via
+       compound-rule escalation (+0.12 boost) when paired with a secondary risk signal.
 
     2. Continuous Gated Heuristic Blend:
        The heuristic gate alpha(P, H) smoothly scales from 0.0 (benign domain) to 1.0 (fraud):
@@ -178,10 +210,11 @@ def compute_composite_score(
        W_H = 0.35 * H + 0.30 * max(0.0, H - 0.30)
        S_content = P + alpha(P, H) * W_H * (1.0 - P)
 
-       Guarantees d(S_content)/dP >= 0 and d(S_content)/dH >= 0 everywhere on [0, 1] x [0, 1].
+       Guarantees monotonic non-decreasing output: d(S_content)/dP >= 0 and
+       d(S_content)/dH >= 0 everywhere on [0, 1] x [0, 1].
        When H <= 0.25 and P < 0.30, alpha == 0.0 and S_content == P < 0.30 < 0.40 (ALLOW).
 
-    3. Smooth Monotonic Velocity Scaling (Probabilistic Union / Noisy-OR):
+    3. Smooth Monotonic Non-Decreasing Velocity Scaling (Probabilistic Union / Noisy-OR):
        S_composite = S_content + V * (1.0 - S_content)
 
        Guarantees d(S_composite)/dV >= 0 and d(S_composite)/dS_content >= 0 everywhere.
@@ -265,32 +298,9 @@ class OnnxInferenceEngine:
 
     def evaluate_heuristics(self, text: str) -> tuple[float, list[str]]:
         """Fast regex pattern matching preceding the ML model.
-
-        Single benign signals (e.g. standalone standard URL or benign delivery keyword)
-        only contribute low/moderate weights (0.20–0.40) and never trigger the >= 0.85
-        heuristic short-circuit unless paired with compound smishing indicators.
+        Delegates to shared evaluate_heuristics.
         """
-        signals: list[str] = []
-        max_heuristic = 0.0
-
-        for rule_name, pattern, score in HEURISTIC_RULES:
-            if pattern.search(text):
-                signals.append(rule_name)
-                if score > max_heuristic:
-                    max_heuristic = score
-
-        # Compound rule escalation: multiple distinct risk triggers where at least
-        # one is high-risk (>= 0.50). Single benign indicators (e.g. standalone URL or
-        # benign delivery word) stay strictly within 0.20–0.40 and cannot trigger the >= 0.85
-        # short-circuit unless accompanied by high-risk smishing indicators.
-        has_high_risk = any(
-            score >= 0.50 for name, _, score in HEURISTIC_RULES if name in signals
-        )
-        if len(signals) >= 2 and has_high_risk:
-            max_heuristic = min(0.95, max_heuristic + 0.12)
-            signals.append("HEURISTIC:COMPOUND_SIGNALS")
-
-        return max_heuristic, signals
+        return evaluate_heuristics(text)
 
     _evaluate_heuristics = evaluate_heuristics
 

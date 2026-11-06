@@ -4,12 +4,20 @@
   "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True) -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=5)",
   "framework": "scikit-learn + skl2onnx + onnxruntime",
   "opset": 14,
+  "model_sha256": "91576d807d4df180efdfea7b1c94dd220c85b13e870b6bb082fad1d2ce7d7b93",
+  "training_dataset_sha256": "e341992cc4631108fead11b21474d3dbae063bd3e6f454b67468355313f8c1aa",
+  "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
+  "evaluation_timestamp": "2026-11-06T11:39:01.352588+00:00",
+  "software_versions": {
+    "onnxruntime": "1.31.0",
+    "numpy": "2.5.4"
+  },
   "calibration": {
     "method": "sigmoid",
     "cv_folds": 5,
-    "brier_score_before": 0.0366,
-    "brier_score_after": 0.0231,
-    "brier_score_improvement": 0.0136
+    "brier_score_before": 0.0377,
+    "brier_score_after": 0.0188,
+    "brier_score_improvement": 0.0189
   },
   "input_signature": {
     "text": "StringTensor([None, 1])"
@@ -21,35 +29,35 @@
   "validation_metrics": {
     "test_sample_count": 97,
     "precision": 1.0,
-    "recall": 0.8846,
-    "f1_score": 0.9388,
-    "roc_auc": 0.9995,
-    "pr_auc": 0.9986,
-    "brier_score": 0.0231,
+    "recall": 0.9231,
+    "f1_score": 0.96,
+    "roc_auc": 0.9989,
+    "pr_auc": 0.9971,
+    "brier_score": 0.0188,
     "detailed_report": {
       "0": {
-        "precision": 0.9594594594594594,
+        "precision": 0.9726027397260274,
         "recall": 1.0,
-        "f1-score": 0.9793103448275862,
+        "f1-score": 0.9861111111111112,
         "support": 71.0
       },
       "1": {
         "precision": 1.0,
-        "recall": 0.8846153846153846,
-        "f1-score": 0.9387755102040817,
+        "recall": 0.9230769230769231,
+        "f1-score": 0.96,
         "support": 26.0
       },
-      "accuracy": 0.9690721649484536,
+      "accuracy": 0.979381443298969,
       "macro avg": {
-        "precision": 0.9797297297297297,
-        "recall": 0.9423076923076923,
-        "f1-score": 0.9590429275158339,
+        "precision": 0.9863013698630136,
+        "recall": 0.9615384615384616,
+        "f1-score": 0.9730555555555556,
         "support": 97.0
       },
       "weighted avg": {
-        "precision": 0.9703259960991919,
-        "recall": 0.9690721649484536,
-        "f1-score": 0.9684453376089148,
+        "precision": 0.9799463352633808,
+        "recall": 0.979381443298969,
+        "f1-score": 0.9791122565864835,
         "support": 97.0
       }
     }
@@ -60,53 +68,62 @@
     "fraud_count": 200,
     "decision_threshold": 0.5,
     "confusion_matrix": {
-      "tp": 173,
-      "fp": 7,
-      "tn": 193,
-      "fn": 27
+      "tp": 170,
+      "fp": 17,
+      "tn": 183,
+      "fn": 30
     },
-    "precision": 0.9611,
-    "recall": 0.865,
-    "f1_score": 0.9105,
-    "roc_auc": 0.988,
-    "pr_auc": 0.9882,
-    "brier_score": 0.0883,
-    "false_positive_rate": 0.035,
-    "false_negative_rate": 0.135,
+    "precision": 0.9091,
+    "recall": 0.85,
+    "f1_score": 0.8786,
+    "roc_auc": 0.9722,
+    "pr_auc": 0.9739,
+    "brier_score": 0.0828,
+    "false_positive_rate": 0.085,
+    "false_negative_rate": 0.15,
     "tier1_escalation": {
       "threshold": 0.4,
       "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
       "confusion_matrix": {
         "tp": 200,
-        "fp": 16,
-        "tn": 184,
+        "fp": 26,
+        "tn": 174,
         "fn": 0
       },
-      "precision": 0.9259,
+      "precision": 0.885,
       "recall": 1.0,
-      "f1_score": 0.9615,
-      "false_positive_rate": 0.08
+      "f1_score": 0.939,
+      "false_positive_rate": 0.13
     },
     "tier2_block": {
       "threshold": 0.75,
       "description": "BLOCK (Immediate Carrier Wire Drop)",
       "confusion_matrix": {
-        "tp": 136,
-        "fp": 0,
-        "tn": 200,
-        "fn": 64
+        "tp": 149,
+        "fp": 2,
+        "tn": 198,
+        "fn": 51
       },
-      "precision": 1.0,
-      "recall": 0.68,
-      "f1_score": 0.8095,
-      "false_positive_rate": 0.0
+      "precision": 0.9868,
+      "recall": 0.745,
+      "f1_score": 0.849,
+      "false_positive_rate": 0.01
     },
     "evaluator": "ONNXRuntime-CPU",
     "model_artifact": "sms_fraud_model.onnx",
-    "model_artifact_size_bytes": 188940,
-    "model_artifact_size_kb": 184.51,
-    "brier_score_before_calibration": 0.0366,
-    "brier_score_after_calibration": 0.0231
+    "model_sha256": "91576d807d4df180efdfea7b1c94dd220c85b13e870b6bb082fad1d2ce7d7b93",
+    "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
+    "evaluation_mode": "content_only_zero_velocity",
+    "velocity_score_fixed": 0.0,
+    "evaluation_timestamp": "2026-11-06T11:39:01.352588+00:00",
+    "software_versions": {
+      "onnxruntime": "1.31.0",
+      "numpy": "2.5.4"
+    },
+    "model_artifact_size_bytes": 185436,
+    "model_artifact_size_kb": 181.09,
+    "brier_score_before_calibration": 0.0377,
+    "brier_score_after_calibration": 0.0188
   },
   "operating_thresholds": {
     "allow_below": 0.4,

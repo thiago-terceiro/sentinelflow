@@ -47,18 +47,19 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 * **Partition Key:** `hash(sender_phone)`.
 * **Guarantee:** Messages from the same sender always land on the same partition in strict chronological sequence, preventing race conditions in distributed velocity aggregation.
 
-### 2.3 Redis Cluster Feature Store & Single-Slot Hash Tag Guarantee
-* **Topology:** Redis 7.2 Cluster with 16 master shards and 16 read-replicas, configured with consistent hashing.
-* **Single-Slot Hash Tag Guarantee (`{sender_hash}`):**
-  In standard Redis Cluster, multi-key operations and pipelined commands across different keys fail or cause multiple network hops if keys hash to different CRC16 slots.
-  SentinelPulse formats all sliding-window ZSET keys using Redis Cluster hash tags:
+### 2.3 Redis Feature Store Architecture & Pipeline Guarantees
+* **Deployment Model:** SentinelPulse deploys standalone Redis (`redis:7-alpine`) via Docker Compose / container infrastructure. All 10s, 60s, and 1h sliding windows for senders, IP velocities, URL domain frequencies, and prefix counters pipeline together over an asynchronous connection in 1 network RTT.
+* **Slot Tagging (`{sender_hash}`):**
+  To support potential future migration to a sharded Redis Cluster topology, all 3 sender sliding-window ZSET keys share the identical hash tag:
   ```python
   sender_hash = hashlib.sha256(sender.strip().encode()).hexdigest()[:16]
   key_10s = f"pulse:vel:{{{sender_hash}}}:10s"
   key_60s = f"pulse:vel:{{{sender_hash}}}:60s"
   key_3600s = f"pulse:vel:{{{sender_hash}}}:3600s"
   ```
-  Because Redis Cluster computes the CRC16 hash slot exclusively on the substring inside `{...}`, all 3 sliding-window keys for any given entity are **mathematically guaranteed to map to the exact same hash slot**, enabling true 1-RTT pipelined execution ($< 1\text{ ms}$) without slot violation exceptions even across a 16-shard cluster!
+  In Redis Cluster, the CRC16 hash slot is computed exclusively on the substring inside `{...}`, guaranteeing that sender sliding-window keys map to the same slot.
+* **Cross-Dimension Slot Independence (IP, Domain, Prefix):**
+  Multi-dimensional counters for IP (`{ip_hash}`), URL domain (`{domain_hash}`), and prefix (`{prefix_hash}`) use distinct hash tags and do NOT share the sender slot. In a Redis Cluster deployment, cross-dimension keys route to separate hash slots and do not execute in a single-slot pipeline. In the production standalone Redis deployment, all operations pipeline cleanly across all keys in 1 RTT.
 
 * **Multi-Dimensional Velocity Tracking (SIM-Farm & Phishing Defense):**
   Distributed smishing campaigns rotate originating phone numbers using automated SIM banks while reusing identical phishing domains or carrier prefixes.
@@ -159,9 +160,9 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
      - **Tier 2 — `BLOCK` ($S_{\text{composite}} \ge 0.75$):** Immediate Carrier Wire Drop. Ultra-high precision ($\ge 98.5\%$) and near-zero False Positive Rate ($\le 0.5\%$, measured $0.00\%$ on legitimate OTP & transactional SMS) ensuring zero false drops on mission-critical traffic.
      - **`ALLOW` ($S_{\text{composite}} < 0.40$):** Immediate pass-through with zero latency overhead.
    * **Mathematical Invariants & False-Positive Prevention:**
-     - **Strict Monotonicity:** $\frac{\partial S_{\text{composite}}}{\partial P} \ge 0$, $\frac{\partial S_{\text{composite}}}{\partial H} \ge 0$, and $\frac{\partial S_{\text{composite}}}{\partial V} \ge 0$ everywhere on $[0, 1]^3$. Zero non-monotonic dips or threshold discontinuities.
+     - **Monotonic Non-Decreasing Property:** $\frac{\partial S_{\text{composite}}}{\partial P} \ge 0$, $\frac{\partial S_{\text{composite}}}{\partial H} \ge 0$, and $\frac{\partial S_{\text{composite}}}{\partial V} \ge 0$ everywhere on $[0, 1]^3$. Bounded within $[0.0, 1.0]$ with zero non-monotonic dips or threshold discontinuities.
      - **Benign Indicator Suppression:** When a message contains a single benign URL ($H \le 0.25$) or delivery phrase ($H = 0.20$) and calibrated $P < 0.30$, $\alpha(P, H) = 0.0$, yielding $S_{\text{content}} = P < 0.30 < 0.40$. This mathematically guarantees an unambiguous `ALLOW` verdict under normal traffic ($V = 0.0$).
-     - **Authoritative High-Risk Override:** When high-risk threat indicators fire (e.g., `TAX_ARREST_THREAT = 0.80` or `THREAT_URGENCY = 0.85`), $S_{\text{composite}} = 1.0$ (`BLOCK`), preventing smishing extortion from slipping through even if an adversarial prompt temporarily depresses linear ML probability.
+     - **Authoritative High-Risk Override ($H \ge 0.80$):** When high-risk threat indicators reach $H \ge 0.80$, $S_{\text{composite}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` (0.80) is the only single rule reaching this threshold independently; compound rule escalation (+0.12 boost) elevates high-severity combinations (e.g. `URGENT_ACCOUNT_LOCKOUT` 0.70 + shortlink) to $\ge 0.82$, triggering immediate wire drops.
 
 ---
 
