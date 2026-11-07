@@ -702,11 +702,14 @@ def test_calibrated_classifier_cv_platt_parity() -> None:
     sk_probs = pipe.predict_proba(sample_texts)[:, 1].tolist()
 
     for p_onnx, p_sk in zip(onnx_probs, sk_probs, strict=True):
-        assert abs(p_onnx - p_sk) < 0.05, f"Calibration parity drift: ONNX={p_onnx}, Sklearn={p_sk}"
+        assert abs(p_onnx - p_sk) < 1e-5, f"Calibration parity drift: ONNX={p_onnx}, Sklearn={p_sk}"
 
 
 def test_onnx_sklearn_full_benchmark_parity() -> None:
     """Verifies ONNX Runtime vs scikit-learn probability parity across all 400 benchmark samples."""
+    import json
+    from pathlib import Path
+
     from app.telecom.evaluate_model import get_held_out_evaluation_set
     from app.telecom.train_onnx_model import build_augmented_dataset
     from sklearn.calibration import CalibratedClassifierCV
@@ -745,13 +748,13 @@ def test_onnx_sklearn_full_benchmark_parity() -> None:
     abs_diffs = np.abs(sk_probs - onnx_probs)
     max_diff = float(np.max(abs_diffs))
     mean_diff = float(np.mean(abs_diffs))
-    large_diff_count = int(np.sum(abs_diffs > 0.05))
+    large_diff_count = int(np.sum(abs_diffs > 1e-5))
 
-    assert max_diff < 0.05, f"Maximum ONNX/Sklearn probability divergence exceeded 0.05: {max_diff}"
-    assert mean_diff < 0.005, f"Mean ONNX/Sklearn probability divergence exceeded 0.005: {mean_diff}"
-    assert large_diff_count == 0, f"Found {large_diff_count} samples with divergence > 0.05"
+    assert max_diff < 1e-5, f"Maximum ONNX/Sklearn probability divergence exceeded 1e-5: {max_diff}"
+    assert mean_diff < 1e-6, f"Mean ONNX/Sklearn probability divergence exceeded 1e-6: {mean_diff}"
+    assert large_diff_count == 0, f"Found {large_diff_count} samples with divergence > 1e-5"
 
-    # Decision parity: 100% agreement at binary decision boundary 0.50 and Tier 2 boundary 0.75
+    # Decision parity: 100% agreement (400/400) across all thresholds (0.40, 0.50, 0.75)
     sk_decision = sk_probs >= 0.50
     onnx_decision = onnx_probs >= 0.50
     assert np.array_equal(sk_decision, onnx_decision), "Decision disparity at binary threshold 0.50"
@@ -760,9 +763,18 @@ def test_onnx_sklearn_full_benchmark_parity() -> None:
     onnx_tier2 = onnx_probs >= 0.75
     assert np.array_equal(sk_tier2, onnx_tier2), "Decision disparity at Tier 2 threshold 0.75"
 
-    # At Tier 1 boundary 0.40, allow at most 1 boundary boundary-straddling sample (float precision within 0.012)
     tier1_crossings = int(np.sum((sk_probs >= 0.40) != (onnx_probs >= 0.40)))
-    assert tier1_crossings <= 1, f"Unexpected decision disparity at Tier 1 (0.40): {tier1_crossings} samples"
+    assert tier1_crossings == 0, f"Unexpected decision disparity at Tier 1 (0.40): {tier1_crossings} samples"
+
+    # Verify canonical 400-row sample-level artifact exists and has 100% verdict parity
+    pred_path = Path("app/telecom/benchmark_predictions_400.json")
+    if not pred_path.exists():
+        pred_path = Path("sentinelflow/backend/app/telecom/benchmark_predictions_400.json")
+    assert pred_path.exists(), "Canonical 400-row benchmark_predictions_400.json artifact must exist"
+    rows = json.loads(pred_path.read_text(encoding="utf-8"))
+    assert len(rows) == 400
+    assert all(r["verdict_match"] is True for r in rows), "Every sample in benchmark_predictions_400.json must match verdicts"
+    assert max(r["prob_abs_diff"] for r in rows) < 1e-5
 
 
 def test_template_family_grouping_under_and_over_grouping() -> None:

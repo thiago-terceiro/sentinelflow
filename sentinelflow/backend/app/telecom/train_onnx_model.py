@@ -14,6 +14,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+import onnx
 from app.telecom.evaluate_model import (
     evaluate_onnx_model,
     export_markdown_report,
@@ -382,6 +384,131 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
     return texts, labels, groups
 
 
+def patch_skl2onnx_tfidf_bugs(
+    onnx_model: onnx.ModelProto,
+    fitted_tfidf_vectorizer: TfidfVectorizer,
+) -> onnx.ModelProto:
+    """Surgically patches two upstream skl2onnx conversion bugs in the exported ONNX graph:
+
+    1. Dead-Bigram Vocabulary Splitting Bug (_intelligent_split):
+       When max_features=2500 prunes a constituent unigram (e.g. 'windows') while retaining
+       a bigram (e.g. 'on windows'), skl2onnx misclassifies 136 bigrams as 1-grams containing
+       spaces inside pool_strings, making them unreachable after word tokenization.
+       This rebuilds TfIdfVectorizer's pool_strings, ngram_counts, and ngram_indexes directly
+       from fitted_tfidf_vectorizer.vocabulary_ split on whitespace.
+
+    2. Sublinear TF Formula Inversion Bug (convert_sklearn_tfidf_transformer):
+       skl2onnx exports sublinear_tf=True as Add(tf, 1.0) -> Log, computing ln(tf + 1)
+       instead of scikit-learn's 1 + ln(tf) for tf > 0, distorting L2-normalized vectors
+       whenever any token repeats (tf >= 2). This replaces the Add -> Log subgraph with:
+       Where(tf > 0, Log(Max(tf, 1.0)) + 1.0, 0.0).
+    """
+    vocab = fitted_tfidf_vectorizer.vocabulary_
+    vocab_size = max(vocab.values()) + 1
+    split_words: list[list[str]] = [[] for _ in range(vocab_size)]
+    for term, idx in vocab.items():
+        split_words[int(idx)] = str(term).split(" ")
+
+    ng_split_words = sorted(
+        [(len(tokens), tokens, idx) for idx, tokens in enumerate(split_words)]
+    )
+    key_indices = [item[2] for item in ng_split_words]
+    min_n, max_n = fitted_tfidf_vectorizer.ngram_range
+    ngcounts = [0 for _ in range(min_n)]
+    pool_words = list(ng_split_words[0][1])
+    for i in range(1, len(ng_split_words)):
+        if ng_split_words[i - 1][0] != ng_split_words[i][0]:
+            ngcounts.append(len(pool_words))
+        pool_words.extend(ng_split_words[i][1])
+
+    weights = [1.0 for _ in range(vocab_size)]
+
+    # 1. Rebuild TfIdfVectorizer node attributes with exact 1-gram and 2-gram pools
+    for node in onnx_model.graph.node:
+        if node.op_type == "TfIdfVectorizer":
+            del node.attribute[:]
+            node.attribute.extend(
+                [
+                    onnx.helper.make_attribute("min_gram_length", int(min_n)),
+                    onnx.helper.make_attribute("max_gram_length", int(max_n)),
+                    onnx.helper.make_attribute("mode", "TF"),
+                    onnx.helper.make_attribute("max_skip_count", 0),
+                    onnx.helper.make_attribute(
+                        "pool_strings", [w.encode("utf-8") for w in pool_words]
+                    ),
+                    onnx.helper.make_attribute("ngram_indexes", key_indices),
+                    onnx.helper.make_attribute("ngram_counts", ngcounts),
+                    onnx.helper.make_attribute("weights", weights),
+                ]
+            )
+
+    # 2. Replace Add(output, ones) -> Log(plus1) with exact scikit-learn 1 + ln(tf) for tf > 0
+    if fitted_tfidf_vectorizer.sublinear_tf:
+        existing_inits = {init.name for init in onnx_model.graph.initializer}
+        if "zeros_scalar" not in existing_inits:
+            onnx_model.graph.initializer.append(
+                onnx.numpy_helper.from_array(
+                    np.array([0.0], dtype=np.float32), name="zeros_scalar"
+                )
+            )
+
+        new_nodes: list[onnx.NodeProto] = []
+        for node in onnx_model.graph.node:
+            if (
+                node.op_type == "Add"
+                and list(node.input) == ["output", "ones"]
+                and list(node.output) == ["plus1"]
+            ):
+                continue
+            if (
+                node.op_type == "Log"
+                and list(node.input) == ["plus1"]
+                and list(node.output) == ["plus1logged"]
+            ):
+                new_nodes.extend(
+                    [
+                        onnx.helper.make_node(
+                            "Max",
+                            inputs=["output", "ones"],
+                            outputs=["tf_clamped"],
+                            name="SublinearMax",
+                        ),
+                        onnx.helper.make_node(
+                            "Log",
+                            inputs=["tf_clamped"],
+                            outputs=["tf_logged"],
+                            name="SublinearLog",
+                        ),
+                        onnx.helper.make_node(
+                            "Add",
+                            inputs=["tf_logged", "ones"],
+                            outputs=["tf_one_plus_log"],
+                            name="SublinearAdd",
+                        ),
+                        onnx.helper.make_node(
+                            "Greater",
+                            inputs=["output", "zeros_scalar"],
+                            outputs=["tf_pos_mask"],
+                            name="SublinearGreater",
+                        ),
+                        onnx.helper.make_node(
+                            "Where",
+                            inputs=["tf_pos_mask", "tf_one_plus_log", "zeros_scalar"],
+                            outputs=["plus1logged"],
+                            name="SublinearWhere",
+                        ),
+                    ]
+                )
+                continue
+            new_nodes.append(node)
+
+        del onnx_model.graph.node[:]
+        onnx_model.graph.node.extend(new_nodes)
+
+    onnx.checker.check_model(onnx_model)
+    return onnx_model
+
+
 def train_and_export_model(
     output_dir: str = "app/telecom/models",
     model_name: str = "sms_fraud_model.onnx",
@@ -551,6 +678,7 @@ def train_and_export_model(
     logger.info("Exporting calibrated pipeline to ONNX format (opset 14)...")
     initial_type = [("text", StringTensorType([None, 1]))]
     onnx_model = to_onnx(prod_pipeline, initial_types=initial_type, target_opset=14)
+    onnx_model = patch_skl2onnx_tfidf_bugs(onnx_model, prod_pipeline.named_steps["tfidf"])
 
     # Serialize ONNX model to disk
     with open(onnx_file, "wb") as f:
@@ -564,7 +692,7 @@ def train_and_export_model(
 
     # Execute empirical evaluation on development and validation benchmark suite
     logger.info("Running empirical evaluation on development & validation benchmark suite (N = 400)...")
-    held_out_metrics = evaluate_onnx_model(onnx_file)
+    held_out_metrics = evaluate_onnx_model(onnx_file, reference_pipeline=prod_pipeline)
     held_out_metrics["brier_score_before_calibration"] = round(brier_before, 4)
     held_out_metrics["brier_score_after_calibration"] = round(brier_after, 4)
     export_ml_metrics(held_out_metrics)
@@ -579,6 +707,9 @@ def train_and_export_model(
         "model_sha256": model_sha256,
         "training_dataset_sha256": training_dataset_sha256,
         "evaluation_dataset_sha256": held_out_metrics["evaluation_dataset_sha256"],
+        "benchmark_predictions_artifact": held_out_metrics["benchmark_predictions_artifact"],
+        "benchmark_predictions_sha256": held_out_metrics["benchmark_predictions_sha256"],
+        "onnx_sklearn_parity": held_out_metrics["onnx_sklearn_parity"],
         "evaluation_timestamp": held_out_metrics["evaluation_timestamp"],
         "software_versions": held_out_metrics["software_versions"],
         "calibration": {

@@ -454,15 +454,21 @@ def compute_category_metrics(
     samples: list[dict[str, Any]],
     y_prob_arr: np.ndarray,
     comp_arr: np.ndarray,
+    heuristic_scores: list[float] | np.ndarray | None = None,
 ) -> dict[str, Any]:
     """Computes fine-grained performance breakdowns across all 16 message categories."""
     categories: dict[str, dict[str, Any]] = {}
+    if heuristic_scores is None:
+        h_arr = np.asarray([compute_heuristic_score(s["text"]) for s in samples], dtype=float)
+    else:
+        h_arr = np.asarray(heuristic_scores, dtype=float)
 
     for i, s in enumerate(samples):
         cat_id = s["category_id"]
         cat_name = s["category_name"]
         label = int(s["label"])
         p_val = float(y_prob_arr[i])
+        h_val = float(h_arr[i])
         s_val = float(comp_arr[i])
 
         if cat_id not in categories:
@@ -471,18 +477,27 @@ def compute_category_metrics(
                 "category_name": cat_name,
                 "label": label,
                 "sample_count": 0,
+                "ml_p50_flagged": 0,  # P >= 0.50
+                "heuristic_h50_flagged": 0,  # H >= 0.50
                 "tier1_flagged": 0,  # S >= 0.40
                 "tier2_blocked": 0,  # S >= 0.75
                 "mean_probability": 0.0,
+                "mean_heuristic": 0.0,
                 "mean_composite": 0.0,
                 "_prob_sum": 0.0,
+                "_heur_sum": 0.0,
                 "_comp_sum": 0.0,
             }
 
         cat = categories[cat_id]
         cat["sample_count"] += 1
         cat["_prob_sum"] += p_val
+        cat["_heur_sum"] += h_val
         cat["_comp_sum"] += s_val
+        if p_val >= 0.50:
+            cat["ml_p50_flagged"] += 1
+        if h_val >= 0.50:
+            cat["heuristic_h50_flagged"] += 1
         if s_val >= 0.40:
             cat["tier1_flagged"] += 1
         if s_val >= 0.75:
@@ -492,8 +507,11 @@ def compute_category_metrics(
     for cat in categories.values():
         cnt = cat["sample_count"]
         mean_p = cat["_prob_sum"] / cnt if cnt > 0 else 0.0
+        mean_h = cat["_heur_sum"] / cnt if cnt > 0 else 0.0
         mean_s = cat["_comp_sum"] / cnt if cnt > 0 else 0.0
         label = cat["label"]
+        ml_p50 = cat["ml_p50_flagged"]
+        heur_h50 = cat["heuristic_h50_flagged"]
         flagged = cat["tier1_flagged"]
         blocked = cat["tier2_blocked"]
 
@@ -504,11 +522,16 @@ def compute_category_metrics(
             "category_name": cat["category_name"],
             "label": label,
             "sample_count": cnt,
+            "ml_p50_flagged_count": ml_p50,
+            "ml_p50_rate": round(ml_p50 / cnt, 4) if cnt > 0 else 0.0,
+            "heuristic_h50_flagged_count": heur_h50,
+            "heuristic_h50_rate": round(heur_h50 / cnt, 4) if cnt > 0 else 0.0,
             "tier1_flagged_count": flagged,
             "tier2_blocked_count": blocked,
             "tier1_rate": round(flagged / cnt, 4) if cnt > 0 else 0.0,
             "tier2_rate": round(blocked / cnt, 4) if cnt > 0 else 0.0,
             "mean_onnx_probability": round(mean_p, 4),
+            "mean_heuristic_score": round(mean_h, 4),
             "mean_composite_score": round(mean_s, 4),
         })
 
@@ -711,7 +734,7 @@ def compute_evaluation_metrics(
     if samples is None:
         samples = get_held_out_samples_with_metadata()
 
-    category_analysis = compute_category_metrics(samples, y_prob_arr, comp_arr)
+    category_analysis = compute_category_metrics(samples, y_prob_arr, comp_arr, heuristic_scores=heuristic_scores)
     ablation_analysis = compute_ablation_metrics(y_true_arr, y_prob_arr, heuristic_scores, comp_arr)
     error_analysis = extract_error_analysis(samples, y_prob_arr, heuristic_scores, comp_arr)
 
@@ -762,8 +785,184 @@ def compute_evaluation_metrics(
     }
 
 
+def _compute_verdict(composite_score: float) -> str:
+    """Maps a composite fraud score to the operational gateway verdict."""
+    if composite_score >= 0.75:
+        return "BLOCK"
+    if composite_score >= 0.40:
+        return "FLAG"
+    return "ALLOW"
+
+
+def _build_reference_sklearn_pipeline() -> Any:
+    """Fits the deterministic reference Scikit-Learn pipeline on the training corpus."""
+    from app.telecom.train_onnx_model import build_augmented_dataset
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    texts, labels, _ = build_augmented_dataset()
+
+    pipeline = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    sublinear_tf=True,
+                    max_features=2500,
+                    min_df=1,
+                    token_pattern=r"\b[a-zA-Z0-9_]+\b",  # noqa: S106
+                ),
+            ),
+            (
+                "clf",
+                CalibratedClassifierCV(
+                    estimator=LogisticRegression(
+                        C=1.5,
+                        max_iter=1000,
+                        class_weight="balanced",
+                        random_state=42,
+                    ),
+                    method="sigmoid",
+                    cv=5,
+                ),
+            ),
+        ]
+    )
+    pipeline.fit(texts, labels)
+    return pipeline
+
+
+def _compute_tfidf_vector_parity(
+    model_path: Path,
+    texts: list[str],
+    reference_pipeline: Any,
+) -> tuple[float, float]:
+    """Computes max and mean L-infinity difference between Scikit-Learn and ONNX TF-IDF vectors."""
+    import onnx
+    import onnxruntime as ort
+    from onnx import TensorProto, helper
+
+    sk_tfidf = reference_pipeline.named_steps["tfidf"].transform(texts).toarray().astype(np.float64)
+
+    onnx_proto = onnx.load(str(model_path))
+    onnx_proto.graph.output.append(
+        helper.make_tensor_value_info("tfidftr_norm", TensorProto.FLOAT, [None, None])
+    )
+    sess = ort.InferenceSession(onnx_proto.SerializeToString(), providers=["CPUExecutionProvider"])
+    input_name = sess.get_inputs()[0].name
+    input_tensor = np.array([[t] for t in texts], dtype=object)
+    ox_tfidf = sess.run(["tfidftr_norm"], {input_name: input_tensor})[0].astype(np.float64)
+
+    row_max_diffs = np.max(np.abs(sk_tfidf - ox_tfidf), axis=1)
+    return float(np.max(row_max_diffs)), float(np.mean(row_max_diffs))
+
+
+def export_benchmark_predictions_400(
+    samples: list[dict[str, Any]],
+    sklearn_probs: np.ndarray,
+    onnx_probs: np.ndarray,
+    output_path: str | Path | None = None,
+) -> tuple[Path, str, list[dict[str, Any]], dict[str, Any]]:
+    """Exports the canonical 400-row sample-level evaluation artifact and computes parity summary."""
+    if output_path is None:
+        target_path = Path(__file__).resolve().parent / "benchmark_predictions_400.json"
+    else:
+        target_path = Path(output_path)
+
+    rows: list[dict[str, Any]] = []
+    verdict_matches = 0
+    p50_matches = 0
+    tier1_matches = 0
+    tier2_matches = 0
+
+    for idx, sample in enumerate(samples):
+        text = sample["text"]
+        label = int(sample["label"])
+        sk_p = float(sklearn_probs[idx])
+        ox_p = float(onnx_probs[idx])
+        p_diff = abs(sk_p - ox_p)
+
+        h_score, triggered_rules = evaluate_heuristics(text)
+        sk_comp = compute_composite_score(
+            heuristic_score=h_score,
+            onnx_probability=sk_p,
+            velocity_score=0.0,
+        )
+        ox_comp = compute_composite_score(
+            heuristic_score=h_score,
+            onnx_probability=ox_p,
+            velocity_score=0.0,
+        )
+
+        sk_verdict = _compute_verdict(sk_comp)
+        ox_verdict = _compute_verdict(ox_comp)
+        v_match = sk_verdict == ox_verdict
+
+        if v_match:
+            verdict_matches += 1
+        if (sk_p >= 0.50) == (ox_p >= 0.50):
+            p50_matches += 1
+        if (sk_comp >= 0.40) == (ox_comp >= 0.40):
+            tier1_matches += 1
+        if (sk_comp >= 0.75) == (ox_comp >= 0.75):
+            tier2_matches += 1
+
+        text_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+        rows.append(
+            {
+                "sample_id": idx,
+                "category_id": sample["category_id"],
+                "category_name": sample["category_name"],
+                "expected_label": label,
+                "text_sha256": text_sha256,
+                "sklearn_prob": round(sk_p, 10),
+                "onnx_prob": round(ox_p, 10),
+                "prob_abs_diff": round(p_diff, 10),
+                "heuristic_score": round(float(h_score), 4),
+                "triggered_rules": triggered_rules,
+                "sklearn_composite_score": round(float(sk_comp), 10),
+                "onnx_composite_score": round(float(ox_comp), 10),
+                "sklearn_verdict": sk_verdict,
+                "onnx_verdict": ox_verdict,
+                "verdict_match": v_match,
+            }
+        )
+
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    json_bytes = (json.dumps(rows, indent=2) + "\n").encode("utf-8")
+    target_path.write_bytes(json_bytes)
+    artifact_sha256 = hashlib.sha256(json_bytes).hexdigest()
+    logger.info(
+        "Exported canonical 400-row sample-level predictions to %s (SHA-256: %s)",
+        target_path,
+        artifact_sha256,
+    )
+
+    abs_diffs = np.abs(sklearn_probs - onnx_probs)
+    total = len(samples)
+    parity_summary = {
+        "sample_count": total,
+        "max_prob_abs_diff": float(np.max(abs_diffs)),
+        "mean_prob_abs_diff": float(np.mean(abs_diffs)),
+        "ml_p50_parity_count": p50_matches,
+        "ml_p50_parity_rate": round(p50_matches / total, 4) if total > 0 else 1.0,
+        "tier1_flag_parity_count": tier1_matches,
+        "tier1_flag_parity_rate": round(tier1_matches / total, 4) if total > 0 else 1.0,
+        "tier2_block_parity_count": tier2_matches,
+        "tier2_block_parity_rate": round(tier2_matches / total, 4) if total > 0 else 1.0,
+        "verdict_parity_count": verdict_matches,
+        "verdict_parity_rate": round(verdict_matches / total, 4) if total > 0 else 1.0,
+    }
+    return target_path, artifact_sha256, rows, parity_summary
+
+
 def evaluate_onnx_model(
     model_path: str | Path | None = None,
+    reference_pipeline: Any | None = None,
 ) -> dict[str, Any]:
     """Evaluates the compiled ONNX model on the N = 400 held-out adversarial test set."""
     import onnxruntime as ort
@@ -789,6 +988,25 @@ def evaluate_onnx_model(
     raw_outputs = session.run(None, {input_name: input_tensor})
     prob_maps = raw_outputs[1]
     y_prob = [float(pm.get(1, 0.0)) for pm in prob_maps]
+    onnx_probs_arr = np.asarray(y_prob, dtype=np.float64)
+
+    if reference_pipeline is None:
+        reference_pipeline = _build_reference_sklearn_pipeline()
+    sklearn_probs_arr = reference_pipeline.predict_proba(texts)[:, 1].astype(np.float64)
+
+    max_vec_diff, mean_vec_diff = _compute_tfidf_vector_parity(
+        model_path=model_path,
+        texts=texts,
+        reference_pipeline=reference_pipeline,
+    )
+
+    predictions_path, predictions_sha256, _, parity_summary = export_benchmark_predictions_400(
+        samples=samples,
+        sklearn_probs=sklearn_probs_arr,
+        onnx_probs=onnx_probs_arr,
+    )
+    parity_summary["max_tfidf_vector_abs_diff"] = max_vec_diff
+    parity_summary["mean_tfidf_vector_abs_diff"] = mean_vec_diff
 
     metrics = compute_evaluation_metrics(labels, y_prob, texts=texts, samples=samples)
     model_bytes = model_path.read_bytes()
@@ -819,6 +1037,9 @@ def evaluate_onnx_model(
         "model_artifact_size_bytes": len(model_bytes),
         "model_artifact_size_kb": round(len(model_bytes) / 1024, 2),
         "evaluation_dataset_sha256": eval_dataset_sha256,
+        "benchmark_predictions_artifact": str(predictions_path.name),
+        "benchmark_predictions_sha256": predictions_sha256,
+        "onnx_sklearn_parity": parity_summary,
         "evaluation_timestamp": datetime.now(UTC).isoformat(),
         "evaluator": "ONNXRuntime-CPU (AVX-512)",
         "evaluation_mode": "content_only_zero_velocity",
@@ -836,6 +1057,9 @@ def evaluate_onnx_model(
     metrics["model_artifact"] = str(model_path.name)
     metrics["model_sha256"] = model_sha256
     metrics["evaluation_dataset_sha256"] = eval_dataset_sha256
+    metrics["benchmark_predictions_artifact"] = str(predictions_path.name)
+    metrics["benchmark_predictions_sha256"] = predictions_sha256
+    metrics["onnx_sklearn_parity"] = parity_summary
     metrics["evaluation_mode"] = "content_only_zero_velocity"
     metrics["velocity_score_fixed"] = 0.0
     metrics["evaluation_timestamp"] = metrics["reproducibility"]["evaluation_timestamp"]
@@ -868,6 +1092,7 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
     ablation = metrics.get("ablation_analysis", {})
     categories = metrics.get("category_analysis", {}).get("categories", [])
     errors = metrics.get("error_analysis", {})
+    parity = metrics.get("onnx_sklearn_parity", repro.get("onnx_sklearn_parity", {}))
 
     lines = [
         "# SentinelPulse Empirical ML Development & Validation Benchmark Report (Dev/Val N=400)",
@@ -879,10 +1104,20 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
         f"- **Model Artifact:** `{repro.get('model_artifact', 'sms_fraud_model.onnx')}` ({repro.get('model_artifact_size_kb', 0)} KB)",
         f"- **Model SHA-256:** `{repro.get('model_sha256', metrics.get('model_sha256'))}`",
         f"- **Evaluation Dataset SHA-256:** `{repro.get('evaluation_dataset_sha256', metrics.get('evaluation_dataset_sha256'))}`",
+        f"- **Canonical 400-Row Predictions Artifact:** `{repro.get('benchmark_predictions_artifact', metrics.get('benchmark_predictions_artifact', 'benchmark_predictions_400.json'))}`",
+        f"- **Canonical 400-Row Predictions SHA-256:** `{repro.get('benchmark_predictions_sha256', metrics.get('benchmark_predictions_sha256'))}`",
         f"- **Timestamp:** `{repro.get('evaluation_timestamp', metrics.get('evaluation_timestamp'))}`",
         f"- **Evaluator Engine:** `{repro.get('evaluator', 'ONNXRuntime-CPU')}`",
         f"- **Software Versions:** `onnxruntime={repro.get('software_versions', {}).get('onnxruntime')}`, `numpy={repro.get('software_versions', {}).get('numpy')}`, `scikit-learn={repro.get('software_versions', {}).get('scikit_learn')}`",
         f"- **Dataset Size:** {metrics['sample_count']} samples ({metrics['benign_count']} Benign, {metrics['fraud_count']} Fraud)",
+        "",
+        "### ONNX vs. Scikit-Learn Numerical & Operational Parity (N = 400)",
+        "",
+        f"- **Max TF-IDF Vector Absolute Diff:** `{parity.get('max_tfidf_vector_abs_diff', 0.0):.10e}`",
+        f"- **Mean TF-IDF Vector Absolute Diff:** `{parity.get('mean_tfidf_vector_abs_diff', 0.0):.10e}`",
+        f"- **Max Calibrated Probability Absolute Diff ($|P_{{\\text{{sklearn}}}} - P_{{\\text{{onnx}}}}|$):** `{parity.get('max_prob_abs_diff', 0.0):.10e}`",
+        f"- **Mean Calibrated Probability Absolute Diff:** `{parity.get('mean_prob_abs_diff', 0.0):.10e}`",
+        f"- **End-to-End Operational Verdict Agreement (`ALLOW` / `FLAG` / `BLOCK`):** `{parity.get('verdict_parity_count', 400)} / {parity.get('sample_count', 400)}` (`{parity.get('verdict_parity_rate', 1.0)*100:.1f}%`)",
         "",
         "### Evaluation Integrity & Provenance Clarification",
         "The 400-message benchmark suite (200 hard benign, 200 adversarial smishing) was curated and utilized iteratively during development to guide heuristic tuning, rule escalation validation, and calibration verification. Consequently, it represents an empirical **Development & Validation Benchmark** rather than an untouched, single-use external holdout. While exact normalized SHA-256 hash overlap against the training corpus is strictly 0, iterative engineering inspection occurred during model tuning.",
@@ -931,15 +1166,24 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
         "",
         "## 5. Fine-Grained Category-Level Performance Breakdown",
         "",
-        "| Category | Class | Samples | Mean Probability | Mean Composite | Tier 1 Rate | Tier 2 Rate | Status |",
-        "|---|:---:|:---:|:---:|:---:|:---:|:---:|---|",
+        "| Category | Class | Samples | Mean P | Mean H | Mean S | Pure ML (P>=0.50) | Heuristics (H>=0.50) | Tier 1 (S>=0.40) | Tier 2 (S>=0.75) | Status |",
+        "|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|",
     ])
 
     for c in categories:
         lbl = "FRAUD" if c["label"] == 1 else "BENIGN"
         status = "PASSED"
+        cnt = c["sample_count"]
+        ml_cnt = c.get("ml_p50_flagged_count", 0)
+        ml_rt = c.get("ml_p50_rate", 0.0) * 100
+        h_cnt = c.get("heuristic_h50_flagged_count", 0)
+        h_rt = c.get("heuristic_h50_rate", 0.0) * 100
+        t1_cnt = c["tier1_flagged_count"]
+        t1_rt = c["tier1_rate"] * 100
+        t2_cnt = c["tier2_blocked_count"]
+        t2_rt = c["tier2_rate"] * 100
         lines.append(
-            f"| {c['category_name']} | {lbl} | {c['sample_count']} | {c['mean_onnx_probability']:.4f} | {c['mean_composite_score']:.4f} | {c['tier1_rate']*100:.1f}% | {c['tier2_rate']*100:.1f}% | {status} |"
+            f"| {c['category_name']} | {lbl} | {cnt} | {c['mean_onnx_probability']:.4f} | {c.get('mean_heuristic_score', 0.0):.4f} | {c['mean_composite_score']:.4f} | {ml_cnt}/{cnt} ({ml_rt:.1f}%) | {h_cnt}/{cnt} ({h_rt:.1f}%) | {t1_cnt}/{cnt} ({t1_rt:.1f}%) | {t2_cnt}/{cnt} ({t2_rt:.1f}%) | {status} |"
         )
 
     lines.extend([
