@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import React, { memo, useEffect, useState } from "react";
+
 import { useSentinelPulse } from "@/components/SentinelPulseProvider";
+import { invalidateDisputesCache } from "@/lib/disputesCache";
 import type { TelecomFeedItem, TelecomVerdict } from "./types";
 
 type Props = {
@@ -34,6 +36,7 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
 
 export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
   const {
+    hasSession,
     liveFeed: ctxLiveFeed,
     isPaused,
     setIsPaused,
@@ -71,6 +74,12 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
   }, []);
 
   const handleEscalate = async (item: TelecomFeedItem) => {
+    if (!hasSession) {
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      }
+      return;
+    }
     const itemKey = item.id || `${item.sender}-${item.timestamp}`;
     setEscalatingIds((prev) => ({ ...prev, [itemKey]: true }));
     try {
@@ -100,9 +109,10 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
           [itemKey]: {
             id: data.dispute_id,
             case_code: data.case_code,
-            url: data.dispute_url,
+            url: `${data.dispute_url}?from=pulse`,
           },
         }));
+        invalidateDisputesCache();
       }
     } catch (err) {
       console.error("Escalation failed", err);
@@ -278,12 +288,14 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
         ) : (
           filteredFeed.map((ev) => {
             const itemKey = ev.id || `${ev.sender}-${ev.timestamp}`;
+            const rawUrl = ev.escalated_dispute_url || `/disputes/${ev.escalated_dispute_id}`;
+            const pulseDisputeUrl = rawUrl.includes("?") ? `${rawUrl}&from=pulse` : `${rawUrl}?from=pulse`;
             const escalated =
               escalatedDisputes[itemKey] ||
               (ev.escalated_dispute_id
                 ? {
                     id: ev.escalated_dispute_id,
-                    url: ev.escalated_dispute_url || `/disputes/${ev.escalated_dispute_id}`,
+                    url: pulseDisputeUrl,
                   }
                 : undefined);
             const isEscalatingThis = Boolean(escalatingIds[itemKey]);
@@ -417,7 +429,11 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                       <button
                         type="button"
                         disabled={isEscalatingThis}
-                        aria-label={`Escalate to SentinelFlow: ${ev.carrier} alert for ${ev.sender} (${ev.verdict})`}
+                        aria-label={
+                          !hasSession
+                            ? `Escalate to SentinelFlow (Sign In): ${ev.carrier} alert for ${ev.sender} (${ev.verdict})`
+                            : `Escalate to SentinelFlow: ${ev.carrier} alert for ${ev.sender} (${ev.verdict})`
+                        }
                         onClick={() => {
                           void handleEscalate(ev);
                         }}
@@ -443,7 +459,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                         ) : (
                           <>
                             <span>⚡</span>
-                            <span>Escalate to SentinelFlow</span>
+                            <span>Escalate to SentinelFlow {!hasSession ? "(Sign In)" : ""}</span>
                           </>
                         )}
                       </button>

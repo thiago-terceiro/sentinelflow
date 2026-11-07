@@ -1,13 +1,18 @@
 import Link from "next/link";
 
+import { DisputeBreadcrumbNav } from "@/components/DisputeBreadcrumbNav";
 import { InvestigationConsole } from "@/components/InvestigationConsole";
 
 type Props = {
   params: Promise<{ disputeId: string }>;
+  searchParams?: Promise<{ from?: string }>;
 };
 
-const DisputePage = async ({ params }: Props) => {
+const DisputePage = async ({ params, searchParams }: Props) => {
   const { disputeId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const fromPulse = resolvedSearchParams?.from === "pulse";
+
   return (
     <main>
       <div
@@ -20,23 +25,7 @@ const DisputePage = async ({ params }: Props) => {
           gap: 12,
         }}
       >
-        <Link
-          href="/disputes"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            minHeight: 44,
-            padding: "8px 14px",
-            gap: 6,
-            color: "var(--muted)",
-            whiteSpace: "nowrap",
-            textDecoration: "none",
-            fontWeight: 500,
-            fontSize: 14,
-          }}
-        >
-          ← Back to disputes
-        </Link>
+        <DisputeBreadcrumbNav initialFromPulse={fromPulse} />
 
         <Link
           href="/?filter=ESCALATED#inspection-feed"

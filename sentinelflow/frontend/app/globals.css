@@ -976,7 +976,9 @@ main,
 }
 
 /* ========================================================
-   Header Navigation Architecture (Title Above, Links Below)
+   Header Navigation Architecture
+   Desktop: Clean Single Row (Brand, Links, Actions)
+   Mobile (<= 640px): Stacked Two-Row (Title above, Links below)
    ======================================================== */
 .app-header {
   width: 100% !important;
@@ -993,26 +995,25 @@ main,
   width: var(--container-width, min(1800px, 90vw)) !important;
   max-width: 1800px !important;
   margin: 0 auto !important;
-  padding: 10px 0 !important;
+  padding: 8px 0 !important;
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  gap: 6px !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 20px !important;
 }
 
 .app-header-top {
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  width: 100% !important;
+  display: contents !important;
 }
 
 .app-brand-link {
+  order: 1 !important;
   font-weight: 700;
   font-size: 17px;
   text-decoration: none;
@@ -1021,20 +1022,25 @@ main,
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-}
-
-.app-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-shrink: 0 !important;
 }
 
 .app-header-bottom {
+  order: 2 !important;
   display: flex !important;
   align-items: center !important;
-  width: 100% !important;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  padding-top: 2px;
+  width: auto !important;
+  border-top: none !important;
+  padding-top: 0 !important;
+}
+
+.app-header-actions {
+  order: 3 !important;
+  margin-left: auto !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0 !important;
 }
 
 [data-theme="dark"] .app-header-bottom {
@@ -1115,14 +1121,36 @@ main,
   }
   .app-header-inner,
   [data-style="style-2"] .app-header-inner {
+    flex-direction: column !important;
+    align-items: stretch !important;
     padding: 2px 0 !important;
     gap: 4px !important;
   }
+  .app-header-top {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
   .app-brand-link {
+    order: unset !important;
     font-size: 16px !important;
   }
   .app-header-actions {
+    order: unset !important;
+    margin-left: unset !important;
     gap: 8px !important;
+  }
+  .app-header-bottom {
+    order: unset !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+    padding-top: 2px !important;
+  }
+  [data-theme="dark"] .app-header-bottom {
+    border-top-color: rgba(255, 255, 255, 0.08) !important;
   }
   .app-nav-links {
     gap: 6px !important;

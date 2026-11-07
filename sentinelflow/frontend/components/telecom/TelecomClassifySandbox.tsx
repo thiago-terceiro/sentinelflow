@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import React, { memo, useId, useRef, useState } from "react";
+
+import { useSentinelPulse } from "@/components/SentinelPulseProvider";
+import { invalidateDisputesCache } from "@/lib/disputesCache";
 import type { TelecomFeedItem, TelecomPreset, TelecomVerdict } from "./types";
 
 type Props = {
@@ -33,6 +36,7 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
 
 export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }: Props) => {
   const formId = useId();
+  const { hasSession } = useSentinelPulse();
 
   const [testSender, setTestSender] = useState<string>("+14155552671");
   const [testRecipient, setTestRecipient] = useState<string>("+14155559876");
@@ -118,6 +122,12 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
     if (!classificationResult) {
       return;
     }
+    if (!hasSession) {
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      }
+      return;
+    }
     setIsEscalating(true);
     try {
       const res = await fetch("/app-api/telecom/escalate", {
@@ -144,8 +154,9 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
         setEscalatedDispute({
           id: data.dispute_id,
           case_code: data.case_code,
-          url: data.dispute_url,
+          url: `${data.dispute_url}?from=pulse`,
         });
+        invalidateDisputesCache();
       }
     } catch (err) {
       console.error("Manual escalation failed", err);
@@ -565,7 +576,11 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   <button
                     type="button"
                     disabled={isEscalating}
-                    aria-label="Escalate flagged anomaly to SentinelFlow investigation"
+                    aria-label={
+                      !hasSession
+                        ? "Escalate to SentinelFlow (Sign In): authenticate to investigate flagged anomaly"
+                        : "Escalate to SentinelFlow: investigate flagged anomaly"
+                    }
                     onClick={() => {
                       void handleEscalateResult();
                     }}
@@ -591,7 +606,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                     ) : (
                       <>
                         <span>⚡</span>
-                        <span>Escalate to SentinelFlow</span>
+                        <span>Escalate to SentinelFlow {!hasSession ? "(Sign In)" : ""}</span>
                       </>
                     )}
                   </button>

@@ -5,7 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
 import { useSentinelPulse } from "@/components/SentinelPulseProvider";
-import { listDisputes } from "@/lib/api";
+import {
+  getDisputesCached,
+  invalidateDisputesCache,
+  peekDisputesCache,
+} from "@/lib/disputesCache";
 import type { DisputeSummary } from "@/lib/types";
 
 const AuthErrorAlert = () => {
@@ -34,54 +38,79 @@ const AuthErrorAlert = () => {
 
 const DisputesPage = () => {
   const { hasSession, clearSession } = useSentinelPulse();
-  const [disputes, setDisputes] = useState<DisputeSummary[]>([]);
+  const [disputes, setDisputes] = useState<DisputeSummary[]>(() => peekDisputesCache() ?? []);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !peekDisputesCache() && hasSession);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [resetCount, setResetCount] = useState<number>(0);
 
   useEffect(() => {
     const handleReset = () => {
+      invalidateDisputesCache();
+      setResetCount((prev) => prev + 1);
+    };
+    const handleInvalidate = () => {
       setResetCount((prev) => prev + 1);
     };
     window.addEventListener("sentinelflow:reset", handleReset);
+    window.addEventListener("sentinelflow:disputes-invalidated", handleInvalidate);
     return () => {
       window.removeEventListener("sentinelflow:reset", handleReset);
+      window.removeEventListener("sentinelflow:disputes-invalidated", handleInvalidate);
     };
   }, []);
+
+  const loadDisputes = async (force = false): Promise<void> => {
+    if (!hasSession) {
+      setDisputes([]);
+      setFetchError(null);
+      setIsLoading(false);
+      setIsRefreshing(false);
+      return;
+    }
+
+    const cached = peekDisputesCache();
+    if (!cached || force) {
+      if (disputes.length === 0) {
+        setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
+    }
+
+    try {
+      const nextDisputes = await getDisputesCached({ forceRefresh: force });
+      setDisputes(nextDisputes);
+      setFetchError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to load disputes.";
+      const isAuthError =
+        message.toLowerCase().includes("auth") ||
+        message.includes("401") ||
+        message.includes("403");
+      if (isAuthError) {
+        setFetchError(null);
+        clearSession();
+      } else {
+        setFetchError(message);
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (!hasSession) {
       setDisputes([]);
       setFetchError(null);
       setIsLoading(false);
+      setIsRefreshing(false);
       return;
     }
 
-    const loadDisputes = async (): Promise<void> => {
-      setIsLoading(true);
-      try {
-        const nextDisputes = await listDisputes();
-        setDisputes(nextDisputes);
-        setFetchError(null);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to load disputes.";
-        const isAuthError =
-          message.toLowerCase().includes("auth") ||
-          message.includes("401") ||
-          message.includes("403");
-        if (isAuthError) {
-          setFetchError(null);
-          clearSession();
-        } else {
-          setFetchError(message);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadDisputes();
+    void loadDisputes(false);
   }, [hasSession, clearSession, resetCount]);
 
   const filteredDisputes = useMemo(() => {
@@ -293,6 +322,42 @@ const DisputesPage = () => {
                   >
                     {filteredDisputes.length} cases
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void loadDisputes(true);
+                    }}
+                    disabled={isRefreshing || isLoading}
+                    aria-label="Refresh disputes list"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      minHeight: 44,
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      border: "1px solid var(--panel-border)",
+                      background: "transparent",
+                      color: "var(--foreground)",
+                      cursor: isRefreshing || isLoading ? "wait" : "pointer",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      transition: "all 0.15s ease",
+                    }}
+                    className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        transform: isRefreshing ? "rotate(180deg)" : "none",
+                        transition: "transform 0.4s ease",
+                      }}
+                      aria-hidden="true"
+                    >
+                      🔄
+                    </span>
+                    <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+                  </button>
                 </div>
 
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
