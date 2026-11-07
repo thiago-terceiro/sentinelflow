@@ -16,6 +16,7 @@
     "test:a11y": "node scripts/test-a11y-aaa.mjs",
     "test:e2e": "playwright test",
     "test:visual": "playwright test --grep @visual",
+    "verify:ui": "node scripts/test-a11y-aaa.mjs && npx playwright test",
     "check:rules": "node scripts/check-rules.js",
     "codegen:types": "node scripts/generate-types.js"
   },

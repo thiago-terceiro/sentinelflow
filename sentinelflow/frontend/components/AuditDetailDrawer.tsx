@@ -96,7 +96,8 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
         style={{
           width: "min(680px, 90vw)",
           height: "100%",
-          background: "#0c1322",
+          background: "var(--panel, #ffffff)",
+          color: "var(--foreground)",
           borderLeft: "1px solid var(--panel-border)",
           padding: 32,
           overflowY: "auto",
@@ -127,6 +128,11 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
             onClick={onClose}
             aria-label="Close audit record drawer"
             style={{
+              minWidth: 44,
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
               background: "transparent",
               border: 0,
               fontSize: 20,
@@ -175,8 +181,8 @@ export const AuditDetailDrawer = ({ record, onClose }: Props) => {
                 <strong style={{ color: "var(--muted)" }}>OTel Trace ID: </strong>
                 <code
                   style={{
-                    color: "#38bdf8",
-                    background: "rgba(56,189,248,0.12)",
+                    color: "var(--accent, #1e3a8a)",
+                    background: "var(--accent-soft, #dbeafe)",
                     padding: "2px 6px",
                     borderRadius: 4,
                     fontWeight: 600,

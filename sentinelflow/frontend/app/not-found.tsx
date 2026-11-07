@@ -16,11 +16,13 @@ const NotFound = () => {
             href="/"
             style={{
               display: "inline-flex",
-              padding: "8px 16px",
-              borderRadius: 999,
-              background: "var(--accent)",
-              color: "#10231e",
-              fontWeight: 600,
+              alignItems: "center",
+              minHeight: 44,
+              padding: "10px 18px",
+              borderRadius: 8,
+              background: "var(--accent, #1e3a8a)",
+              color: "var(--accent-ink, #ffffff)",
+              fontWeight: 700,
               textDecoration: "none",
               fontSize: 13,
             }}

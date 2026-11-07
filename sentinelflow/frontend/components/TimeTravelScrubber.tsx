@@ -20,7 +20,7 @@ const getEventBadgeColor = (type: StreamEvent["type"]): { bg: string; text: stri
     return { bg: "var(--accent-soft)", text: "var(--accent)" };
   }
   if (type === "analyzer_started" || type === "analyzer_completed") {
-    return { bg: "rgba(168,85,247,0.15)", text: "var(--bolt-purple, #c084fc)" };
+    return { bg: "var(--accent-soft)", text: "var(--accent)" };
   }
   if (type === "hypothesis_updated" || type === "risk_updated") {
     return { bg: "var(--badge-flag-bg, rgba(234,179,8,0.15))", text: "var(--telecom-warning, #fde047)" };
@@ -52,11 +52,12 @@ export const TimeTravelScrubber = memo(
       : null;
     const badgeStyle = activeEvent
       ? getEventBadgeColor(activeEvent.type)
-      : { bg: "rgba(255,255,255,0.06)", text: "var(--muted)" };
+      : { bg: "var(--card-subtle-bg, rgba(255,255,255,0.06))", text: "var(--muted)" };
     const eventTypeLabel = activeEvent ? activeEvent.type : "standby";
 
     return (
       <section
+        data-testid="time-travel-scrubber"
         role="region"
         aria-label="Investigation time travel scrubber"
         className="shell-card"
@@ -65,8 +66,8 @@ export const TimeTravelScrubber = memo(
           display: "flex",
           flexDirection: "column",
           gap: 12,
-          border: isLive ? "1px solid var(--panel-border)" : "1px solid rgba(234,179,8,0.4)",
-          background: isLive ? "rgba(255,255,255,0.01)" : "rgba(234,179,8,0.03)",
+          border: isLive ? "1px solid var(--panel-border)" : "1px solid var(--badge-flag-border, rgba(234,179,8,0.4))",
+          background: isLive ? "var(--card-subtle-bg, rgba(255,255,255,0.01))" : "var(--badge-flag-bg, rgba(234,179,8,0.03))",
           transition: "border 0.2s, background 0.2s",
         }}
       >
@@ -224,21 +225,21 @@ export const TimeTravelScrubber = memo(
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 6,
-                  height: 28,
+                  minHeight: 44,
                   minWidth: 128,
-                  padding: "0 12px",
+                  padding: "8px 14px",
                   borderRadius: 6,
                   fontSize: 12,
-                  fontWeight: 600,
-                  color: "#1d4ed8",
-                  background: "rgba(37,99,235,0.12)",
-                  border: "1px solid rgba(37,99,235,0.25)",
+                  fontWeight: 700,
+                  color: "var(--accent, #1e3a8a)",
+                  background: "var(--accent-soft, #dbeafe)",
+                  border: "1px solid var(--accent, #1e40af)",
                   cursor: "pointer",
                   boxSizing: "border-box",
                   whiteSpace: "nowrap",
                   transition: "none",
-                  outline: "none",
                 }}
+                className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               >
                 Return to Live (L)
               </button>

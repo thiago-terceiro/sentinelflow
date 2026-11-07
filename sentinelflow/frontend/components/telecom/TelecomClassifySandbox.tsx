@@ -246,10 +246,11 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
             marginBottom: 14,
             padding: "10px 14px",
             borderRadius: 8,
-            background: "rgba(239, 68, 68, 0.12)",
-            border: "1px solid rgba(239, 68, 68, 0.35)",
-            color: "#ef4444",
+            background: "var(--badge-block-bg, #fee2e2)",
+            border: "1px solid var(--badge-block-border, #991b1b)",
+            color: "var(--badge-block-color, #7f1d1d)",
             fontSize: 13,
+            fontWeight: 600,
           }}
         >
           {classificationError}

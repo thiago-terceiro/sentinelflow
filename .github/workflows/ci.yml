@@ -226,7 +226,17 @@ jobs:
 
       - name: Run Playwright E2E and Visual Tests
         working-directory: sentinelflow/frontend
-        run: npx playwright test
+        run: npx playwright test --grep-invert @visual
+
+      - name: Run Multi-Viewport & Multi-Theme Visual, Layout & WCAG AAA Auditor
+        working-directory: sentinelflow/frontend
+        run: |
+          nohup pnpm start > /tmp/next-start.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:3000 > /dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/test-a11y-aaa.mjs
 
       - name: Upload Playwright Test Report Artifact
         uses: actions/upload-artifact@v4

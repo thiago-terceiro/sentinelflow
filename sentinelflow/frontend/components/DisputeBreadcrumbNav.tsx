@@ -31,7 +31,6 @@ export const DisputeBreadcrumbNav = ({ initialFromPulse = false }: Props) => {
   return (
     <Link
       href="/disputes"
-      aria-label={label}
       style={{
         display: "inline-flex",
         alignItems: "center",

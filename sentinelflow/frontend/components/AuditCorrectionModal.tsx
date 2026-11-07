@@ -128,7 +128,8 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
         style={{
           width: "min(520px, 90vw)",
           padding: 28,
-          background: "#0c1322",
+          background: "var(--panel, #ffffff)",
+          color: "var(--foreground)",
         }}
       >
         <h2 id={titleId} style={{ marginTop: 0, fontSize: 18 }}>
@@ -157,9 +158,9 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
               width: "100%",
               borderRadius: 8,
               border: "1px solid var(--panel-border)",
-              background: "rgba(0,0,0,0.2)",
+              background: "var(--panel, #ffffff)",
               padding: 10,
-              color: "inherit",
+              color: "var(--foreground)",
               fontSize: 13,
             }}
           />
@@ -183,11 +184,13 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
             onClick={onClose}
             disabled={isSubmitting}
             style={{
+              minHeight: 44,
               padding: "8px 16px",
               borderRadius: 8,
               border: "1px solid var(--panel-border)",
               background: "transparent",
               color: "var(--muted)",
+              fontWeight: 600,
               cursor: "pointer",
             }}
           >
@@ -198,12 +201,13 @@ export const AuditCorrectionModal = ({ target, isOpen, onClose, onSuccess }: Pro
             onClick={handleSubmit}
             disabled={isSubmitting || !reason.trim()}
             style={{
+              minHeight: 44,
               padding: "8px 16px",
               borderRadius: 8,
-              border: 0,
-              background: "#f59e0b",
-              color: "black",
-              fontWeight: 600,
+              border: "1px solid var(--badge-flag-border, #b45309)",
+              background: "var(--badge-flag-bg, #fef3c7)",
+              color: "var(--badge-flag-color, #78350f)",
+              fontWeight: 700,
               cursor: isSubmitting ? "not-allowed" : "pointer",
             }}
           >

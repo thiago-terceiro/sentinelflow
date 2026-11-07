@@ -299,7 +299,6 @@ export const StyleSwitcher = () => {
               onChange={(e) => handleSelectTheme(e.target.value as "light" | "dark")}
               className="font-picker-select"
               style={{ minHeight: 44, height: 44, width: "100%", borderRadius: 6 }}
-              aria-label="Select theme mode"
             >
               <option value="light">☀️ Light Mode</option>
               <option value="dark">🌙 Dark Mode</option>
@@ -320,7 +319,6 @@ export const StyleSwitcher = () => {
               onChange={(e) => handleSelectFont(e.target.value)}
               className="font-picker-select"
               style={{ minHeight: 44, height: 44, width: "100%", borderRadius: 6 }}
-              aria-label="Select typography font"
             >
               {FONT_OPTIONS.map((f) => (
                 <option key={f.label} value={f.label}>
@@ -390,7 +388,6 @@ export const StyleSwitcher = () => {
               onChange={(e) => handleSelectPattern(e.target.value)}
               className="font-picker-select"
               style={{ minHeight: 44, height: 44, width: "100%", borderRadius: 6 }}
-              aria-label="Select background pattern"
             >
               {PATTERN_OPTIONS.map((p) => (
                 <option key={p.value} value={p.value}>

@@ -141,6 +141,7 @@ const HomePage = () => {
             }}
           >
             <svg
+              data-testid="hero-title-icon"
               width="0.9em"
               height="0.9em"
               viewBox="0 0 24 24"

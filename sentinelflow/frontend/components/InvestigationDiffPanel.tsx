@@ -15,22 +15,22 @@ const getSourceBadgeStyle = (
 ): { bg: string; text: string; border: string } => {
   if (source === "Human Reviewer Steering") {
     return {
-      bg: "rgba(234,179,8,0.15)",
-      text: "#eab308",
-      border: "rgba(234,179,8,0.4)",
+      bg: "var(--badge-flag-bg, rgba(234,179,8,0.15))",
+      text: "var(--badge-flag-color, #fde047)",
+      border: "var(--badge-flag-border, rgba(234,179,8,0.4))",
     };
   }
   if (source === "Deterministic Engine") {
     return {
-      bg: "rgba(56,189,248,0.15)",
-      text: "#38bdf8",
-      border: "rgba(56,189,248,0.4)",
+      bg: "var(--accent-soft)",
+      text: "var(--accent)",
+      border: "var(--panel-border)",
     };
   }
   return {
-    bg: "rgba(201,243,106,0.15)",
-    text: "var(--accent)",
-    border: "rgba(201,243,106,0.4)",
+    bg: "var(--badge-allow-bg, rgba(34,197,94,0.15))",
+    text: "var(--badge-allow-color, #86efac)",
+    border: "var(--badge-allow-border, rgba(34,197,94,0.4))",
   };
 };
 
@@ -44,10 +44,11 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
   if (snapshots.length < 2) {
     return (
       <div
+        data-testid="investigation-diff-panel"
         className="shell-card"
         style={{
           padding: 24,
-          background: "rgba(255,255,255,0.02)",
+          background: "var(--panel)",
           border: "1px solid var(--panel-border)",
         }}
       >
@@ -57,12 +58,18 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
             <button
               type="button"
               onClick={onClose}
+              aria-label="✕ Close diff view"
               style={{
                 background: "transparent",
                 border: "none",
                 color: "var(--muted)",
                 cursor: "pointer",
                 fontSize: 16,
+                minWidth: 44,
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               ✕
@@ -89,13 +96,14 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
 
   return (
     <section
+      data-testid="investigation-diff-panel"
       className="shell-card"
       style={{
         padding: 24,
         display: "grid",
         gap: 16,
-        background: "rgba(15,23,42,0.35)",
-        border: "1px solid rgba(255,255,255,0.1)",
+        background: "var(--panel)",
+        border: "1px solid var(--panel-border)",
       }}
     >
       <div
@@ -142,13 +150,18 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close diff view"
+              aria-label="✕ Close diff view"
               style={{
                 background: "transparent",
                 border: "none",
                 color: "var(--muted)",
                 cursor: "pointer",
                 fontSize: 18,
+                minWidth: 44,
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
                 padding: "4px 8px",
               }}
             >
@@ -167,25 +180,25 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
           gap: 12,
           padding: "10px 14px",
           borderRadius: 8,
-          background: "rgba(255,255,255,0.02)",
+          background: "var(--card-subtle-bg, rgba(255,255,255,0.02))",
           border: "1px solid var(--panel-border)",
           fontSize: 13,
         }}
       >
-        <span style={{ color: "var(--muted)" }}>Compare:</span>
-        <label htmlFor={fromSelectId} style={{ display: "none" }}>
-          From Iteration
+        <label htmlFor={fromSelectId} style={{ color: "var(--muted)", fontWeight: 600 }}>
+          Compare:
         </label>
         <select
           id={fromSelectId}
           value={effectiveFrom}
           onChange={(e) => setFromIndex(Number(e.target.value))}
           style={{
-            background: "rgba(0,0,0,0.3)",
+            background: "var(--panel)",
             color: "var(--foreground)",
             border: "1px solid var(--panel-border)",
             borderRadius: 6,
-            padding: "4px 8px",
+            padding: "8px 12px",
+            minHeight: 44,
             fontSize: 12,
           }}
         >
@@ -195,20 +208,20 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
             </option>
           ))}
         </select>
-        <span style={{ color: "var(--muted)" }}>with</span>
-        <label htmlFor={toSelectId} style={{ display: "none" }}>
-          To Iteration
+        <label htmlFor={toSelectId} style={{ color: "var(--muted)", fontWeight: 600 }}>
+          with
         </label>
         <select
           id={toSelectId}
           value={effectiveTo}
           onChange={(e) => setToIndex(Number(e.target.value))}
           style={{
-            background: "rgba(0,0,0,0.3)",
+            background: "var(--panel)",
             color: "var(--foreground)",
             border: "1px solid var(--panel-border)",
             borderRadius: 6,
-            padding: "4px 8px",
+            padding: "8px 12px",
+            minHeight: 44,
             fontSize: 12,
           }}
         >
@@ -361,7 +374,7 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
                       {Math.round(c.previousConfidence * 100)}%
                     </span>{" "}
                     →{" "}
-                    <strong style={{ color: c.delta > 0 ? "var(--success)" : "#f87171" }}>
+                    <strong style={{ color: c.delta > 0 ? "var(--success)" : "var(--danger)" }}>
                       {Math.round(c.currentConfidence * 100)}% ({c.delta > 0 ? "+" : ""}
                       {Math.round(c.delta * 100)}%)
                     </strong>
@@ -378,7 +391,7 @@ export const InvestigationDiffPanel = memo(({ snapshots, diffs, onClose }: Props
               style={{
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#f87171",
+                color: "var(--danger)",
                 display: "block",
                 marginBottom: 6,
               }}

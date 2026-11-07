@@ -393,8 +393,10 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
             className="shell-card"
             style={{
               padding: 18,
-              borderColor: "rgba(224,168,0,0.35)",
-              color: "#f3c452",
+              background: "var(--badge-flag-bg, #fef3c7)",
+              borderColor: "var(--badge-flag-border, #b45309)",
+              color: "var(--badge-flag-color, #78350f)",
+              fontWeight: 600,
             }}
           >
             Reconnecting to investigation stream (attempt {state.reconnectAttempt}

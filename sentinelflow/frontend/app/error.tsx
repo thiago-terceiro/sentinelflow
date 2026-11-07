@@ -7,13 +7,17 @@ const GlobalError = ({ reset }: { error: Error; reset: () => void }) => {
         <h1>Console error</h1>
         <p>The route failed to render. Retry the request.</p>
         <button
+          type="button"
           onClick={() => reset()}
           style={{
+            minHeight: 44,
             border: 0,
-            borderRadius: 999,
+            borderRadius: 8,
             padding: "12px 18px",
-            background: "var(--accent)",
-            color: "white",
+            background: "var(--accent, #1e3a8a)",
+            color: "var(--accent-ink, #ffffff)",
+            fontWeight: 700,
+            cursor: "pointer",
           }}
         >
           Retry

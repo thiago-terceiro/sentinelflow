@@ -20,6 +20,10 @@ test.describe("SentinelFlow Background Patterns & Performance", () => {
   test("pattern selector switches modes and updates document attributes", async ({ page }) => {
     await page.goto("/telecom");
 
+    const appearanceToggle = page.locator('button[aria-label="Appearance and accessibility preferences"]');
+    await expect(appearanceToggle).toBeVisible();
+    await appearanceToggle.click();
+
     const patternSelect = page.locator("#pattern-select");
     await expect(patternSelect).toBeVisible();
 

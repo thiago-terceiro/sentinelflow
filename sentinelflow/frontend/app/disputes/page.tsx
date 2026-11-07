@@ -192,7 +192,10 @@ const DisputesPage = () => {
         </div>
 
         <h1 style={{ margin: "4px 0 12px", fontSize: "clamp(1.85rem, 4.5vw, 3.4rem)", letterSpacing: "-0.03em" }}>
-          ⚡ SentinelFlow: Seeded Disputes Workbench
+          <span data-testid="hero-title-icon" aria-hidden="true" style={{ display: "inline-block", marginRight: 10 }}>
+            ⚡
+          </span>
+          SentinelFlow: Seeded Disputes Workbench
         </h1>
 
         <p style={{ maxWidth: 820, margin: 0, color: "var(--muted)", fontSize: 15, lineHeight: 1.6 }}>

@@ -50,12 +50,12 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
         <span
           style={{
             padding: "2px 8px",
-            borderRadius: 999,
+            borderRadius: 6,
             fontSize: 11,
-            fontWeight: 600,
-            background: "rgba(224,168,0,0.15)",
-            color: "#f3c452",
-            border: "1px solid rgba(224,168,0,0.3)",
+            fontWeight: 700,
+            background: "var(--badge-flag-bg, #fef3c7)",
+            color: "var(--badge-flag-color, #78350f)",
+            border: "1px solid var(--badge-flag-border, #b45309)",
           }}
         >
           RUNNING
@@ -67,12 +67,12 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
         <span
           style={{
             padding: "2px 8px",
-            borderRadius: 999,
+            borderRadius: 6,
             fontSize: 11,
-            fontWeight: 600,
-            background: "rgba(239,68,68,0.15)",
-            color: "#f87171",
-            border: "1px solid rgba(239,68,68,0.3)",
+            fontWeight: 700,
+            background: "var(--badge-block-bg, #fee2e2)",
+            color: "var(--badge-block-color, #7f1d1d)",
+            border: "1px solid var(--badge-block-border, #991b1b)",
           }}
         >
           FAILED
@@ -83,12 +83,12 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
       <span
         style={{
           padding: "2px 8px",
-          borderRadius: 999,
+          borderRadius: 6,
           fontSize: 11,
-          fontWeight: 600,
-          background: "rgba(34,197,94,0.15)",
-          color: "#4ade80",
-          border: "1px solid rgba(34,197,94,0.3)",
+          fontWeight: 700,
+          background: "var(--badge-allow-bg, #dcfce7)",
+          color: "var(--badge-allow-color, #14532d)",
+          border: "1px solid var(--badge-allow-border, #15803d)",
         }}
       >
         VERIFIED
@@ -221,7 +221,7 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
       {type === "action" ? (
         <div style={{ display: "grid", gap: 10, marginTop: 4 }}>
           {actionSuccess ? (
-            <p style={{ margin: 0, color: "#4ade80", fontSize: 13, fontWeight: 600 }}>
+            <p style={{ margin: 0, color: "var(--telecom-good, #14532d)", fontSize: 13, fontWeight: 700 }}>
               {actionSuccess}
             </p>
           ) : (
@@ -233,28 +233,30 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
                 onChange={(e) => setGuidanceText(e.target.value)}
                 style={{
                   width: "100%",
+                  minHeight: 44,
                   padding: "8px 12px",
                   borderRadius: 6,
-                  border: "1px solid var(--border)",
-                  background: "rgba(0,0,0,0.2)",
-                  color: "inherit",
+                  border: "1px solid var(--panel-border)",
+                  background: "var(--panel, #ffffff)",
+                  color: "var(--foreground)",
                   fontSize: 13,
                 }}
                 disabled={isSubmitting}
                 aria-label="Steering Guidance"
               />
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
                   type="button"
                   onClick={() => void handleAction("approve")}
                   disabled={isSubmitting}
                   style={{
-                    padding: "6px 14px",
+                    minHeight: 44,
+                    padding: "8px 16px",
                     borderRadius: 6,
-                    border: "none",
-                    background: "#16a34a",
-                    color: "white",
-                    fontWeight: 600,
+                    border: "1px solid var(--badge-allow-border, #15803d)",
+                    background: "var(--badge-allow-bg, #dcfce7)",
+                    color: "var(--badge-allow-color, #14532d)",
+                    fontWeight: 700,
                     fontSize: 12,
                     cursor: isSubmitting ? "not-allowed" : "pointer",
                   }}
@@ -266,12 +268,13 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
                   onClick={() => void handleAction("reject")}
                   disabled={isSubmitting}
                   style={{
-                    padding: "6px 14px",
+                    minHeight: 44,
+                    padding: "8px 16px",
                     borderRadius: 6,
-                    border: "none",
-                    background: "#dc2626",
-                    color: "white",
-                    fontWeight: 600,
+                    border: "1px solid var(--badge-block-border, #991b1b)",
+                    background: "var(--badge-block-bg, #fee2e2)",
+                    color: "var(--badge-block-color, #7f1d1d)",
+                    fontWeight: 700,
                     fontSize: 12,
                     cursor: isSubmitting ? "not-allowed" : "pointer",
                   }}
@@ -283,12 +286,13 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
                   onClick={() => void handleAction("request_revision")}
                   disabled={isSubmitting}
                   style={{
-                    padding: "6px 14px",
+                    minHeight: 44,
+                    padding: "8px 16px",
                     borderRadius: 6,
-                    border: "1px solid rgba(224,168,0,0.5)",
-                    background: "rgba(224,168,0,0.2)",
-                    color: "#f3c452",
-                    fontWeight: 600,
+                    border: "1px solid var(--badge-flag-border, #b45309)",
+                    background: "var(--badge-flag-bg, #fef3c7)",
+                    color: "var(--badge-flag-color, #78350f)",
+                    fontWeight: 700,
                     fontSize: 12,
                     cursor: isSubmitting ? "not-allowed" : "pointer",
                   }}

@@ -1,2 +1,4 @@
 .vercel
 scripts/.axe-core-cache.js
+playwright-report/
+test-results/
