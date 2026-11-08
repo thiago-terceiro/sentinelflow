@@ -195,7 +195,9 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     });
 
     // Initial visit populates cache
+    const initialFetchPromise = page.waitForResponse("**/app-api/disputes");
     await page.goto("/disputes");
+    await initialFetchPromise;
     await expect(page.locator("h1")).toContainText("SentinelFlow");
     const refreshBtn = page.getByRole("button", { name: /Refresh disputes list/i });
     await expect(refreshBtn).toBeVisible();
