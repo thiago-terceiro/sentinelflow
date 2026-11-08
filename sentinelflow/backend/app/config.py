@@ -32,7 +32,7 @@ class Settings(BaseSettings):
         ]
     )
     MAX_REQUEST_BYTES: int = 1_048_576
-    RATE_LIMIT_REQUESTS: int = 120
+    RATE_LIMIT_REQUESTS: int = 1200
     RATE_LIMIT_WINDOW_SECONDS: int = 60
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/sentinelflow"

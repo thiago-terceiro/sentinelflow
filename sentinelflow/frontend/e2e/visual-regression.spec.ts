@@ -158,9 +158,11 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await page.goto("/telecom");
     await page.getByRole("button", { name: /Run Real-Time Classification/i }).click();
 
-    const unauthEscalateBtn = page.getByRole("button", {
-      name: /Escalate to SentinelFlow \(Sign In\)/i,
-    });
+    const unauthEscalateBtn = page
+      .getByRole("button", {
+        name: /Escalate to SentinelFlow \(Sign In\)/i,
+      })
+      .first();
     await expect(unauthEscalateBtn).toBeVisible();
     await expect(unauthEscalateBtn).toContainText("Escalate to SentinelFlow (Sign In)");
 
@@ -195,11 +197,15 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     });
 
     // Initial visit populates cache
+    const initialDisputesResponse = page.waitForResponse(
+      (res) => res.url().includes("/app-api/disputes") && res.status() === 200
+    );
     await page.goto("/disputes");
+    await initialDisputesResponse;
     await expect(page.locator("h1")).toContainText("SentinelFlow");
     const refreshBtn = page.getByRole("button", { name: /Refresh disputes list/i });
     await expect(refreshBtn).toBeVisible();
-    await expect(page.locator("text=/\\d+ cases/")).toBeVisible();
+    await expect(page.locator("text=SF-10001")).toBeVisible();
 
     // Navigate away via client-side navbar link and return to /disputes
     await page.locator(".app-nav-link", { hasText: "SentinelPulse" }).click();
@@ -207,12 +213,17 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
 
     await page.locator(".app-nav-link", { hasText: "SentinelFlow" }).click();
     await expect(page).toHaveURL(/\/disputes$/);
+    await expect(page.locator("text=SF-10001")).toBeVisible();
 
     // Returning via client-side navigation uses the warm cache without triggering a new fetch
     expect(disputesApiFetchCount).toBe(1);
 
     // Clicking Refresh explicitly invalidates the cache and triggers a fresh network fetch
+    const refreshDisputesResponse = page.waitForResponse(
+      (res) => res.url().includes("/app-api/disputes") && res.status() === 200
+    );
     await refreshBtn.click();
-    await expect.poll(() => disputesApiFetchCount).toBeGreaterThan(1);
+    await refreshDisputesResponse;
+    expect(disputesApiFetchCount).toBe(2);
   });
 });

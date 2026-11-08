@@ -778,7 +778,7 @@ main {
   --canvas: #0f172a;
   --style2-bg: #0f172a !important;
   --dot-color: rgba(241, 245, 249, 0.15);
-  --accent: #93c5fd;
+  --accent: #bfdbfe;
   --accent-ink: #090d16;
   --accent-soft: rgba(30, 58, 138, 0.4);
   --bolt-purple: #c084fc;
@@ -787,7 +787,7 @@ main {
   --telecom-good: #86efac;
   --telecom-warning: #fde047;
   --telecom-danger: #fee2e2;
-  --telecom-info: #93c5fd;
+  --telecom-info: #bfdbfe;
   --badge-allow-bg: rgba(22, 101, 52, 0.35);
   --badge-allow-color: #bbf7d0;
   --badge-allow-border: rgba(74, 222, 128, 0.6);
