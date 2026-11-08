@@ -203,7 +203,6 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await expect(refreshBtn).toBeVisible();
 
     // Navigate away via client-side navbar link and return to /disputes
-    const countBeforeReturn = disputesApiFetchCount;
     await page.locator(".app-nav-link", { hasText: "SentinelPulse" }).click();
     await expect(page).toHaveURL(/\/$/);
 
@@ -211,10 +210,10 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await expect(page).toHaveURL(/\/disputes$/);
 
     // Returning via client-side navigation uses the warm cache without triggering a new fetch
-    expect(disputesApiFetchCount).toBe(countBeforeReturn);
+    expect(disputesApiFetchCount).toBe(1);
 
     // Clicking Refresh explicitly invalidates the cache and triggers a fresh network fetch
     await refreshBtn.click();
-    await expect.poll(() => disputesApiFetchCount).toBeGreaterThan(countBeforeReturn);
+    await expect.poll(() => disputesApiFetchCount).toBeGreaterThan(1);
   });
 });
