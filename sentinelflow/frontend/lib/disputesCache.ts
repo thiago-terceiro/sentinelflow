@@ -2,69 +2,64 @@ import { listDisputes } from "./api.ts";
 import type { DisputeSummary } from "./types.ts";
 
 const DISPUTES_CACHE_TTL_MS = 60_000; // 60 seconds TTL
-const SESSION_CACHE_KEY = "sentinelflow_cached_disputes";
-const SESSION_TIMESTAMP_KEY = "sentinelflow_cached_disputes_time";
 
-let memoryCachedDisputes: DisputeSummary[] | null = null;
-let memoryLastFetchedAt = 0;
-let inFlightPromise: Promise<DisputeSummary[]> | null = null;
-
-const readStorageCache = (): { disputes: DisputeSummary[]; fetchedAt: number } | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  try {
-    const raw = sessionStorage.getItem(SESSION_CACHE_KEY);
-    const timeStr = sessionStorage.getItem(SESSION_TIMESTAMP_KEY);
-    if (!raw || !timeStr) {
-      return null;
-    }
-    const fetchedAt = Number(timeStr);
-    if (Number.isNaN(fetchedAt) || Date.now() - fetchedAt > DISPUTES_CACHE_TTL_MS) {
-      return null;
-    }
-    const disputes = JSON.parse(raw) as DisputeSummary[];
-    return { disputes, fetchedAt };
-  } catch {
-    return null;
-  }
+type CacheEntry = {
+  disputes: DisputeSummary[];
+  fetchedAt: number;
 };
 
-const writeStorageCache = (disputes: DisputeSummary[] | null, fetchedAt = Date.now()): void => {
-  if (typeof window === "undefined") {
-    return;
+declare global {
+  interface Window {
+    __sentinelflow_disputes_cache__?: CacheEntry;
   }
-  try {
-    if (disputes === null) {
-      sessionStorage.removeItem(SESSION_CACHE_KEY);
-      sessionStorage.removeItem(SESSION_TIMESTAMP_KEY);
+}
+
+let memoryFallbackCache: CacheEntry | null = null;
+let inFlightPromise: Promise<DisputeSummary[]> | null = null;
+
+const getCacheEntry = (): CacheEntry | null => {
+  const entry = typeof window !== "undefined"
+    ? window.__sentinelflow_disputes_cache__ ?? null
+    : memoryFallbackCache;
+
+  if (!entry) {
+    return null;
+  }
+
+  if (Date.now() - entry.fetchedAt > DISPUTES_CACHE_TTL_MS) {
+    if (typeof window !== "undefined") {
+      delete window.__sentinelflow_disputes_cache__;
     } else {
-      sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(disputes));
-      sessionStorage.setItem(SESSION_TIMESTAMP_KEY, String(fetchedAt));
+      memoryFallbackCache = null;
     }
-  } catch {
-    // sessionStorage access may be restricted
+    return null;
+  }
+
+  return entry;
+};
+
+const setCacheEntry = (disputes: DisputeSummary[] | null): void => {
+  if (typeof window !== "undefined") {
+    if (disputes === null) {
+      delete window.__sentinelflow_disputes_cache__;
+    } else {
+      window.__sentinelflow_disputes_cache__ = {
+        disputes,
+        fetchedAt: Date.now(),
+      };
+    }
+  } else {
+    memoryFallbackCache = disputes ? { disputes, fetchedAt: Date.now() } : null;
   }
 };
 
 export const isDisputesCacheValid = (): boolean => {
-  if (memoryCachedDisputes !== null && Date.now() - memoryLastFetchedAt < DISPUTES_CACHE_TTL_MS) {
-    return true;
-  }
-  const storage = readStorageCache();
-  if (storage !== null) {
-    memoryCachedDisputes = storage.disputes;
-    memoryLastFetchedAt = storage.fetchedAt;
-    return true;
-  }
-  return false;
+  return getCacheEntry() !== null;
 };
 
 export const peekDisputesCache = (): DisputeSummary[] | null => {
-  if (isDisputesCacheValid()) {
-    return memoryCachedDisputes;
-  }
-  return null;
+  const entry = getCacheEntry();
+  return entry ? entry.disputes : null;
 };
 
 export const getDisputesCached = async (options?: { forceRefresh?: boolean }): Promise<DisputeSummary[]> => {
@@ -84,9 +79,7 @@ export const getDisputesCached = async (options?: { forceRefresh?: boolean }): P
   inFlightPromise = (async () => {
     try {
       const data = await listDisputes();
-      memoryCachedDisputes = data;
-      memoryLastFetchedAt = Date.now();
-      writeStorageCache(data, memoryLastFetchedAt);
+      setCacheEntry(data);
       return data;
     } finally {
       inFlightPromise = null;
@@ -97,9 +90,7 @@ export const getDisputesCached = async (options?: { forceRefresh?: boolean }): P
 };
 
 export const invalidateDisputesCache = (): void => {
-  memoryCachedDisputes = null;
-  memoryLastFetchedAt = 0;
-  writeStorageCache(null, 0);
+  setCacheEntry(null);
   if (typeof window !== "undefined") {
     try {
       window.dispatchEvent(new CustomEvent("sentinelflow:disputes-invalidated"));

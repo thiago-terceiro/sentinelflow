@@ -195,12 +195,11 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     });
 
     // Initial visit populates cache
-    const initialFetchPromise = page.waitForResponse("**/app-api/disputes");
     await page.goto("/disputes");
-    await initialFetchPromise;
     await expect(page.locator("h1")).toContainText("SentinelFlow");
     const refreshBtn = page.getByRole("button", { name: /Refresh disputes list/i });
     await expect(refreshBtn).toBeVisible();
+    await expect(page.locator("text=/\\d+ cases/")).toBeVisible();
 
     // Navigate away via client-side navbar link and return to /disputes
     await page.locator(".app-nav-link", { hasText: "SentinelPulse" }).click();
