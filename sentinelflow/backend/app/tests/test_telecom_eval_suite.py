@@ -7,6 +7,7 @@ error analysis extraction, and operational dual-tier thresholds.
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 
 import numpy as np
 from app.telecom.evaluate_model import (
@@ -192,3 +193,81 @@ def test_markdown_report_formatting() -> None:
     assert "Component Ablation Study" in report
     assert "Fine-Grained Category-Level Performance Breakdown" in report
     assert "Error Analysis Summary" in report
+
+
+def test_onnx_export_reproducibility_and_runtime_sha256_validation(tmp_path: Path) -> None:
+    """Verifies clean-process ONNX export determinism and runtime SHA-256 validation (SF-003)."""
+    import json
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    import pytest
+    from app.telecom.onnx_engine import ONNXFraudEngine
+
+    backend_dir = Path(__file__).resolve().parents[2]
+    model_path = backend_dir / "app" / "telecom" / "models" / "sms_fraud_model.onnx"
+    metadata_path = backend_dir / "app" / "telecom" / "models" / "sms_fraud_metadata.json"
+
+    # 1. Verify clean-process export reproducibility across independent subprocesses
+    export_snippet = (
+        "import hashlib; "
+        "from app.telecom.train_onnx_model import build_augmented_dataset, patch_skl2onnx_tfidf_bugs; "
+        "from skl2onnx import to_onnx; "
+        "from skl2onnx.common.data_types import StringTensorType; "
+        "from sklearn.calibration import CalibratedClassifierCV; "
+        "from sklearn.feature_extraction.text import TfidfVectorizer; "
+        "from sklearn.linear_model import LogisticRegression; "
+        "from sklearn.pipeline import Pipeline; "
+        "texts, labels, _ = build_augmented_dataset(); "
+        "pipe = Pipeline([('tfidf', TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, max_features=2500, min_df=1, token_pattern=r'\\b[a-zA-Z0-9_]+\\b')), "
+        "('clf', CalibratedClassifierCV(estimator=LogisticRegression(C=1.5, max_iter=1000, class_weight='balanced', random_state=42), method='sigmoid', cv=5))]); "
+        "pipe.fit(texts, labels); "
+        "m = patch_skl2onnx_tfidf_bugs(to_onnx(pipe, initial_types=[('text', StringTensorType([None, 1]))], target_opset=14), pipe.named_steps['tfidf']); "
+        "print(hashlib.sha256(m.SerializeToString()).hexdigest())"
+    )
+
+    procs: list[subprocess.Popen[str]] = []
+    for seed in ("0", "0"):
+        env = os.environ.copy()
+        env["PYTHONHASHSEED"] = seed
+        procs.append(
+            subprocess.Popen(  # noqa: S603
+                [sys.executable, "-c", export_snippet],
+                cwd=str(backend_dir),
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        )
+
+    hashes: list[str] = []
+    for proc in procs:
+        stdout, stderr = proc.communicate(timeout=60)
+        assert proc.returncode == 0, f"Subprocess failed: {stderr}"
+        hashes.append(stdout.strip())
+
+    expected_disk_sha = hashlib.sha256(model_path.read_bytes()).hexdigest()
+    assert hashes[0] == hashes[1] == expected_disk_sha, (
+        f"Non-deterministic ONNX export across clean subprocesses: {hashes} vs disk {expected_disk_sha}"
+    )
+
+    # 2. Verify ONNXFraudEngine validates SHA-256 at startup and exposes model_sha256 property
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    engine = ONNXFraudEngine(model_path=model_path, metadata_path=metadata_path)
+    assert engine.model_sha256 == metadata["model_sha256"] == expected_disk_sha
+    assert engine.session is not None
+
+    # 3. Verify 1-byte tampering of sms_fraud_model.onnx causes initialization to fail with RuntimeError
+    tampered_model_path = tmp_path / "sms_fraud_model.onnx"
+    copied_meta_path = tmp_path / "sms_fraud_metadata.json"
+    raw_bytes = bytearray(model_path.read_bytes())
+    raw_bytes[-1] ^= 0x01  # Flip 1 bit in the last byte
+    tampered_model_path.write_bytes(bytes(raw_bytes))
+    copied_meta_path.write_text(metadata_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="ONNX model SHA-256 mismatch"):
+        ONNXFraudEngine(model_path=tampered_model_path, metadata_path=copied_meta_path)
+

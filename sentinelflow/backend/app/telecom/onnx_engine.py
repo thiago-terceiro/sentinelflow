@@ -14,6 +14,8 @@ is unnecessary and not used.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
 import time
@@ -270,26 +272,80 @@ class OnnxInferenceEngine:
     (<0.1ms warm in-graph C++ execution).
     """
 
-    def __init__(self, model_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        model_path: str | Path | None = None,
+        metadata_path: str | Path | None = None,
+        verify_sha256: bool = True,
+    ) -> None:
         if model_path is None:
             # Default to bundled model in app/telecom/models
             current_dir = Path(__file__).parent
             model_path = current_dir / "models" / "sms_fraud_model.onnx"
 
         self.model_path = Path(model_path)
+        if metadata_path is None:
+            self.metadata_path: Path | None = (
+                self.model_path.parent / "sms_fraud_metadata.json"
+            )
+        else:
+            self.metadata_path = Path(metadata_path)
+        self.verify_sha256 = verify_sha256
+        self._model_sha256: str = ""
         self.session: ort.InferenceSession | None = None
         self._session: ort.InferenceSession | None = None
         self._input_name: str = "text"
         self._init_session()
 
+    @property
+    def model_sha256(self) -> str:
+        """Returns the verified SHA-256 hex digest of the loaded ONNX model binary."""
+        return self._model_sha256
+
+    def _verify_model_integrity(self) -> None:
+        """Computes the SHA-256 of the ONNX model file and verifies it against metadata."""
+        model_bytes = self.model_path.read_bytes()
+        computed_sha256 = hashlib.sha256(model_bytes).hexdigest()
+        self._model_sha256 = computed_sha256
+
+        if not self.verify_sha256 or self.metadata_path is None:
+            return
+        if not self.metadata_path.exists():
+            logger.warning(
+                "ONNX metadata file not found at %s; skipping SHA-256 verification.",
+                self.metadata_path,
+            )
+            return
+
+        try:
+            metadata = json.loads(self.metadata_path.read_text(encoding="utf-8"))
+        except Exception as err:
+            raise RuntimeError(
+                f"Failed to parse ONNX metadata file at {self.metadata_path}: {err}"
+            ) from err
+
+        expected_sha256 = metadata.get("model_sha256")
+        if not expected_sha256:
+            raise RuntimeError(
+                f"Missing 'model_sha256' field in ONNX metadata at {self.metadata_path}"
+            )
+        if computed_sha256 != expected_sha256:
+            raise RuntimeError(
+                f"ONNX model SHA-256 mismatch for {self.model_path}: "
+                f"expected {expected_sha256} (from {self.metadata_path.name}), "
+                f"got {computed_sha256}"
+            )
+
     def _init_session(self) -> None:
-        """Initializes optimized ONNX Runtime CPU session."""
+        """Initializes optimized ONNX Runtime CPU session after verifying SHA-256 integrity."""
         if not self.model_path.exists():
             logger.warning(
                 "ONNX model file not found at %s. Running in heuristic-only fallback mode.",
                 self.model_path,
             )
             return
+
+        self._verify_model_integrity()
 
         opts = ort.SessionOptions()
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
@@ -308,8 +364,9 @@ class OnnxInferenceEngine:
             warmup_tensor = np.array([["warmup text"]], dtype=object)
             self.session.run(None, {self._input_name: warmup_tensor})
             logger.info(
-                "Initialized ONNX Runtime CPU session from %s (warmup complete)",
+                "Initialized ONNX Runtime CPU session from %s (SHA-256: %s, warmup complete)",
                 self.model_path,
+                self._model_sha256,
             )
         except Exception as err:
             logger.error("Failed to load ONNX model from %s: %s", self.model_path, err)
@@ -461,6 +518,7 @@ class OnnxInferenceEngine:
 
 
 OnnxSmsInferenceEngine = OnnxInferenceEngine
+ONNXFraudEngine = OnnxInferenceEngine
 
 # Global singleton instance
 _engine_instance: OnnxInferenceEngine | None = None

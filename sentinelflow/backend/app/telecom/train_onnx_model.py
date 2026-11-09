@@ -417,7 +417,7 @@ def patch_skl2onnx_tfidf_bugs(
 
     vocab_size = max(vocab.values()) + 1
     split_words: list[list[str]] = [[] for _ in range(vocab_size)]
-    for term, idx in vocab.items():
+    for term, idx in sorted(vocab.items(), key=lambda item: int(item[1])):
         split_words[int(idx)] = str(term).split(" ")
 
     ng_split_words = sorted(
@@ -557,6 +557,16 @@ def patch_skl2onnx_tfidf_bugs(
 
             del onnx_model.graph.node[:]
             onnx_model.graph.node.extend(new_nodes)
+
+    # 3. Canonically sort opset_import by (domain, version) to guarantee clean-process
+    # byte-for-byte determinism across arbitrary PYTHONHASHSEED values.
+    sorted_opsets = sorted(
+        [(str(opset.domain), int(opset.version)) for opset in onnx_model.opset_import],
+        key=lambda item: (item[0], item[1]),
+    )
+    del onnx_model.opset_import[:]
+    for domain, version in sorted_opsets:
+        onnx_model.opset_import.append(onnx.helper.make_opsetid(domain, version))
 
     onnx.checker.check_model(onnx_model)
     return onnx_model
