@@ -32,6 +32,7 @@ const main = async () => {
   console.log("🛡️  SENTINELFLOW PRE-PUSH VERIFICATION GATE");
   console.log("======================================================");
 
+  runStep("Checking Backend Lockfile Consistency (uv lock --check)", "uv lock --check --directory ../backend");
   runStep("Checking Code Style & Architecture Rules", "node scripts/check-rules.js");
   runStep("Running Strict TypeScript Compiler Check", "npx tsc --noEmit");
   runStep("Running Unit & State Derivation Tests", "npm test");

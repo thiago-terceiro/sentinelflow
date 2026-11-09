@@ -84,10 +84,10 @@ PNPM_BIN="${PNPM_BIN:-$(resolve_pnpm_bin)}"
 
 run_backend() {
   ensure_uv_bin
-  echo "[sentinelflow] backend: uv sync --extra dev && ruff check && ruff format --check && bandit && pip-audit && mypy && pytest && evals"
+  echo "[sentinelflow] backend: uv sync --locked --extra dev && ruff check && ruff format --check && bandit && pip-audit && mypy && pytest && evals"
   (
     cd "$app_root/backend"
-    "$UV_BIN" sync --extra dev
+    "$UV_BIN" sync --locked --extra dev
     "$UV_BIN" run --no-sync ruff check app
     "$UV_BIN" run --no-sync ruff format --check app
     "$UV_BIN" run --no-sync bandit -c pyproject.toml -x app/tests -r app -q

@@ -1,5 +1,5 @@
 backend-sync:
-	cd backend && uv sync
+	cd backend && uv sync --locked --extra dev
 
 backend-seed:
 	cd backend && uv run alembic upgrade head && uv run python -m app.db.seed

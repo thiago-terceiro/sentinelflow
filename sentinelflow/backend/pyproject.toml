@@ -27,12 +27,14 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-http>=1.36.0,<2.0.0",
   "orjson>=3.11.2,<4.0.0",
   "urllib3>=2.8.0,<3.0.0",
-  "numpy>=1.26.0,<3.0.0",
-  "scikit-learn>=1.4.0,<2.0.0",
-  "onnx>=1.16.0,<2.0.0",
-  "onnxruntime>=1.17.0,<2.0.0",
-  "skl2onnx>=1.16.0,<2.0.0",
-  "scipy>=1.12.0,<2.0.0",
+  # Converter-sensitive ML & numerical dependencies are tightly pinned/constrained to
+  # guarantee deterministic ONNX graph topology for patch_skl2onnx_tfidf_bugs and 1e-7 parity.
+  "numpy>=2.5.4,<2.6.0",
+  "scikit-learn==1.9.1",
+  "onnx==1.23.2",
+  "onnxruntime==1.31.0",
+  "skl2onnx==1.20.0",
+  "scipy>=1.18.1,<1.19.0",
   "prometheus-client>=0.20.0",
 ]
 

@@ -58,11 +58,13 @@ The local stack is now wired to run as a production-like image-based deployment 
 
 ```bash
 cd backend
-uv sync --extra dev
+uv sync --locked --extra dev
 uv run alembic upgrade head
 uv run python -m app.db.seed
 uv run uvicorn app.main:app --reload --port 8000
 ```
+
+> **Dependency Reproducibility & Lockfile Enforcement:** Converter-sensitive ML and numerical dependencies (`scikit-learn==1.9.1`, `skl2onnx==1.20.0`, `onnx==1.23.2`, `onnxruntime==1.31.0`, `numpy>=2.5.4,<2.6.0`, `scipy>=1.18.1,<1.19.0`) are pinned in `backend/pyproject.toml` and locked in `backend/uv.lock`. Both CI (`uv sync --locked --extra dev`) and Docker builds (`uv sync --locked --no-dev`) enforce lockfile consistency.
 
 Fallback development bearer tokens (backend-only, enable with `AUTH_ALLOW_DEV_TOKENS=true`):
 

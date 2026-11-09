@@ -1,27 +1,30 @@
 FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
 WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-COPY alembic.ini ./
-COPY pyproject.toml ./
+COPY alembic.ini pyproject.toml uv.lock ./
 COPY app ./app
 COPY migrations ./migrations
 
-RUN uv pip install --system .
+RUN uv sync --locked --no-dev --no-editable
 
 FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
 
-COPY --from=builder /usr/local /usr/local
+COPY --from=builder /app/.venv /app/.venv
 COPY alembic.ini ./
 COPY app ./app
 COPY migrations ./migrations

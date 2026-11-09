@@ -68,7 +68,7 @@ jobs:
 
       - name: Install backend and frontend dependencies for security scan
         run: |
-          cd sentinelflow/backend && uv sync --extra dev
+          cd sentinelflow/backend && uv sync --locked --extra dev
           cd ../frontend && pnpm install
 
       - name: Run OWASP Top 10, LLM Top 10 & CWE/CVE Compliance Suite
@@ -189,7 +189,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd sentinelflow/backend && uv sync --extra dev
+          cd sentinelflow/backend && uv sync --locked --extra dev
           cd ../frontend && pnpm install
 
       - name: Verify OpenAPI & TypeScript schema synchronization
@@ -318,7 +318,7 @@ jobs:
 
       - name: Sync backend dependencies
         working-directory: sentinelflow/backend
-        run: uv sync
+        run: uv sync --locked
 
       - name: Run database migrations and showcase seed
         working-directory: sentinelflow/backend
