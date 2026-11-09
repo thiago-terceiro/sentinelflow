@@ -403,7 +403,18 @@ def patch_skl2onnx_tfidf_bugs(
        whenever any token repeats (tf >= 2). This replaces the Add -> Log subgraph with:
        Where(tf > 0, Log(Max(tf, 1.0)) + 1.0, 0.0).
     """
-    vocab = fitted_tfidf_vectorizer.vocabulary_
+    vocab = getattr(fitted_tfidf_vectorizer, "vocabulary_", None)
+    if not isinstance(vocab, dict) or not vocab:
+        raise RuntimeError("fitted_tfidf_vectorizer must have a non-empty vocabulary_ dictionary")
+
+    tfidf_vec_nodes = [
+        node for node in onnx_model.graph.node if node.op_type == "TfIdfVectorizer"
+    ]
+    if len(tfidf_vec_nodes) != 1:
+        raise RuntimeError(
+            f"Expected exactly 1 TfIdfVectorizer node in ONNX graph, found {len(tfidf_vec_nodes)}"
+        )
+
     vocab_size = max(vocab.values()) + 1
     split_words: list[list[str]] = [[] for _ in range(vocab_size)]
     for term, idx in vocab.items():
@@ -424,86 +435,128 @@ def patch_skl2onnx_tfidf_bugs(
     weights = [1.0 for _ in range(vocab_size)]
 
     # 1. Rebuild TfIdfVectorizer node attributes with exact 1-gram and 2-gram pools
-    for node in onnx_model.graph.node:
-        if node.op_type == "TfIdfVectorizer":
-            del node.attribute[:]
-            node.attribute.extend(
-                [
-                    onnx.helper.make_attribute("min_gram_length", int(min_n)),
-                    onnx.helper.make_attribute("max_gram_length", int(max_n)),
-                    onnx.helper.make_attribute("mode", "TF"),
-                    onnx.helper.make_attribute("max_skip_count", 0),
-                    onnx.helper.make_attribute(
-                        "pool_strings", [w.encode("utf-8") for w in pool_words]
-                    ),
-                    onnx.helper.make_attribute("ngram_indexes", key_indices),
-                    onnx.helper.make_attribute("ngram_counts", ngcounts),
-                    onnx.helper.make_attribute("weights", weights),
-                ]
-            )
+    vec_node = tfidf_vec_nodes[0]
+    del vec_node.attribute[:]
+    vec_node.attribute.extend(
+        [
+            onnx.helper.make_attribute("min_gram_length", int(min_n)),
+            onnx.helper.make_attribute("max_gram_length", int(max_n)),
+            onnx.helper.make_attribute("mode", "TF"),
+            onnx.helper.make_attribute("max_skip_count", 0),
+            onnx.helper.make_attribute(
+                "pool_strings", [w.encode("utf-8") for w in pool_words]
+            ),
+            onnx.helper.make_attribute("ngram_indexes", key_indices),
+            onnx.helper.make_attribute("ngram_counts", ngcounts),
+            onnx.helper.make_attribute("weights", weights),
+        ]
+    )
 
     # 2. Replace Add(output, ones) -> Log(plus1) with exact scikit-learn 1 + ln(tf) for tf > 0
     if fitted_tfidf_vectorizer.sublinear_tf:
         existing_inits = {init.name for init in onnx_model.graph.initializer}
-        if "zeros_scalar" not in existing_inits:
-            onnx_model.graph.initializer.append(
-                onnx.numpy_helper.from_array(
-                    np.array([0.0], dtype=np.float32), name="zeros_scalar"
-                )
+        if "ones" not in existing_inits:
+            raise RuntimeError(
+                "Missing 'ones' initializer required for sublinear_tf ONNX graph patch"
             )
 
-        new_nodes: list[onnx.NodeProto] = []
-        for node in onnx_model.graph.node:
-            if (
-                node.op_type == "Add"
-                and list(node.input) == ["output", "ones"]
-                and list(node.output) == ["plus1"]
-            ):
-                continue
-            if (
-                node.op_type == "Log"
-                and list(node.input) == ["plus1"]
-                and list(node.output) == ["plus1logged"]
-            ):
-                new_nodes.extend(
-                    [
-                        onnx.helper.make_node(
-                            "Max",
-                            inputs=["output", "ones"],
-                            outputs=["tf_clamped"],
-                            name="SublinearMax",
-                        ),
-                        onnx.helper.make_node(
-                            "Log",
-                            inputs=["tf_clamped"],
-                            outputs=["tf_logged"],
-                            name="SublinearLog",
-                        ),
-                        onnx.helper.make_node(
-                            "Add",
-                            inputs=["tf_logged", "ones"],
-                            outputs=["tf_one_plus_log"],
-                            name="SublinearAdd",
-                        ),
-                        onnx.helper.make_node(
-                            "Greater",
-                            inputs=["output", "zeros_scalar"],
-                            outputs=["tf_pos_mask"],
-                            name="SublinearGreater",
-                        ),
-                        onnx.helper.make_node(
-                            "Where",
-                            inputs=["tf_pos_mask", "tf_one_plus_log", "zeros_scalar"],
-                            outputs=["plus1logged"],
-                            name="SublinearWhere",
-                        ),
-                    ]
-                )
-                continue
-            new_nodes.append(node)
+        expected_patched_names = {
+            "SublinearMax",
+            "SublinearLog",
+            "SublinearAdd",
+            "SublinearGreater",
+            "SublinearWhere",
+        }
+        present_patched_names = {
+            node.name for node in onnx_model.graph.node if node.name in expected_patched_names
+        }
+        has_unpatched_add = any(
+            node.op_type == "Add"
+            and list(node.input) == ["output", "ones"]
+            and list(node.output) == ["plus1"]
+            for node in onnx_model.graph.node
+        )
+        has_unpatched_log = any(
+            node.op_type == "Log"
+            and list(node.input) == ["plus1"]
+            and list(node.output) == ["plus1logged"]
+            for node in onnx_model.graph.node
+        )
 
-        del onnx_model.graph.node[:]
-        onnx_model.graph.node.extend(new_nodes)
+        if present_patched_names == expected_patched_names and not has_unpatched_add and not has_unpatched_log:
+            if "zeros_scalar" not in existing_inits:
+                raise RuntimeError(
+                    "Corrupted already-patched ONNX graph: missing 'zeros_scalar' initializer"
+                )
+        elif present_patched_names:
+            raise RuntimeError(
+                f"Corrupted or partially patched sublinear_tf subgraph: found {sorted(present_patched_names)}"
+            )
+        else:
+            if not (has_unpatched_add and has_unpatched_log):
+                raise RuntimeError(
+                    "Could not locate expected skl2onnx sublinear_tf Add(output, ones) -> Log(plus1) nodes to patch"
+                )
+
+            if "zeros_scalar" not in existing_inits:
+                onnx_model.graph.initializer.append(
+                    onnx.numpy_helper.from_array(
+                        np.array([0.0], dtype=np.float32), name="zeros_scalar"
+                    )
+                )
+
+            new_nodes: list[onnx.NodeProto] = []
+            for node in onnx_model.graph.node:
+                if (
+                    node.op_type == "Add"
+                    and list(node.input) == ["output", "ones"]
+                    and list(node.output) == ["plus1"]
+                ):
+                    continue
+                if (
+                    node.op_type == "Log"
+                    and list(node.input) == ["plus1"]
+                    and list(node.output) == ["plus1logged"]
+                ):
+                    new_nodes.extend(
+                        [
+                            onnx.helper.make_node(
+                                "Max",
+                                inputs=["output", "ones"],
+                                outputs=["tf_clamped"],
+                                name="SublinearMax",
+                            ),
+                            onnx.helper.make_node(
+                                "Log",
+                                inputs=["tf_clamped"],
+                                outputs=["tf_logged"],
+                                name="SublinearLog",
+                            ),
+                            onnx.helper.make_node(
+                                "Add",
+                                inputs=["tf_logged", "ones"],
+                                outputs=["tf_one_plus_log"],
+                                name="SublinearAdd",
+                            ),
+                            onnx.helper.make_node(
+                                "Greater",
+                                inputs=["output", "zeros_scalar"],
+                                outputs=["tf_pos_mask"],
+                                name="SublinearGreater",
+                            ),
+                            onnx.helper.make_node(
+                                "Where",
+                                inputs=["tf_pos_mask", "tf_one_plus_log", "zeros_scalar"],
+                                outputs=["plus1logged"],
+                                name="SublinearWhere",
+                            ),
+                        ]
+                    )
+                    continue
+                new_nodes.append(node)
+
+            del onnx_model.graph.node[:]
+            onnx_model.graph.node.extend(new_nodes)
 
     onnx.checker.check_model(onnx_model)
     return onnx_model

@@ -1044,3 +1044,124 @@ async def test_chaos_multi_worker_degraded_counter_isolation() -> None:
     assert res_w1.velocity_10s == 4
     assert res_w2.velocity_10s == 4
 
+
+def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
+    """Verifies patch_skl2onnx_tfidf_bugs across 12 adversarial input categories and idempotency."""
+    import onnx
+    import onnxruntime as ort
+    from app.telecom.evaluate_model import _compute_verdict
+    from app.telecom.onnx_engine import compute_composite_score, evaluate_heuristics
+    from app.telecom.train_onnx_model import build_augmented_dataset, patch_skl2onnx_tfidf_bugs
+    from onnx import TensorProto, helper
+    from skl2onnx import to_onnx
+    from skl2onnx.common.data_types import StringTensorType
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    texts, labels, _ = build_augmented_dataset()
+    pipe = Pipeline([
+        (
+            "tfidf",
+            TfidfVectorizer(
+                ngram_range=(1, 2),
+                sublinear_tf=True,
+                max_features=2500,
+                min_df=1,
+                token_pattern=r"\b[a-zA-Z0-9_]+\b",
+            ),
+        ),
+        (
+            "clf",
+            CalibratedClassifierCV(
+                estimator=LogisticRegression(C=1.5, class_weight="balanced", max_iter=1000, random_state=42),
+                method="sigmoid",
+                cv=5,
+            ),
+        ),
+    ])
+    pipe.fit(texts, labels)
+    tfidf_step = pipe.named_steps["tfidf"]
+
+    raw_onnx = to_onnx(pipe, initial_types=[("text", StringTensorType([None, 1]))], target_opset=14)
+    patched_once = patch_skl2onnx_tfidf_bugs(raw_onnx, tfidf_step)
+    bytes_once = patched_once.SerializeToString()
+
+    # 1. Verify second call on already-patched model is strictly idempotent
+    patched_twice = patch_skl2onnx_tfidf_bugs(patched_once, tfidf_step)
+    bytes_twice = patched_twice.SerializeToString()
+    assert bytes_once == bytes_twice, "patch_skl2onnx_tfidf_bugs must be byte-for-byte idempotent on second call"
+
+    # 2. Verify structural pre-condition checks raise RuntimeError on invalid graphs
+    empty_model = onnx.ModelProto()
+    with pytest.raises(RuntimeError, match="TfIdfVectorizer"):
+        patch_skl2onnx_tfidf_bugs(empty_model, tfidf_step)
+
+    corrupted_model = onnx.ModelProto()
+    corrupted_model.CopyFrom(to_onnx(pipe, initial_types=[("text", StringTensorType([None, 1]))], target_opset=14))
+    kept_nodes = [n for n in corrupted_model.graph.node if n.op_type != "Log"]
+    del corrupted_model.graph.node[:]
+    corrupted_model.graph.node.extend(kept_nodes)
+    with pytest.raises(RuntimeError, match="sublinear_tf"):
+        patch_skl2onnx_tfidf_bugs(corrupted_model, tfidf_step)
+
+    # 3. Evaluate all 12 adversarial input categories against Scikit-Learn and ONNX Runtime
+    adversarial_cases = [
+        ("1_empty", ""),
+        ("2_whitespace_punct", "   ... !!! ??? ---   "),
+        ("3_pure_oov", "xyzzyx plugh ZQJX qwertyuiop"),
+        ("4_single_char", "a b c 1 2 3 x y z"),
+        ("5_emojis_unicode", "🚨🔥💸 Пожалуйста подтвердите 銀行"),
+        ("6_homoglyphs_bigram", "РayРal: confirm аccount on windows"),
+        ("7_high_tf_unigram", "urgent " * 50),
+        ("8_high_tf_dead_bigram", "on windows " * 25),
+        ("9_dense_bigrams", "tap to approve login attempt from firefox on windows"),
+        ("10_long_10k", "account update verify login " * 400),
+        ("11_control_chars", "urgent\n\ton\twindows\r\nverify\x0bcode"),
+        ("12_decimals_currency", "$0.00 $1,234.56 2.50 ETH 99.9% #10000"),
+    ]
+    assert len(adversarial_cases) == 12
+
+    def _build_session_with_tfidf_output(serialized_bytes: bytes) -> ort.InferenceSession:
+        proto = onnx.load_from_string(serialized_bytes)
+        proto.graph.output.append(helper.make_tensor_value_info("tfidftr_norm", TensorProto.FLOAT, [None, None]))
+        return ort.InferenceSession(proto.SerializeToString(), providers=["CPUExecutionProvider"])
+
+    sess_once = _build_session_with_tfidf_output(bytes_once)
+    sess_twice = _build_session_with_tfidf_output(bytes_twice)
+    in_name = sess_once.get_inputs()[0].name
+
+    for case_name, text in adversarial_cases:
+        sk_vec = tfidf_step.transform([text]).toarray()[0].astype(np.float64)
+        sk_prob = float(pipe.predict_proba([text])[0, 1])
+
+        in_tensor = np.array([[text]], dtype=object)
+        outs_once = sess_once.run(None, {in_name: in_tensor})
+        outs_twice = sess_twice.run(None, {in_name: in_tensor})
+
+        ox_prob_1 = float(outs_once[1][0][1])
+        ox_vec_1 = outs_once[2][0].astype(np.float64)
+        ox_prob_2 = float(outs_twice[1][0][1])
+        ox_vec_2 = outs_twice[2][0].astype(np.float64)
+
+        assert not np.isnan(ox_vec_1).any() and not np.isinf(ox_vec_1).any(), f"NaN/Inf in vector for {case_name}"
+        assert not np.isnan(ox_prob_1) and not np.isinf(ox_prob_1), f"NaN/Inf in prob for {case_name}"
+
+        # Idempotency: exact 0.0 difference between 1x and 2x patched models
+        assert ox_prob_1 == ox_prob_2, f"Idempotency prob mismatch on {case_name}"
+        assert np.array_equal(ox_vec_1, ox_vec_2), f"Idempotency vector mismatch on {case_name}"
+
+        # Parity with Scikit-Learn
+        vec_max_diff = float(np.max(np.abs(sk_vec - ox_vec_1)))
+        prob_diff = abs(sk_prob - ox_prob_1)
+        assert vec_max_diff < 1e-6, f"TF-IDF vector diff {vec_max_diff} >= 1e-6 on {case_name}"
+        assert prob_diff < 1e-5, f"Probability diff {prob_diff} >= 1e-5 on {case_name}"
+
+        h_score, _ = evaluate_heuristics(text)
+        sk_comp = compute_composite_score(heuristic_score=h_score, onnx_probability=sk_prob, velocity_score=0.0)
+        ox_comp = compute_composite_score(heuristic_score=h_score, onnx_probability=ox_prob_1, velocity_score=0.0)
+        assert abs(sk_comp - ox_comp) < 1e-5, f"Composite score diff on {case_name}"
+        assert _compute_verdict(sk_comp) == _compute_verdict(ox_comp), f"Verdict mismatch on {case_name}"
+
+
