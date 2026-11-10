@@ -20,6 +20,7 @@ import logging
 import math
 import re
 import time
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -68,31 +69,32 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:TAX_ARREST_THREAT",
         re.compile(
-            # Require (1) coercive threat/dispatch, (2) legal/tax/enforcement authority, AND
-            # (3) explicit extortion demand (delinquency, financial settlement, intimidation ID,
-            # urgency window, callback number, or URL) to prevent benign P2P/legal false blocks.
+            # Require (1) explicit coercive arrest/warrant/detention/seizure/dispatch threat,
+            # (2) legal/tax/enforcement authority, AND (3) explicit extortion/financial/callback
+            # demand (omitting bare "final notice", bare "tax penalty abatement", and bare
+            # administrative "case #" references; allowing parenthesized callbacks "(800)").
             r"^(?=.*\b(?:arrest\s+warrant|bench\s+warrant|seizure\s+warrant|"
             r"warrant\s+(?:issued|pending|active)|federal\s+arrest|"
             r"avoid\s+(?:arrest|detention|prosecution|seizure|jail)|"
             r"detain(?:ed)?|detention|seiz(?:e|ed|ure)|"
             r"process\s+server\s+(?:dispatched|en\s+route|assigned|sent)|"
             r"(?:marshal|officer|agent|deputy|police)\s+dispatched|"
-            r"final\s+(?:notice|warning|demand)|urgent\s+legal\s+(?:warning|notice)|"
             r"failure\s+to\s+appear|contempt\s+of\s+court)\b)"
             r"(?=.*\b(?:irs|customs|magistrate|sheriff|police|court(?:house)?|judge|"
             r"federal\s+(?:tax|agent|court|marshal|enforcement|bureau)|"
             r"tax\w*|delinquent|warrant|process\s+server|lawsuit|enforcement)\b)"
             r"(?=.*(?:"
-            r"\b(?:delinquent\s+tax\w*|tax\s+(?:debt|balance|penalty|lien|levy|evasion)|"
-            r"unpaid\s+(?:tax\w*|fine|penalty|customs|duty|fee|balance|citation|toll)|"
+            r"\b(?:delinquent\s+tax\w*|"
+            r"tax\s+(?:debt|balance|penalty(?!\s+(?:abatement|relief|waiver))|lien|levy|evasion)|"
+            r"unpaid\s+(?:back\s+)?(?:tax\w*|fine|penalty|customs|duty|fee|balance|citation|toll)|"
             r"(?:pay|settle)\s+(?:\$\d+(?:,\d{3})*(?:\.\d{2})?\s+)?"
             r"(?:federal\s+|court\s+|customs\s+|tax\s+)?"
             r"(?:fine|penalty|tax\w*|balance|bail|duty|fee|case|dispute|now|immediately)|"
             r"unless\s+(?:paid|settled|resolved|verified)|"
             r"(?:federal|court|customs)\s+(?:penalty|fine)|"
             r"within\s+\d+\s*(?:hours?|hrs?|minutes?)|"
-            r"(?:case|badge|docket|warrant)\s*#\s*[a-z0-9\-]+|"
-            r"call\s+(?:immediately|now|\+?1?[-.\s]?\d{3}[-.\s]\d{3}[-.\s]\d{4}))\b|"
+            r"call\s+(?:immediately|now|"
+            r"\+?1?[-.\s]?(?:\(\d{3}\)|\d{3})[-.\s]?\d{3}[-.\s]?\d{4}))\b|"
             r"https?://\S+"
             r"))",
             re.IGNORECASE | re.DOTALL,
@@ -191,6 +193,19 @@ class InferenceResult:
     heuristic_score: float = 0.0
 
 
+_INVISIBLE_FORMAT_CHAR_RE = re.compile(r"[\u00ad\u200b-\u200f\u202a-\u202e\u2060\ufeff]")
+
+
+def normalize_heuristic_text(text: str) -> str:
+    """Normalizes obfuscated Unicode text for deterministic lexical heuristic matching.
+
+    Strips zero-width/directional formatting code points used to split words across regex
+    boundaries and applies NFKC compatibility decomposition before rule evaluation.
+    """
+    stripped = _INVISIBLE_FORMAT_CHAR_RE.sub("", text)
+    return unicodedata.normalize("NFKC", stripped)
+
+
 def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
     """Authoritative fast regex pattern matching and compound escalation for SMS text.
 
@@ -201,11 +216,12 @@ def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
     Compound rule escalation: multiple distinct risk triggers where at least
     one is high-risk (>= 0.50) adds a +0.12 compound boost (capped at 0.95).
     """
+    normalized_text = normalize_heuristic_text(text)
     signals: list[str] = []
     max_heuristic = 0.0
 
     for rule_name, pattern, score in HEURISTIC_RULES:
-        if pattern.search(text):
+        if pattern.search(normalized_text):
             signals.append(rule_name)
             if score > max_heuristic:
                 max_heuristic = score

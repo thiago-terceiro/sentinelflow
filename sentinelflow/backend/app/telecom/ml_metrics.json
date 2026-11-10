@@ -1222,7 +1222,7 @@
       "max_tfidf_vector_abs_diff": 7.367914711675638e-08,
       "mean_tfidf_vector_abs_diff": 2.4200046876456106e-08
     },
-    "evaluation_timestamp": "2026-11-10T11:58:59.119133+00:00",
+    "evaluation_timestamp": "2026-11-10T12:34:44.194608+00:00",
     "evaluator": "ONNXRuntime-CPU (AVX-512)",
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
@@ -1267,7 +1267,7 @@
   },
   "evaluation_mode": "content_only_zero_velocity",
   "velocity_score_fixed": 0.0,
-  "evaluation_timestamp": "2026-11-10T11:58:59.119133+00:00",
+  "evaluation_timestamp": "2026-11-10T12:34:44.194608+00:00",
   "software_versions": {
     "onnxruntime": "1.31.0",
     "numpy": "2.5.4",
