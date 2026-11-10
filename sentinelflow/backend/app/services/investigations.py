@@ -88,7 +88,10 @@ async def close_redis_pool() -> None:
     global _shared_redis_pool, _redis_unavailable_until
     async with _get_redis_pool_lock():
         if _shared_redis_pool is not None:
-            await _shared_redis_pool.aclose()
+            try:
+                await _shared_redis_pool.aclose()
+            except Exception as exc:  # noqa: S110
+                logger.debug("Redis pool close ignored: %s", exc)
             _shared_redis_pool = None
         _redis_unavailable_until = 0.0
 

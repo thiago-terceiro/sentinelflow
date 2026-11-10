@@ -21,7 +21,9 @@ const runStep = (label, cmd) => {
 const isServerReachable = async (url) => {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
-    return res.ok || res.status < 500;
+    if (!res.ok && res.status >= 500) return false;
+    const html = await res.text();
+    return html.includes("/_next/") && (html.includes("SentinelFlow") || html.includes("SentinelPulse"));
   } catch {
     return false;
   }
