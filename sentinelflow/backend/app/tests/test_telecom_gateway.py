@@ -602,10 +602,13 @@ def test_template_family_group_leakage_prevention() -> None:
         v_g = {toy_groups[i] for i in v_idx}
         assert tr_g.isdisjoint(v_g), "Synthetic template variant leaked between train and val"
 
-    # 2. Production dataset test: verify actual dataset split
+    # 2. Production dataset test: verify actual dataset split without singleton inflation (SF-008)
+    from collections import Counter
+
     texts, labels, groups = build_augmented_dataset()
     assert len(texts) == len(labels) == len(groups)
-    assert len(set(groups)) >= 100
+    assert len(set(groups)) >= 40
+    assert min(Counter(groups).values()) >= 2
 
     sgkf_prod = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
     train_idx, val_idx = next(sgkf_prod.split(texts, labels, groups=groups))

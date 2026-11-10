@@ -9,9 +9,9 @@
   "calibration": {
     "method": "sigmoid",
     "cv_folds": 5,
-    "brier_score_before": 0.1166,
-    "brier_score_after": 0.0687,
-    "brier_score_improvement": 0.0479
+    "brier_score_before": 0.1472,
+    "brier_score_after": 0.0757,
+    "brier_score_improvement": 0.0714
   },
   "input_signature": {
     "text": "StringTensor([None, 1])"
@@ -21,38 +21,38 @@
     "probabilities": "Sequence[Map[Int64, Float]]"
   },
   "validation_metrics": {
-    "test_sample_count": 137,
-    "precision": 1.0,
-    "recall": 0.5806,
-    "f1_score": 0.7347,
-    "roc_auc": 0.9881,
-    "pr_auc": 0.9635,
-    "brier_score": 0.0687,
+    "test_sample_count": 141,
+    "precision": 0.9667,
+    "recall": 0.9062,
+    "f1_score": 0.9355,
+    "roc_auc": 0.9627,
+    "pr_auc": 0.9446,
+    "brier_score": 0.0757,
     "detailed_report": {
       "0": {
-        "precision": 0.8907563025210085,
-        "recall": 1.0,
-        "f1-score": 0.9422222222222222,
-        "support": 106.0
+        "precision": 0.972972972972973,
+        "recall": 0.9908256880733946,
+        "f1-score": 0.9818181818181818,
+        "support": 109.0
       },
       "1": {
-        "precision": 1.0,
-        "recall": 0.5806451612903226,
-        "f1-score": 0.7346938775510204,
-        "support": 31.0
+        "precision": 0.9666666666666667,
+        "recall": 0.90625,
+        "f1-score": 0.9354838709677419,
+        "support": 32.0
       },
-      "accuracy": 0.9051094890510949,
+      "accuracy": 0.9716312056737588,
       "macro avg": {
-        "precision": 0.9453781512605042,
-        "recall": 0.7903225806451613,
-        "f1-score": 0.8384580498866213,
-        "support": 137.0
+        "precision": 0.9698198198198198,
+        "recall": 0.9485378440366973,
+        "f1-score": 0.9586510263929618,
+        "support": 141.0
       },
       "weighted avg": {
-        "precision": 0.915475679322824,
-        "recall": 0.9051094890510949,
-        "f1-score": 0.8952632537199795,
-        "support": 137.0
+        "precision": 0.971541754520478,
+        "recall": 0.9716312056737588,
+        "f1-score": 0.9713025935400676,
+        "support": 141.0
       }
     }
   },
@@ -84,7 +84,7 @@
     "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
     "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
   },
-  "evaluation_timestamp": "2026-11-10T15:02:38.310542+00:00",
+  "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
   "software_versions": {
     "onnxruntime": "1.31.0",
     "numpy": "2.5.4",
@@ -1027,7 +1027,7 @@
         "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
         "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
       },
-      "evaluation_timestamp": "2026-11-10T15:02:38.310542+00:00",
+      "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
@@ -1037,11 +1037,11 @@
         "calibration": {
           "method": "sigmoid",
           "cv_folds": 5,
-          "brier_score_before": 0.1592,
-          "brier_score_after": 0.1551,
-          "brier_score_improvement": 0.0041
+          "brier_score_before": 0.1166,
+          "brier_score_after": 0.0687,
+          "brier_score_improvement": 0.0479
         },
-        "training_dataset_sha256": "709a384d9458e1033052e272c824c0e472ba7d0178a48e062aa3a17e8eafcafb"
+        "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
       },
       "software_versions": {
         "onnxruntime": "1.31.0",
@@ -1072,7 +1072,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-10T15:02:38.310542+00:00",
+    "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -1080,8 +1080,8 @@
     },
     "model_artifact_size_bytes": 199525,
     "model_artifact_size_kb": 194.85,
-    "brier_score_before_calibration": 0.1166,
-    "brier_score_after_calibration": 0.0687
+    "brier_score_before_calibration": 0.1472,
+    "brier_score_after_calibration": 0.0757
   },
   "held_out_adversarial_metrics": {
     "sample_count": 400,
@@ -2020,7 +2020,7 @@
         "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
         "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
       },
-      "evaluation_timestamp": "2026-11-10T15:02:38.310542+00:00",
+      "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
@@ -2030,11 +2030,11 @@
         "calibration": {
           "method": "sigmoid",
           "cv_folds": 5,
-          "brier_score_before": 0.1592,
-          "brier_score_after": 0.1551,
-          "brier_score_improvement": 0.0041
+          "brier_score_before": 0.1166,
+          "brier_score_after": 0.0687,
+          "brier_score_improvement": 0.0479
         },
-        "training_dataset_sha256": "709a384d9458e1033052e272c824c0e472ba7d0178a48e062aa3a17e8eafcafb"
+        "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
       },
       "software_versions": {
         "onnxruntime": "1.31.0",
@@ -2065,7 +2065,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-10T15:02:38.310542+00:00",
+    "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -2073,8 +2073,8 @@
     },
     "model_artifact_size_bytes": 199525,
     "model_artifact_size_kb": 194.85,
-    "brier_score_before_calibration": 0.1166,
-    "brier_score_after_calibration": 0.0687
+    "brier_score_before_calibration": 0.1472,
+    "brier_score_after_calibration": 0.0757
   },
   "evaluation_artifacts_stale": false,
   "evaluation_artifacts_status": "synchronized"

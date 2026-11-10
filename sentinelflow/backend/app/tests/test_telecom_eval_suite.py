@@ -724,4 +724,73 @@ def test_train_export_custom_dir_marks_canonical_artifacts_stale(tmp_path: Path)
     assert meta["evaluation_artifacts_status"] == "stale_not_published"
     assert (tmp_path / "sms_fraud_model.onnx").exists()
     assert (tmp_path / "sms_fraud_metadata.json").exists()
+    assert (tmp_path / "dataset_inventory.json").exists()
+
+
+def test_dataset_semantic_family_isolation_and_fold_balance() -> None:
+    """Verifies SF-008 semantic family grouping, size balance, CV fold parity, and inventory sync."""
+    from app.telecom.train_onnx_model import (
+        FRAUD_BASE_SAMPLES,
+        FRAUDULENT_MESSAGES,
+        LEGIT_BASE_SAMPLES,
+        LEGITIMATE_MESSAGES,
+        build_augmented_dataset,
+        build_dataset_inventory,
+    )
+
+    texts, labels, groups = build_augmented_dataset()
+    live_inv = build_dataset_inventory(texts, labels, groups)
+
+    assert len(LEGIT_BASE_SAMPLES) == len(LEGITIMATE_MESSAGES) == 40
+    assert len(FRAUD_BASE_SAMPLES) == len(FRAUDULENT_MESSAGES) == 40
+    assert live_inv["singleton_family_count"] == 0, "Singleton base seeds must be eliminated"
+
+    stats = live_inv["family_size_stats"]
+    assert stats["min"] >= 2
+    assert stats["max"] <= 65
+    assert stats["max_pct_of_corpus"] <= 10.0
+
+    # No single family exceeds 10% and every family stays single-class (no mixed labels)
+    for fam_entry in live_inv["families"]:
+        assert int(fam_entry["sample_count"]) <= 65
+        assert float(fam_entry["pct_of_corpus"]) <= 10.0
+        assert fam_entry["label"] in (0, 1), f"Mixed-label family detected: {fam_entry}"
+
+    # All 5 StratifiedGroupKFold splits must have 0 group overlap and +-4.0% fraud prevalence parity
+    overall_prevalence = float(live_inv["fraud_prevalence"])
+    assert len(live_inv["fold_distributions"]) == 5
+    for fold_row in live_inv["fold_distributions"]:
+        assert int(fold_row["group_overlap_count"]) == 0, f"Leakage in fold {fold_row['fold']}"
+        val_rate = float(fold_row["val_fraud_rate"])
+        assert abs(val_rate - overall_prevalence) <= 0.04, (
+            f"Fold {fold_row['fold']} fraud prevalence {val_rate:.4f} drifted >4% from {overall_prevalence:.4f}"
+        )
+
+    audit = live_inv["cross_split_leakage_audit"]
+    assert audit["dev_val_normalized_sha256_overlap"] == 0
+    assert audit["intra_corpus_normalized_sha256_duplicates"] == 0
+
+    # Committed dataset_inventory.json must exist and match the live training dataset
+    canonical_paths = get_canonical_artifact_paths()
+    inventory_path = canonical_paths["model"].resolve().parents[1] / "dataset_inventory.json"
+    assert inventory_path.exists(), f"Missing canonical inventory artifact: {inventory_path}"
+
+    stored_inv = json.loads(inventory_path.read_text(encoding="utf-8"))
+    for key in (
+        "training_dataset_sha256",
+        "total_samples",
+        "legit_count",
+        "fraud_count",
+        "fraud_prevalence",
+        "total_families",
+        "singleton_family_count",
+        "family_size_stats",
+        "families",
+        "fold_distributions",
+        "cross_split_leakage_audit",
+    ):
+        assert stored_inv[key] == live_inv[key], (
+            f"dataset_inventory.json drifted from live training dataset on field '{key}'"
+        )
+
 

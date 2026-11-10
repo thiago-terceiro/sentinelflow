@@ -10,8 +10,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
+import statistics
 import tempfile
+from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,91 +47,113 @@ from sklearn.pipeline import Pipeline
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-# Curated dataset of typical A2P / P2P legit messages (label=0) vs Smishing/Spam (label=1)
-LEGITIMATE_MESSAGES: list[str] = [
-    "Your verification code is 849201. It expires in 10 minutes. Do not share this code.",
-    "Carrier security code: 4920. Valid for 5 minutes. carrier.com/verify",
-    "Your Uber ride is arriving now. Driver: Ahmed in a Toyota Camry (Plate: 7XYZ89).",
-    "Your card ending in 4102 was charged $14.50 at Trader Joe's. Available balance: $1,240.10.",
-    "USPS tracking #940011189956: Your package is out for delivery and will arrive by 7:00 PM.",
-    "Reminder: Your dental cleaning with Dr. Smith is tomorrow at 2:00 PM. Reply 1 to confirm, 2 to reschedule.",
-    "Hey! Are you still free for dinner tonight around 7?",
-    "Your appointment with Quest Diagnostics is scheduled for Thursday, Oct 24 at 9:30 AM.",
-    "Your prescription is ready for pickup at Walgreens Pharmacy on Main Street.",
-    "Google prompt: Tap YES on your phone to approve sign-in from Chrome on Windows.",
-    "Amazon: Your order #112-4920491 has shipped and will arrive on Wednesday.",
-    "Delta Flight DL492 is on time. Gate B12. Boarding begins at 3:15 PM.",
-    "Wells Fargo Fraud Alert: Did you attempt $89.20 at Target? Reply YES or NO.",
-    "Running about 10 minutes late, see you guys soon!",
-    "Your monthly electric bill of $78.40 is scheduled for autopay on Nov 1. Thank you.",
-    "Lyft code 382910. Reply STOP to opt out.",
-    "Your DoorDash order from Chipotle is being prepared and will arrive in 25-35 minutes.",
-    "Hey mom, just landed safely at JFK. Will text when I get to the hotel.",
-    "Bank of America: A direct deposit of $3,250.00 was posted to your account ending in 8821.",
-    "Your haircut appointment with Alex is confirmed for Saturday at 11:00 AM.",
-    "Security notice: A new device logged into your Slack workspace. Review at my.slack.com",
-    "Your test results are ready in the MyChart patient portal.",
-    "Thanks for visiting Blue Bottle Coffee! Here is your digital receipt: squareup.com/r/xyz",
-    "Great presentation today, let's sync up on Monday to discuss next steps.",
-    "Your reservation at Osteria Morini is confirmed for 4 guests on Friday at 8:00 PM.",
-    "FedEx Delivery: Package with tracking 78291038472 was delivered to your front porch.",
-    "Hi Sarah, can you review the pull request when you get a chance? Thanks!",
-    "Your two-factor authentication token is 501928 for login to GitHub.",
-    "Your gym membership renewal receipt for $49.00 has been processed.",
-    "Can you pick up milk on your way home please?",
-    "Your reservation at Hyatt Regency is confirmed. Check-in is at 3 PM.",
-    "Your package has been placed in Amazon Locker 'Sparrow'. Use code 829104 to collect.",
-    "Home Depot: Your store pickup order #W928103 is ready at the customer service desk.",
-    "Hi David, thanks for following up. Let's schedule a 30-minute intro call next Tuesday.",
-    "Microsoft account security code: 928371. If you didn't request this, ignore.",
-    "Your order from Apple Store is confirmed. Order number: W938472910.",
-    "Your weekly screen time report is now available in settings.",
-    "Good morning team, the 9:30 AM standup will be pushed by 15 minutes today.",
-    "Southwest Airlines: Boarding position A24 for flight WN1849 to Denver.",
-    "Your library books are due in 3 days. Renew online at publiclibrary.org",
+# Curated base seeds paired with explicit audited semantic template families (SF-008)
+LEGIT_BASE_SAMPLES: list[tuple[str, str]] = [
+    ("Your verification code is 849201. It expires in 10 minutes. Do not share this code.", "legit_2fa_code"),
+    ("Carrier security code: 4920. Valid for 5 minutes. carrier.com/verify", "legit_auth_short_code"),
+    ("Your Uber ride is arriving now. Driver: Ahmed in a Toyota Camry (Plate: 7XYZ89).", "legit_local_service_eta"),
+    ("Your card ending in 4102 was charged $14.50 at Trader Joe's. Available balance: $1,240.10.", "legit_bank_card_transaction"),
+    ("USPS tracking #940011189956: Your package is out for delivery and will arrive by 7:00 PM.", "legit_package_delivery_tracking"),
+    ("Reminder: Your dental cleaning with Dr. Smith is tomorrow at 2:00 PM. Reply 1 to confirm, 2 to reschedule.", "legit_appointment_reminder"),
+    ("Hey! Are you still free for dinner tonight around 7?", "legit_casual_social_chat"),
+    ("Your appointment with Quest Diagnostics is scheduled for Thursday, Oct 24 at 9:30 AM.", "legit_appointment_reminder"),
+    ("Your prescription is ready for pickup at Walgreens Pharmacy on Main Street.", "legit_health_pharmacy"),
+    ("Google prompt: Tap YES on your phone to approve sign-in from Chrome on Windows.", "legit_2fa_login_approve"),
+    ("Amazon: Your order #112-4920491 has shipped and will arrive on Wednesday.", "legit_package_delivery_tracking"),
+    ("Delta Flight DL492 is on time. Gate B12. Boarding begins at 3:15 PM.", "legit_travel_gate_info"),
+    ("Wells Fargo Fraud Alert: Did you attempt $89.20 at Target? Reply YES or NO.", "legit_bank_fraud_alert_yesno"),
+    ("Running about 10 minutes late, see you guys soon!", "legit_casual_social_chat"),
+    ("Your monthly electric bill of $78.40 is scheduled for autopay on Nov 1. Thank you.", "legit_bank_autopay"),
+    ("Lyft code 382910. Reply STOP to opt out.", "legit_auth_short_code"),
+    ("Your DoorDash order from Chipotle is being prepared and will arrive in 25-35 minutes.", "legit_local_service_eta"),
+    ("Hey mom, just landed safely at JFK. Will text when I get to the hotel.", "legit_casual_p2p_greetings"),
+    ("Bank of America: A direct deposit of $3,250.00 was posted to your account ending in 8821.", "legit_bank_direct_deposit"),
+    ("Your haircut appointment with Alex is confirmed for Saturday at 11:00 AM.", "legit_appointment_reminder"),
+    ("Security notice: A new device logged into your Slack workspace. Review at my.slack.com", "legit_2fa_login_alert"),
+    ("Your test results are ready in the MyChart patient portal.", "legit_health_mychart"),
+    ("Thanks for visiting Blue Bottle Coffee! Here is your digital receipt: squareup.com/r/xyz", "legit_retail_receipt"),
+    ("Great presentation today, let's sync up on Monday to discuss next steps.", "legit_workplace_sync"),
+    ("Your reservation at Osteria Morini is confirmed for 4 guests on Friday at 8:00 PM.", "legit_hospitality_reservation"),
+    ("FedEx Delivery: Package with tracking 78291038472 was delivered to your front porch.", "legit_package_delivery_tracking"),
+    ("Hi Sarah, can you review the pull request when you get a chance? Thanks!", "legit_workplace_sync"),
+    ("Your two-factor authentication token is 501928 for login to GitHub.", "legit_2fa_code"),
+    ("Your gym membership renewal receipt for $49.00 has been processed.", "legit_bank_card_transaction"),
+    ("Can you pick up milk on your way home please?", "legit_casual_errands"),
+    ("Your reservation at Hyatt Regency is confirmed. Check-in is at 3 PM.", "legit_hospitality_reservation"),
+    ("Your package has been placed in Amazon Locker 'Sparrow'. Use code 829104 to collect.", "legit_package_delivery_tracking"),
+    ("Home Depot: Your store pickup order #W928103 is ready at the customer service desk.", "legit_retail_curbside"),
+    ("Hi David, thanks for following up. Let's schedule a 30-minute intro call next Tuesday.", "legit_workplace_sync"),
+    ("Microsoft account security code: 928371. If you didn't request this, ignore.", "legit_2fa_code"),
+    ("Your order from Apple Store is confirmed. Order number: W938472910.", "legit_retail_receipt"),
+    ("Your weekly screen time report is now available in settings.", "legit_personal_account_digest"),
+    ("Good morning team, the 9:30 AM standup will be pushed by 15 minutes today.", "legit_workplace_sync"),
+    ("Southwest Airlines: Boarding position A24 for flight WN1849 to Denver.", "legit_travel_gate_info"),
+    ("Your library books are due in 3 days. Renew online at publiclibrary.org", "legit_personal_account_digest"),
 ]
 
-FRAUDULENT_MESSAGES: list[str] = [
-    "URGENT: Chase Bank alert. Unusual activity detected. Account suspended. Restore immediately: http://bit.ly/chase-verify-now",
-    "CONGRATULATIONS! Your phone number won a $1,000 Walmart gift card! Click here to claim: http://walmart-prizes2026.xyz/win",
-    "USPS Alert: Package 928301 could not be delivered due to wrong address. Pay $1.99 redelivery fee now: http://tinyurl.com/usps-redelivery-fee",
-    "Wells Fargo Security: We detected an unauthorized login from Russia. Verify your SSN to unlock your card: http://wellsfargo-secure-login.ru",
-    "IRS FINAL NOTICE: You owe $4,200 in delinquent taxes. Arrest warrant issued. Call 1-800-555-0199 immediately to avoid arrest.",
-    "Bank of America: Your online banking has been temporarily disabled. Visit http://bofa-verify-identity.com to reactivate.",
-    "Exclusive Crypto VIP signal: Earn 300% return guaranteed within 24 hours! Join WhatsApp group: https://t.me/cryptogains999",
-    "Netflix: Your subscription payment failed. Your account will be closed today unless updated: http://netflix-billing-renew.info",
-    "Toll Services: You have an unpaid toll invoice of $12.50. Late fees apply after 24h. Pay at: http://sunpass-toll-billing.top",
-    "PayPal Security: Unauthorized transaction of $699.99 to Apple Store. Not you? Dispute immediately at: http://paypal-dispute-resolve.com",
-    "You have (1) pending package awaiting clearance. Confirm your identity and pay customs fee: http://dhl-express-clearance.net/track",
-    "URGENT: Your Apple ID has been locked for security reasons. Verify your account details: http://appleid-support-auth.com",
-    "Alert from Citibank: Suspicious wire transfer of $2,450 initiated. Stop transfer here: http://citi-security-stop.com",
-    "Winner notification! You have been selected for the 2026 Cash App Giveaway. Receive $750 instantly: http://cashapp-free750.online",
-    "Your SIM card will be deactivated in 24 hours due to unverified KYC. Update details now: http://telecom-kyc-verify.club",
-    "Amazon Security: Did you purchase iPhone 16 Pro for $1,199? If NOT, call fraud team right away at 1-888-555-0144.",
-    "Dear customer, your debit card is blocked. Click http://chase-unblock-card.biz to submit photo ID and unlock.",
-    "FedEx: Delivery exception! Package held at facility due to unpaid duty. Pay $2.40: http://fedex-express-customs.cc",
-    "Target Shopper: You were chosen to receive a $500 shopping voucher! Complete short survey: http://target-voucher-survey.site",
-    "Your social security number has been compromised in a fraud investigation. Press 1 to speak with a federal agent.",
-    "Attn: Your account with AT&T will be cancelled. Pay overdue balance of $45.10 here: http://att-billpay-portal.info",
-    "URGENT: Venmo unauthorized charge of $450 to Steam Games. Cancel this payment: http://venmo-security-dispute.link",
-    "You qualified for $50,000 pre-approved loan with 0% APR. No credit check required! Apply now: http://fast-cash-loans-today.us",
-    "Crypto alert: 1.45 BTC has been deposited to your wallet. Confirm receipt and withdraw: http://binance-claim-crypto.cc",
-    "Your package #91823 is held at depot. Final delivery attempt tomorrow. Verify address: http://postal-package-update.info",
-    "Warning: Your iPhone backup was compromised. Visit http://icloud-warning-check.me to change password immediately.",
-    "Santander Alert: Card blocked due to suspicious activity. Follow link to verify: http://santander-unblock-service.top",
-    "Work from home opportunity! Earn $500/day rating products on your phone. Telegram: @jobrecruiter2026",
-    "Geek Squad: Auto-renewal charge of $399.99 processed. To request refund within 24h call: 1-800-555-0182",
-    "Exclusive invitation: You are eligible to claim free government relief grant of $2,500. Register: http://gov-grant-claim.org",
-    "TD Bank: Suspicious login from IP 194.26.29.1. Secure your account now: http://tdbank-customer-protect.net",
-    "Capital One alert: Debit card flagged for fraud at Best Buy. Confirm identity: http://capitalone-fraud-prevention.xyz",
-    "Your WhatsApp account will expire tomorrow. Renew your service for $0.99 here: http://whatsapp-subscription-renew.com",
-    "URGENT legal notice: Process server dispatched to your location. Call 855-555-0129 to settle dispute before court.",
-    "Costco rewards: You have $150 in unredeemed cash back rewards expiring tonight! Redeem at: http://costco-cashback-points.site",
-    "Alert: Coinbase security key reset requested. If you did not initiate this, freeze account: http://coinbase-freeze-auth.com",
-    "US Postal Notice: Missing apartment number on parcel. Re-enter shipping address: http://usps-address-correct.com",
-    "Final reminder: Your car warranty is about to lapse. Extend coverage before deadline: http://auto-warranty-renew.online",
-    "Your mobile number won 2nd prize in the UK National Lottery! Send email to claim: claim@national-lottery-promo.co",
-    "Citizens Bank: Transaction of $840 declined. Verify your phone number to re-enable card: http://citizens-verify.cc",
+FRAUD_BASE_SAMPLES: list[tuple[str, str]] = [
+    ("URGENT: Chase Bank alert. Unusual activity detected. Account suspended. Restore immediately: http://bit.ly/chase-verify-now", "fraud_account_suspension_lure"),
+    ("CONGRATULATIONS! Your phone number won a $1,000 Walmart gift card! Click here to claim: http://walmart-prizes2026.xyz/win", "fraud_prize_giveaway_lure"),
+    ("USPS Alert: Package 928301 could not be delivered due to wrong address. Pay $1.99 redelivery fee now: http://tinyurl.com/usps-redelivery-fee", "fraud_postal_customs_fee"),
+    ("Wells Fargo Security: We detected an unauthorized login from Russia. Verify your SSN to unlock your card: http://wellsfargo-secure-login.ru", "fraud_suspicious_ip_login_lure"),
+    ("IRS FINAL NOTICE: You owe $4,200 in delinquent taxes. Arrest warrant issued. Call 1-800-555-0199 immediately to avoid arrest.", "fraud_legal_tax_extortion"),
+    ("Bank of America: Your online banking has been temporarily disabled. Visit http://bofa-verify-identity.com to reactivate.", "fraud_account_suspension_lure"),
+    ("Exclusive Crypto VIP signal: Earn 300% return guaranteed within 24 hours! Join WhatsApp group: https://t.me/cryptogains999", "fraud_telegram_income_lure"),
+    ("Netflix: Your subscription payment failed. Your account will be closed today unless updated: http://netflix-billing-renew.info", "fraud_subscription_billing_scam"),
+    ("Toll Services: You have an unpaid toll invoice of $12.50. Late fees apply after 24h. Pay at: http://sunpass-toll-billing.top", "fraud_subscription_billing_scam"),
+    ("PayPal Security: Unauthorized transaction of $699.99 to Apple Store. Not you? Dispute immediately at: http://paypal-dispute-resolve.com", "fraud_transaction_dispute_lure"),
+    ("You have (1) pending package awaiting clearance. Confirm your identity and pay customs fee: http://dhl-express-clearance.net/track", "fraud_postal_customs_fee"),
+    ("URGENT: Your Apple ID has been locked for security reasons. Verify your account details: http://appleid-support-auth.com", "fraud_account_suspension_lure"),
+    ("Alert from Citibank: Suspicious wire transfer of $2,450 initiated. Stop transfer here: http://citi-security-stop.com", "fraud_transaction_dispute_lure"),
+    ("Winner notification! You have been selected for the 2026 Cash App Giveaway. Receive $750 instantly: http://cashapp-free750.online", "fraud_prize_giveaway_lure"),
+    ("Your SIM card will be deactivated in 24 hours due to unverified KYC. Update details now: http://telecom-kyc-verify.club", "fraud_device_telecom_account_phish"),
+    ("Amazon Security: Did you purchase iPhone 16 Pro for $1,199? If NOT, call fraud team right away at 1-888-555-0144.", "fraud_callback_order_scam"),
+    ("Dear customer, your debit card is blocked. Click http://chase-unblock-card.biz to submit photo ID and unlock.", "fraud_card_blocked_lure"),
+    ("FedEx: Delivery exception! Package held at facility due to unpaid duty. Pay $2.40: http://fedex-express-customs.cc", "fraud_postal_customs_fee"),
+    ("Target Shopper: You were chosen to receive a $500 shopping voucher! Complete short survey: http://target-voucher-survey.site", "fraud_prize_giveaway_lure"),
+    ("Your social security number has been compromised in a fraud investigation. Press 1 to speak with a federal agent.", "fraud_legal_tax_extortion"),
+    ("Attn: Your account with AT&T will be cancelled. Pay overdue balance of $45.10 here: http://att-billpay-portal.info", "fraud_subscription_billing_scam"),
+    ("URGENT: Venmo unauthorized charge of $450 to Steam Games. Cancel this payment: http://venmo-security-dispute.link", "fraud_transaction_dispute_lure"),
+    ("You qualified for $50,000 pre-approved loan with 0% APR. No credit check required! Apply now: http://fast-cash-loans-today.us", "fraud_grant_loan_lure"),
+    ("Crypto alert: 1.45 BTC has been deposited to your wallet. Confirm receipt and withdraw: http://binance-claim-crypto.cc", "fraud_crypto_account_lure"),
+    ("Your package #91823 is held at depot. Final delivery attempt tomorrow. Verify address: http://postal-package-update.info", "fraud_postal_customs_fee"),
+    ("Warning: Your iPhone backup was compromised. Visit http://icloud-warning-check.me to change password immediately.", "fraud_device_telecom_account_phish"),
+    ("Santander Alert: Card blocked due to suspicious activity. Follow link to verify: http://santander-unblock-service.top", "fraud_card_blocked_lure"),
+    ("Work from home opportunity! Earn $500/day rating products on your phone. Telegram: @jobrecruiter2026", "fraud_telegram_income_lure"),
+    ("Geek Squad: Auto-renewal charge of $399.99 processed. To request refund within 24h call: 1-800-555-0182", "fraud_callback_order_scam"),
+    ("Exclusive invitation: You are eligible to claim free government relief grant of $2,500. Register: http://gov-grant-claim.org", "fraud_grant_loan_lure"),
+    ("TD Bank: Suspicious login from IP 194.26.29.1. Secure your account now: http://tdbank-customer-protect.net", "fraud_suspicious_ip_login_lure"),
+    ("Capital One alert: Debit card flagged for fraud at Best Buy. Confirm identity: http://capitalone-fraud-prevention.xyz", "fraud_card_blocked_lure"),
+    ("Your WhatsApp account will expire tomorrow. Renew your service for $0.99 here: http://whatsapp-subscription-renew.com", "fraud_subscription_billing_scam"),
+    ("URGENT legal notice: Process server dispatched to your location. Call 855-555-0129 to settle dispute before court.", "fraud_legal_tax_extortion"),
+    ("Costco rewards: You have $150 in unredeemed cash back rewards expiring tonight! Redeem at: http://costco-cashback-points.site", "fraud_prize_giveaway_lure"),
+    ("Alert: Coinbase security key reset requested. If you did not initiate this, freeze account: http://coinbase-freeze-auth.com", "fraud_crypto_account_lure"),
+    ("US Postal Notice: Missing apartment number on parcel. Re-enter shipping address: http://usps-address-correct.com", "fraud_postal_customs_fee"),
+    ("Final reminder: Your car warranty is about to lapse. Extend coverage before deadline: http://auto-warranty-renew.online", "fraud_subscription_billing_scam"),
+    ("Your mobile number won 2nd prize in the UK National Lottery! Send email to claim: claim@national-lottery-promo.co", "fraud_prize_giveaway_lure"),
+    ("Citizens Bank: Transaction of $840 declined. Verify your phone number to re-enable card: http://citizens-verify.cc", "fraud_transaction_dispute_lure"),
+]
+
+LEGITIMATE_MESSAGES: list[str] = [text for text, _ in LEGIT_BASE_SAMPLES]
+FRAUDULENT_MESSAGES: list[str] = [text for text, _ in FRAUD_BASE_SAMPLES]
+
+CONVERSATIONAL_BASE_SAMPLES: list[tuple[str, str]] = [
+    ("Are we still on for lunch tomorrow afternoon?", "legit_casual_social_chat"),
+    ("Don't forget to lock the garage door on your way out.", "legit_casual_errands"),
+    ("The kids had so much fun at the science museum today!", "legit_casual_family_activity"),
+    ("Can you send over the slides from yesterday's presentation?", "legit_workplace_sync"),
+    ("Hope you have a safe and pleasant flight back home!", "legit_casual_social_chat"),
+    ("See you at soccer practice on Tuesday evening.", "legit_casual_family_activity"),
+    ("Traffic is a bit heavy on highway 101, will be there shortly.", "legit_casual_social_chat"),
+    ("Dinner was delicious, thanks for having us over!", "legit_casual_social_chat"),
+    ("Let me know if you need any help with the garden this weekend.", "legit_casual_errands"),
+    ("Just finished running at the park, heading home now.", "legit_casual_social_chat"),
+    ("Wishing you a very Happy Birthday and a fantastic year ahead!", "legit_casual_birthday_greetings"),
+    ("Happy Birthday! Have an amazing day celebrating with friends!", "legit_casual_birthday_greetings"),
+    ("Let me know if you want to carpool to soccer practice this weekend.", "legit_casual_family_activity"),
+    ("We can carpool to soccer practice on Saturday morning if you'd like.", "legit_casual_family_activity"),
+    ("Could you bring my umbrella from the front hallway to the office?", "legit_casual_errands"),
+    ("Don't forget your umbrella today, looks like light rain this afternoon.", "legit_casual_errands"),
 ]
 
 
@@ -185,13 +211,13 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
         labels.append(lbl)
         groups.append(extract_template_family_id(msg, lbl, explicit_family))
 
-    # Add base legitimate messages
-    for msg in LEGITIMATE_MESSAGES:
-        _add_sample(msg, 0)
+    # Add base legitimate messages with audited explicit semantic families (SF-008)
+    for msg, fam_id in LEGIT_BASE_SAMPLES:
+        _add_sample(msg, 0, explicit_family=fam_id)
 
-    # Add base fraudulent messages
-    for msg in FRAUDULENT_MESSAGES:
-        _add_sample(msg, 1)
+    # Add base fraudulent messages with audited explicit semantic families (SF-008)
+    for msg, fam_id in FRAUD_BASE_SAMPLES:
+        _add_sample(msg, 1, explicit_family=fam_id)
 
     # Augment with variations (sender numbers, token variants, brand names)
     brands = [
@@ -295,7 +321,7 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
                 explicit_family="legit_bank_direct_deposit",
             )
 
-    # Augment legit bank 2-way verification alerts (interactive YES/NO confirmation without links)
+    # Augment legit bank 2-way verification alerts partitioned by exact template syntax (SF-008)
     for b in legit_banks:
         for j in range(5):
             _add_sample(
@@ -306,12 +332,12 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
             _add_sample(
                 f"{b} Security Alert: Unusual charge of ${50 + j * 20}.00 at Chevron. Text 1 if authorized, 2 if not.",
                 0,
-                explicit_family="legit_bank_fraud_alert_yesno",
+                explicit_family="legit_bank_security_alert_12",
             )
             _add_sample(
                 f"{b} Alert: Did you authorize ${80 + j * 15}.00 transaction at Walmart? Reply Y or N. FreeMsg.",
                 0,
-                explicit_family="legit_bank_fraud_alert_yesno",
+                explicit_family="legit_bank_auth_alert_yn",
             )
 
     # Augment legit retail receipts & store pickups
@@ -357,27 +383,9 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
             explicit_family="legit_health_pharmacy",
         )
 
-    # Augment legit conversational messages
-    conversations = [
-        "Are we still on for lunch tomorrow afternoon?",
-        "Don't forget to lock the garage door on your way out.",
-        "The kids had so much fun at the science museum today!",
-        "Can you send over the slides from yesterday's presentation?",
-        "Hope you have a safe and pleasant flight back home!",
-        "See you at soccer practice on Tuesday evening.",
-        "Traffic is a bit heavy on highway 101, will be there shortly.",
-        "Dinner was delicious, thanks for having us over!",
-        "Let me know if you need any help with the garden this weekend.",
-        "Just finished running at the park, heading home now.",
-        "Wishing you a very Happy Birthday and a fantastic year ahead!",
-        "Happy Birthday! Have an amazing day celebrating with friends!",
-        "Let me know if you want to carpool to soccer practice this weekend.",
-        "We can carpool to soccer practice on Saturday morning if you'd like.",
-        "Could you bring my umbrella from the front hallway to the office?",
-        "Don't forget your umbrella today, looks like light rain this afternoon.",
-    ]
-    for c_text in conversations:
-        _add_sample(c_text, 0)
+    # Augment legit conversational messages with audited semantic families (SF-008)
+    for c_text, fam_id in CONVERSATIONAL_BASE_SAMPLES:
+        _add_sample(c_text, 0, explicit_family=fam_id)
 
     # Augment fraud with financial and delivery scams
     banks_fraud = ["Barclays", "HSBC", "Santander", "Lloyds", "NatWest", "Standard Chartered"]
@@ -717,6 +725,203 @@ def patch_skl2onnx_tfidf_bugs(
     return onnx_model
 
 
+def _atomic_write_text(target_path: Path, content: str) -> None:
+    """Atomically replaces a UTF-8 text file via same-directory temp write and rename."""
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(target_path.parent),
+        prefix=f".{target_path.stem}_",
+        suffix=target_path.suffix,
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(content)
+        tmp_path.replace(target_path)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def _compute_cross_split_leakage_audit(
+    texts: list[str],
+    labels: list[int],
+    template_family_ids: list[str],
+) -> dict[str, Any]:
+    """Audits Dev/Val SHA-256 overlap, duplicates, and cross-family similarity."""
+    def _norm_hash(value: str) -> str:
+        norm = re.sub(r"\s+", " ", value.strip().lower())
+        return hashlib.sha256(norm.encode("utf-8")).hexdigest()
+
+    train_hashes = [_norm_hash(t) for t in texts]
+    unique_train_hashes = set(train_hashes)
+    held_out_texts, _ = get_held_out_evaluation_set()
+    held_out_hashes = {_norm_hash(t) for t in held_out_texts}
+
+    structural_hashes: dict[str, set[str]] = {}
+    for text, label, fam in zip(texts, labels, template_family_ids, strict=True):
+        struct_id = extract_template_family_id(text, label)
+        structural_hashes.setdefault(struct_id, set()).add(fam)
+    cross_family_struct_collisions = sum(
+        1 for fam_set in structural_hashes.values() if len(fam_set) > 1
+    )
+
+    vectorizer = TfidfVectorizer(
+        ngram_range=(1, 2),
+        sublinear_tf=True,
+        max_features=2500,
+        min_df=1,
+        token_pattern=r"\b[a-zA-Z0-9_]+\b",
+    )
+    tfidf_train = vectorizer.fit_transform(texts).toarray()
+    tfidf_eval = vectorizer.transform(held_out_texts).toarray()
+
+    ordered_families = sorted(set(template_family_ids))
+    fam_to_indices: dict[str, list[int]] = {f: [] for f in ordered_families}
+    for idx, fam in enumerate(template_family_ids):
+        fam_to_indices[fam].append(idx)
+
+    centroids = np.vstack([tfidf_train[fam_to_indices[f]].mean(axis=0) for f in ordered_families])
+    norms = np.linalg.norm(centroids, axis=1, keepdims=True)
+    centroids_unit = centroids / np.where(norms > 0.0, norms, 1.0)
+    fam_sim = centroids_unit @ centroids_unit.T
+    np.fill_diagonal(fam_sim, -1.0)
+
+    flat_max_idx = int(np.argmax(fam_sim))
+    i_max, j_max = divmod(flat_max_idx, len(ordered_families))
+    upper_tri = fam_sim[np.triu_indices(len(ordered_families), k=1)]
+
+    eval_train_sim = tfidf_eval @ tfidf_train.T
+    max_dev_val_train_cos = float(np.max(eval_train_sim))
+    mean_dev_val_max_cos = float(np.mean(np.max(eval_train_sim, axis=1)))
+
+    return {
+        "dev_val_sample_count": len(held_out_texts),
+        "dev_val_normalized_sha256_overlap": len(unique_train_hashes.intersection(held_out_hashes)),
+        "intra_corpus_normalized_sha256_duplicates": len(texts) - len(unique_train_hashes),
+        "structural_template_hash_collisions_across_families": cross_family_struct_collisions,
+        "max_cross_family_centroid_cosine": round(float(fam_sim[i_max, j_max]), 6),
+        "mean_cross_family_centroid_cosine": round(float(np.mean(upper_tri)), 6),
+        "max_cross_family_centroid_pair": [ordered_families[i_max], ordered_families[j_max]],
+        "max_dev_val_vs_train_tfidf_cosine": round(max_dev_val_train_cos, 6),
+        "mean_dev_val_nearest_train_tfidf_cosine": round(mean_dev_val_max_cos, 6),
+    }
+
+
+def build_dataset_inventory(
+    texts: list[str] | None = None,
+    labels: list[int] | None = None,
+    template_family_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    """Builds the audited machine-readable training dataset inventory and CV balance report."""
+    if texts is None or labels is None or template_family_ids is None:
+        texts, labels, template_family_ids = build_augmented_dataset()
+
+    total_samples = len(texts)
+    legit_count = labels.count(0)
+    fraud_count = labels.count(1)
+    fraud_prevalence = round(fraud_count / total_samples, 6)
+    dataset_sha256 = hashlib.sha256(
+        "".join(f"{t}:{lbl}" for t, lbl in zip(texts, labels, strict=True)).encode("utf-8")
+    ).hexdigest()
+
+    fam_legit: Counter[str] = Counter()
+    fam_fraud: Counter[str] = Counter()
+    for lbl, fam in zip(labels, template_family_ids, strict=True):
+        if lbl == 1:
+            fam_fraud[fam] += 1
+        else:
+            fam_legit[fam] += 1
+
+    all_families = sorted(set(template_family_ids))
+    family_rows: list[dict[str, Any]] = []
+    for fam in all_families:
+        l_cnt = fam_legit[fam]
+        f_cnt = fam_fraud[fam]
+        s_cnt = l_cnt + f_cnt
+        fam_label: int | str = 1 if l_cnt == 0 else 0 if f_cnt == 0 else "mixed"
+        family_rows.append(
+            {
+                "family_id": fam,
+                "label": fam_label,
+                "legit_count": l_cnt,
+                "fraud_count": f_cnt,
+                "sample_count": s_cnt,
+                "pct_of_corpus": round((100.0 * s_cnt) / total_samples, 4),
+            }
+        )
+    family_rows.sort(key=lambda row: (-int(row["sample_count"]), str(row["family_id"])))
+
+    sizes = [int(row["sample_count"]) for row in family_rows]
+    sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    fold_distributions: list[dict[str, Any]] = []
+    for fold_idx, (tr_idx, val_idx) in enumerate(
+        sgkf.split(texts, labels, groups=template_family_ids)
+    ):
+        y_tr = [labels[i] for i in tr_idx]
+        y_va = [labels[i] for i in val_idx]
+        tr_groups = {template_family_ids[i] for i in tr_idx}
+        va_groups = {template_family_ids[i] for i in val_idx}
+        tr_rate = y_tr.count(1) / len(y_tr)
+        va_rate = y_va.count(1) / len(y_va)
+        fold_distributions.append(
+            {
+                "fold": fold_idx,
+                "train_size": len(tr_idx),
+                "val_size": len(val_idx),
+                "train_legit_count": y_tr.count(0),
+                "train_fraud_count": y_tr.count(1),
+                "val_legit_count": y_va.count(0),
+                "val_fraud_count": y_va.count(1),
+                "train_fraud_rate": round(tr_rate, 6),
+                "val_fraud_rate": round(va_rate, 6),
+                "val_fraud_prevalence_delta": round(va_rate - (fraud_count / total_samples), 6),
+                "group_overlap_count": len(tr_groups.intersection(va_groups)),
+            }
+        )
+
+    return {
+        "schema_version": "1.0.0",
+        "generated_at": datetime.now(UTC).isoformat(),
+        "training_dataset_sha256": dataset_sha256,
+        "total_samples": total_samples,
+        "legit_count": legit_count,
+        "fraud_count": fraud_count,
+        "fraud_prevalence": fraud_prevalence,
+        "total_families": len(all_families),
+        "singleton_family_count": sum(1 for sz in sizes if sz == 1),
+        "family_size_stats": {
+            "min": min(sizes),
+            "median": round(float(statistics.median(sizes)), 4),
+            "mean": round(float(statistics.mean(sizes)), 4),
+            "max": max(sizes),
+            "max_pct_of_corpus": round((100.0 * max(sizes)) / total_samples, 4),
+        },
+        "families": family_rows,
+        "fold_distributions": fold_distributions,
+        "cross_split_leakage_audit": _compute_cross_split_leakage_audit(
+            texts,
+            labels,
+            template_family_ids,
+        ),
+    }
+
+
+def export_dataset_inventory(
+    inventory: dict[str, Any],
+    output_path: Path | None = None,
+) -> Path:
+    """Atomically writes the dataset inventory JSON report."""
+    target = (
+        output_path
+        if output_path is not None
+        else Path(__file__).resolve().parent / "dataset_inventory.json"
+    )
+    _atomic_write_text(target, json.dumps(inventory, indent=2) + "\n")
+    logger.info("Exported dataset inventory report to %s", target)
+    return target
+
+
 def train_and_export_model(
     output_dir: str = "app/telecom/models",
     model_name: str = "sms_fraud_model.onnx",
@@ -955,6 +1160,11 @@ def train_and_export_model(
 
     if should_publish_canonical:
         logger.info("Publishing trained ONNX model and evaluation artifacts atomically...")
+        inventory = build_dataset_inventory(texts, labels, template_family_ids)
+        export_dataset_inventory(
+            inventory,
+            output_path=canonical_paths["model"].resolve().parents[1] / "dataset_inventory.json",
+        )
         publish_evaluation_artifacts_atomically(
             artifact_paths=canonical_paths,
             reference_pipeline=prod_pipeline,
@@ -969,6 +1179,8 @@ def train_and_export_model(
 
     # Custom/non-canonical export: evaluate staged bytes in memory and explicitly mark
     # canonical repo evaluation artifacts as stale for this custom build.
+    inventory = build_dataset_inventory(texts, labels, template_family_ids)
+    export_dataset_inventory(inventory, output_path=onnx_file.parent / "dataset_inventory.json")
     with tempfile.TemporaryDirectory(prefix="sentinelflow_custom_eval_") as tmp_dir:
         tmp_onnx = Path(tmp_dir) / model_name
         tmp_onnx.write_bytes(model_bytes)

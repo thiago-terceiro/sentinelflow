@@ -1,0 +1,549 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-11-10T16:03:15.919187+00:00",
+  "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
+  "total_samples": 703,
+  "legit_count": 543,
+  "fraud_count": 160,
+  "fraud_prevalence": 0.227596,
+  "total_families": 56,
+  "singleton_family_count": 0,
+  "family_size_stats": {
+    "min": 2,
+    "median": 6.0,
+    "mean": 12.5536,
+    "max": 53,
+    "max_pct_of_corpus": 7.5391
+  },
+  "families": [
+    {
+      "family_id": "legit_2fa_code",
+      "label": 0,
+      "legit_count": 53,
+      "fraud_count": 0,
+      "sample_count": 53,
+      "pct_of_corpus": 7.5391
+    },
+    {
+      "family_id": "legit_bank_autopay",
+      "label": 0,
+      "legit_count": 41,
+      "fraud_count": 0,
+      "sample_count": 41,
+      "pct_of_corpus": 5.8321
+    },
+    {
+      "family_id": "legit_bank_direct_deposit",
+      "label": 0,
+      "legit_count": 41,
+      "fraud_count": 0,
+      "sample_count": 41,
+      "pct_of_corpus": 5.8321
+    },
+    {
+      "family_id": "legit_bank_fraud_alert_yesno",
+      "label": 0,
+      "legit_count": 41,
+      "fraud_count": 0,
+      "sample_count": 41,
+      "pct_of_corpus": 5.8321
+    },
+    {
+      "family_id": "legit_bank_auth_alert_yn",
+      "label": 0,
+      "legit_count": 40,
+      "fraud_count": 0,
+      "sample_count": 40,
+      "pct_of_corpus": 5.6899
+    },
+    {
+      "family_id": "legit_bank_security_alert_12",
+      "label": 0,
+      "legit_count": 40,
+      "fraud_count": 0,
+      "sample_count": 40,
+      "pct_of_corpus": 5.6899
+    },
+    {
+      "family_id": "legit_bank_statement",
+      "label": 0,
+      "legit_count": 40,
+      "fraud_count": 0,
+      "sample_count": 40,
+      "pct_of_corpus": 5.6899
+    },
+    {
+      "family_id": "fraud_urgent_brand_alert",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 35,
+      "sample_count": 35,
+      "pct_of_corpus": 4.9787
+    },
+    {
+      "family_id": "fraud_postal_customs_fee",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 30,
+      "sample_count": 30,
+      "pct_of_corpus": 4.2674
+    },
+    {
+      "family_id": "fraud_uk_bank_alert",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 30,
+      "sample_count": 30,
+      "pct_of_corpus": 4.2674
+    },
+    {
+      "family_id": "legit_retail_receipt",
+      "label": 0,
+      "legit_count": 26,
+      "fraud_count": 0,
+      "sample_count": 26,
+      "pct_of_corpus": 3.6984
+    },
+    {
+      "family_id": "legit_retail_curbside",
+      "label": 0,
+      "legit_count": 25,
+      "fraud_count": 0,
+      "sample_count": 25,
+      "pct_of_corpus": 3.5562
+    },
+    {
+      "family_id": "legit_travel_gate_info",
+      "label": 0,
+      "legit_count": 22,
+      "fraud_count": 0,
+      "sample_count": 22,
+      "pct_of_corpus": 3.1294
+    },
+    {
+      "family_id": "legit_health_mychart",
+      "label": 0,
+      "legit_count": 21,
+      "fraud_count": 0,
+      "sample_count": 21,
+      "pct_of_corpus": 2.9872
+    },
+    {
+      "family_id": "legit_health_pharmacy",
+      "label": 0,
+      "legit_count": 21,
+      "fraud_count": 0,
+      "sample_count": 21,
+      "pct_of_corpus": 2.9872
+    },
+    {
+      "family_id": "legit_travel_flight_confirmation",
+      "label": 0,
+      "legit_count": 20,
+      "fraud_count": 0,
+      "sample_count": 20,
+      "pct_of_corpus": 2.845
+    },
+    {
+      "family_id": "fraud_family_wame_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 9,
+      "sample_count": 9,
+      "pct_of_corpus": 1.2802
+    },
+    {
+      "family_id": "legit_casual_p2p_greetings",
+      "label": 0,
+      "legit_count": 9,
+      "fraud_count": 0,
+      "sample_count": 9,
+      "pct_of_corpus": 1.2802
+    },
+    {
+      "family_id": "fraud_family_venmo_cashapp_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 8,
+      "sample_count": 8,
+      "pct_of_corpus": 1.138
+    },
+    {
+      "family_id": "legit_casual_device_switch",
+      "label": 0,
+      "legit_count": 8,
+      "fraud_count": 0,
+      "sample_count": 8,
+      "pct_of_corpus": 1.138
+    },
+    {
+      "family_id": "fraud_family_zelle_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 7,
+      "sample_count": 7,
+      "pct_of_corpus": 0.9957
+    },
+    {
+      "family_id": "legit_2fa_login_alert",
+      "label": 0,
+      "legit_count": 7,
+      "fraud_count": 0,
+      "sample_count": 7,
+      "pct_of_corpus": 0.9957
+    },
+    {
+      "family_id": "legit_2fa_login_approve",
+      "label": 0,
+      "legit_count": 7,
+      "fraud_count": 0,
+      "sample_count": 7,
+      "pct_of_corpus": 0.9957
+    },
+    {
+      "family_id": "legit_casual_social_chat",
+      "label": 0,
+      "legit_count": 7,
+      "fraud_count": 0,
+      "sample_count": 7,
+      "pct_of_corpus": 0.9957
+    },
+    {
+      "family_id": "fraud_family_wire_http_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 6,
+      "sample_count": 6,
+      "pct_of_corpus": 0.8535
+    },
+    {
+      "family_id": "legit_2fa_auth_signin",
+      "label": 0,
+      "legit_count": 6,
+      "fraud_count": 0,
+      "sample_count": 6,
+      "pct_of_corpus": 0.8535
+    },
+    {
+      "family_id": "legit_2fa_email_verify",
+      "label": 0,
+      "legit_count": 6,
+      "fraud_count": 0,
+      "sample_count": 6,
+      "pct_of_corpus": 0.8535
+    },
+    {
+      "family_id": "legit_2fa_phone_verify",
+      "label": 0,
+      "legit_count": 6,
+      "fraud_count": 0,
+      "sample_count": 6,
+      "pct_of_corpus": 0.8535
+    },
+    {
+      "family_id": "legit_2fa_recovery_pin",
+      "label": 0,
+      "legit_count": 6,
+      "fraud_count": 0,
+      "sample_count": 6,
+      "pct_of_corpus": 0.8535
+    },
+    {
+      "family_id": "fraud_prize_giveaway_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 5,
+      "sample_count": 5,
+      "pct_of_corpus": 0.7112
+    },
+    {
+      "family_id": "fraud_subscription_billing_scam",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 5,
+      "sample_count": 5,
+      "pct_of_corpus": 0.7112
+    },
+    {
+      "family_id": "legit_casual_errands",
+      "label": 0,
+      "legit_count": 5,
+      "fraud_count": 0,
+      "sample_count": 5,
+      "pct_of_corpus": 0.7112
+    },
+    {
+      "family_id": "legit_phone_repair_pickup",
+      "label": 0,
+      "legit_count": 5,
+      "fraud_count": 0,
+      "sample_count": 5,
+      "pct_of_corpus": 0.7112
+    },
+    {
+      "family_id": "legit_workplace_sync",
+      "label": 0,
+      "legit_count": 5,
+      "fraud_count": 0,
+      "sample_count": 5,
+      "pct_of_corpus": 0.7112
+    },
+    {
+      "family_id": "fraud_transaction_dispute_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 4,
+      "sample_count": 4,
+      "pct_of_corpus": 0.569
+    },
+    {
+      "family_id": "legit_casual_family_activity",
+      "label": 0,
+      "legit_count": 4,
+      "fraud_count": 0,
+      "sample_count": 4,
+      "pct_of_corpus": 0.569
+    },
+    {
+      "family_id": "legit_p2p_messaging_app",
+      "label": 0,
+      "legit_count": 4,
+      "fraud_count": 0,
+      "sample_count": 4,
+      "pct_of_corpus": 0.569
+    },
+    {
+      "family_id": "legit_package_delivery_tracking",
+      "label": 0,
+      "legit_count": 4,
+      "fraud_count": 0,
+      "sample_count": 4,
+      "pct_of_corpus": 0.569
+    },
+    {
+      "family_id": "legit_phone_repair_quote",
+      "label": 0,
+      "legit_count": 4,
+      "fraud_count": 0,
+      "sample_count": 4,
+      "pct_of_corpus": 0.569
+    },
+    {
+      "family_id": "legit_temporary_travel_sim",
+      "label": 0,
+      "legit_count": 4,
+      "fraud_count": 0,
+      "sample_count": 4,
+      "pct_of_corpus": 0.569
+    },
+    {
+      "family_id": "fraud_account_suspension_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 3,
+      "sample_count": 3,
+      "pct_of_corpus": 0.4267
+    },
+    {
+      "family_id": "fraud_card_blocked_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 3,
+      "sample_count": 3,
+      "pct_of_corpus": 0.4267
+    },
+    {
+      "family_id": "fraud_legal_tax_extortion",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 3,
+      "sample_count": 3,
+      "pct_of_corpus": 0.4267
+    },
+    {
+      "family_id": "legit_appointment_reminder",
+      "label": 0,
+      "legit_count": 3,
+      "fraud_count": 0,
+      "sample_count": 3,
+      "pct_of_corpus": 0.4267
+    },
+    {
+      "family_id": "fraud_callback_order_scam",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 2,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "fraud_crypto_account_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 2,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "fraud_device_telecom_account_phish",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 2,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "fraud_grant_loan_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 2,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "fraud_suspicious_ip_login_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 2,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "fraud_telegram_income_lure",
+      "label": 1,
+      "legit_count": 0,
+      "fraud_count": 2,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "legit_auth_short_code",
+      "label": 0,
+      "legit_count": 2,
+      "fraud_count": 0,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "legit_bank_card_transaction",
+      "label": 0,
+      "legit_count": 2,
+      "fraud_count": 0,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "legit_casual_birthday_greetings",
+      "label": 0,
+      "legit_count": 2,
+      "fraud_count": 0,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "legit_hospitality_reservation",
+      "label": 0,
+      "legit_count": 2,
+      "fraud_count": 0,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "legit_local_service_eta",
+      "label": 0,
+      "legit_count": 2,
+      "fraud_count": 0,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    },
+    {
+      "family_id": "legit_personal_account_digest",
+      "label": 0,
+      "legit_count": 2,
+      "fraud_count": 0,
+      "sample_count": 2,
+      "pct_of_corpus": 0.2845
+    }
+  ],
+  "fold_distributions": [
+    {
+      "fold": 0,
+      "train_size": 562,
+      "val_size": 141,
+      "train_legit_count": 434,
+      "train_fraud_count": 128,
+      "val_legit_count": 109,
+      "val_fraud_count": 32,
+      "train_fraud_rate": 0.227758,
+      "val_fraud_rate": 0.22695,
+      "val_fraud_prevalence_delta": -0.000646,
+      "group_overlap_count": 0
+    },
+    {
+      "fold": 1,
+      "train_size": 563,
+      "val_size": 140,
+      "train_legit_count": 435,
+      "train_fraud_count": 128,
+      "val_legit_count": 108,
+      "val_fraud_count": 32,
+      "train_fraud_rate": 0.227353,
+      "val_fraud_rate": 0.228571,
+      "val_fraud_prevalence_delta": 0.000975,
+      "group_overlap_count": 0
+    },
+    {
+      "fold": 2,
+      "train_size": 560,
+      "val_size": 143,
+      "train_legit_count": 435,
+      "train_fraud_count": 125,
+      "val_legit_count": 108,
+      "val_fraud_count": 35,
+      "train_fraud_rate": 0.223214,
+      "val_fraud_rate": 0.244755,
+      "val_fraud_prevalence_delta": 0.017159,
+      "group_overlap_count": 0
+    },
+    {
+      "fold": 3,
+      "train_size": 564,
+      "val_size": 139,
+      "train_legit_count": 434,
+      "train_fraud_count": 130,
+      "val_legit_count": 109,
+      "val_fraud_count": 30,
+      "train_fraud_rate": 0.230496,
+      "val_fraud_rate": 0.215827,
+      "val_fraud_prevalence_delta": -0.011769,
+      "group_overlap_count": 0
+    },
+    {
+      "fold": 4,
+      "train_size": 563,
+      "val_size": 140,
+      "train_legit_count": 434,
+      "train_fraud_count": 129,
+      "val_legit_count": 109,
+      "val_fraud_count": 31,
+      "train_fraud_rate": 0.22913,
+      "val_fraud_rate": 0.221429,
+      "val_fraud_prevalence_delta": -0.006167,
+      "group_overlap_count": 0
+    }
+  ],
+  "cross_split_leakage_audit": {
+    "dev_val_sample_count": 400,
+    "dev_val_normalized_sha256_overlap": 0,
+    "intra_corpus_normalized_sha256_duplicates": 0,
+    "structural_template_hash_collisions_across_families": 0,
+    "max_cross_family_centroid_cosine": 0.459025,
+    "mean_cross_family_centroid_cosine": 0.031589,
+    "max_cross_family_centroid_pair": [
+      "fraud_family_wire_http_lure",
+      "fraud_family_zelle_lure"
+    ],
+    "max_dev_val_vs_train_tfidf_cosine": 1.0,
+    "mean_dev_val_nearest_train_tfidf_cosine": 0.345139
+  }
+}

@@ -935,7 +935,7 @@
       "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
       "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
     },
-    "evaluation_timestamp": "2026-11-10T15:02:38.310542+00:00",
+    "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
     "evaluator": "ONNXRuntime-CPU (AVX-512)",
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
@@ -945,11 +945,11 @@
       "calibration": {
         "method": "sigmoid",
         "cv_folds": 5,
-        "brier_score_before": 0.1592,
-        "brier_score_after": 0.1551,
-        "brier_score_improvement": 0.0041
+        "brier_score_before": 0.1166,
+        "brier_score_after": 0.0687,
+        "brier_score_improvement": 0.0479
       },
-      "training_dataset_sha256": "709a384d9458e1033052e272c824c0e472ba7d0178a48e062aa3a17e8eafcafb"
+      "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
     },
     "software_versions": {
       "onnxruntime": "1.31.0",
@@ -980,7 +980,7 @@
   },
   "evaluation_mode": "content_only_zero_velocity",
   "velocity_score_fixed": 0.0,
-  "evaluation_timestamp": "2026-11-10T15:02:38.310542+00:00",
+  "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
   "software_versions": {
     "onnxruntime": "1.31.0",
     "numpy": "2.5.4",
@@ -988,6 +988,6 @@
   },
   "model_artifact_size_bytes": 199525,
   "model_artifact_size_kb": 194.85,
-  "brier_score_before_calibration": 0.1166,
-  "brier_score_after_calibration": 0.0687
+  "brier_score_before_calibration": 0.1472,
+  "brier_score_after_calibration": 0.0757
 }
