@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import re
 import time
 from dataclasses import dataclass, field
@@ -194,6 +195,16 @@ def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
     return max_heuristic, signals
 
 
+def _clamp_unit_signal(value: float) -> float:
+    """Clamps a numeric risk signal into [0.0, 1.0], mapping NaN/-inf to 0.0 and +inf to 1.0."""
+    num = float(value)
+    if math.isnan(num):
+        return 0.0
+    if math.isinf(num):
+        return 1.0 if num > 0.0 else 0.0
+    return max(0.0, min(1.0, num))
+
+
 def compute_composite_score(
     heuristic_score: float,
     onnx_probability: float,
@@ -244,9 +255,9 @@ def compute_composite_score(
     Returns:
         float: Composite fraud score bounded strictly in [0.0, 1.0].
     """
-    h = max(0.0, min(1.0, float(heuristic_score)))
-    p = max(0.0, min(1.0, float(onnx_probability)))
-    v = max(0.0, min(1.0, float(velocity_score)))
+    h = _clamp_unit_signal(heuristic_score)
+    p = _clamp_unit_signal(onnx_probability)
+    v = _clamp_unit_signal(velocity_score)
 
     # Step 1: Authoritative High-Risk Heuristic Override
     if h >= 0.80:

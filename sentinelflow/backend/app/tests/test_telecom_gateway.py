@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import MagicMock
@@ -1163,5 +1164,263 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
         ox_comp = compute_composite_score(heuristic_score=h_score, onnx_probability=ox_prob_1, velocity_score=0.0)
         assert abs(sk_comp - ox_comp) < 1e-5, f"Composite score diff on {case_name}"
         assert _compute_verdict(sk_comp) == _compute_verdict(ox_comp), f"Verdict mismatch on {case_name}"
+
+
+@pytest.mark.parametrize(
+    ("case_id", "heuristic_score", "onnx_probability", "velocity_score", "expected_score", "expected_verdict"),
+    [
+        # Category 1: Exact 4-decimal rounding & operational tier threshold boundaries
+        ("round_t1_below_039994", 0.0, 0.39994, 0.0, 0.3999, "ALLOW"),
+        ("round_t1_above_039996", 0.0, 0.39996, 0.0, 0.4000, "FLAG"),
+        ("round_t2_below_074994", 0.0, 0.74994, 0.0, 0.7499, "FLAG"),
+        ("round_t2_above_074996", 0.0, 0.74996, 0.0, 0.7500, "BLOCK"),
+        ("exact_tier1_04000", 0.0, 0.4000, 0.0, 0.4000, "FLAG"),
+        ("exact_tier2_07500", 0.0, 0.7500, 0.0, 0.7500, "BLOCK"),
+        # Category 2: Gate alpha(P, H) dead-zone, partial region, and saturation boundaries
+        ("gate_dead_zone_h_edge", 0.30, 0.0, 0.0, 0.0000, "ALLOW"),
+        ("gate_dead_zone_corner", 0.30, 0.15, 0.0, 0.1500, "ALLOW"),
+        ("gate_dead_zone_interior", 0.25, 0.12, 0.0, 0.1200, "ALLOW"),
+        ("gate_partial_alpha_p_050", 0.20, 0.275, 0.0, 0.3004, "ALLOW"),
+        ("gate_partial_alpha_h_050", 0.425, 0.0, 0.0, 0.0931, "ALLOW"),
+        ("gate_saturated_by_p", 0.20, 0.40, 0.0, 0.4420, "FLAG"),
+        ("gate_saturated_by_h", 0.55, 0.0, 0.0, 0.2675, "ALLOW"),
+        # Category 3: Orthogonal signal extremes
+        ("orthogonal_zero_all", 0.0, 0.0, 0.0, 0.0000, "ALLOW"),
+        ("orthogonal_high_ml_zero_h", 0.0, 0.85, 0.0, 0.8500, "BLOCK"),
+        ("orthogonal_h065_p0_allow", 0.65, 0.0, 0.0, 0.3325, "ALLOW"),
+        ("orthogonal_h065_p_below_tier1", 0.65, 0.1010, 0.0, 0.3999, "ALLOW"),
+        ("orthogonal_h065_p_crosses_tier1", 0.65, 0.1012, 0.0, 0.4001, "FLAG"),
+        ("orthogonal_h065_p_below_tier2", 0.65, 0.6253, 0.0, 0.7499, "FLAG"),
+        ("orthogonal_h065_p_crosses_tier2", 0.65, 0.6255, 0.0, 0.7500, "BLOCK"),
+        # Category 4: Authoritative high-risk override boundary (H >= 0.80)
+        ("override_just_below_07999", 0.7999, 0.0, 0.0, 0.4299, "FLAG"),
+        ("override_exact_08000", 0.8000, 0.0, 0.0, 1.0000, "BLOCK"),
+        ("override_compound_09500", 0.9500, 0.0, 0.0, 1.0000, "BLOCK"),
+        # Category 6a: Velocity probabilistic union S_content + V * (1 - S_content)
+        ("velocity_union_zero", 0.0, 0.20, 0.0, 0.2000, "ALLOW"),
+        ("velocity_union_025_crosses_flag", 0.0, 0.20, 0.25, 0.4000, "FLAG"),
+        ("velocity_union_050_mid", 0.0, 0.20, 0.50, 0.6000, "FLAG"),
+        ("velocity_union_100_max", 0.0, 0.20, 1.00, 1.0000, "BLOCK"),
+        ("velocity_union_blended_content", 0.20, 0.50, 0.25, 0.6512, "FLAG"),
+        # Category 7: Defensive clamping on out-of-range and non-finite inputs
+        ("clamp_negative_all", -0.5, -1.2, -0.3, 0.0000, "ALLOW"),
+        ("clamp_above_one_p_v", 0.0, 1.5, 1.8, 1.0000, "BLOCK"),
+        ("clamp_nan_all", float("nan"), float("nan"), float("nan"), 0.0000, "ALLOW"),
+        ("clamp_nan_mixed_h", float("nan"), 0.50, 0.0, 0.5000, "FLAG"),
+        ("clamp_neg_inf_all", float("-inf"), float("-inf"), float("-inf"), 0.0000, "ALLOW"),
+        ("clamp_pos_inf_h", float("inf"), 0.0, 0.0, 1.0000, "BLOCK"),
+        ("clamp_pos_inf_p", 0.0, float("inf"), 0.0, 1.0000, "BLOCK"),
+        ("clamp_pos_inf_v", 0.0, 0.20, float("inf"), 1.0000, "BLOCK"),
+    ],
+)
+def test_composite_scoring_decision_matrix(
+    case_id: str,
+    heuristic_score: float,
+    onnx_probability: float,
+    velocity_score: float,
+    expected_score: float,
+    expected_verdict: str,
+) -> None:
+    """Locks down every boundary, gate region, override, and defensive clamp of composite scoring."""
+    from app.telecom.evaluate_model import _compute_verdict
+
+    score = compute_composite_score(
+        heuristic_score=heuristic_score,
+        onnx_probability=onnx_probability,
+        velocity_score=velocity_score,
+    )
+
+    assert not math.isnan(score) and not math.isinf(score), f"{case_id} yielded non-finite score {score}"
+    assert 0.0 <= score <= 1.0, f"{case_id} score {score} outside [0.0, 1.0]"
+    assert score == expected_score, f"{case_id}: expected {expected_score}, got {score}"
+
+    eval_verdict = _compute_verdict(score)
+    gateway_verdict = "BLOCK" if score >= 0.75 else ("FLAG" if score >= 0.40 else "ALLOW")
+    assert eval_verdict == gateway_verdict == expected_verdict, (
+        f"{case_id}: verdict mismatch eval={eval_verdict}, gateway={gateway_verdict}, expected={expected_verdict}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("case_id", "message", "expected_score", "expected_rules", "expect_compound"),
+    [
+        (
+            "no_rules_matched",
+            "Hey Alex, picking up coffee on 4th Street at 2 PM.",
+            0.0,
+            [],
+            False,
+        ),
+        (
+            "single_low_risk_rule_no_boost",
+            "Your UPS package is out for delivery today.",
+            0.20,
+            ["RULE:GENERIC_DELIVERY_KEYWORD"],
+            False,
+        ),
+        (
+            "single_high_risk_rule_no_boost",
+            "IRS FINAL NOTICE: Arrest warrant issued for delinquent taxes.",
+            0.80,
+            ["RULE:TAX_ARREST_THREAT"],
+            False,
+        ),
+        (
+            "two_low_risk_rules_below_050_no_boost",
+            "Your UPS package shipped. View invoice status at https://www.example.com/order123",
+            0.25,
+            ["RULE:STANDALONE_URL", "RULE:GENERIC_DELIVERY_KEYWORD"],
+            False,
+        ),
+        (
+            "two_rules_with_high_risk_applies_012_boost",
+            "Verify your FedEx parcel unpaid fee here: http://bit.ly/fedex-123",
+            0.77,
+            ["RULE:HIGH_RISK_SHORTLINK", "RULE:DELIVERY_FEE_SCAM"],
+            True,
+        ),
+        (
+            "multi_rule_with_tax_threat_caps_cleanly",
+            "IRS FINAL NOTICE: Arrest warrant pending. Resolve immediately at http://irs-settle.xyz",
+            0.92,
+            ["RULE:SUSPICIOUS_TLD", "RULE:TAX_ARREST_THREAT", "RULE:STANDALONE_URL"],
+            True,
+        ),
+    ],
+)
+def test_evaluate_heuristics_compound_escalation_matrix(
+    case_id: str,
+    message: str,
+    expected_score: float,
+    expected_rules: list[str],
+    expect_compound: bool,
+) -> None:
+    """Verifies Category 5 heuristic rule combinations and +0.12 compound escalation conditions."""
+    score, signals = evaluate_heuristics(message)
+
+    assert round(score, 4) == expected_score, f"{case_id}: expected {expected_score}, got {score}"
+    for expected_rule in expected_rules:
+        assert expected_rule in signals, f"{case_id}: missing expected rule {expected_rule} in {signals}"
+
+    has_compound = "HEURISTIC:COMPOUND_SIGNALS" in signals
+    assert has_compound is expect_compound, (
+        f"{case_id}: expected compound={expect_compound}, got signals={signals}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_api_classify_threshold_rounding_and_redis_outage_degraded_matrix(
+    monkeypatch: Any,
+) -> None:
+    """Verifies /v1/classify 4-decimal rounding boundary parity and Redis outage fallback."""
+    from app.telecom.evaluate_model import _compute_verdict
+    from app.telecom.onnx_engine import InferenceResult
+
+    class _BoundaryMockEngine:
+        def __init__(self, heuristic_score: float, onnx_probability: float) -> None:
+            self._h = heuristic_score
+            self._p = onnx_probability
+
+        def predict(self, _text: str) -> InferenceResult:
+            return InferenceResult(
+                verdict=_compute_verdict(
+                    compute_composite_score(self._h, self._p, 0.0)
+                ),
+                fraud_score=compute_composite_score(self._h, self._p, 0.0),
+                latency_ms=0.1,
+                signals=["ML:TEST_STUB"],
+                model_version="1.0.0",
+                onnx_probability=self._p,
+                heuristic_score=self._h,
+            )
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # 1. Verify /v1/classify applies exact 4-decimal rounding at 0.40 and 0.75 boundaries
+        boundary_cases = [
+            (0.20, 0.249925, 0.3999, "ALLOW"),  # 0.20 + 0.249925 * 0.80 = 0.39994 -> 0.3999
+            (0.20, 0.249950, 0.4000, "FLAG"),   # 0.20 + 0.249950 * 0.80 = 0.39996 -> 0.4000
+            (0.60, 0.374850, 0.7499, "FLAG"),   # 0.60 + 0.374850 * 0.40 = 0.74994 -> 0.7499
+            (0.60, 0.374900, 0.7500, "BLOCK"),  # 0.60 + 0.374900 * 0.40 = 0.74996 -> 0.7500
+        ]
+
+        for idx, (p_val, v_contrib, exp_score, exp_verdict) in enumerate(boundary_cases):
+            boundary_store = MagicMock()
+            boundary_metrics = MagicMock(
+                velocity_10s=1,
+                velocity_60s=1,
+                velocity_1h=1,
+                carrier="unknown",
+                carrier_risk=0.20,
+                ip_count_60s=1,
+                signals=["VELOCITY:TEST_STUB"],
+                risk_contribution=v_contrib,
+            )
+
+            async def _fake_record(*_args: Any, _res: Any = boundary_metrics, **_kwargs: Any) -> Any:
+                return _res
+
+            boundary_store.record_and_evaluate = _fake_record
+            monkeypatch.setattr("app.api.telecom.get_velocity_store", lambda s=boundary_store: s)
+            monkeypatch.setattr(
+                "app.api.telecom.get_inference_engine",
+                lambda p=p_val: _BoundaryMockEngine(0.0, p),
+            )
+
+            resp = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": f"+1555333{idx:04d}",
+                    "recipient": "+15559990000",
+                    "message": "Boundary verification message",
+                },
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["fraud_score"] == exp_score
+            assert data["verdict"] == exp_verdict
+            assert data["verdict"] == _compute_verdict(data["fraud_score"])
+
+        # 2. Verify end-to-end /v1/classify under unreachable Redis (circuit breaker fail-open)
+        dead_redis_store = RedisVelocityStore(redis_url="redis://127.0.0.1:59999/9")
+        try:
+            real_engine = get_inference_engine()
+            monkeypatch.setattr("app.api.telecom.get_velocity_store", lambda: dead_redis_store)
+            monkeypatch.setattr("app.api.telecom.get_inference_engine", lambda: real_engine)
+
+            neutral_msg = "Your library hold for Clean Architecture is ready for pickup."
+            inf_res = real_engine.predict(neutral_msg)
+
+            last_data: dict[str, Any] = {}
+            for req_num in range(1, 6):
+                resp = await client.post(
+                    "/v1/classify",
+                    json={
+                        "sender": "+15557770001",
+                        "recipient": "+14155551234",
+                        "message": neutral_msg,
+                        "carrier": "TextNow",
+                        "ip": "198.51.100.77",
+                    },
+                )
+                assert resp.status_code == 200
+                last_data = resp.json()
+                assert dead_redis_store._use_in_memory_fallback is True
+                assert last_data["velocity"]["velocity_10s"] == req_num
+
+            # Request 5 reaches v10s=5 (+0.35 VELOCITY:BURST_10S) + TextNow (+0.26 CARRIER:HIGH_RISK_VOIP) = 0.61
+            expected_fallback_v = 0.61
+            expected_fallback_score = compute_composite_score(
+                heuristic_score=inf_res.heuristic_score,
+                onnx_probability=inf_res.onnx_probability,
+                velocity_score=expected_fallback_v,
+            )
+            assert "VELOCITY:BURST_10S" in last_data["signals"]
+            assert "CARRIER:HIGH_RISK_VOIP" in last_data["signals"]
+            assert last_data["fraud_score"] == expected_fallback_score
+            assert last_data["verdict"] == _compute_verdict(expected_fallback_score)
+        finally:
+            await dead_redis_store.close()
+
 
 
