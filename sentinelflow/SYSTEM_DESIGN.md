@@ -177,6 +177,18 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 
 ---
 
+### 4.1 3-Tier Conversational Family-Impersonation Policy (`SF-007`)
+
+Conversational broken-phone messages sit along a product boundary between benign personal/repair texts, unverified kinship notices, and actionable link/payment lures, so `onnx_engine.py` and the ONNX classifier enforce a mutually exclusive 3-way partition:
+
+| Sub-Class | Signal Boundary | Heuristic Rule & Weight | Target Tier | Policy Action |
+|---|---|---:|:---:|---|
+| **Class A: Benign Repair / Casual Chat** | Repair pickup/quote confirmations or casual device switches without unverified kinship relay, external links, or payment demands | None ($H = 0.00$) | `ALLOW` ($S < 0.40$) | Immediate wire delivery |
+| **Class B: Ambiguous Kinship + Broken Phone + P2P App** | Unverified kinship/relay + broken/lost phone/SIM + P2P app (`WhatsApp`/`Telegram`/`Signal`), strictly **excluding** external URLs (`http`/`wa.me`/`t.me`) and payment/bill demands | `RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P` ($H = 0.55$) | `FLAG` ($0.40 \le S < 0.75$) | Async warning & review (no silent drop) |
+| **Class C: Actionable Family-Impersonation Scam** | Kinship/relay + broken phone or temporary/new number + external link (`wa.me`/`http`/`t.me`) **or** urgent financial demand (`Zelle`/`Venmo`/`Cash App`/wire/urgent bill) | `RULE:FAMILY_IMPERSONATION_MESSAGING_LURE` ($H = 0.75$) | `BLOCK` ($S \ge 0.75$) | Immediate synchronous wire drop |
+
+---
+
 ## 5. Fallback Strategies & Graceful Service Degradation
 
 ```mermaid

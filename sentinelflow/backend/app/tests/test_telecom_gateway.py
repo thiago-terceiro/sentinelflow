@@ -836,7 +836,7 @@ def test_family_impersonation_rule_precision_and_alternative_channels() -> None:
     """Verifies refined RULE:FAMILY_IMPERSONATION_MESSAGING_LURE precision and coverage."""
     engine = get_inference_engine()
 
-    # 1. Legitimate phone repair notifications MUST NOT trigger the rule and MUST be ALLOW
+    # 1. Legitimate phone repair notifications MUST NOT trigger either family-impersonation rule and MUST be ALLOW
     legit_repairs = [
         "Hi John, your broken phone screen is repaired and ready for pickup. Message us on WhatsApp for questions.",
         "Repair quote: Your cracked screen repair is completed at the service center. Technician note on WhatsApp.",
@@ -847,10 +847,13 @@ def test_family_impersonation_rule_precision_and_alternative_channels() -> None:
         assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" not in signals, (
             f"False positive rule trigger on repair message: {msg}"
         )
+        assert "RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P" not in signals, (
+            f"False positive ambiguous trigger on repair message: {msg}"
+        )
         res = engine.predict(msg)
         assert res.verdict == "ALLOW", f"Repair message not ALLOW: {msg} -> {res.verdict}"
 
-    # 2. Casual conversations about broken phones MUST NOT trigger the rule
+    # 2. Casual conversations about broken phones MUST NOT trigger either family-impersonation rule
     casual_chats = [
         "Hey, my phone broke so I'm using an old one, text me on WhatsApp",
         "Can you pick up my repaired phone from the shop?",
@@ -859,6 +862,9 @@ def test_family_impersonation_rule_precision_and_alternative_channels() -> None:
         score, signals = engine.evaluate_heuristics(msg)
         assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" not in signals, (
             f"False positive rule trigger on casual chat: {msg}"
+        )
+        assert "RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P" not in signals, (
+            f"False positive ambiguous trigger on casual chat: {msg}"
         )
 
     # 3. Adversarial smishing family lures (WhatsApp redirection) MUST trigger
@@ -1558,6 +1564,80 @@ def test_otp_2fa_benign_vs_phishing_contrastive() -> None:
             f"(S={res.fraud_score}): {msg}"
         )
         assert res.fraud_score >= 0.40
+
+
+def test_family_impersonation_three_tier_policy() -> None:
+    """Verifies SF-007 3-tier family impersonation policy: Class A ALLOW, Class B FLAG, Class C BLOCK."""
+    from app.telecom.evaluate_model import get_held_out_samples_with_metadata
+
+    engine = get_inference_engine()
+    samples = get_held_out_samples_with_metadata()
+
+    # Class A: Benign repair & casual device-switch broken-phone messages -> ALLOW (S < 0.40, H = 0.0)
+    class_a_benign = [
+        "Hi John, your broken phone screen is repaired and ready for pickup at our shop, message us on WhatsApp.",
+        "Hey, my phone broke earlier, texting from my iPad on WhatsApp.",
+        "Mom, your cracked screen replacement is repaired and ready for pickup at our shop, message us on WhatsApp.",
+        "Hey Alex, dropped my phone at the office so I'm messaging from my laptop on Signal until tomorrow.",
+        "Hey, my phone broke so I'm using an old one, text me on WhatsApp",
+    ]
+    for msg in class_a_benign:
+        res = engine.predict(msg)
+        assert res.verdict == "ALLOW", (
+            f"Class A expected ALLOW, got {res.verdict} (S={res.fraud_score}, P={res.onnx_probability}, H={res.heuristic_score}): {msg}"
+        )
+        assert res.fraud_score < 0.40
+        assert res.heuristic_score == 0.0
+        assert "RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P" not in res.signals
+        assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" not in res.signals
+
+    # Class B: Ambiguous kinship + broken phone + P2P app WITHOUT external URL or payment demand -> FLAG (Tier 1)
+    class_b_ambiguous = [
+        "Hi mom, I dropped my phone and the screen cracked, borrowing a friend's phone for now, message me on WhatsApp when you see this",
+        "Hey dad, my phone broke and I lost my SIM, using a temporary number for tonight. Text me on Telegram when free.",
+        "Hi mama, dropped my phone in the cab, texting from someone else's phone on Signal for now.",
+        "Hey papa, phone screen cracked completely, got a new number today, reach me on WhatsApp.",
+        "Hey mum, lost my phone on the train, borrowing a friend's phone for the evening, ping me on WhatsApp.",
+    ]
+    for msg in class_b_ambiguous:
+        res = engine.predict(msg)
+        assert res.verdict == "FLAG", (
+            f"Class B expected Tier 1 FLAG, got {res.verdict} (S={res.fraud_score}, P={res.onnx_probability}, H={res.heuristic_score}): {msg}"
+        )
+        assert 0.40 <= res.fraud_score < 0.75
+        assert "RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P" in res.signals
+        assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" not in res.signals
+
+    # Class C: Actionable family-impersonation scams (wa.me/http links or Zelle/Venmo/Cash App/wire/urgent bill) -> BLOCK (Tier 2)
+    class_c_actionable = [
+        "Hey mom my phone screen just cracked completely, borrowing friend's phone. Text my temporary WhatsApp: wa.me/19175552000",
+        "Hi mom, broke my phone and using a new number, click https://family-help-link.com/chat to reach me on WhatsApp.",
+        "Hi dad, broke my phone, using temporary number, please send $350 via Venmo for urgent bill.",
+        "Hey mum, broke my phone and lost my SIM. Need to pay an urgent bill, can you transfer $450 to my Zelle?",
+        "Hi mom, dropped my phone and got a new number, can you Cash App me $200 right now for an emergency bill?",
+        "Hi dad, my phone broke and I am borrowing a friend's phone, please wire transfer $500 urgently for a medical bill.",
+        "Hi mom, using a new number today, please send $300 via Zelle for an urgent bill.",
+    ]
+    for msg in class_c_actionable:
+        res = engine.predict(msg)
+        assert res.verdict == "BLOCK", (
+            f"Class C expected Tier 2 BLOCK, got {res.verdict} (S={res.fraud_score}, P={res.onnx_probability}, H={res.heuristic_score}): {msg}"
+        )
+        assert res.fraud_score >= 0.75
+        assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" in res.signals
+        assert "RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P" not in res.signals
+
+    # Verify all 25 benchmark smish_broken_phone samples remain Tier 2 BLOCK
+    broken_phone_bench = [s for s in samples if s["category_id"] == "smish_broken_phone"]
+    assert len(broken_phone_bench) == 25
+    for sample in broken_phone_bench:
+        res = engine.predict(sample["text"])
+        assert res.verdict == "BLOCK", (
+            f"Benchmark smish_broken_phone regressed to {res.verdict} (S={res.fraud_score}): {sample['text']}"
+        )
+        assert res.fraud_score >= 0.75
+        assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" in res.signals
+
 
 
 

@@ -4,22 +4,22 @@
 
 ## 1. Reproducibility & Environment Stamp
 
-- **Model Artifact:** `sms_fraud_model.onnx` (194.93 KB)
-- **Model SHA-256:** `143f6749f219ed815a337f123e5e6462af46b637e5b3fdb54d6e2a1cfbe3eef0`
+- **Model Artifact:** `sms_fraud_model.onnx` (194.85 KB)
+- **Model SHA-256:** `32a54453aaeec4017fba6a4e015a0a130939566d2132b7e2225c6096edfde9ba`
 - **Evaluation Dataset SHA-256:** `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03`
 - **Canonical 400-Row Predictions Artifact:** `benchmark_predictions_400.json`
-- **Canonical 400-Row Predictions SHA-256:** `5ddc8c1841f5975d0de5fcc0cf9d03abad6d3256d16839243fb90613be9a5106`
-- **Timestamp:** `2026-11-10T13:00:11.887167+00:00`
+- **Canonical 400-Row Predictions SHA-256:** `c0530a06be081280c8a212d05bcf1c4fb5ca35707feeb2be496c2dbcc32a5831`
+- **Timestamp:** `2026-11-10T15:02:38.310542+00:00`
 - **Evaluator Engine:** `ONNXRuntime-CPU (AVX-512)`
 - **Software Versions:** `onnxruntime=1.31.0`, `numpy=2.5.4`, `scikit-learn=1.9.1`
 - **Dataset Size:** 400 samples (200 Benign, 200 Fraud)
 
 ### ONNX vs. Scikit-Learn Numerical & Operational Parity (N = 400)
 
-- **Max TF-IDF Vector Absolute Diff:** `7.0914987771e-08`
-- **Mean TF-IDF Vector Absolute Diff:** `2.4211359790e-08`
-- **Max Calibrated Probability Absolute Diff ($|P_{\text{sklearn}} - P_{\text{onnx}}|$):** `1.0463781575e-07`
-- **Mean Calibrated Probability Absolute Diff:** `1.9497087799e-08`
+- **Max TF-IDF Vector Absolute Diff:** `6.0295240800e-08`
+- **Mean TF-IDF Vector Absolute Diff:** `2.2485954916e-08`
+- **Max Calibrated Probability Absolute Diff ($|P_{\text{sklearn}} - P_{\text{onnx}}|$):** `1.1641733322e-07`
+- **Mean Calibrated Probability Absolute Diff:** `1.8747076431e-08`
 - **End-to-End Operational Verdict Agreement (`ALLOW` / `FLAG` / `BLOCK`):** `400 / 400` (`100.0%`)
 
 ### Evaluation Integrity & Provenance Clarification
@@ -35,58 +35,58 @@ To measure unbiased real-world generalization, production release candidates mus
 
 | Metric | Measured Score | Operational Significance |
 |---|:---:|---|
-| **ROC-AUC** | **0.9934** | Area under ROC curve across all possible decision thresholds |
-| **PR-AUC** | **0.9940** | Precision-Recall curve area (robust under class skew) |
-| **Brier Score** | **0.0494** | Probability calibration loss (lower is better, calibrated < 0.10) |
-| **Precision (P >= 0.50)** | **96.53%** | True fraud / (True fraud + False alarms) |
-| **Recall (P >= 0.50)** | **97.50%** | True fraud caught / Total actual fraud |
-| **F1-Score** | **0.9701** | Harmonic mean of precision and recall |
+| **ROC-AUC** | **0.9947** | Area under ROC curve across all possible decision thresholds |
+| **PR-AUC** | **0.9951** | Precision-Recall curve area (robust under class skew) |
+| **Brier Score** | **0.0447** | Probability calibration loss (lower is better, calibrated < 0.10) |
+| **Precision (P >= 0.50)** | **96.52%** | True fraud / (True fraud + False alarms) |
+| **Recall (P >= 0.50)** | **97.00%** | True fraud caught / Total actual fraud |
+| **F1-Score** | **0.9676** | Harmonic mean of precision and recall |
 | **False Positive Rate (FPR)** | **3.50%** | Benign messages incorrectly flagged |
-| **False Negative Rate (FNR)** | **2.50%** | Fraud messages that evaded detection |
+| **False Negative Rate (FNR)** | **3.00%** | Fraud messages that evaded detection |
 
 ## 3. Dual-Threshold Operational Tiers
 
 | Operational Tier | Threshold | Purpose | Recall | Precision | FPR | Confusion Matrix |
 |---|:---:|---|:---:|:---:|:---:|---|
-| **Tier 1: Escalation Queue** | $S \ge 0.40$ | Async SentinelFlow Review | **100.00%** | **91.74%** | **9.00%** | TP=200, FP=18, TN=182, FN=0 |
-| **Tier 2: Immediate Wire Drop** | $S \ge 0.75$ | Synchronous Wire Drop | **85.50%** | **100.00%** | **0.00%** | TP=171, FP=0, TN=200, FN=29 |
+| **Tier 1: Escalation Queue** | $S \ge 0.40$ | Async SentinelFlow Review | **100.00%** | **94.34%** | **6.00%** | TP=200, FP=12, TN=188, FN=0 |
+| **Tier 2: Immediate Wire Drop** | $S \ge 0.75$ | Synchronous Wire Drop | **83.50%** | **100.00%** | **0.00%** | TP=167, FP=0, TN=200, FN=33 |
 
 ## 4. Component Ablation Study (ML vs. Heuristics vs. Combined)
 
 | Strategy | Metric Floor / Threshold | Recall | Precision | FPR | F1-Score | Architectural Role |
 |---|:---:|:---:|:---:|:---:|:---:|---|
-| **ML Model Alone** | $P \ge 0.50$ | 97.50% | 96.53% | 3.50% | 0.9701 | Statistical semantic pattern recognition |
+| **ML Model Alone** | $P \ge 0.50$ | 97.00% | 96.52% | 3.50% | 0.9676 | Statistical semantic pattern recognition |
 | **Heuristics Alone** | $H \ge 0.50$ | 81.00% | 100.00% | 0.00% | 0.8950 | Deterministic regex rule triggers |
-| **Combined (Tier 1)** | $S \ge 0.40$ | 100.00% | 91.74% | 9.00% | 0.9569 | Zero FN guarantee for human escalation |
-| **Combined (Tier 2)** | $S \ge 0.75$ | 85.50% | 100.00% | 0.00% | 0.9218 | High-precision wire drop (>98.5% precision) |
+| **Combined (Tier 1)** | $S \ge 0.40$ | 100.00% | 94.34% | 6.00% | 0.9709 | Zero FN guarantee for human escalation |
+| **Combined (Tier 2)** | $S \ge 0.75$ | 83.50% | 100.00% | 0.00% | 0.9101 | High-precision wire drop (>98.5% precision) |
 
 ## 5. Fine-Grained Category-Level Performance Breakdown
 
 | Category | Class | Samples | Mean P | Mean H | Mean S | Pure ML (P>=0.50) | Heuristics (H>=0.50) | Tier 1 (S>=0.40) | Tier 2 (S>=0.75) | Status |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| Bank Fraud Alerts (YES/NO) | BENIGN | 25 | 0.0053 | 0.0000 | 0.0053 | 0/25 (0.0%) | 0/25 (0.0%) | 0/25 (0.0%) | 0/25 (0.0%) | PASSED |
-| Carrier Usage & Roaming Notices | BENIGN | 25 | 0.1340 | 0.0000 | 0.1340 | 0/25 (0.0%) | 0/25 (0.0%) | 3/25 (12.0%) | 0/25 (0.0%) | PASSED |
-| Clinical Appointments & Billing | BENIGN | 25 | 0.1023 | 0.0000 | 0.1023 | 0/25 (0.0%) | 0/25 (0.0%) | 0/25 (0.0%) | 0/25 (0.0%) | PASSED |
-| 2FA & OTP Authentication Codes | BENIGN | 25 | 0.1122 | 0.0000 | 0.1122 | 1/25 (4.0%) | 0/25 (0.0%) | 1/25 (4.0%) | 0/25 (0.0%) | PASSED |
-| Package Delivery Status Updates | BENIGN | 25 | 0.1839 | 0.1680 | 0.1946 | 3/25 (12.0%) | 0/25 (0.0%) | 5/25 (20.0%) | 0/25 (0.0%) | PASSED |
-| Retail Receipts & Curbside Pickups | BENIGN | 25 | 0.0989 | 0.0080 | 0.0990 | 0/25 (0.0%) | 0/25 (0.0%) | 2/25 (8.0%) | 0/25 (0.0%) | PASSED |
-| Legitimate Crypto Exchange Notices | BENIGN | 25 | 0.1994 | 0.0000 | 0.1994 | 3/25 (12.0%) | 0/25 (0.0%) | 4/25 (16.0%) | 0/25 (0.0%) | PASSED |
-| Conversational & P2P Messages | BENIGN | 25 | 0.1852 | 0.0000 | 0.1852 | 0/25 (0.0%) | 0/25 (0.0%) | 3/25 (12.0%) | 0/25 (0.0%) | PASSED |
-| Bank Account Suspension Panic Lures | FRAUD | 30 | 0.9536 | 0.8200 | 1.0000 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
-| Parcel Delivery Customs Fee Scams | FRAUD | 30 | 0.8905 | 0.7700 | 0.9355 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
-| Tax & Court Legal Extortion Threats | FRAUD | 30 | 0.8155 | 0.8320 | 1.0000 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
-| Cryptocurrency Giveaway & Seed Scams | FRAUD | 25 | 0.7872 | 0.6860 | 0.8898 | 25/25 (100.0%) | 20/25 (80.0%) | 25/25 (100.0%) | 24/25 (96.0%) | PASSED |
-| Broken Phone Family WhatsApp Lures | FRAUD | 25 | 0.7271 | 0.6500 | 0.8178 | 25/25 (100.0%) | 25/25 (100.0%) | 25/25 (100.0%) | 25/25 (100.0%) | PASSED |
-| Fake DocuSign & Invoice Scams | FRAUD | 25 | 0.7359 | 0.5620 | 0.7986 | 24/25 (96.0%) | 15/25 (60.0%) | 25/25 (100.0%) | 12/25 (48.0%) | PASSED |
-| Homoglyph & Leetspeak Obfuscation | FRAUD | 20 | 0.8175 | 0.4580 | 0.8533 | 20/20 (100.0%) | 8/20 (40.0%) | 20/20 (100.0%) | 16/20 (80.0%) | PASSED |
-| Zero-Link Call-Back Impersonation | FRAUD | 15 | 0.5155 | 0.1867 | 0.5933 | 11/15 (73.3%) | 4/15 (26.7%) | 15/15 (100.0%) | 4/15 (26.7%) | PASSED |
+| Bank Fraud Alerts (YES/NO) | BENIGN | 25 | 0.0038 | 0.0000 | 0.0038 | 0/25 (0.0%) | 0/25 (0.0%) | 0/25 (0.0%) | 0/25 (0.0%) | PASSED |
+| Carrier Usage & Roaming Notices | BENIGN | 25 | 0.1199 | 0.0000 | 0.1199 | 0/25 (0.0%) | 0/25 (0.0%) | 2/25 (8.0%) | 0/25 (0.0%) | PASSED |
+| Clinical Appointments & Billing | BENIGN | 25 | 0.0928 | 0.0000 | 0.0928 | 0/25 (0.0%) | 0/25 (0.0%) | 0/25 (0.0%) | 0/25 (0.0%) | PASSED |
+| 2FA & OTP Authentication Codes | BENIGN | 25 | 0.1029 | 0.0000 | 0.1029 | 1/25 (4.0%) | 0/25 (0.0%) | 1/25 (4.0%) | 0/25 (0.0%) | PASSED |
+| Package Delivery Status Updates | BENIGN | 25 | 0.1598 | 0.1680 | 0.1695 | 2/25 (8.0%) | 0/25 (0.0%) | 3/25 (12.0%) | 0/25 (0.0%) | PASSED |
+| Retail Receipts & Curbside Pickups | BENIGN | 25 | 0.0850 | 0.0080 | 0.0850 | 1/25 (4.0%) | 0/25 (0.0%) | 1/25 (4.0%) | 0/25 (0.0%) | PASSED |
+| Legitimate Crypto Exchange Notices | BENIGN | 25 | 0.1909 | 0.0000 | 0.1909 | 3/25 (12.0%) | 0/25 (0.0%) | 4/25 (16.0%) | 0/25 (0.0%) | PASSED |
+| Conversational & P2P Messages | BENIGN | 25 | 0.1409 | 0.0000 | 0.1409 | 0/25 (0.0%) | 0/25 (0.0%) | 1/25 (4.0%) | 0/25 (0.0%) | PASSED |
+| Bank Account Suspension Panic Lures | FRAUD | 30 | 0.9679 | 0.8200 | 1.0000 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
+| Parcel Delivery Customs Fee Scams | FRAUD | 30 | 0.8818 | 0.7700 | 0.9303 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
+| Tax & Court Legal Extortion Threats | FRAUD | 30 | 0.8165 | 0.8320 | 1.0000 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
+| Cryptocurrency Giveaway & Seed Scams | FRAUD | 25 | 0.7825 | 0.6860 | 0.8799 | 25/25 (100.0%) | 20/25 (80.0%) | 25/25 (100.0%) | 20/25 (80.0%) | PASSED |
+| Broken Phone Family WhatsApp Lures | FRAUD | 25 | 0.8092 | 0.7500 | 0.8851 | 25/25 (100.0%) | 25/25 (100.0%) | 25/25 (100.0%) | 25/25 (100.0%) | PASSED |
+| Fake DocuSign & Invoice Scams | FRAUD | 25 | 0.7412 | 0.5620 | 0.8065 | 23/25 (92.0%) | 15/25 (60.0%) | 25/25 (100.0%) | 15/25 (60.0%) | PASSED |
+| Homoglyph & Leetspeak Obfuscation | FRAUD | 20 | 0.7767 | 0.4580 | 0.8179 | 20/20 (100.0%) | 8/20 (40.0%) | 20/20 (100.0%) | 16/20 (80.0%) | PASSED |
+| Zero-Link Call-Back Impersonation | FRAUD | 15 | 0.5528 | 0.1867 | 0.6299 | 11/15 (73.3%) | 4/15 (26.7%) | 15/15 (100.0%) | 1/15 (6.7%) | PASSED |
 
 ## 6. Error Analysis Summary
 
-- **Tier 1 False Positives ($S \ge 0.40$, Benign):** 18 samples
+- **Tier 1 False Positives ($S \ge 0.40$, Benign):** 12 samples
 - **Tier 2 False Positives ($S \ge 0.75$, Benign):** 0 samples
 - **Tier 1 False Negatives ($S < 0.40$, Fraud):** 0 samples (Zero Escaped Attacks)
-- **Tier 2 False Negatives ($S < 0.75$, Fraud):** 29 samples (Safely caught in Tier 1 queue)
+- **Tier 2 False Negatives ($S < 0.75$, Fraud):** 33 samples (Safely caught in Tier 1 queue)
 
 ### Key False Positive Insights
 Legitimate banking fraud alerts with urgency keywords (e.g. *'Chase Fraud Alert: Did you attempt $35.50? Reply YES or NO'*), and carrier data threshold alerts account for benign messages receiving Tier 1 review. Because they are routed to Tier 1 review rather than dropped on the wire, no legitimate alert or OTP is blocked by those Tier 1 flags.
@@ -94,6 +94,14 @@ Legitimate banking fraud alerts with urgency keywords (e.g. *'Chase Fraud Alert:
 ### Heuristic Rule Refinement Audit Trail (`SF-005`)
 - **Sample 184 Remediation (`RULE:TAX_ARREST_THREAT`):** Driven directly by `Dev/Val N=400` error analysis on Sample 184 (*"Process server showed up at the neighbors house looking for the previous tenant."*), `RULE:TAX_ARREST_THREAT` ($H = 0.80$) was refined in [`onnx_engine.py`](../sentinelflow/backend/app/telecom/onnx_engine.py) so legal/tax/process terms require paired coercive enforcement/extortion context rather than matching third-person narrative.
 - **Measured Benchmark Impact (`Dev/Val N=400`):** Sample 184 shifted from unconditional wire drop (`BLOCK`, $S = 1.0$) to `ALLOW` ($S = 0.0825$, $H = 0.0$), reducing Tier 2 false positives from 2 to 1 and improving Tier 2 precision while preserving `100%` recall (`30/30`) on `smish_legal_extortion` without retraining or altering model weights (`32c4a024...`).
+
+### 3-Tier Family-Impersonation Operational Policy (`SF-007`)
+
+| Sub-Class | Behavioral Signal Profile | Heuristic Rule & Weight | Target Tier & Score Range | Operational Action |
+|---|---|:---:|:---:|---|
+| **Class A — Benign Repair / Casual Broken-Phone Chat** | Repair pickup/quote confirmations, or casual personal/colleague device switches (`iPad`, laptop, spare phone) without unverified kinship relay, external links, or financial demands | None ($H = 0.00$) | `ALLOW` ($S < 0.40$) | Immediate wire delivery |
+| **Class B — Ambiguous Unverified Kinship + Broken Phone + App Mention** | Unverified kinship/relay cue + broken/lost phone/SIM + P2P app (`WhatsApp`/`Telegram`/`Signal`), **strictly excluding** external URLs (`http`/`wa.me`/`t.me`) and payment/bill demands | `RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P` ($H = 0.55$) | `FLAG` (Tier 1, $0.40 \le S < 0.75$) | Async warning / review queue (no silent drop) |
+| **Class C — Actionable Family-Impersonation Scam** | Kinship/relay + broken phone or new/temporary number + external link (`wa.me`/`http`/`t.me`) **or** urgent financial demand (`Zelle`/`Venmo`/`Cash App`/wire/urgent bill) | `RULE:FAMILY_IMPERSONATION_MESSAGING_LURE` ($H = 0.75$, $0.87$ with `STANDALONE_URL`) | `BLOCK` (Tier 2, $S \ge 0.75$) | Immediate synchronous wire drop |
 
 ## 7. Mathematical Formulation & Monotonicity Guarantees
 
@@ -116,4 +124,4 @@ S_{\text{content}} + V \cdot (1 - S_{\text{content}}) & \text{otherwise \quad (P
 1. **Monotonic Non-Decreasing Property:** $\frac{\partial S_{\text{composite}}}{\partial P} \ge 0$, $\frac{\partial S_{\text{composite}}}{\partial H} \ge 0$, and $\frac{\partial S_{\text{composite}}}{\partial V} \ge 0$ everywhere on $[0, 1]^3$. Output is strictly bounded within $[0.0, 1.0]$. Terminology note: the function is strictly *monotonic non-decreasing* rather than strictly monotonic due to the flat boundary plateau where $H \ge 0.80$ forces $S_{\text{composite}} = 1.0$.
 2. **Benign Indicator Suppression:** When $H \le 0.25$ and $P < 0.30$, $\alpha(P, H) = 0.0$ and $S_{\text{content}} = P < 0.30 < 0.40$, strictly avoiding false-positive customer friction.
 3. **Authoritative Heuristic Override ($H \ge 0.80$):** High-confidence threat rules immediately override to $S_{\text{composite}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` ($H = 0.80$) is the explicit rule capable of triggering an immediate standalone override block. High-severity rules with base score $\ge 0.70$ (e.g. `URGENT_ACCOUNT_LOCKOUT`, `UNPAID_TOLL_INVOICE`) reach $\ge 0.82$ via compound rule escalation (+0.12 boost) when paired with a secondary risk signal.
-4. **Individual Heuristic Threshold Clarification ($H = 0.65$):** A heuristic score of $H = 0.65$ (e.g. `RULE:FAMILY_IMPERSONATION_MESSAGING_LURE`) does *not* force Tier 1 escalation ($S_{\text{composite}} \ge 0.40$) on its own when ML suspicion is zero ($P = 0.0, V = 0.0$). At $P = 0.0$, $W_H = 0.3325$ and $S_{\text{composite}} = 0.3325 < 0.40$ (`ALLOW`). Escalation to Tier 1 without velocity requires baseline ML suspicion $P \ge 0.1012$.
+4. **Individual Heuristic Threshold Clarification ($H = 0.65$):** A heuristic score of $H = 0.65$ (e.g. `RULE:DELIVERY_FEE_SCAM`, `RULE:WORK_FROM_HOME_SCAM`) does *not* force Tier 1 escalation ($S_{\text{composite}} \ge 0.40$) on its own when ML suspicion is zero ($P = 0.0, V = 0.0$). At $P = 0.0$, $W_H = 0.3325$ and $S_{\text{composite}} = 0.3325 < 0.40$ (`ALLOW`). Escalation to Tier 1 without velocity requires baseline ML suspicion $P \ge 0.1012$.

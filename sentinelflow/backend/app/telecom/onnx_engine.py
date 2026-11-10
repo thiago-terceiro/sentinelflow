@@ -29,6 +29,33 @@ import onnxruntime as ort
 
 logger = logging.getLogger(__name__)
 
+_FAMILY_REPAIR_EXCLUSION = (
+    r"\b(?:repaired|repair shop|service center|technician|ready for pickup|"
+    r"pickup at|screen repair|repair quote|quote)\b"
+)
+_FAMILY_KINSHIP_OR_RELAY = (
+    r"\b(?:mum|mom|dad|mama|papa|borrowing (?:a |friend|someone)|"
+    r"temporary (?:number|mobile|phone|whatsapp)|new number)\b"
+)
+_FAMILY_KINSHIP_ONLY = r"\b(?:mum|mom|dad|mama|papa)\b"
+_FAMILY_NUMBER_SWAP = (
+    r"\b(?:borrowing (?:a |friend|someone)|"
+    r"temporary (?:number|mobile|phone|whatsapp)|new number)\b"
+)
+_FAMILY_BROKEN_PHONE = (
+    r"\b(?:broken phone|cracked (?:screen|my screen)|phone screen(?:\s+\w+){0,4}\s+cracked|"
+    r"phone(?:\s+\w+){0,4}\s+cracked|dropped (?:my )?phone|broke my phone|phone broke|"
+    r"lost my (?:phone|mobile|sim)|phone\s+(?:stopped\s+working|died|is\s+dead)|"
+    r"smashed\s+(?:my\s+)?(?:phone|screen))\b"
+)
+_FAMILY_P2P_APP = r"\b(?:whatsapp|telegram|signal|imessage)\b"
+_FAMILY_ACTIONABLE_LURE = (
+    r"(?:https?://\S+|wa\.me/\S*|t\.me/\S*|\$\s*\d+(?:,\d{3})*(?:\.\d{2})?|"
+    r"\b(?:zelle|venmo|cash ?app|paypal|wire transfer|bank transfer|e-transfer|"
+    r"(?:urgent|emergency)\s+(?:bill|rent|payment|fee|transfer|funds)|"
+    r"(?:send|transfer|pay|wire)\s+(?:me\s+)?(?:\$\d+|money|funds|rent|bill))\b)"
+)
+
 # Pre-compiled high-confidence smishing / fraud heuristic rules
 HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
@@ -129,19 +156,32 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
         0.70,
     ),
     (
-        "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+        "RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P",
         re.compile(
-            r"^(?!.*\b(?:repaired|repair shop|service center|technician|ready for pickup|quote)\b)"
-            r"(?=.*\b(?:mum|mom|dad|mama|papa|borrowing (?:a |friend|someone)|"
-            r"temporary (?:number|mobile|phone|whatsapp)|new number)\b)"
-            r"(?=.*\b(?:broken phone|cracked (?:screen|my screen)|phone screen.*cracked|"
-            r"phone.*cracked|dropped (?:my )?phone|broke my phone|phone broke|"
-            r"lost my (?:phone|mobile|sim))\b)"
-            r".*\b(?:whatsapp|telegram|wa\.me|signal|zelle|venmo|cash ?app|wire transfer|"
-            r"emergency bill|urgent bill)\b",
+            # Class B (SF-007 3-tier policy): Unverified kinship/relay + broken phone + P2P app,
+            # strictly excluding repair confirmations and links/payment demands (Class C).
+            rf"^(?!.*{_FAMILY_REPAIR_EXCLUSION})"
+            rf"(?!.*{_FAMILY_ACTIONABLE_LURE})"
+            rf"(?=.*{_FAMILY_KINSHIP_OR_RELAY})"
+            rf"(?=.*{_FAMILY_BROKEN_PHONE})"
+            rf"(?=.*{_FAMILY_P2P_APP})",
             re.IGNORECASE | re.DOTALL,
         ),
-        0.65,
+        0.55,
+    ),
+    (
+        "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+        re.compile(
+            # Class C (SF-007 3-tier policy): Actionable family-impersonation lure requiring
+            # non-repair context, (broken phone + kinship/relay OR kinship + number-swap),
+            # AND external link (wa.me/http/t.me) or financial/urgent bill demand.
+            rf"^(?!.*{_FAMILY_REPAIR_EXCLUSION})"
+            rf"(?:(?=.*{_FAMILY_KINSHIP_OR_RELAY})(?=.*{_FAMILY_BROKEN_PHONE})"
+            rf"|(?=.*{_FAMILY_KINSHIP_ONLY})(?=.*{_FAMILY_NUMBER_SWAP}))"
+            rf"(?=.*{_FAMILY_ACTIONABLE_LURE})",
+            re.IGNORECASE | re.DOTALL,
+        ),
+        0.75,
     ),
     (
         "RULE:WORK_FROM_HOME_SCAM",
@@ -277,7 +317,7 @@ def compute_composite_score(
        When H <= 0.25 and P < 0.30, alpha == 0.0 and S_content == P < 0.30 < 0.40 (ALLOW).
 
        Note on Tier 1 Escalation and Individual Heuristics:
-       A heuristic score of H = 0.65 (e.g. RULE:FAMILY_IMPERSONATION_MESSAGING_LURE) does
+       A heuristic score of H = 0.65 (e.g. RULE:DELIVERY_FEE_SCAM, RULE:WORK_FROM_HOME_SCAM) does
        NOT guarantee Tier 1 escalation (S_composite >= 0.40) on its own when ML suspicion is zero.
        With H = 0.65, P = 0.0, and V = 0.0:
          W_H = 0.35 * 0.65 + 0.30 * (0.65 - 0.30) = 0.2275 + 0.105 = 0.3325

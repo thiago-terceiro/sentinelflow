@@ -400,18 +400,131 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
             explicit_family="fraud_postal_customs_fee",
         )
 
-    # Augment fraud family impersonation lures with alternative channels (WhatsApp, Zelle, Venmo)
-    for i in range(15):
+    # Calibrate Class A benign phone repair, device-switch, and everyday P2P app chatter (SF-007)
+    repair_pickup_shops = [
+        ("FixIt Mobile Repair", "Oak St counter", "smartphone display replacement"),
+        ("uBreakiFix Shop", "Market Ave desk", "glass screen replacement"),
+        ("TechPulse Repair", "Main Plaza counter", "charging port repair"),
+        ("BatteryPlus Service", "Pine St desk", "screen and battery swap"),
+        ("MobileCare Center", "Elm Ave counter", "front camera and glass repair"),
+    ]
+    for idx, (shop, desk, work) in enumerate(repair_pickup_shops):
         _add_sample(
-            f"Hey mum, broke my phone and lost my SIM. Need to pay an urgent bill, can you transfer $450 to my Zelle? wa.me/1917555{1000 + i}",
-            1,
-            explicit_family="fraud_family_impersonation_lure",
+            f"{shop}: Your {work} (#R{3100 + idx}) is repaired and ready for pickup at our {desk}. Message us on WhatsApp with questions.",
+            0,
+            explicit_family="legit_phone_repair_pickup",
         )
+
+    repair_quotes = [
+        "Metro Device Clinic: Repair quote #7810 approved for your cracked display. Technician will update you on WhatsApp.",
+        "SmartFix Service Center: Diagnostic completed on your mobile handset. Quote is $79; message WhatsApp desk to confirm.",
+        "Apex Phone Repair: Replacement parts arrived at our service center. Technician note posted via Signal.",
+        "BlueLine Repair Shop: Warranty screen replacement is covered under AppleCare. Ready for collection after 4 PM.",
+    ]
+    for msg in repair_quotes:
+        _add_sample(msg, 0, explicit_family="legit_phone_repair_quote")
+
+    casual_device_switches = [
+        "Dropped my smartphone at home this morning, replying from my tablet via WhatsApp today.",
+        "My phone battery died completely at the airport, reaching out from my MacBook on Signal until tonight.",
+        "Hey Sam, my phone broke at lunch so I am using an old spare handset, text me on WhatsApp later.",
+        "Screen on my daily handset cracked in my bag so I switched to an old backup phone, message me on Telegram.",
+        "Phone slipped on the gym floor and stopped turning on, catching up with everyone from my iPad on WhatsApp.",
+        "Hey Jordan, left my phone on the kitchen charger so I am texting from my Chromebook on WhatsApp.",
+        "Hey, my phone is updating in the other room so I am writing from my iPad on WhatsApp for now.",
+        "Broke my old work handset last week and switched to an old one from the drawer, text me on WhatsApp.",
+    ]
+    for msg in casual_device_switches:
+        _add_sample(msg, 0, explicit_family="legit_casual_device_switch")
+
+    casual_family_and_p2p = [
+        "Hey dad, picking up dinner on my way back home, want anything from the bakery?",
+        "Hi dad, finished the lab exam early, calling you once I get off the bus.",
+        "Hey, just landed in Chicago, my phone was on airplane mode all afternoon.",
+        "Hey Rachel, my phone speaker stopped working after the update, texting from my iPad tonight.",
+        "Hi dad, left my charger at school, using my laptop until tonight.",
+        "Hey, my phone camera lens cracked on the hike, still taking pics with an old spare camera.",
+        "Hey papa, just wrapped up at the office, call me on WhatsApp when free tonight.",
+        "Hi Maya, got a new number today after switching carrier plans, message me on WhatsApp when free.",
+    ]
+    for msg in casual_family_and_p2p:
+        _add_sample(msg, 0, explicit_family="legit_casual_p2p_greetings")
+
+    temporary_travel_sim_chats = [
+        "Hey Alex, picked up a temporary number on a travel SIM for Lisbon this week, text me on Telegram if we meet up.",
+        "Carrier swapped my faulty SIM tray at the store and lent me a temporary number for tonight, message me on Signal.",
+        "Lost my SIM card at the airport kiosk so I activated a temporary local number for tonight, chat me on Telegram.",
+        "Left my regular SIM at home before the flight, using a temporary prepaid number on Telegram for two days.",
+    ]
+    for msg in temporary_travel_sim_chats:
+        _add_sample(msg, 0, explicit_family="legit_temporary_travel_sim")
+
+    p2p_app_chats = [
+        "Are you checking the family group chat on WhatsApp before dinner tonight?",
+        "Sent the hiking photos in our Signal group, let me know which ones to print.",
+        "Can you forward the flight itinerary on Telegram before we head to the terminal?",
+        "We moved the carpool thread over to Signal so everyone gets the pickup alerts.",
+    ]
+    for msg in p2p_app_chats:
+        _add_sample(msg, 0, explicit_family="legit_p2p_messaging_app")
+
+    # Augment Class C actionable family-impersonation lures across diverse templates & payment/link vectors (SF-007)
+    wame_variants = [
+        ("mum", "broke my phone and lost my SIM", f"wa.me/1917555{1000 + i}")
+        if i == 0
+        else ("mum", "shattered my phone display on the curb", f"wa.me/1917555{1000 + i}")
+        if i % 3 == 0
+        else ("mom", "dropped my handset and cracked the LCD", f"wa.me/1917555{1000 + i}")
+        if i % 3 == 1
+        else ("dad", "smashed my phone at the station", f"wa.me/1646555{2000 + i}")
+        for i in range(9)
+    ]
+    for rel, damage, link in wame_variants:
         _add_sample(
-            "Hi dad, dropped my phone in water, using temporary number. Please send $350 via Venmo for emergency rent.",
+            f"Hey {rel}, {damage}. Text my temporary WhatsApp link right now: {link}",
             1,
-            explicit_family="fraud_family_impersonation_lure",
+            explicit_family="fraud_family_wame_lure",
         )
+
+    zelle_variants = [
+        "Hey mum, broke my phone at the station. Need to pay an urgent bill of $320, can you transfer it to my Zelle?",
+        "Hi mom, dropped my handset this morning and need to cover an urgent invoice of $345 via Zelle right away.",
+        "Hey dad, my phone screen cracked completely. Please Zelle $370 urgently for an unexpected towing bill.",
+        "Hi mama, broke my phone and locked out of banking app. Can you send $395 to my Zelle for an emergency bill?",
+        "Hey mum, lost my SIM while traveling. Need to settle an urgent $420 hotel deposit, please transfer via Zelle.",
+        "Hi papa, phone died before paying rent. Can you transfer $445 via Zelle for an urgent payment?",
+        "Hey mom, using someone else's phone after losing mine. Please Zelle $470 right now for an urgent medical bill.",
+    ]
+    for msg in zelle_variants:
+        _add_sample(msg, 1, explicit_family="fraud_family_zelle_lure")
+
+    p2p_pay_variants = [
+        ("dad", "dropped my phone in water", "Venmo", 350, "emergency rent"),
+        ("mom", "phone broke completely", "Cash App", 280, "urgent medical bill"),
+        ("mama", "got a temporary number today", "Venmo", 410, "urgent bill before 5 PM"),
+        ("papa", "cracked my phone screen", "Cash App", 240, "emergency car repair bill"),
+        ("mum", "using a new number tonight", "Zelle", 390, "urgent utility bill"),
+        ("dad", "lost my phone and SIM card", "Cash App", 310, "emergency invoice payment"),
+        ("mom", "dropped my phone earlier", "Venmo", 295, "urgent rent payment"),
+        ("dad", "my phone screen shattered", "Zelle", 425, "emergency veterinary bill"),
+    ]
+    for rel, context, app_name, amount, reason in p2p_pay_variants:
+        _add_sample(
+            f"Hi {rel}, {context} and using temporary number. Please send ${amount} via {app_name} for {reason}.",
+            1,
+            explicit_family="fraud_family_venmo_cashapp_lure",
+        )
+
+    wire_http_variants = [
+        "Hi dad, my phone broke and I am borrowing someone's phone, please wire transfer $520 immediately for an emergency bill.",
+        "Hey mom, dropped my phone and lost my SIM, open https://help-family-bridge.info/verify to pay my urgent rent.",
+        "Hi papa, phone screen shattered and I have a new number, please wire $450 urgent payment right away.",
+        "Hey mum, borrowing a friend's phone after losing mine, click http://family-temp-pay.xyz/bill to cover $275.",
+        "Hi mom, got a temporary number today, can you wire transfer $600 for an urgent hospital fee right now?",
+        "Hey dad, my phone broke completely, send funds via https://temp-family-relay.top/send before bank cutoff.",
+    ]
+    for msg in wire_http_variants:
+        _add_sample(msg, 1, explicit_family="fraud_family_wire_http_lure")
 
     return texts, labels, groups
 
