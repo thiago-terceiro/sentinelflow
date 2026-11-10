@@ -17,12 +17,13 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import shutil
 import tempfile
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -708,6 +709,124 @@ def extract_error_analysis(
     }
 
 
+def compute_wilson_ci(
+    successes: int,
+    total: int,
+    z: float = 1.95996,
+) -> tuple[float, float]:
+    """Computes the exact two-sided Wilson score binomial confidence interval in [0, 1]."""
+    if total <= 0:
+        raise ValueError(f"total must be > 0 for Wilson confidence interval (got {total})")
+    if successes < 0 or successes > total:
+        raise ValueError(f"successes ({successes}) must satisfy 0 <= successes <= total ({total})")
+
+    n = float(total)
+    p = float(successes) / n
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    center = (p + z2 / (2.0 * n)) / denom
+    half_width = (z * math.sqrt((p * (1.0 - p) + z2 / (4.0 * n)) / n)) / denom
+    lower = max(0.0, min(1.0, center - half_width))
+    upper = max(0.0, min(1.0, center + half_width))
+    return (round(lower, 6), round(upper, 6))
+
+
+def _safe_wilson_ci(
+    successes: int,
+    total: int,
+    z: float = 1.95996,
+) -> list[float] | None:
+    """Returns [lower_95, upper_95] or None when the denominator is zero (undefined proportion)."""
+    if total <= 0:
+        return None
+    low, high = compute_wilson_ci(successes, total, z=z)
+    return [low, high]
+
+
+def compute_calibration_diagnostics(
+    y_true: Sequence[int] | np.ndarray,
+    y_prob: Sequence[float] | np.ndarray,
+    n_bins: int = 10,
+) -> dict[str, Any]:
+    """Computes Expected Calibration Error (ECE) and equal-width 10-bin reliability diagnostics.
+
+    Bin boundaries partition [0.0, 1.0] into `n_bins` equal-width intervals: half-open
+    `[lower, upper)` for bins `0 .. n_bins - 2` and closed `[lower, 1.0]` for bin
+    `n_bins - 1` so exact probability `1.0` falls cleanly into the top bin.
+    Empty bins leave `mean_predicted_prob`, `empirical_positive_rate`, and
+    `abs_calibration_gap` as `None` (undefined) with weight `0 / N` in ECE.
+    """
+    if n_bins <= 0:
+        raise ValueError(f"n_bins must be positive (got {n_bins})")
+
+    y_arr = np.asarray(y_true, dtype=int)
+    p_arr = np.asarray(y_prob, dtype=float)
+    if y_arr.shape != p_arr.shape or y_arr.ndim != 1:
+        raise ValueError("y_true and y_prob must be 1D sequences of identical length")
+    if len(y_arr) == 0:
+        raise ValueError("y_true and y_prob must be non-empty")
+    if not np.all(np.isfinite(p_arr)) or np.any(p_arr < 0.0) or np.any(p_arr > 1.0):
+        raise ValueError("y_prob values must be finite and within [0.0, 1.0]")
+
+    n_total = int(len(y_arr))
+    ece = 0.0
+    mce = 0.0
+    reliability_bins: list[dict[str, Any]] = []
+    width = 1.0 / n_bins
+
+    for bin_idx in range(n_bins):
+        bin_lower = round(bin_idx * width, 6)
+        bin_upper = 1.0 if bin_idx == n_bins - 1 else round((bin_idx + 1) * width, 6)
+        if bin_idx == n_bins - 1:
+            mask = (p_arr >= bin_lower) & (p_arr <= 1.0)
+        else:
+            mask = (p_arr >= bin_lower) & (p_arr < bin_upper)
+
+        count = int(np.sum(mask))
+        if count == 0:
+            reliability_bins.append(
+                {
+                    "bin_index": bin_idx,
+                    "bin_lower": bin_lower,
+                    "bin_upper": bin_upper,
+                    "sample_count": 0,
+                    "mean_predicted_prob": None,
+                    "empirical_positive_rate": None,
+                    "abs_calibration_gap": None,
+                }
+            )
+            continue
+
+        mean_pred = float(np.mean(p_arr[mask]))
+        emp_rate = float(np.mean(y_arr[mask]))
+        abs_gap = abs(mean_pred - emp_rate)
+        ece += (count / n_total) * abs_gap
+        mce = max(mce, abs_gap)
+
+        reliability_bins.append(
+            {
+                "bin_index": bin_idx,
+                "bin_lower": bin_lower,
+                "bin_upper": bin_upper,
+                "sample_count": count,
+                "mean_predicted_prob": round(mean_pred, 6),
+                "empirical_positive_rate": round(emp_rate, 6),
+                "abs_calibration_gap": round(abs_gap, 6),
+            }
+        )
+
+    brier = float(brier_score_loss(y_arr, p_arr))
+    return {
+        "bin_scheme": "equal_width_half_open_final_closed",
+        "n_bins": n_bins,
+        "sample_count": n_total,
+        "ece": round(ece, 6),
+        "max_calibration_error": round(mce, 6),
+        "brier_score": round(brier, 6),
+        "reliability_bins": reliability_bins,
+    }
+
+
 def compute_evaluation_metrics(
     y_true: list[int] | np.ndarray,
     y_prob: list[float] | np.ndarray,
@@ -772,6 +891,23 @@ def compute_evaluation_metrics(
     category_analysis = compute_category_metrics(samples, y_prob_arr, comp_arr, heuristic_scores=heuristic_scores)
     ablation_analysis = compute_ablation_metrics(y_true_arr, y_prob_arr, heuristic_scores, comp_arr)
     error_analysis = extract_error_analysis(samples, y_prob_arr, heuristic_scores, comp_arr)
+    cal_diag = compute_calibration_diagnostics(y_true_arr, y_prob_arr, n_bins=10)
+    wilson_95_ci = {
+        "confidence_level": 0.95,
+        "z_score": 1.95996,
+        "methodology_note": (
+            "Message-level Wilson 95% binomial intervals assume independent Bernoulli trials; "
+            "consult cluster-level semantic-family bootstrap CIs for correlated uncertainty."
+        ),
+        "ml_p50_precision": _safe_wilson_ci(int(tp), int(tp + fp)),
+        "ml_p50_recall": _safe_wilson_ci(int(tp), int(tp + fn)),
+        "tier1_precision": _safe_wilson_ci(int(tp1), int(tp1 + fp1)),
+        "tier1_recall": _safe_wilson_ci(int(tp1), int(tp1 + fn1)),
+        "tier1_fpr": _safe_wilson_ci(int(fp1), int(fp1 + tn1)),
+        "tier2_precision": _safe_wilson_ci(int(tp2), int(tp2 + fp2)),
+        "tier2_recall": _safe_wilson_ci(int(tp2), int(tp2 + fn2)),
+        "tier2_fpr": _safe_wilson_ci(int(fp2), int(fp2 + tn2)),
+    }
 
     return {
         "sample_count": int(len(y_true_arr)),
@@ -792,6 +928,10 @@ def compute_evaluation_metrics(
         "roc_auc": round(roc_auc, 4),
         "pr_auc": round(pr_auc, 4),
         "brier_score": round(brier, 4),
+        "ece": cal_diag["ece"],
+        "reliability_bins": cal_diag["reliability_bins"],
+        "calibration_diagnostics": cal_diag,
+        "wilson_95_ci": wilson_95_ci,
         "false_positive_rate": round(fpr, 4),
         "false_negative_rate": round(fnr, 4),
         "tier1_escalation": {
@@ -830,44 +970,10 @@ def _compute_verdict(composite_score: float) -> str:
 
 
 def _build_reference_sklearn_pipeline() -> Any:
-    """Fits the deterministic reference Scikit-Learn pipeline on the training corpus."""
-    from app.telecom.train_onnx_model import build_augmented_dataset
-    from sklearn.calibration import CalibratedClassifierCV
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.pipeline import Pipeline
+    """Fits the deterministic reference Scikit-Learn pipeline matching production export."""
+    from app.telecom.train_onnx_model import build_production_pipeline
 
-    texts, labels, _ = build_augmented_dataset()
-
-    pipeline = Pipeline(
-        [
-            (
-                "tfidf",
-                TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    sublinear_tf=True,
-                    max_features=2500,
-                    min_df=1,
-                    token_pattern=r"\b[a-zA-Z0-9_]+\b",  # noqa: S106
-                ),
-            ),
-            (
-                "clf",
-                CalibratedClassifierCV(
-                    estimator=LogisticRegression(
-                        C=1.5,
-                        max_iter=1000,
-                        class_weight="balanced",
-                        random_state=42,
-                    ),
-                    method="sigmoid",
-                    cv=5,
-                ),
-            ),
-        ]
-    )
-    pipeline.fit(texts, labels)
-    return pipeline
+    return build_production_pipeline()
 
 
 def _compute_tfidf_vector_parity(
@@ -1184,6 +1290,12 @@ def build_merged_metadata(
     metadata["benchmark_predictions_artifact"] = metrics["benchmark_predictions_artifact"]
     metadata["benchmark_predictions_sha256"] = metrics["benchmark_predictions_sha256"]
     metadata["onnx_sklearn_parity"] = metrics["onnx_sklearn_parity"]
+    metadata["ece"] = metrics["ece"]
+    metadata["reliability_bins"] = metrics["reliability_bins"]
+    metadata["calibration_diagnostics"] = metrics["calibration_diagnostics"]
+    metadata["wilson_95_ci"] = metrics["wilson_95_ci"]
+    if "oof_cross_validation" in metrics:
+        metadata["oof_cross_validation"] = metrics["oof_cross_validation"]
     metadata["evaluation_timestamp"] = metrics["evaluation_timestamp"]
     metadata["software_versions"] = metrics["software_versions"]
     metadata["dev_benchmark_metrics"] = metrics
@@ -1234,6 +1346,137 @@ def export_ml_metrics(metrics: dict[str, Any], output_path: str | Path | None = 
     _atomic_write_bytes(output_path, (json.dumps(metrics, indent=2) + "\n").encode("utf-8"))
     logger.info("Exported empirical ML metrics to %s", output_path)
     return output_path
+
+
+def _format_ci_pct(bounds: Sequence[float] | None) -> str:
+    """Formats [low, high] probability bounds as percentage strings or explicit undefined."""
+    if bounds is None:
+        return "undefined (0 denominator)"
+    return f"[{bounds[0] * 100:.2f}%, {bounds[1] * 100:.2f}%]"
+
+
+def _format_calibration_and_wilson_markdown(metrics: dict[str, Any]) -> list[str]:
+    """Formats Section 8 (10-bin ECE reliability table and 95% Wilson CIs) for Markdown."""
+    cal_diag = metrics.get("calibration_diagnostics", {})
+    bins = metrics.get("reliability_bins", cal_diag.get("reliability_bins", []))
+    wilson = metrics.get("wilson_95_ci", {})
+    t1 = metrics["tier1_escalation"]
+    t2 = metrics["tier2_block"]
+
+    rows = [
+        "## 8. Calibration Diagnostics (10-Bin ECE) & 95% Wilson Confidence Intervals (Dev/Val N=400)",
+        "",
+        f"- **Expected Calibration Error (ECE, 10 equal-width bins):** `{metrics.get('ece', cal_diag.get('ece', 0.0)):.6f}`",
+        f"- **Max Calibration Error (MCE):** `{cal_diag.get('max_calibration_error', 0.0):.6f}`",
+        f"- **Brier Score:** `{metrics['brier_score']:.6f}`",
+        f"- **Binning Scheme:** `{cal_diag.get('bin_scheme', 'equal_width_half_open_final_closed')}` (`[lower, upper)` for bins 0..8; `[0.9, 1.0]` closed for bin 9)",
+        "",
+        "### 10-Bin Reliability Table (Dev/Val N=400)",
+        "",
+        "| Bin | Interval | Count | Mean $P_{\\text{onnx}}$ | Empirical Fraud Rate | $|\\text{Gap}|$ |",
+        "|:---:|:---:|:---:|:---:|:---:|:---:|",
+    ]
+    for bin_row in bins:
+        idx = int(bin_row["bin_index"])
+        lo = float(bin_row["bin_lower"])
+        hi = float(bin_row["bin_upper"])
+        right_bracket = "]" if idx == 9 else ")"
+        interval = f"`[{lo:.1f}, {hi:.1f}{right_bracket}`"
+        cnt = int(bin_row["sample_count"])
+        if cnt == 0:
+            rows.append(f"| {idx} | {interval} | 0 | N/A (empty) | N/A (empty) | N/A |")
+        else:
+            mean_p = f"{float(bin_row['mean_predicted_prob']):.4f}"
+            emp_r = f"{float(bin_row['empirical_positive_rate']):.4f}"
+            gap = f"{float(bin_row['abs_calibration_gap']):.4f}"
+            rows.append(f"| {idx} | {interval} | {cnt} | {mean_p} | {emp_r} | {gap} |")
+
+    rows.extend(
+        [
+            "",
+            "### Message-Level 95% Wilson Binomial Confidence Intervals ($z = 1.95996$)",
+            "",
+            "> **Independence Caveat:** Message-level Wilson intervals treat individual Dev/Val messages as independent Bernoulli trials. Consult Section 9 semantic-family cluster bootstrap intervals for family-level correlation uncertainty on the training corpus.",
+            "",
+            "| Operational Metric | Point Estimate | 95% Wilson CI |",
+            "|---|:---:|:---:|",
+            f"| **Raw ML Precision ($P \\ge 0.50$)** | {metrics['precision']*100:.2f}% | `{_format_ci_pct(wilson.get('ml_p50_precision'))}` |",
+            f"| **Raw ML Recall ($P \\ge 0.50$)** | {metrics['recall']*100:.2f}% | `{_format_ci_pct(wilson.get('ml_p50_recall'))}` |",
+            f"| **Tier 1 Precision (`S >= 0.40`)** | {t1['precision']*100:.2f}% | `{_format_ci_pct(wilson.get('tier1_precision'))}` |",
+            f"| **Tier 1 Recall (`S >= 0.40`)** | {t1['recall']*100:.2f}% | `{_format_ci_pct(wilson.get('tier1_recall'))}` |",
+            f"| **Tier 1 False Positive Rate (`S >= 0.40`)** | {t1['false_positive_rate']*100:.2f}% | `{_format_ci_pct(wilson.get('tier1_fpr'))}` |",
+            f"| **Tier 2 Precision (`S >= 0.75`)** | {t2['precision']*100:.2f}% | `{_format_ci_pct(wilson.get('tier2_precision'))}` |",
+            f"| **Tier 2 Recall (`S >= 0.75`)** | {t2['recall']*100:.2f}% | `{_format_ci_pct(wilson.get('tier2_recall'))}` |",
+            f"| **Tier 2 False Positive Rate (`S >= 0.75`)** | {t2['false_positive_rate']*100:.2f}% | `{_format_ci_pct(wilson.get('tier2_fpr'))}` |",
+            "",
+        ]
+    )
+    return rows
+
+
+def _format_oof_cv_markdown(oof: dict[str, Any]) -> list[str]:
+    """Formats Section 9 (Zero-leakage nested 5-fold OOF CV & cluster bootstrap) for Markdown."""
+    fg = oof["fine_grained"]
+    macro = oof["macro_bank_2way"]
+    comp = fg["completeness"]
+    boot = fg["cluster_bootstrap_95_ci"]
+    ml_oof = fg["pooled_oof_ml"]
+    comp_oof = fg["pooled_oof_composite"]
+    pf = fg["per_fold_summary"]
+    macro_ml = macro["pooled_oof_ml"]
+
+    rows = [
+        "## 9. Zero-Leakage Nested 5-Fold OOF Cross-Validation & Macro-Archetype Sensitivity (`SF-009`)",
+        "",
+        f"- **Protocol:** `{oof['protocol']}`",
+        f"- **Production Export Calibration:** `{oof['production_calibration_strategy']}` (group overlap = `{oof.get('production_calibration_max_group_overlap', 0)}`)",
+        f"- **OOF Completeness:** `{comp['covered_sample_ids']} / {comp['total_samples']}` samples covered, duplicates=`{comp['duplicate_sample_ids']}`, max group overlap across all outer & inner splits=`{fg['max_outer_group_overlap']}` / `{fg['max_inner_group_overlap']}`",
+        f"- **OOF Artifact:** `{oof.get('oof_predictions_artifact', 'oof_predictions.json')}` (`sha256={oof.get('oof_predictions_sha256')}`)",
+        "",
+        "### Fine-Grained Semantic Families (56 Families, Out-of-Fold Pooled & Per-Fold Summary)",
+        "",
+        f"- **Per-Fold Pure-ML Mean ± Std ($P \\ge 0.50$, 5 folds):** ROC-AUC `{pf['roc_auc']['mean']:.4f} ± {pf['roc_auc']['std']:.4f}`, PR-AUC `{pf['pr_auc']['mean']:.4f} ± {pf['pr_auc']['std']:.4f}`, Brier `{pf['brier_score']['mean']:.4f} ± {pf['brier_score']['std']:.4f}`, F1 `{pf['f1_score']['mean']:.4f} ± {pf['f1_score']['std']:.4f}`",
+        f"- **Pooled OOF Pure-ML ($P \\ge 0.50$):** ROC-AUC `{ml_oof['roc_auc']:.4f}`, PR-AUC `{ml_oof['pr_auc']:.4f}`, Brier `{ml_oof['brier_score']:.4f}`, ECE `{ml_oof['ece']:.6f}`, Precision `{ml_oof['precision']*100:.2f}%`, Recall `{ml_oof['recall']*100:.2f}%`, F1 `{ml_oof['f1_score']:.4f}`",
+        f"- **Pooled OOF Composite ($V = 0.0$ offline invariant):** Tier 1 (`S >= 0.40`) Precision `{comp_oof['tier1']['precision']*100:.2f}%`, Recall `{comp_oof['tier1']['recall']*100:.2f}%`, FPR `{comp_oof['tier1']['false_positive_rate']*100:.2f}%`; Tier 2 (`S >= 0.75`) Precision `{comp_oof['tier2']['precision']*100:.2f}%`, Recall `{comp_oof['tier2']['recall']*100:.2f}%`, FPR `{comp_oof['tier2']['false_positive_rate']*100:.2f}%`",
+        "",
+        f"### Semantic-Family Cluster Bootstrap 95% CIs (`{boot['method']}`, `B={boot['replicate_count']}`, `seed={boot['seed']}`, `G={boot['independent_group_count']}` clusters)",
+        "",
+        "| Pooled OOF Pure-ML Metric | Point Estimate | Cluster Bootstrap 95% CI | Message-Level Wilson 95% CI | Undefined Replicates |",
+        "|---|:---:|:---:|:---:|:---:|",
+    ]
+    w_fg = fg["wilson_95_ci"]
+    for label, key, w_key in (
+        ("ROC-AUC", "roc_auc", None),
+        ("PR-AUC", "pr_auc", None),
+        ("Brier Score", "brier_score", None),
+        ("Precision (P >= 0.50)", "precision", "ml_p50_precision"),
+        ("Recall (P >= 0.50)", "recall", "ml_p50_recall"),
+        ("F1 (P >= 0.50)", "f1_score", None),
+    ):
+        entry = boot["metrics"][key]
+        pt = float(ml_oof[key])
+        ci = entry["ci_95"]
+        ci_str = f"[{ci[0]:.4f}, {ci[1]:.4f}]" if ci is not None else "undefined"
+        w_str = _format_ci_pct(w_fg.get(w_key)) if w_key is not None else "N/A (non-binomial)"
+        rows.append(
+            f"| **{label}** | `{pt:.4f}` | `{ci_str}` | `{w_str}` | {entry['undefined_replicates']} |"
+        )
+
+    rows.extend(
+        [
+            "",
+            "### Macro-Archetype Sensitivity (`legit_bank_2way_macro`)",
+            "",
+            f"> **Sensitivity Caveat:** {macro['sensitivity_note']}",
+            "",
+            "| Grouping Variant | Group Count | Pooled OOF ROC-AUC | Pooled OOF PR-AUC | Pooled OOF Brier | Pooled OOF F1 ($P \\ge 0.50$) | Fold Fraud Prevalence Range |",
+            "|---|:---:|:---:|:---:|:---:|:---:|:---:|",
+            f"| **Fine-Grained Families** | {fg['group_count']} | {ml_oof['roc_auc']:.4f} | {ml_oof['pr_auc']:.4f} | {ml_oof['brier_score']:.4f} | {ml_oof['f1_score']:.4f} | `[{fg['min_fold_prevalence']:.4f}, {fg['max_fold_prevalence']:.4f}]` |",
+            f"| **Macro Bank 2-Way (`legit_bank_2way_macro`)** | {macro['group_count']} | {macro_ml['roc_auc']:.4f} | {macro_ml['pr_auc']:.4f} | {macro_ml['brier_score']:.4f} | {macro_ml['f1_score']:.4f} | `[{macro['min_fold_prevalence']:.4f}, {macro['max_fold_prevalence']:.4f}]` |",
+            "",
+        ]
+    )
+    return rows
 
 
 def generate_markdown_report(metrics: dict[str, Any]) -> str:
@@ -1386,6 +1629,10 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
         "4. **Individual Heuristic Threshold Clarification ($H = 0.65$):** A heuristic score of $H = 0.65$ (e.g. `RULE:DELIVERY_FEE_SCAM`, `RULE:WORK_FROM_HOME_SCAM`) does *not* force Tier 1 escalation ($S_{\\text{composite}} \\ge 0.40$) on its own when ML suspicion is zero ($P = 0.0, V = 0.0$). At $P = 0.0$, $W_H = 0.3325$ and $S_{\\text{composite}} = 0.3325 < 0.40$ (`ALLOW`). Escalation to Tier 1 without velocity requires baseline ML suspicion $P \\ge 0.1012$.",
         "",
     ])
+    lines.extend(_format_calibration_and_wilson_markdown(metrics))
+    oof_section = metrics.get("oof_cross_validation")
+    if isinstance(oof_section, dict) and "fine_grained" in oof_section:
+        lines.extend(_format_oof_cv_markdown(oof_section))
 
     return "\n".join(lines)
 
@@ -1807,6 +2054,8 @@ def _validate_markdown_report_content(
             raise ValueError(f"Markdown report missing current {label} ({digest})")
     if "Development & Validation Benchmark" not in text:
         raise ValueError("Markdown report missing Dev/Val benchmark classification disclaimer")
+    if "Calibration Diagnostics (10-Bin ECE)" not in text:
+        raise ValueError("Markdown report missing 10-Bin ECE Calibration Diagnostics section")
 
     for pattern, expected_cm in (
         (
@@ -1979,6 +2228,63 @@ def validate_artifact_bundle_invariants(
             raise ValueError("Delta artifact must never serialize raw SMS text fields")
         if "tier_transitions" not in delta_obj or "change_interpretation" not in delta_obj:
             raise ValueError("Delta artifact missing required summary sections")
+
+    # SF-009 Calibration & Wilson CI cross-artifact verification
+    expected_cal = compute_calibration_diagnostics(
+        labels,
+        [float(r["onnx_prob"]) for r in pred_rows],
+        n_bins=10,
+    )
+    for target_name, container in (
+        ("ml_metrics", metrics),
+        ("metadata", metadata),
+        ("metadata.dev_benchmark_metrics", metadata["dev_benchmark_metrics"]),
+        ("metadata.held_out_adversarial_metrics", metadata["held_out_adversarial_metrics"]),
+    ):
+        if abs(float(container.get("ece", -1.0)) - float(expected_cal["ece"])) > 1e-5:
+            raise ValueError(
+                f"{target_name}.ece mismatch: stored={container.get('ece')} vs {expected_cal['ece']}"
+            )
+        bins = container.get("reliability_bins", [])
+        if len(bins) != 10:
+            raise ValueError(f"{target_name}.reliability_bins expected 10 bins, got {len(bins)}")
+        for b_stored, b_exp in zip(bins, expected_cal["reliability_bins"], strict=True):
+            if int(b_stored["sample_count"]) != int(b_exp["sample_count"]):
+                raise ValueError(f"{target_name} reliability bin {b_exp['bin_index']} count mismatch")
+
+    ml_cm = reconstructed["pure_ml_p50"]["confusion_matrix"]
+    expected_wilson = {
+        "ml_p50_precision": _safe_wilson_ci(int(ml_cm["tp"]), int(ml_cm["tp"] + ml_cm["fp"])),
+        "ml_p50_recall": _safe_wilson_ci(int(ml_cm["tp"]), int(ml_cm["tp"] + ml_cm["fn"])),
+        "tier1_precision": _safe_wilson_ci(int(t1_cm["tp"]), int(t1_cm["tp"] + t1_cm["fp"])),
+        "tier1_recall": _safe_wilson_ci(int(t1_cm["tp"]), int(t1_cm["tp"] + t1_cm["fn"])),
+        "tier1_fpr": _safe_wilson_ci(int(t1_cm["fp"]), int(t1_cm["fp"] + t1_cm["tn"])),
+        "tier2_precision": _safe_wilson_ci(int(t2_cm["tp"]), int(t2_cm["tp"] + t2_cm["fp"])),
+        "tier2_recall": _safe_wilson_ci(int(t2_cm["tp"]), int(t2_cm["tp"] + t2_cm["fn"])),
+        "tier2_fpr": _safe_wilson_ci(int(t2_cm["fp"]), int(t2_cm["fp"] + t2_cm["tn"])),
+    }
+    stored_wilson = metrics.get("wilson_95_ci", {})
+    for w_key, exp_bounds in expected_wilson.items():
+        if w_key not in stored_wilson:
+            raise ValueError(f"ml_metrics.wilson_95_ci missing key: {w_key}")
+        got_bounds = stored_wilson[w_key]
+        if exp_bounds is None:
+            if got_bounds is not None:
+                raise ValueError(f"Expected undefined Wilson CI for {w_key}, got {got_bounds}")
+        else:
+            if not isinstance(got_bounds, list) or len(got_bounds) != 2:
+                raise ValueError(f"Invalid Wilson CI shape for {w_key}: {got_bounds}")
+            if abs(float(got_bounds[0]) - exp_bounds[0]) > 1e-5 or abs(float(got_bounds[1]) - exp_bounds[1]) > 1e-5:
+                raise ValueError(f"Wilson CI mismatch for {w_key}: {got_bounds} vs {exp_bounds}")
+
+    oof_section = metrics.get("oof_cross_validation")
+    if isinstance(oof_section, dict) and "fine_grained" in oof_section:
+        for variant_key in ("fine_grained", "macro_bank_2way"):
+            variant = oof_section[variant_key]
+            if int(variant["max_outer_group_overlap"]) != 0 or int(variant["max_inner_group_overlap"]) != 0:
+                raise ValueError(f"OOF CV group leakage detected in {variant_key}")
+            if not variant["completeness"]["is_complete"]:
+                raise ValueError(f"OOF CV predictions incomplete in {variant_key}")
 
 
 @contextmanager

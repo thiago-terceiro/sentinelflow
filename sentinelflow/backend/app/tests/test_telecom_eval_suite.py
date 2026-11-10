@@ -17,9 +17,12 @@ import pytest
 from app.telecom.evaluate_model import (
     PROB_DELTA_TOLERANCE,
     _compute_verdict,
+    _safe_wilson_ci,
     compute_ablation_metrics,
+    compute_calibration_diagnostics,
     compute_category_metrics,
     compute_sample_level_delta,
+    compute_wilson_ci,
     evaluate_onnx_model,
     extract_error_analysis,
     generate_markdown_report,
@@ -229,16 +232,19 @@ def test_onnx_export_reproducibility_and_runtime_sha256_validation(tmp_path: Pat
     # 1. Verify clean-process export reproducibility across independent subprocesses
     export_snippet = (
         "import hashlib; "
-        "from app.telecom.train_onnx_model import build_augmented_dataset, patch_skl2onnx_tfidf_bugs; "
+        "from app.telecom.train_onnx_model import ("
+        "build_augmented_dataset, build_production_calibration_splits, patch_skl2onnx_tfidf_bugs"
+        "); "
         "from skl2onnx import to_onnx; "
         "from skl2onnx.common.data_types import StringTensorType; "
         "from sklearn.calibration import CalibratedClassifierCV; "
         "from sklearn.feature_extraction.text import TfidfVectorizer; "
         "from sklearn.linear_model import LogisticRegression; "
         "from sklearn.pipeline import Pipeline; "
-        "texts, labels, _ = build_augmented_dataset(); "
+        "texts, labels, groups = build_augmented_dataset(); "
+        "splits = build_production_calibration_splits(texts, labels, groups, n_splits=5); "
         "pipe = Pipeline([('tfidf', TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, max_features=2500, min_df=1, token_pattern=r'\\b[a-zA-Z0-9_]+\\b')), "
-        "('clf', CalibratedClassifierCV(estimator=LogisticRegression(C=1.5, max_iter=1000, class_weight='balanced', random_state=42), method='sigmoid', cv=5))]); "
+        "('clf', CalibratedClassifierCV(estimator=LogisticRegression(C=1.5, max_iter=1000, class_weight='balanced', random_state=42), method='sigmoid', cv=splits, ensemble='auto'))]); "
         "pipe.fit(texts, labels); "
         "m = patch_skl2onnx_tfidf_bugs(to_onnx(pipe, initial_types=[('text', StringTensorType([None, 1]))], target_opset=14), pipe.named_steps['tfidf']); "
         "print(hashlib.sha256(m.SerializeToString()).hexdigest())"
@@ -792,5 +798,204 @@ def test_dataset_semantic_family_isolation_and_fold_balance() -> None:
         assert stored_inv[key] == live_inv[key], (
             f"dataset_inventory.json drifted from live training dataset on field '{key}'"
         )
+
+
+def test_cv_fold_pipeline_zero_vocabulary_leakage() -> None:
+    """Verifies TF-IDF vocabulary & IDF never leak across nested outer or inner CV splits."""
+    from app.telecom.train_onnx_model import (
+        _create_text_lr_pipeline,
+        build_augmented_dataset,
+        build_production_calibration_splits,
+    )
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.model_selection import StratifiedGroupKFold
+
+    synth_texts = [
+        "normal receipt update sample alpha",
+        "normal receipt update sample beta",
+        "zz_inner_cal_only_tok invoice update gamma",
+        "zz_inner_cal_only_tok invoice update delta",
+        "appointment notice clinic alpha",
+        "appointment notice clinic beta",
+        "zz_heldout_only_unseen_tok wire transfer urgent",
+        "zz_heldout_only_unseen_tok wire transfer verify",
+        "urgent suspend click scam link one",
+        "urgent suspend click scam link two",
+        "account block scam urgent link three",
+        "account block scam urgent link four",
+    ]
+    synth_labels = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]
+    synth_groups = [
+        "g_legit_1",
+        "g_legit_1",
+        "g_legit_cal_secret",
+        "g_legit_cal_secret",
+        "g_legit_2",
+        "g_legit_2",
+        "g_fraud_outer_secret",
+        "g_fraud_outer_secret",
+        "g_fraud_1",
+        "g_fraud_1",
+        "g_fraud_2",
+        "g_fraud_2",
+    ]
+
+    # Build deterministic train fold (without g_fraud_outer_secret) and 2 inner splits
+    tr_texts = synth_texts[:6] + synth_texts[8:]
+    tr_labels = synth_labels[:6] + synth_labels[8:]
+    tr_groups = synth_groups[:6] + synth_groups[8:]
+
+    inner_sgkf = StratifiedGroupKFold(n_splits=2, shuffle=False)
+    inner_splits = list(inner_sgkf.split(tr_texts, tr_labels, groups=tr_groups))
+    assert len(inner_splits) == 2
+
+    nested_model = CalibratedClassifierCV(
+        estimator=_create_text_lr_pipeline(),
+        method="sigmoid",
+        cv=inner_splits,
+        ensemble="auto",
+    )
+    nested_model.fit(tr_texts, tr_labels)
+
+    for split_pos, ((in_tr, in_cal), cal_est) in enumerate(
+        zip(inner_splits, nested_model.calibrated_classifiers_, strict=True)
+    ):
+        tr_grp_set = {tr_groups[int(i)] for i in in_tr}
+        cal_grp_set = {tr_groups[int(i)] for i in in_cal}
+        assert tr_grp_set.isdisjoint(cal_grp_set)
+        vocab = cal_est.estimator.named_steps["tfidf"].vocabulary_
+        assert "zz_heldout_only_unseen_tok" not in vocab
+        if "g_legit_cal_secret" in cal_grp_set:
+            assert "zz_inner_cal_only_tok" not in vocab, (
+                f"Inner split {split_pos} leaked calibration-fold token into TF-IDF vocabulary!"
+            )
+
+    # Also verify canonical GroupKFold(5) production splits are group-disjoint
+    texts, labels, groups = build_augmented_dataset()
+    prod_splits = build_production_calibration_splits(texts, labels, groups, n_splits=5)
+    assert len(prod_splits) == 5
+    for tr_idx, cal_idx in prod_splits:
+        assert {groups[int(i)] for i in tr_idx}.isdisjoint({groups[int(i)] for i in cal_idx})
+
+
+def test_calibration_ece_and_wilson_intervals() -> None:
+    """Verifies exact 10-bin half-open/closed ECE math and Wilson 95% CI edge cases."""
+    y_true = [0, 0, 0, 1, 1]
+    y_prob = [0.0, 0.099, 0.1, 0.9, 1.0]
+    cal = compute_calibration_diagnostics(y_true, y_prob, n_bins=10)
+    bins = cal["reliability_bins"]
+
+    assert cal["bin_scheme"] == "equal_width_half_open_final_closed"
+    assert len(bins) == 10
+    assert sum(int(b["sample_count"]) for b in bins) == 5
+
+    # [0.0, 0.1) captures 0.0 and 0.099; 0.1 falls into [0.1, 0.2); [0.9, 1.0] captures 0.9 & 1.0
+    assert bins[0]["sample_count"] == 2
+    assert bins[1]["sample_count"] == 1
+    assert bins[9]["sample_count"] == 2
+    for empty_idx in range(2, 9):
+        assert bins[empty_idx]["sample_count"] == 0
+        assert bins[empty_idx]["mean_predicted_prob"] is None
+        assert bins[empty_idx]["empirical_positive_rate"] is None
+        assert bins[empty_idx]["abs_calibration_gap"] is None
+
+    expected_ece = (2 / 5) * abs(0.0495 - 0.0) + (1 / 5) * abs(0.1 - 0.0) + (2 / 5) * abs(0.95 - 1.0)
+    assert abs(float(cal["ece"]) - expected_ece) < 1e-6
+
+    # Wilson 95% CI edge cases (all 1s, all 0s, and 0/0 denominator)
+    lo_all1, hi_all1 = compute_wilson_ci(100, 100)
+    assert hi_all1 == 1.0
+    assert 0.96 <= lo_all1 < 0.97
+
+    lo_all0, hi_all0 = compute_wilson_ci(0, 100)
+    assert lo_all0 == 0.0
+    assert 0.03 < hi_all0 <= 0.04
+
+    with pytest.raises(ValueError, match="total must be > 0"):
+        compute_wilson_ci(0, 0)
+    assert _safe_wilson_ci(0, 0) is None
+    safe_bounds = _safe_wilson_ci(180, 200)
+    assert safe_bounds is not None and 0.84 <= safe_bounds[0] < 0.90 < safe_bounds[1] <= 0.94
+
+
+def test_oof_completeness_macro_sensitivity_and_cluster_bootstrap() -> None:
+    """Verifies canonical SF-009 OOF artifacts, zero group leakage, cluster bootstrap, and macro check."""
+    from app.telecom.train_onnx_model import (
+        build_augmented_dataset,
+        compute_cluster_bootstrap_ci,
+        get_macro_archetype_groups,
+    )
+
+    texts, labels, groups = build_augmented_dataset()
+    canonical_paths = get_canonical_artifact_paths()
+    metrics = json.loads(canonical_paths["metrics"].read_text(encoding="utf-8"))
+    metadata = json.loads(canonical_paths["metadata"].read_text(encoding="utf-8"))
+    oof_path = canonical_paths["model"].resolve().parents[1] / "oof_predictions.json"
+    assert oof_path.exists(), f"Missing canonical OOF predictions artifact: {oof_path}"
+
+    oof_raw = oof_path.read_text(encoding="utf-8")
+    assert '"text"' not in oof_raw, "oof_predictions.json must never serialize raw SMS text"
+    oof_rows = json.loads(oof_raw)
+    assert len(oof_rows) == len(texts) == 703
+    assert sorted(int(r["sample_id"]) for r in oof_rows) == list(range(len(texts)))
+    assert len({int(r["sample_id"]) for r in oof_rows}) == len(texts)
+
+    oof_meta = metrics["oof_cross_validation"]
+    assert metadata["oof_cross_validation"] == oof_meta
+    assert oof_meta["production_calibration_strategy"] == "GroupKFold(n_splits=5)"
+    assert oof_meta["production_calibration_max_group_overlap"] == 0
+    assert metadata["calibration"]["cv_strategy"] == "GroupKFold(n_splits=5)"
+    assert metadata["calibration"]["max_group_overlap"] == 0
+
+    expected_oof_sha = hashlib.sha256(oof_path.read_bytes()).hexdigest()
+    assert oof_meta["oof_predictions_sha256"] == expected_oof_sha
+
+    fg = oof_meta["fine_grained"]
+    macro = oof_meta["macro_bank_2way"]
+    assert fg["group_count"] == 56
+    assert macro["group_count"] == 54
+    assert "legit_bank_2way_macro" in set(get_macro_archetype_groups(groups))
+    assert "sensitivity_note" in macro
+
+    for variant in (fg, macro):
+        assert variant["max_outer_group_overlap"] == 0
+        assert variant["max_inner_group_overlap"] == 0
+        assert variant["completeness"]["is_complete"] is True
+        assert variant["completeness"]["covered_sample_ids"] == len(texts)
+        assert variant["completeness"]["duplicate_sample_ids"] == 0
+
+    boot = fg["cluster_bootstrap_95_ci"]
+    assert boot["method"] == "nonparametric_cluster_percentile_bootstrap"
+    assert boot["independent_group_count"] == 56
+    assert boot["replicate_count"] == 1000
+    assert boot["seed"] == 42
+
+    # Determinism check: re-running cluster bootstrap on stored OOF predictions yields exact match
+    re_boot = compute_cluster_bootstrap_ci(
+        [int(r["true_label"]) for r in oof_rows],
+        [float(r["oof_probability"]) for r in oof_rows],
+        [str(r["family_id"]) for r in oof_rows],
+        n_replicates=1000,
+        seed=42,
+    )
+    assert re_boot["metrics"] == boot["metrics"]
+
+    # Dev/Val N=400 ECE & Wilson intervals exposed identically across metrics & metadata
+    assert len(metrics["reliability_bins"]) == 10
+    assert sum(int(b["sample_count"]) for b in metrics["reliability_bins"]) == 400
+    assert abs(float(metrics["ece"]) - float(metadata["ece"])) < 1e-7
+    assert metrics["wilson_95_ci"] == metadata["wilson_95_ci"]
+    for w_key in (
+        "ml_p50_precision",
+        "ml_p50_recall",
+        "tier1_precision",
+        "tier1_recall",
+        "tier1_fpr",
+        "tier2_precision",
+        "tier2_recall",
+        "tier2_fpr",
+    ):
+        assert w_key in metrics["wilson_95_ci"]
+
 
 

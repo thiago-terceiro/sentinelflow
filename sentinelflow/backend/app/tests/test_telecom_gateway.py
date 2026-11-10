@@ -686,10 +686,18 @@ def test_calibrated_classifier_cv_platt_parity() -> None:
     for p in onnx_probs:
         assert 0.0 <= p <= 1.0, f"ONNX probability {p} outside [0, 1]"
 
-    # Quick scikit-learn reference pipeline with aligned token pattern
-    texts, labels, _ = build_augmented_dataset()
+    # Quick scikit-learn reference pipeline matching GroupKFold(5) production calibration
+    from app.telecom.train_onnx_model import build_production_calibration_splits
+
+    texts, labels, groups = build_augmented_dataset()
+    prod_splits = build_production_calibration_splits(texts, labels, groups, n_splits=5)
     base_clf = LogisticRegression(C=1.5, class_weight="balanced", max_iter=1000, random_state=42)
-    calibrated_clf = CalibratedClassifierCV(base_clf, method="sigmoid", cv=5)
+    calibrated_clf = CalibratedClassifierCV(
+        base_clf,
+        method="sigmoid",
+        cv=prod_splits,
+        ensemble="auto",
+    )
     pipe = Pipeline([
         (
             "tfidf",
@@ -715,7 +723,10 @@ def test_onnx_sklearn_full_benchmark_parity() -> None:
     from pathlib import Path
 
     from app.telecom.evaluate_model import get_held_out_evaluation_set
-    from app.telecom.train_onnx_model import build_augmented_dataset
+    from app.telecom.train_onnx_model import (
+        build_augmented_dataset,
+        build_production_calibration_splits,
+    )
     from sklearn.calibration import CalibratedClassifierCV
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
@@ -725,12 +736,14 @@ def test_onnx_sklearn_full_benchmark_parity() -> None:
     benchmark_texts, _ = get_held_out_evaluation_set()
     assert len(benchmark_texts) == 400
 
-    # Fit production-equivalent scikit-learn reference pipeline
-    texts, labels, _ = build_augmented_dataset()
+    # Fit production-equivalent scikit-learn reference pipeline (GroupKFold(5))
+    texts, labels, groups = build_augmented_dataset()
+    prod_splits = build_production_calibration_splits(texts, labels, groups, n_splits=5)
     calibrated_clf = CalibratedClassifierCV(
         estimator=LogisticRegression(C=1.5, class_weight="balanced", max_iter=1000, random_state=42),
         method="sigmoid",
-        cv=5,
+        cv=prod_splits,
+        ensemble="auto",
     )
     pipe = Pipeline([
         (

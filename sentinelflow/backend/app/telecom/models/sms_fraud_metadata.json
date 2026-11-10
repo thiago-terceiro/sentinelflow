@@ -1,17 +1,20 @@
 {
   "model_name": "SentinelPulse-SMS-Fraud-ONNX",
   "version": "1.0.0",
-  "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=5)",
+  "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=GroupKFold(5))",
   "framework": "scikit-learn + skl2onnx + onnxruntime",
   "opset": 14,
-  "model_sha256": "32a54453aaeec4017fba6a4e015a0a130939566d2132b7e2225c6096edfde9ba",
+  "model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
   "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
   "calibration": {
     "method": "sigmoid",
     "cv_folds": 5,
+    "cv_strategy": "GroupKFold(n_splits=5)",
+    "max_group_overlap": 0,
+    "ensemble": "auto",
     "brier_score_before": 0.1472,
-    "brier_score_after": 0.0757,
-    "brier_score_improvement": 0.0714
+    "brier_score_after": 0.0629,
+    "brier_score_improvement": 0.0842
   },
   "input_signature": {
     "text": "StringTensor([None, 1])"
@@ -22,36 +25,36 @@
   },
   "validation_metrics": {
     "test_sample_count": 141,
-    "precision": 0.9667,
-    "recall": 0.9062,
-    "f1_score": 0.9355,
-    "roc_auc": 0.9627,
-    "pr_auc": 0.9446,
-    "brier_score": 0.0757,
+    "precision": 1.0,
+    "recall": 0.8125,
+    "f1_score": 0.8966,
+    "roc_auc": 0.9639,
+    "pr_auc": 0.9499,
+    "brier_score": 0.0629,
     "detailed_report": {
       "0": {
-        "precision": 0.972972972972973,
-        "recall": 0.9908256880733946,
-        "f1-score": 0.9818181818181818,
+        "precision": 0.9478260869565217,
+        "recall": 1.0,
+        "f1-score": 0.9732142857142857,
         "support": 109.0
       },
       "1": {
-        "precision": 0.9666666666666667,
-        "recall": 0.90625,
-        "f1-score": 0.9354838709677419,
+        "precision": 1.0,
+        "recall": 0.8125,
+        "f1-score": 0.896551724137931,
         "support": 32.0
       },
-      "accuracy": 0.9716312056737588,
+      "accuracy": 0.9574468085106383,
       "macro avg": {
-        "precision": 0.9698198198198198,
-        "recall": 0.9485378440366973,
-        "f1-score": 0.9586510263929618,
+        "precision": 0.9739130434782608,
+        "recall": 0.90625,
+        "f1-score": 0.9348830049261083,
         "support": 141.0
       },
       "weighted avg": {
-        "precision": 0.971541754520478,
-        "recall": 0.9716312056737588,
-        "f1-score": 0.9713025935400676,
+        "precision": 0.9596669750231266,
+        "recall": 0.9574468085106383,
+        "f1-score": 0.9558156901792265,
         "support": 141.0
       }
     }
@@ -68,11 +71,11 @@
   },
   "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
   "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-  "benchmark_predictions_sha256": "c0530a06be081280c8a212d05bcf1c4fb5ca35707feeb2be496c2dbcc32a5831",
+  "benchmark_predictions_sha256": "66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e",
   "onnx_sklearn_parity": {
     "sample_count": 400,
-    "max_prob_abs_diff": 1.1641733321798853e-07,
-    "mean_prob_abs_diff": 1.8747076431422606e-08,
+    "max_prob_abs_diff": 1.0378382087061766e-07,
+    "mean_prob_abs_diff": 2.0879723874441468e-08,
     "ml_p50_parity_count": 400,
     "ml_p50_parity_rate": 1.0,
     "tier1_flag_parity_count": 400,
@@ -84,7 +87,1059 @@
     "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
     "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
   },
-  "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
+  "ece": 0.102692,
+  "reliability_bins": [
+    {
+      "bin_index": 0,
+      "bin_lower": 0.0,
+      "bin_upper": 0.1,
+      "sample_count": 158,
+      "mean_predicted_prob": 0.013874,
+      "empirical_positive_rate": 0.0,
+      "abs_calibration_gap": 0.013874
+    },
+    {
+      "bin_index": 1,
+      "bin_lower": 0.1,
+      "bin_upper": 0.2,
+      "sample_count": 14,
+      "mean_predicted_prob": 0.142458,
+      "empirical_positive_rate": 0.0,
+      "abs_calibration_gap": 0.142458
+    },
+    {
+      "bin_index": 2,
+      "bin_lower": 0.2,
+      "bin_upper": 0.3,
+      "sample_count": 14,
+      "mean_predicted_prob": 0.244714,
+      "empirical_positive_rate": 0.0,
+      "abs_calibration_gap": 0.244714
+    },
+    {
+      "bin_index": 3,
+      "bin_lower": 0.3,
+      "bin_upper": 0.4,
+      "sample_count": 8,
+      "mean_predicted_prob": 0.320747,
+      "empirical_positive_rate": 0.5,
+      "abs_calibration_gap": 0.179253
+    },
+    {
+      "bin_index": 4,
+      "bin_lower": 0.4,
+      "bin_upper": 0.5,
+      "sample_count": 8,
+      "mean_predicted_prob": 0.451082,
+      "empirical_positive_rate": 0.625,
+      "abs_calibration_gap": 0.173918
+    },
+    {
+      "bin_index": 5,
+      "bin_lower": 0.5,
+      "bin_upper": 0.6,
+      "sample_count": 5,
+      "mean_predicted_prob": 0.554953,
+      "empirical_positive_rate": 0.4,
+      "abs_calibration_gap": 0.154953
+    },
+    {
+      "bin_index": 6,
+      "bin_lower": 0.6,
+      "bin_upper": 0.7,
+      "sample_count": 14,
+      "mean_predicted_prob": 0.664927,
+      "empirical_positive_rate": 0.785714,
+      "abs_calibration_gap": 0.120788
+    },
+    {
+      "bin_index": 7,
+      "bin_lower": 0.7,
+      "bin_upper": 0.8,
+      "sample_count": 18,
+      "mean_predicted_prob": 0.755137,
+      "empirical_positive_rate": 0.944444,
+      "abs_calibration_gap": 0.189308
+    },
+    {
+      "bin_index": 8,
+      "bin_lower": 0.8,
+      "bin_upper": 0.9,
+      "sample_count": 161,
+      "mean_predicted_prob": 0.846178,
+      "empirical_positive_rate": 1.0,
+      "abs_calibration_gap": 0.153822
+    },
+    {
+      "bin_index": 9,
+      "bin_lower": 0.9,
+      "bin_upper": 1.0,
+      "sample_count": 0,
+      "mean_predicted_prob": null,
+      "empirical_positive_rate": null,
+      "abs_calibration_gap": null
+    }
+  ],
+  "calibration_diagnostics": {
+    "bin_scheme": "equal_width_half_open_final_closed",
+    "n_bins": 10,
+    "sample_count": 400,
+    "ece": 0.102692,
+    "max_calibration_error": 0.244714,
+    "brier_score": 0.037083,
+    "reliability_bins": [
+      {
+        "bin_index": 0,
+        "bin_lower": 0.0,
+        "bin_upper": 0.1,
+        "sample_count": 158,
+        "mean_predicted_prob": 0.013874,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.013874
+      },
+      {
+        "bin_index": 1,
+        "bin_lower": 0.1,
+        "bin_upper": 0.2,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.142458,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.142458
+      },
+      {
+        "bin_index": 2,
+        "bin_lower": 0.2,
+        "bin_upper": 0.3,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.244714,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.244714
+      },
+      {
+        "bin_index": 3,
+        "bin_lower": 0.3,
+        "bin_upper": 0.4,
+        "sample_count": 8,
+        "mean_predicted_prob": 0.320747,
+        "empirical_positive_rate": 0.5,
+        "abs_calibration_gap": 0.179253
+      },
+      {
+        "bin_index": 4,
+        "bin_lower": 0.4,
+        "bin_upper": 0.5,
+        "sample_count": 8,
+        "mean_predicted_prob": 0.451082,
+        "empirical_positive_rate": 0.625,
+        "abs_calibration_gap": 0.173918
+      },
+      {
+        "bin_index": 5,
+        "bin_lower": 0.5,
+        "bin_upper": 0.6,
+        "sample_count": 5,
+        "mean_predicted_prob": 0.554953,
+        "empirical_positive_rate": 0.4,
+        "abs_calibration_gap": 0.154953
+      },
+      {
+        "bin_index": 6,
+        "bin_lower": 0.6,
+        "bin_upper": 0.7,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.664927,
+        "empirical_positive_rate": 0.785714,
+        "abs_calibration_gap": 0.120788
+      },
+      {
+        "bin_index": 7,
+        "bin_lower": 0.7,
+        "bin_upper": 0.8,
+        "sample_count": 18,
+        "mean_predicted_prob": 0.755137,
+        "empirical_positive_rate": 0.944444,
+        "abs_calibration_gap": 0.189308
+      },
+      {
+        "bin_index": 8,
+        "bin_lower": 0.8,
+        "bin_upper": 0.9,
+        "sample_count": 161,
+        "mean_predicted_prob": 0.846178,
+        "empirical_positive_rate": 1.0,
+        "abs_calibration_gap": 0.153822
+      },
+      {
+        "bin_index": 9,
+        "bin_lower": 0.9,
+        "bin_upper": 1.0,
+        "sample_count": 0,
+        "mean_predicted_prob": null,
+        "empirical_positive_rate": null,
+        "abs_calibration_gap": null
+      }
+    ]
+  },
+  "wilson_95_ci": {
+    "confidence_level": 0.95,
+    "z_score": 1.95996,
+    "methodology_note": "Message-level Wilson 95% binomial intervals assume independent Bernoulli trials; consult cluster-level semantic-family bootstrap CIs for correlated uncertainty.",
+    "ml_p50_precision": [
+      0.928836,
+      0.982771
+    ],
+    "ml_p50_recall": [
+      0.916703,
+      0.976147
+    ],
+    "tier1_precision": [
+      0.914577,
+      0.973932
+    ],
+    "tier1_recall": [
+      0.981155,
+      1.0
+    ],
+    "tier1_fpr": [
+      0.027383,
+      0.089578
+    ],
+    "tier2_precision": [
+      0.97899,
+      1.0
+    ],
+    "tier2_recall": [
+      0.84482,
+      0.930292
+    ],
+    "tier2_fpr": [
+      0.0,
+      0.018845
+    ]
+  },
+  "oof_cross_validation": {
+    "protocol": "Nested 5-fold StratifiedGroupKFold outer/inner with Pipeline(TfidfVectorizer -> LogisticRegression) fitted strictly inside inner calibration splits (zero vocabulary leakage)",
+    "production_calibration_strategy": "GroupKFold(n_splits=5)",
+    "production_calibration_max_group_overlap": 0,
+    "fine_grained": {
+      "group_count": 56,
+      "n_splits": 5,
+      "max_outer_group_overlap": 0,
+      "max_inner_group_overlap": 0,
+      "min_fold_prevalence": 0.215827,
+      "max_fold_prevalence": 0.244755,
+      "completeness": {
+        "total_samples": 703,
+        "covered_sample_ids": 703,
+        "duplicate_sample_ids": 0,
+        "is_complete": true
+      },
+      "per_fold": [
+        {
+          "fold": 0,
+          "train_size": 562,
+          "val_size": 141,
+          "train_group_count": 47,
+          "val_group_count": 9,
+          "val_legit_count": 109,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.22695,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9639,
+          "pr_auc": 0.9499,
+          "brier_score": 0.0629,
+          "precision": 1.0,
+          "recall": 0.8125,
+          "f1_score": 0.8966,
+          "confusion_matrix": {
+            "tp": 26,
+            "fp": 0,
+            "tn": 109,
+            "fn": 6
+          }
+        },
+        {
+          "fold": 1,
+          "train_size": 563,
+          "val_size": 140,
+          "train_group_count": 41,
+          "val_group_count": 15,
+          "val_legit_count": 108,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.228571,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.978,
+          "pr_auc": 0.9626,
+          "brier_score": 0.0496,
+          "precision": 1.0,
+          "recall": 0.8125,
+          "f1_score": 0.8966,
+          "confusion_matrix": {
+            "tp": 26,
+            "fp": 0,
+            "tn": 108,
+            "fn": 6
+          }
+        },
+        {
+          "fold": 2,
+          "train_size": 560,
+          "val_size": 143,
+          "train_group_count": 48,
+          "val_group_count": 8,
+          "val_legit_count": 108,
+          "val_fraud_count": 35,
+          "val_fraud_rate": 0.244755,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 1.0,
+          "pr_auc": 1.0,
+          "brier_score": 0.0212,
+          "precision": 0.9722,
+          "recall": 1.0,
+          "f1_score": 0.9859,
+          "confusion_matrix": {
+            "tp": 35,
+            "fp": 1,
+            "tn": 107,
+            "fn": 0
+          }
+        },
+        {
+          "fold": 3,
+          "train_size": 564,
+          "val_size": 139,
+          "train_group_count": 47,
+          "val_group_count": 9,
+          "val_legit_count": 109,
+          "val_fraud_count": 30,
+          "val_fraud_rate": 0.215827,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 1.0,
+          "pr_auc": 1.0,
+          "brier_score": 0.0027,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1_score": 1.0,
+          "confusion_matrix": {
+            "tp": 30,
+            "fp": 0,
+            "tn": 109,
+            "fn": 0
+          }
+        },
+        {
+          "fold": 4,
+          "train_size": 563,
+          "val_size": 140,
+          "train_group_count": 41,
+          "val_group_count": 15,
+          "val_legit_count": 109,
+          "val_fraud_count": 31,
+          "val_fraud_rate": 0.221429,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.7715,
+          "pr_auc": 0.5791,
+          "brier_score": 0.203,
+          "precision": 0.2727,
+          "recall": 0.4839,
+          "f1_score": 0.3488,
+          "confusion_matrix": {
+            "tp": 15,
+            "fp": 40,
+            "tn": 69,
+            "fn": 16
+          }
+        }
+      ],
+      "per_fold_summary": {
+        "roc_auc": {
+          "mean": 0.9427,
+          "std": 0.0867
+        },
+        "pr_auc": {
+          "mean": 0.8983,
+          "std": 0.1609
+        },
+        "brier_score": {
+          "mean": 0.0679,
+          "std": 0.0708
+        },
+        "precision": {
+          "mean": 0.849,
+          "std": 0.2883
+        },
+        "recall": {
+          "mean": 0.8218,
+          "std": 0.1886
+        },
+        "f1_score": {
+          "mean": 0.8256,
+          "std": 0.2423
+        }
+      },
+      "pooled_oof_ml": {
+        "decision_threshold": 0.5,
+        "roc_auc": 0.9559,
+        "pr_auc": 0.8751,
+        "brier_score": 0.0678,
+        "ece": 0.091364,
+        "precision": 0.763,
+        "recall": 0.825,
+        "specificity": 0.9245,
+        "false_positive_rate": 0.0755,
+        "f1_score": 0.7928,
+        "confusion_matrix": {
+          "tp": 132,
+          "fp": 41,
+          "tn": 502,
+          "fn": 28
+        }
+      },
+      "pooled_oof_composite": {
+        "velocity_score": 0.0,
+        "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+        "tier1": {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 156,
+            "fp": 44,
+            "tn": 499,
+            "fn": 4
+          },
+          "precision": 0.78,
+          "recall": 0.975,
+          "specificity": 0.919,
+          "false_positive_rate": 0.081,
+          "f1_score": 0.8667
+        },
+        "tier2": {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 117,
+            "fp": 13,
+            "tn": 530,
+            "fn": 43
+          },
+          "precision": 0.9,
+          "recall": 0.7312,
+          "specificity": 0.9761,
+          "false_positive_rate": 0.0239,
+          "f1_score": 0.8069
+        }
+      },
+      "calibration_diagnostics": {
+        "bin_scheme": "equal_width_half_open_final_closed",
+        "n_bins": 10,
+        "sample_count": 703,
+        "ece": 0.091364,
+        "max_calibration_error": 0.408776,
+        "brier_score": 0.067781,
+        "reliability_bins": [
+          {
+            "bin_index": 0,
+            "bin_lower": 0.0,
+            "bin_upper": 0.1,
+            "sample_count": 390,
+            "mean_predicted_prob": 0.027775,
+            "empirical_positive_rate": 0.007692,
+            "abs_calibration_gap": 0.020082
+          },
+          {
+            "bin_index": 1,
+            "bin_lower": 0.1,
+            "bin_upper": 0.2,
+            "sample_count": 88,
+            "mean_predicted_prob": 0.157938,
+            "empirical_positive_rate": 0.034091,
+            "abs_calibration_gap": 0.123848
+          },
+          {
+            "bin_index": 2,
+            "bin_lower": 0.2,
+            "bin_upper": 0.3,
+            "sample_count": 28,
+            "mean_predicted_prob": 0.238486,
+            "empirical_positive_rate": 0.107143,
+            "abs_calibration_gap": 0.131343
+          },
+          {
+            "bin_index": 3,
+            "bin_lower": 0.3,
+            "bin_upper": 0.4,
+            "sample_count": 8,
+            "mean_predicted_prob": 0.341224,
+            "empirical_positive_rate": 0.75,
+            "abs_calibration_gap": 0.408776
+          },
+          {
+            "bin_index": 4,
+            "bin_lower": 0.4,
+            "bin_upper": 0.5,
+            "sample_count": 16,
+            "mean_predicted_prob": 0.465088,
+            "empirical_positive_rate": 0.8125,
+            "abs_calibration_gap": 0.347412
+          },
+          {
+            "bin_index": 5,
+            "bin_lower": 0.5,
+            "bin_upper": 0.6,
+            "sample_count": 29,
+            "mean_predicted_prob": 0.558427,
+            "empirical_positive_rate": 0.965517,
+            "abs_calibration_gap": 0.40709
+          },
+          {
+            "bin_index": 6,
+            "bin_lower": 0.6,
+            "bin_upper": 0.7,
+            "sample_count": 24,
+            "mean_predicted_prob": 0.664549,
+            "empirical_positive_rate": 0.458333,
+            "abs_calibration_gap": 0.206216
+          },
+          {
+            "bin_index": 7,
+            "bin_lower": 0.7,
+            "bin_upper": 0.8,
+            "sample_count": 37,
+            "mean_predicted_prob": 0.747819,
+            "empirical_positive_rate": 0.378378,
+            "abs_calibration_gap": 0.369441
+          },
+          {
+            "bin_index": 8,
+            "bin_lower": 0.8,
+            "bin_upper": 0.9,
+            "sample_count": 36,
+            "mean_predicted_prob": 0.849221,
+            "empirical_positive_rate": 0.888889,
+            "abs_calibration_gap": 0.039668
+          },
+          {
+            "bin_index": 9,
+            "bin_lower": 0.9,
+            "bin_upper": 1.0,
+            "sample_count": 47,
+            "mean_predicted_prob": 0.975747,
+            "empirical_positive_rate": 1.0,
+            "abs_calibration_gap": 0.024253
+          }
+        ]
+      },
+      "wilson_95_ci": {
+        "confidence_level": 0.95,
+        "z_score": 1.95996,
+        "methodology_note": "Message-level Wilson binomial intervals assume independent Bernoulli trials; consult cluster_bootstrap_95_ci for family-level uncertainty.",
+        "ml_p50_precision": [
+          0.694359,
+          0.820227
+        ],
+        "ml_p50_recall": [
+          0.758702,
+          0.876058
+        ],
+        "tier1_precision": [
+          0.717612,
+          0.831835
+        ],
+        "tier1_recall": [
+          0.93749,
+          0.990236
+        ],
+        "tier1_fpr": [
+          0.060914,
+          0.107034
+        ],
+        "tier2_precision": [
+          0.836414,
+          0.940624
+        ],
+        "tier2_recall": [
+          0.657732,
+          0.793924
+        ],
+        "tier2_fpr": [
+          0.014044,
+          0.040527
+        ]
+      },
+      "cluster_bootstrap_95_ci": {
+        "method": "nonparametric_cluster_percentile_bootstrap",
+        "resampling_unit": "semantic_family_id",
+        "independent_group_count": 56,
+        "replicate_count": 1000,
+        "seed": 42,
+        "confidence_level": 0.95,
+        "decision_threshold": 0.5,
+        "methodology_note": "Resamples whole semantic template families with replacement to preserve intra-family correlation; distinct from message-level Wilson binomial intervals.",
+        "metrics": {
+          "roc_auc": {
+            "ci_95": [
+              0.865417,
+              0.996022
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "pr_auc": {
+            "ci_95": [
+              0.543658,
+              0.991892
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "brier_score": {
+            "ci_95": [
+              0.025261,
+              0.137128
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "precision": {
+            "ci_95": [
+              0.384423,
+              1.0
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "recall": {
+            "ci_95": [
+              0.597534,
+              0.928305
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "f1_score": {
+            "ci_95": [
+              0.493329,
+              0.949238
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          }
+        }
+      }
+    },
+    "macro_bank_2way": {
+      "group_count": 54,
+      "n_splits": 5,
+      "max_outer_group_overlap": 0,
+      "max_inner_group_overlap": 0,
+      "min_fold_prevalence": 0.198675,
+      "max_fold_prevalence": 0.25,
+      "completeness": {
+        "total_samples": 703,
+        "covered_sample_ids": 703,
+        "duplicate_sample_ids": 0,
+        "is_complete": true
+      },
+      "per_fold": [
+        {
+          "fold": 0,
+          "train_size": 552,
+          "val_size": 151,
+          "train_group_count": 46,
+          "val_group_count": 8,
+          "val_legit_count": 121,
+          "val_fraud_count": 30,
+          "val_fraud_rate": 0.198675,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.6835,
+          "pr_auc": 0.3516,
+          "brier_score": 0.2492,
+          "precision": 0.3443,
+          "recall": 0.7,
+          "f1_score": 0.4615,
+          "confusion_matrix": {
+            "tp": 21,
+            "fp": 40,
+            "tn": 81,
+            "fn": 9
+          }
+        },
+        {
+          "fold": 1,
+          "train_size": 567,
+          "val_size": 136,
+          "train_group_count": 39,
+          "val_group_count": 15,
+          "val_legit_count": 105,
+          "val_fraud_count": 31,
+          "val_fraud_rate": 0.227941,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9853,
+          "pr_auc": 0.9501,
+          "brier_score": 0.0683,
+          "precision": 0.9333,
+          "recall": 0.4516,
+          "f1_score": 0.6087,
+          "confusion_matrix": {
+            "tp": 14,
+            "fp": 1,
+            "tn": 104,
+            "fn": 17
+          }
+        },
+        {
+          "fold": 2,
+          "train_size": 566,
+          "val_size": 137,
+          "train_group_count": 44,
+          "val_group_count": 10,
+          "val_legit_count": 105,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.233577,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9887,
+          "pr_auc": 0.9793,
+          "brier_score": 0.0209,
+          "precision": 1.0,
+          "recall": 0.9375,
+          "f1_score": 0.9677,
+          "confusion_matrix": {
+            "tp": 30,
+            "fp": 0,
+            "tn": 105,
+            "fn": 2
+          }
+        },
+        {
+          "fold": 3,
+          "train_size": 564,
+          "val_size": 139,
+          "train_group_count": 43,
+          "val_group_count": 11,
+          "val_legit_count": 107,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.230216,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9936,
+          "pr_auc": 0.9873,
+          "brier_score": 0.0411,
+          "precision": 1.0,
+          "recall": 0.9375,
+          "f1_score": 0.9677,
+          "confusion_matrix": {
+            "tp": 30,
+            "fp": 0,
+            "tn": 107,
+            "fn": 2
+          }
+        },
+        {
+          "fold": 4,
+          "train_size": 563,
+          "val_size": 140,
+          "train_group_count": 44,
+          "val_group_count": 10,
+          "val_legit_count": 105,
+          "val_fraud_count": 35,
+          "val_fraud_rate": 0.25,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9997,
+          "pr_auc": 0.9992,
+          "brier_score": 0.0261,
+          "precision": 0.9722,
+          "recall": 1.0,
+          "f1_score": 0.9859,
+          "confusion_matrix": {
+            "tp": 35,
+            "fp": 1,
+            "tn": 104,
+            "fn": 0
+          }
+        }
+      ],
+      "per_fold_summary": {
+        "roc_auc": {
+          "mean": 0.9302,
+          "std": 0.1234
+        },
+        "pr_auc": {
+          "mean": 0.8535,
+          "std": 0.2515
+        },
+        "brier_score": {
+          "mean": 0.0811,
+          "std": 0.0856
+        },
+        "precision": {
+          "mean": 0.85,
+          "std": 0.254
+        },
+        "recall": {
+          "mean": 0.8053,
+          "std": 0.2045
+        },
+        "f1_score": {
+          "mean": 0.7983,
+          "std": 0.22
+        }
+      },
+      "pooled_oof_ml": {
+        "decision_threshold": 0.5,
+        "roc_auc": 0.9309,
+        "pr_auc": 0.733,
+        "brier_score": 0.0842,
+        "ece": 0.10056,
+        "precision": 0.7558,
+        "recall": 0.8125,
+        "specificity": 0.9227,
+        "false_positive_rate": 0.0773,
+        "f1_score": 0.7831,
+        "confusion_matrix": {
+          "tp": 130,
+          "fp": 42,
+          "tn": 501,
+          "fn": 30
+        }
+      },
+      "pooled_oof_composite": {
+        "velocity_score": 0.0,
+        "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+        "tier1": {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 154,
+            "fp": 43,
+            "tn": 500,
+            "fn": 6
+          },
+          "precision": 0.7817,
+          "recall": 0.9625,
+          "specificity": 0.9208,
+          "false_positive_rate": 0.0792,
+          "f1_score": 0.8627
+        },
+        "tier2": {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 118,
+            "fp": 40,
+            "tn": 503,
+            "fn": 42
+          },
+          "precision": 0.7468,
+          "recall": 0.7375,
+          "specificity": 0.9263,
+          "false_positive_rate": 0.0737,
+          "f1_score": 0.7421
+        }
+      },
+      "calibration_diagnostics": {
+        "bin_scheme": "equal_width_half_open_final_closed",
+        "n_bins": 10,
+        "sample_count": 703,
+        "ece": 0.10056,
+        "max_calibration_error": 0.489681,
+        "brier_score": 0.084159,
+        "reliability_bins": [
+          {
+            "bin_index": 0,
+            "bin_lower": 0.0,
+            "bin_upper": 0.1,
+            "sample_count": 376,
+            "mean_predicted_prob": 0.028897,
+            "empirical_positive_rate": 0.010638,
+            "abs_calibration_gap": 0.018259
+          },
+          {
+            "bin_index": 1,
+            "bin_lower": 0.1,
+            "bin_upper": 0.2,
+            "sample_count": 69,
+            "mean_predicted_prob": 0.129342,
+            "empirical_positive_rate": 0.014493,
+            "abs_calibration_gap": 0.11485
+          },
+          {
+            "bin_index": 2,
+            "bin_lower": 0.2,
+            "bin_upper": 0.3,
+            "sample_count": 38,
+            "mean_predicted_prob": 0.252065,
+            "empirical_positive_rate": 0.105263,
+            "abs_calibration_gap": 0.146802
+          },
+          {
+            "bin_index": 3,
+            "bin_lower": 0.3,
+            "bin_upper": 0.4,
+            "sample_count": 32,
+            "mean_predicted_prob": 0.33667,
+            "empirical_positive_rate": 0.1875,
+            "abs_calibration_gap": 0.14917
+          },
+          {
+            "bin_index": 4,
+            "bin_lower": 0.4,
+            "bin_upper": 0.5,
+            "sample_count": 16,
+            "mean_predicted_prob": 0.447819,
+            "empirical_positive_rate": 0.9375,
+            "abs_calibration_gap": 0.489681
+          },
+          {
+            "bin_index": 5,
+            "bin_lower": 0.5,
+            "bin_upper": 0.6,
+            "sample_count": 18,
+            "mean_predicted_prob": 0.55384,
+            "empirical_positive_rate": 0.888889,
+            "abs_calibration_gap": 0.335049
+          },
+          {
+            "bin_index": 6,
+            "bin_lower": 0.6,
+            "bin_upper": 0.7,
+            "sample_count": 33,
+            "mean_predicted_prob": 0.65897,
+            "empirical_positive_rate": 1.0,
+            "abs_calibration_gap": 0.34103
+          },
+          {
+            "bin_index": 7,
+            "bin_lower": 0.7,
+            "bin_upper": 0.8,
+            "sample_count": 33,
+            "mean_predicted_prob": 0.758476,
+            "empirical_positive_rate": 0.757576,
+            "abs_calibration_gap": 0.0009
+          },
+          {
+            "bin_index": 8,
+            "bin_lower": 0.8,
+            "bin_upper": 0.9,
+            "sample_count": 75,
+            "mean_predicted_prob": 0.857749,
+            "empirical_positive_rate": 0.613333,
+            "abs_calibration_gap": 0.244415
+          },
+          {
+            "bin_index": 9,
+            "bin_lower": 0.9,
+            "bin_upper": 1.0,
+            "sample_count": 13,
+            "mean_predicted_prob": 0.928534,
+            "empirical_positive_rate": 0.769231,
+            "abs_calibration_gap": 0.159303
+          }
+        ]
+      },
+      "wilson_95_ci": {
+        "confidence_level": 0.95,
+        "z_score": 1.95996,
+        "methodology_note": "Message-level Wilson binomial intervals assume independent Bernoulli trials; consult cluster_bootstrap_95_ci for family-level uncertainty.",
+        "ml_p50_precision": [
+          0.686483,
+          0.813968
+        ],
+        "ml_p50_recall": [
+          0.744961,
+          0.865386
+        ],
+        "tier1_precision": [
+          0.718956,
+          0.833719
+        ],
+        "tier1_recall": [
+          0.92061,
+          0.982702
+        ],
+        "tier1_fpr": [
+          0.059321,
+          0.104971
+        ],
+        "tier2_precision": [
+          0.67373,
+          0.808223
+        ],
+        "tier2_recall": [
+          0.66433,
+          0.799534
+        ],
+        "tier2_fpr": [
+          0.054562,
+          0.098758
+        ]
+      },
+      "cluster_bootstrap_95_ci": {
+        "method": "nonparametric_cluster_percentile_bootstrap",
+        "resampling_unit": "semantic_family_id",
+        "independent_group_count": 54,
+        "replicate_count": 1000,
+        "seed": 42,
+        "confidence_level": 0.95,
+        "decision_threshold": 0.5,
+        "methodology_note": "Resamples whole semantic template families with replacement to preserve intra-family correlation; distinct from message-level Wilson binomial intervals.",
+        "metrics": {
+          "roc_auc": {
+            "ci_95": [
+              0.830547,
+              0.996
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "pr_auc": {
+            "ci_95": [
+              0.32636,
+              0.993973
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "brier_score": {
+            "ci_95": [
+              0.032242,
+              0.146141
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "precision": {
+            "ci_95": [
+              0.345149,
+              1.0
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "recall": {
+            "ci_95": [
+              0.54502,
+              0.920399
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          },
+          "f1_score": {
+            "ci_95": [
+              0.429192,
+              0.938589
+            ],
+            "valid_replicates": 1000,
+            "undefined_replicates": 0
+          }
+        }
+      },
+      "collapsed_source_families": [
+        "legit_bank_auth_alert_yn",
+        "legit_bank_fraud_alert_yesno",
+        "legit_bank_security_alert_12"
+      ],
+      "macro_group_id": "legit_bank_2way_macro",
+      "sensitivity_note": "Collapsing 3 legitimate 2-way bank alert sub-templates (legit_bank_fraud_alert_yesno, legit_bank_security_alert_12, legit_bank_auth_alert_yn) into one single legit_bank_2way_macro archetype tests sensitivity to coarser template grouping; this is a sensitivity diagnostic only (fine-grained OOF remains primary)."
+    },
+    "oof_predictions_artifact": "oof_predictions.json",
+    "oof_predictions_sha256": "9b6376520d0161e6969646a07d98babc00231e51f166d9149e18b567bd163265"
+  },
+  "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
   "software_versions": {
     "onnxruntime": "1.31.0",
     "numpy": "2.5.4",
@@ -96,49 +1151,279 @@
     "fraud_count": 200,
     "decision_threshold": 0.5,
     "confusion_matrix": {
-      "tp": 194,
+      "tp": 191,
       "fp": 7,
       "tn": 193,
-      "fn": 6
+      "fn": 9
     },
-    "accuracy": 0.9675,
-    "precision": 0.9652,
-    "recall": 0.97,
+    "accuracy": 0.96,
+    "precision": 0.9646,
+    "recall": 0.955,
     "specificity": 0.965,
-    "f1_score": 0.9676,
-    "roc_auc": 0.9947,
-    "pr_auc": 0.9951,
-    "brier_score": 0.0447,
+    "f1_score": 0.9598,
+    "roc_auc": 0.997,
+    "pr_auc": 0.997,
+    "brier_score": 0.0371,
+    "ece": 0.102692,
+    "reliability_bins": [
+      {
+        "bin_index": 0,
+        "bin_lower": 0.0,
+        "bin_upper": 0.1,
+        "sample_count": 158,
+        "mean_predicted_prob": 0.013874,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.013874
+      },
+      {
+        "bin_index": 1,
+        "bin_lower": 0.1,
+        "bin_upper": 0.2,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.142458,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.142458
+      },
+      {
+        "bin_index": 2,
+        "bin_lower": 0.2,
+        "bin_upper": 0.3,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.244714,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.244714
+      },
+      {
+        "bin_index": 3,
+        "bin_lower": 0.3,
+        "bin_upper": 0.4,
+        "sample_count": 8,
+        "mean_predicted_prob": 0.320747,
+        "empirical_positive_rate": 0.5,
+        "abs_calibration_gap": 0.179253
+      },
+      {
+        "bin_index": 4,
+        "bin_lower": 0.4,
+        "bin_upper": 0.5,
+        "sample_count": 8,
+        "mean_predicted_prob": 0.451082,
+        "empirical_positive_rate": 0.625,
+        "abs_calibration_gap": 0.173918
+      },
+      {
+        "bin_index": 5,
+        "bin_lower": 0.5,
+        "bin_upper": 0.6,
+        "sample_count": 5,
+        "mean_predicted_prob": 0.554953,
+        "empirical_positive_rate": 0.4,
+        "abs_calibration_gap": 0.154953
+      },
+      {
+        "bin_index": 6,
+        "bin_lower": 0.6,
+        "bin_upper": 0.7,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.664927,
+        "empirical_positive_rate": 0.785714,
+        "abs_calibration_gap": 0.120788
+      },
+      {
+        "bin_index": 7,
+        "bin_lower": 0.7,
+        "bin_upper": 0.8,
+        "sample_count": 18,
+        "mean_predicted_prob": 0.755137,
+        "empirical_positive_rate": 0.944444,
+        "abs_calibration_gap": 0.189308
+      },
+      {
+        "bin_index": 8,
+        "bin_lower": 0.8,
+        "bin_upper": 0.9,
+        "sample_count": 161,
+        "mean_predicted_prob": 0.846178,
+        "empirical_positive_rate": 1.0,
+        "abs_calibration_gap": 0.153822
+      },
+      {
+        "bin_index": 9,
+        "bin_lower": 0.9,
+        "bin_upper": 1.0,
+        "sample_count": 0,
+        "mean_predicted_prob": null,
+        "empirical_positive_rate": null,
+        "abs_calibration_gap": null
+      }
+    ],
+    "calibration_diagnostics": {
+      "bin_scheme": "equal_width_half_open_final_closed",
+      "n_bins": 10,
+      "sample_count": 400,
+      "ece": 0.102692,
+      "max_calibration_error": 0.244714,
+      "brier_score": 0.037083,
+      "reliability_bins": [
+        {
+          "bin_index": 0,
+          "bin_lower": 0.0,
+          "bin_upper": 0.1,
+          "sample_count": 158,
+          "mean_predicted_prob": 0.013874,
+          "empirical_positive_rate": 0.0,
+          "abs_calibration_gap": 0.013874
+        },
+        {
+          "bin_index": 1,
+          "bin_lower": 0.1,
+          "bin_upper": 0.2,
+          "sample_count": 14,
+          "mean_predicted_prob": 0.142458,
+          "empirical_positive_rate": 0.0,
+          "abs_calibration_gap": 0.142458
+        },
+        {
+          "bin_index": 2,
+          "bin_lower": 0.2,
+          "bin_upper": 0.3,
+          "sample_count": 14,
+          "mean_predicted_prob": 0.244714,
+          "empirical_positive_rate": 0.0,
+          "abs_calibration_gap": 0.244714
+        },
+        {
+          "bin_index": 3,
+          "bin_lower": 0.3,
+          "bin_upper": 0.4,
+          "sample_count": 8,
+          "mean_predicted_prob": 0.320747,
+          "empirical_positive_rate": 0.5,
+          "abs_calibration_gap": 0.179253
+        },
+        {
+          "bin_index": 4,
+          "bin_lower": 0.4,
+          "bin_upper": 0.5,
+          "sample_count": 8,
+          "mean_predicted_prob": 0.451082,
+          "empirical_positive_rate": 0.625,
+          "abs_calibration_gap": 0.173918
+        },
+        {
+          "bin_index": 5,
+          "bin_lower": 0.5,
+          "bin_upper": 0.6,
+          "sample_count": 5,
+          "mean_predicted_prob": 0.554953,
+          "empirical_positive_rate": 0.4,
+          "abs_calibration_gap": 0.154953
+        },
+        {
+          "bin_index": 6,
+          "bin_lower": 0.6,
+          "bin_upper": 0.7,
+          "sample_count": 14,
+          "mean_predicted_prob": 0.664927,
+          "empirical_positive_rate": 0.785714,
+          "abs_calibration_gap": 0.120788
+        },
+        {
+          "bin_index": 7,
+          "bin_lower": 0.7,
+          "bin_upper": 0.8,
+          "sample_count": 18,
+          "mean_predicted_prob": 0.755137,
+          "empirical_positive_rate": 0.944444,
+          "abs_calibration_gap": 0.189308
+        },
+        {
+          "bin_index": 8,
+          "bin_lower": 0.8,
+          "bin_upper": 0.9,
+          "sample_count": 161,
+          "mean_predicted_prob": 0.846178,
+          "empirical_positive_rate": 1.0,
+          "abs_calibration_gap": 0.153822
+        },
+        {
+          "bin_index": 9,
+          "bin_lower": 0.9,
+          "bin_upper": 1.0,
+          "sample_count": 0,
+          "mean_predicted_prob": null,
+          "empirical_positive_rate": null,
+          "abs_calibration_gap": null
+        }
+      ]
+    },
+    "wilson_95_ci": {
+      "confidence_level": 0.95,
+      "z_score": 1.95996,
+      "methodology_note": "Message-level Wilson 95% binomial intervals assume independent Bernoulli trials; consult cluster-level semantic-family bootstrap CIs for correlated uncertainty.",
+      "ml_p50_precision": [
+        0.928836,
+        0.982771
+      ],
+      "ml_p50_recall": [
+        0.916703,
+        0.976147
+      ],
+      "tier1_precision": [
+        0.914577,
+        0.973932
+      ],
+      "tier1_recall": [
+        0.981155,
+        1.0
+      ],
+      "tier1_fpr": [
+        0.027383,
+        0.089578
+      ],
+      "tier2_precision": [
+        0.97899,
+        1.0
+      ],
+      "tier2_recall": [
+        0.84482,
+        0.930292
+      ],
+      "tier2_fpr": [
+        0.0,
+        0.018845
+      ]
+    },
     "false_positive_rate": 0.035,
-    "false_negative_rate": 0.03,
+    "false_negative_rate": 0.045,
     "tier1_escalation": {
       "threshold": 0.4,
       "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
       "confusion_matrix": {
         "tp": 200,
-        "fp": 12,
-        "tn": 188,
+        "fp": 10,
+        "tn": 190,
         "fn": 0
       },
-      "precision": 0.9434,
+      "precision": 0.9524,
       "recall": 1.0,
-      "specificity": 0.94,
-      "f1_score": 0.9709,
-      "false_positive_rate": 0.06
+      "specificity": 0.95,
+      "f1_score": 0.9756,
+      "false_positive_rate": 0.05
     },
     "tier2_block": {
       "threshold": 0.75,
       "description": "BLOCK (Immediate Carrier Wire Drop)",
       "confusion_matrix": {
-        "tp": 167,
+        "tp": 179,
         "fp": 0,
         "tn": 200,
-        "fn": 33
+        "fn": 21
       },
       "precision": 1.0,
-      "recall": 0.835,
+      "recall": 0.895,
       "specificity": 1.0,
-      "f1_score": 0.9101,
+      "f1_score": 0.9446,
       "false_positive_rate": 0.0
     },
     "category_analysis": {
@@ -156,26 +1441,26 @@
           "tier2_blocked_count": 0,
           "tier1_rate": 0.0,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.0038,
+          "mean_onnx_probability": 0.0109,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.0038
+          "mean_composite_score": 0.0109
         },
         {
           "category_id": "benign_carrier_notices",
           "category_name": "Carrier Usage & Roaming Notices",
           "label": 0,
           "sample_count": 25,
-          "ml_p50_flagged_count": 0,
-          "ml_p50_rate": 0.0,
+          "ml_p50_flagged_count": 1,
+          "ml_p50_rate": 0.04,
           "heuristic_h50_flagged_count": 0,
           "heuristic_h50_rate": 0.0,
           "tier1_flagged_count": 2,
           "tier2_blocked_count": 0,
           "tier1_rate": 0.08,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1199,
+          "mean_onnx_probability": 0.0753,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.1199
+          "mean_composite_score": 0.0753
         },
         {
           "category_id": "benign_health_notices",
@@ -190,9 +1475,9 @@
           "tier2_blocked_count": 0,
           "tier1_rate": 0.0,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.0928,
+          "mean_onnx_probability": 0.0492,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.0928
+          "mean_composite_score": 0.0492
         },
         {
           "category_id": "benign_2fa_auth_codes",
@@ -207,9 +1492,9 @@
           "tier2_blocked_count": 0,
           "tier1_rate": 0.04,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1029,
+          "mean_onnx_probability": 0.0705,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.1029
+          "mean_composite_score": 0.0705
         },
         {
           "category_id": "benign_delivery_notices",
@@ -220,30 +1505,30 @@
           "ml_p50_rate": 0.08,
           "heuristic_h50_flagged_count": 0,
           "heuristic_h50_rate": 0.0,
-          "tier1_flagged_count": 3,
+          "tier1_flagged_count": 2,
           "tier2_blocked_count": 0,
-          "tier1_rate": 0.12,
+          "tier1_rate": 0.08,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1598,
+          "mean_onnx_probability": 0.0956,
           "mean_heuristic_score": 0.168,
-          "mean_composite_score": 0.1695
+          "mean_composite_score": 0.0998
         },
         {
           "category_id": "benign_retail_receipts",
           "category_name": "Retail Receipts & Curbside Pickups",
           "label": 0,
           "sample_count": 25,
-          "ml_p50_flagged_count": 1,
-          "ml_p50_rate": 0.04,
+          "ml_p50_flagged_count": 0,
+          "ml_p50_rate": 0.0,
           "heuristic_h50_flagged_count": 0,
           "heuristic_h50_rate": 0.0,
           "tier1_flagged_count": 1,
           "tier2_blocked_count": 0,
           "tier1_rate": 0.04,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.085,
+          "mean_onnx_probability": 0.0512,
           "mean_heuristic_score": 0.008,
-          "mean_composite_score": 0.085
+          "mean_composite_score": 0.0512
         },
         {
           "category_id": "benign_crypto_notices",
@@ -254,13 +1539,13 @@
           "ml_p50_rate": 0.12,
           "heuristic_h50_flagged_count": 0,
           "heuristic_h50_rate": 0.0,
-          "tier1_flagged_count": 4,
+          "tier1_flagged_count": 3,
           "tier2_blocked_count": 0,
-          "tier1_rate": 0.16,
+          "tier1_rate": 0.12,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1909,
+          "mean_onnx_probability": 0.158,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.1909
+          "mean_composite_score": 0.158
         },
         {
           "category_id": "benign_conversational",
@@ -275,9 +1560,9 @@
           "tier2_blocked_count": 0,
           "tier1_rate": 0.04,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1409,
+          "mean_onnx_probability": 0.0724,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.1409
+          "mean_composite_score": 0.0724
         },
         {
           "category_id": "smish_bank_panic",
@@ -292,7 +1577,7 @@
           "tier2_blocked_count": 30,
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
-          "mean_onnx_probability": 0.9679,
+          "mean_onnx_probability": 0.8715,
           "mean_heuristic_score": 0.82,
           "mean_composite_score": 1.0
         },
@@ -309,9 +1594,9 @@
           "tier2_blocked_count": 30,
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
-          "mean_onnx_probability": 0.8818,
+          "mean_onnx_probability": 0.849,
           "mean_heuristic_score": 0.77,
-          "mean_composite_score": 0.9303
+          "mean_composite_score": 0.911
         },
         {
           "category_id": "smish_legal_extortion",
@@ -326,7 +1611,7 @@
           "tier2_blocked_count": 30,
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
-          "mean_onnx_probability": 0.8165,
+          "mean_onnx_probability": 0.8194,
           "mean_heuristic_score": 0.832,
           "mean_composite_score": 1.0
         },
@@ -340,12 +1625,12 @@
           "heuristic_h50_flagged_count": 20,
           "heuristic_h50_rate": 0.8,
           "tier1_flagged_count": 25,
-          "tier2_blocked_count": 20,
+          "tier2_blocked_count": 25,
           "tier1_rate": 1.0,
-          "tier2_rate": 0.8,
-          "mean_onnx_probability": 0.7825,
+          "tier2_rate": 1.0,
+          "mean_onnx_probability": 0.7899,
           "mean_heuristic_score": 0.686,
-          "mean_composite_score": 0.8799
+          "mean_composite_score": 0.8837
         },
         {
           "category_id": "smish_broken_phone",
@@ -360,26 +1645,26 @@
           "tier2_blocked_count": 25,
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
-          "mean_onnx_probability": 0.8092,
+          "mean_onnx_probability": 0.8775,
           "mean_heuristic_score": 0.75,
-          "mean_composite_score": 0.8851
+          "mean_composite_score": 0.9262
         },
         {
           "category_id": "smish_doc_invoice",
           "category_name": "Fake DocuSign & Invoice Scams",
           "label": 1,
           "sample_count": 25,
-          "ml_p50_flagged_count": 23,
-          "ml_p50_rate": 0.92,
+          "ml_p50_flagged_count": 20,
+          "ml_p50_rate": 0.8,
           "heuristic_h50_flagged_count": 15,
           "heuristic_h50_rate": 0.6,
           "tier1_flagged_count": 25,
           "tier2_blocked_count": 15,
           "tier1_rate": 1.0,
           "tier2_rate": 0.6,
-          "mean_onnx_probability": 0.7412,
+          "mean_onnx_probability": 0.7147,
           "mean_heuristic_score": 0.562,
-          "mean_composite_score": 0.8065
+          "mean_composite_score": 0.7959
         },
         {
           "category_id": "smish_homoglyph",
@@ -391,12 +1676,12 @@
           "heuristic_h50_flagged_count": 8,
           "heuristic_h50_rate": 0.4,
           "tier1_flagged_count": 20,
-          "tier2_blocked_count": 16,
+          "tier2_blocked_count": 19,
           "tier1_rate": 1.0,
-          "tier2_rate": 0.8,
-          "mean_onnx_probability": 0.7767,
+          "tier2_rate": 0.95,
+          "mean_onnx_probability": 0.793,
           "mean_heuristic_score": 0.458,
-          "mean_composite_score": 0.8179
+          "mean_composite_score": 0.8327
         },
         {
           "category_id": "smish_callback_scams",
@@ -408,12 +1693,12 @@
           "heuristic_h50_flagged_count": 4,
           "heuristic_h50_rate": 0.2667,
           "tier1_flagged_count": 15,
-          "tier2_blocked_count": 1,
+          "tier2_blocked_count": 5,
           "tier1_rate": 1.0,
-          "tier2_rate": 0.0667,
-          "mean_onnx_probability": 0.5528,
+          "tier2_rate": 0.3333,
+          "mean_onnx_probability": 0.634,
           "mean_heuristic_score": 0.1867,
-          "mean_composite_score": 0.6299
+          "mean_composite_score": 0.7011
         }
       ],
       "total_categories": 16
@@ -421,46 +1706,46 @@
     "ablation_analysis": {
       "model_alone": {
         "description": "ONNX Runtime Platt-calibrated model probability P_onnx alone without heuristics",
-        "roc_auc": 0.9947,
-        "pr_auc": 0.9951,
-        "brier_score": 0.0447,
+        "roc_auc": 0.997,
+        "pr_auc": 0.997,
+        "brier_score": 0.0371,
         "at_threshold_0_40": {
           "threshold": 0.4,
           "confusion_matrix": {
             "tp": 196,
-            "fp": 12,
-            "tn": 188,
+            "fp": 10,
+            "tn": 190,
             "fn": 4
           },
-          "precision": 0.9423,
+          "precision": 0.9515,
           "recall": 0.98,
-          "f1_score": 0.9608,
-          "false_positive_rate": 0.06
+          "f1_score": 0.9655,
+          "false_positive_rate": 0.05
         },
         "at_threshold_0_50": {
           "threshold": 0.5,
           "confusion_matrix": {
-            "tp": 194,
+            "tp": 191,
             "fp": 7,
             "tn": 193,
-            "fn": 6
+            "fn": 9
           },
-          "precision": 0.9652,
-          "recall": 0.97,
-          "f1_score": 0.9676,
+          "precision": 0.9646,
+          "recall": 0.955,
+          "f1_score": 0.9598,
           "false_positive_rate": 0.035
         },
         "at_threshold_0_75": {
           "threshold": 0.75,
           "confusion_matrix": {
-            "tp": 163,
+            "tp": 171,
             "fp": 0,
             "tn": 200,
-            "fn": 37
+            "fn": 29
           },
           "precision": 1.0,
-          "recall": 0.815,
-          "f1_score": 0.8981,
+          "recall": 0.855,
+          "f1_score": 0.9218,
           "false_positive_rate": 0.0
         }
       },
@@ -512,33 +1797,33 @@
           "threshold": 0.4,
           "confusion_matrix": {
             "tp": 200,
-            "fp": 12,
-            "tn": 188,
+            "fp": 10,
+            "tn": 190,
             "fn": 0
           },
-          "precision": 0.9434,
+          "precision": 0.9524,
           "recall": 1.0,
-          "f1_score": 0.9709,
-          "false_positive_rate": 0.06
+          "f1_score": 0.9756,
+          "false_positive_rate": 0.05
         },
         "tier2_block": {
           "threshold": 0.75,
           "confusion_matrix": {
-            "tp": 167,
+            "tp": 179,
             "fp": 0,
             "tn": 200,
-            "fn": 33
+            "fn": 21
           },
           "precision": 1.0,
-          "recall": 0.835,
-          "f1_score": 0.9101,
+          "recall": 0.895,
+          "f1_score": 0.9446,
           "false_positive_rate": 0.0
         }
       },
       "velocity_ablation_note": "Velocity signals require multi-message temporal event streams (sender/IP sliding windows). On the static held-out test suite (N = 400), velocity is fixed to 0.0 to isolate content inspection. Velocity contributions are evaluated under synthetic multi-message velocity sweeps in test_telecom_gateway.py."
     },
     "error_analysis": {
-      "tier1_false_positives_count": 12,
+      "tier1_false_positives_count": 10,
       "tier1_false_positives": [
         {
           "sample_index": 27,
@@ -546,11 +1831,11 @@
           "expected_label": "BENIGN",
           "category_name": "Carrier Usage & Roaming Notices",
           "category_id": "benign_carrier_notices",
-          "onnx_probability": 0.4186,
+          "onnx_probability": 0.5173,
           "heuristic_score": 0.0,
-          "composite_score": 0.4186,
+          "composite_score": 0.5173,
           "matched_rules": [],
-          "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.52) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 48,
@@ -558,11 +1843,11 @@
           "expected_label": "BENIGN",
           "category_name": "Carrier Usage & Roaming Notices",
           "category_id": "benign_carrier_notices",
-          "onnx_probability": 0.4587,
+          "onnx_probability": 0.4497,
           "heuristic_score": 0.0,
-          "composite_score": 0.4587,
+          "composite_score": 0.4497,
           "matched_rules": [],
-          "reason": "Elevated content score (0.46) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.45) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 97,
@@ -570,11 +1855,11 @@
           "expected_label": "BENIGN",
           "category_name": "2FA & OTP Authentication Codes",
           "category_id": "benign_2fa_auth_codes",
-          "onnx_probability": 0.694,
+          "onnx_probability": 0.6404,
           "heuristic_score": 0.0,
-          "composite_score": 0.694,
+          "composite_score": 0.6404,
           "matched_rules": [],
-          "reason": "Elevated content score (0.69) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.64) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 103,
@@ -582,27 +1867,13 @@
           "expected_label": "BENIGN",
           "category_name": "Package Delivery Status Updates",
           "category_id": "benign_delivery_notices",
-          "onnx_probability": 0.6195,
+          "onnx_probability": 0.6765,
           "heuristic_score": 0.2,
-          "composite_score": 0.6461,
+          "composite_score": 0.6992,
           "matched_rules": [
             "RULE:GENERIC_DELIVERY_KEYWORD"
           ],
-          "reason": "Elevated content score (0.65) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
-        },
-        {
-          "sample_index": 119,
-          "text": "FedEx Ground: Package departed transit facility in Memphis, TN.",
-          "expected_label": "BENIGN",
-          "category_name": "Package Delivery Status Updates",
-          "category_id": "benign_delivery_notices",
-          "onnx_probability": 0.4501,
-          "heuristic_score": 0.2,
-          "composite_score": 0.4886,
-          "matched_rules": [
-            "RULE:GENERIC_DELIVERY_KEYWORD"
-          ],
-          "reason": "Elevated content score (0.49) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
+          "reason": "Elevated content score (0.70) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
         },
         {
           "sample_index": 122,
@@ -610,25 +1881,25 @@
           "expected_label": "BENIGN",
           "category_name": "Package Delivery Status Updates",
           "category_id": "benign_delivery_notices",
-          "onnx_probability": 0.5181,
+          "onnx_probability": 0.5154,
           "heuristic_score": 0.2,
-          "composite_score": 0.5518,
+          "composite_score": 0.5493,
           "matched_rules": [
             "RULE:GENERIC_DELIVERY_KEYWORD"
           ],
           "reason": "Elevated content score (0.55) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
         },
         {
-          "sample_index": 139,
-          "text": "Walgreens Cash: You earned $2.50 Walgreens Cash rewards on today's purchase.",
+          "sample_index": 138,
+          "text": "CVS Carepass: Your $10 monthly reward has been loaded to your card.",
           "expected_label": "BENIGN",
           "category_name": "Retail Receipts & Curbside Pickups",
           "category_id": "benign_retail_receipts",
-          "onnx_probability": 0.504,
+          "onnx_probability": 0.4356,
           "heuristic_score": 0.0,
-          "composite_score": 0.504,
+          "composite_score": 0.4356,
           "matched_rules": [],
-          "reason": "Elevated content score (0.50) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.44) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 151,
@@ -636,23 +1907,11 @@
           "expected_label": "BENIGN",
           "category_name": "Legitimate Crypto Exchange Notices",
           "category_id": "benign_crypto_notices",
-          "onnx_probability": 0.5259,
+          "onnx_probability": 0.7119,
           "heuristic_score": 0.0,
-          "composite_score": 0.5259,
+          "composite_score": 0.7119,
           "matched_rules": [],
-          "reason": "Elevated content score (0.53) from heuristic keywords (ML model probability alone) on legitimate message."
-        },
-        {
-          "sample_index": 154,
-          "text": "Bitstamp: Withdrawal of 2.50 ETH completed to wallet address 0x71C... TxId available in account history.",
-          "expected_label": "BENIGN",
-          "category_name": "Legitimate Crypto Exchange Notices",
-          "category_id": "benign_crypto_notices",
-          "onnx_probability": 0.498,
-          "heuristic_score": 0.0,
-          "composite_score": 0.498,
-          "matched_rules": [],
-          "reason": "Elevated content score (0.50) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.71) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 168,
@@ -660,11 +1919,11 @@
           "expected_label": "BENIGN",
           "category_name": "Legitimate Crypto Exchange Notices",
           "category_id": "benign_crypto_notices",
-          "onnx_probability": 0.5422,
+          "onnx_probability": 0.5575,
           "heuristic_score": 0.0,
-          "composite_score": 0.5422,
+          "composite_score": 0.5575,
           "matched_rules": [],
-          "reason": "Elevated content score (0.54) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.56) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 172,
@@ -672,11 +1931,11 @@
           "expected_label": "BENIGN",
           "category_name": "Legitimate Crypto Exchange Notices",
           "category_id": "benign_crypto_notices",
-          "onnx_probability": 0.5845,
+          "onnx_probability": 0.6437,
           "heuristic_score": 0.0,
-          "composite_score": 0.5845,
+          "composite_score": 0.6437,
           "matched_rules": [],
-          "reason": "Elevated content score (0.58) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.64) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 183,
@@ -684,105 +1943,175 @@
           "expected_label": "BENIGN",
           "category_name": "Conversational & P2P Messages",
           "category_id": "benign_conversational",
-          "onnx_probability": 0.4756,
+          "onnx_probability": 0.4925,
           "heuristic_score": 0.0,
-          "composite_score": 0.4756,
+          "composite_score": 0.4925,
           "matched_rules": [],
-          "reason": "Elevated content score (0.48) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.49) from heuristic keywords (ML model probability alone) on legitimate message."
         }
       ],
       "tier2_false_positives_count": 0,
       "tier2_false_positives": [],
       "tier1_false_negatives_count": 0,
       "tier1_false_negatives": [],
-      "tier2_false_negatives_count": 33,
+      "tier2_false_negatives_count": 21,
       "tier2_false_negatives": [
-        {
-          "sample_index": 292,
-          "text": "VIP Crypto Signals #3: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_02",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5122,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7124,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.71) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 297,
-          "text": "VIP Crypto Signals #8: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_07",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5285,
-          "heuristic_score": 0.77,
-          "composite_score": 0.722,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.72) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 302,
-          "text": "VIP Crypto Signals #13: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_12",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5431,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7306,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 307,
-          "text": "VIP Crypto Signals #18: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_17",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5431,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7306,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 312,
-          "text": "VIP Crypto Signals #23: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_22",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5431,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7306,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
         {
           "sample_index": 340,
           "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5000' for your signature. Review: http://docusign-viewer-docs.net/sign/0",
           "expected_label": "FRAUD",
           "category_name": "Fake DocuSign & Invoice Scams",
           "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.6964,
+          "heuristic_score": 0.25,
+          "composite_score": 0.7229,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.72) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 343,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/3",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4009,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6468,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.65) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 345,
+          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5005' for your signature. Review: http://docusign-viewer-docs.net/sign/5",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.5921,
+          "heuristic_score": 0.25,
+          "composite_score": 0.6278,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.63) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 348,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/8",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4367,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6679,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.67) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 350,
+          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5010' for your signature. Review: http://docusign-viewer-docs.net/sign/10",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.6126,
+          "heuristic_score": 0.25,
+          "composite_score": 0.6465,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.65) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 353,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/13",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4644,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6843,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.68) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 355,
+          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5015' for your signature. Review: http://docusign-viewer-docs.net/sign/15",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.5924,
+          "heuristic_score": 0.25,
+          "composite_score": 0.6281,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.63) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 358,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/18",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4644,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6843,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.68) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 360,
+          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5020' for your signature. Review: http://docusign-viewer-docs.net/sign/20",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.6416,
+          "heuristic_score": 0.25,
+          "composite_score": 0.6729,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.67) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 363,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/23",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4644,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6843,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.68) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 370,
+          "text": "P4yP4l Security: Unusual debit of $450.00 to CryptoCorp. Cancel transaction: http://p4ypal-dispute-center.com/5",
+          "expected_label": "FRAUD",
+          "category_name": "Homoglyph & Leetspeak Obfuscation",
+          "category_id": "smish_homoglyph",
           "onnx_probability": 0.7084,
           "heuristic_score": 0.25,
           "composite_score": 0.7339,
@@ -792,140 +2121,56 @@
           "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
         },
         {
-          "sample_index": 343,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/3",
+          "sample_index": 385,
+          "text": "GeekSquad Invoice: $499.00 was auto-debited for 3-Year Total Tech Support. If you did not authorize this charge, call our billing desk immediately at 1-888-555-0110.",
           "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.4672,
-          "heuristic_score": 0.77,
-          "composite_score": 0.6859,
+          "category_name": "Zero-Link Call-Back Impersonation",
+          "category_id": "smish_callback_scams",
+          "onnx_probability": 0.3104,
+          "heuristic_score": 0.7,
+          "composite_score": 0.5621,
           "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
+            "RULE:TECH_SUPPORT_INVOICE_SCAM"
           ],
+          "reason": "Composite score (0.56) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 387,
+          "text": "PayPal Customer Care: Did you transfer $750.00 to Coinbase Inc? If you did not make this transaction, call 1-877-555-0132 right now to freeze transfer.",
+          "expected_label": "FRAUD",
+          "category_name": "Zero-Link Call-Back Impersonation",
+          "category_id": "smish_callback_scams",
+          "onnx_probability": 0.7355,
+          "heuristic_score": 0.0,
+          "composite_score": 0.7355,
+          "matched_rules": [],
+          "reason": "Composite score (0.74) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 388,
+          "text": "Amazon Fraud Alert: iPhone 16 Pro Max ($1,299.00) ordered on your account. To cancel, call fraud department at 888-555-0143.",
+          "expected_label": "FRAUD",
+          "category_name": "Zero-Link Call-Back Impersonation",
+          "category_id": "smish_callback_scams",
+          "onnx_probability": 0.685,
+          "heuristic_score": 0.0,
+          "composite_score": 0.685,
+          "matched_rules": [],
           "reason": "Composite score (0.69) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
         },
         {
-          "sample_index": 345,
-          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5005' for your signature. Review: http://docusign-viewer-docs.net/sign/5",
+          "sample_index": 389,
+          "text": "GeekSquad Invoice: $499.00 was auto-debited for 3-Year Total Tech Support. If you did not authorize this charge, call our billing desk immediately at 1-888-555-0114.",
           "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5889,
-          "heuristic_score": 0.25,
-          "composite_score": 0.6248,
+          "category_name": "Zero-Link Call-Back Impersonation",
+          "category_id": "smish_callback_scams",
+          "onnx_probability": 0.3104,
+          "heuristic_score": 0.7,
+          "composite_score": 0.5621,
           "matched_rules": [
-            "RULE:STANDALONE_URL"
+            "RULE:TECH_SUPPORT_INVOICE_SCAM"
           ],
-          "reason": "Composite score (0.62) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 348,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/8",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.4989,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7046,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.70) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 350,
-          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5010' for your signature. Review: http://docusign-viewer-docs.net/sign/10",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5799,
-          "heuristic_score": 0.25,
-          "composite_score": 0.6166,
-          "matched_rules": [
-            "RULE:STANDALONE_URL"
-          ],
-          "reason": "Composite score (0.62) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 353,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/13",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5475,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7332,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 355,
-          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5015' for your signature. Review: http://docusign-viewer-docs.net/sign/15",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5567,
-          "heuristic_score": 0.25,
-          "composite_score": 0.5955,
-          "matched_rules": [
-            "RULE:STANDALONE_URL"
-          ],
-          "reason": "Composite score (0.60) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 358,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/18",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5475,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7332,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 360,
-          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5020' for your signature. Review: http://docusign-viewer-docs.net/sign/20",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.6181,
-          "heuristic_score": 0.25,
-          "composite_score": 0.6515,
-          "matched_rules": [
-            "RULE:STANDALONE_URL"
-          ],
-          "reason": "Composite score (0.65) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 363,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/23",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5475,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7332,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+          "reason": "Composite score (0.56) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
         }
       ],
       "representative_correct_count": 6,
@@ -936,9 +2181,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0049,
+          "onnx_probability": 0.0118,
           "heuristic_score": 0.0,
-          "composite_score": 0.0049,
+          "composite_score": 0.0118,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -948,9 +2193,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0045,
+          "onnx_probability": 0.0049,
           "heuristic_score": 0.0,
-          "composite_score": 0.0045,
+          "composite_score": 0.0049,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -960,9 +2205,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0051,
+          "onnx_probability": 0.0222,
           "heuristic_score": 0.0,
-          "composite_score": 0.0051,
+          "composite_score": 0.0222,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -972,9 +2217,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0052,
+          "onnx_probability": 0.0242,
           "heuristic_score": 0.0,
-          "composite_score": 0.0052,
+          "composite_score": 0.0242,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -984,9 +2229,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0043,
+          "onnx_probability": 0.0049,
           "heuristic_score": 0.0,
-          "composite_score": 0.0043,
+          "composite_score": 0.0049,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -996,9 +2241,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.003,
+          "onnx_probability": 0.0056,
           "heuristic_score": 0.0,
-          "composite_score": 0.003,
+          "composite_score": 0.0056,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         }
@@ -1006,16 +2251,16 @@
     },
     "reproducibility": {
       "model_artifact": "sms_fraud_model.onnx",
-      "model_sha256": "32a54453aaeec4017fba6a4e015a0a130939566d2132b7e2225c6096edfde9ba",
+      "model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
       "model_artifact_size_bytes": 199525,
       "model_artifact_size_kb": 194.85,
       "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
       "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-      "benchmark_predictions_sha256": "c0530a06be081280c8a212d05bcf1c4fb5ca35707feeb2be496c2dbcc32a5831",
+      "benchmark_predictions_sha256": "66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e",
       "onnx_sklearn_parity": {
         "sample_count": 400,
-        "max_prob_abs_diff": 1.1641733321798853e-07,
-        "mean_prob_abs_diff": 1.8747076431422606e-08,
+        "max_prob_abs_diff": 1.0378382087061766e-07,
+        "mean_prob_abs_diff": 2.0879723874441468e-08,
         "ml_p50_parity_count": 400,
         "ml_p50_parity_rate": 1.0,
         "tier1_flag_parity_count": 400,
@@ -1027,7 +2272,7 @@
         "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
         "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
       },
-      "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
+      "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
@@ -1037,9 +2282,9 @@
         "calibration": {
           "method": "sigmoid",
           "cv_folds": 5,
-          "brier_score_before": 0.1166,
-          "brier_score_after": 0.0687,
-          "brier_score_improvement": 0.0479
+          "brier_score_before": 0.1472,
+          "brier_score_after": 0.0757,
+          "brier_score_improvement": 0.0714
         },
         "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
       },
@@ -1051,14 +2296,14 @@
     },
     "evaluator": "ONNXRuntime-CPU",
     "model_artifact": "sms_fraud_model.onnx",
-    "model_sha256": "32a54453aaeec4017fba6a4e015a0a130939566d2132b7e2225c6096edfde9ba",
+    "model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
     "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
     "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-    "benchmark_predictions_sha256": "c0530a06be081280c8a212d05bcf1c4fb5ca35707feeb2be496c2dbcc32a5831",
+    "benchmark_predictions_sha256": "66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e",
     "onnx_sklearn_parity": {
       "sample_count": 400,
-      "max_prob_abs_diff": 1.1641733321798853e-07,
-      "mean_prob_abs_diff": 1.8747076431422606e-08,
+      "max_prob_abs_diff": 1.0378382087061766e-07,
+      "mean_prob_abs_diff": 2.0879723874441468e-08,
       "ml_p50_parity_count": 400,
       "ml_p50_parity_rate": 1.0,
       "tier1_flag_parity_count": 400,
@@ -1072,7 +2317,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
+    "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -1081,7 +2326,829 @@
     "model_artifact_size_bytes": 199525,
     "model_artifact_size_kb": 194.85,
     "brier_score_before_calibration": 0.1472,
-    "brier_score_after_calibration": 0.0757
+    "brier_score_after_calibration": 0.0629,
+    "oof_cross_validation": {
+      "protocol": "Nested 5-fold StratifiedGroupKFold outer/inner with Pipeline(TfidfVectorizer -> LogisticRegression) fitted strictly inside inner calibration splits (zero vocabulary leakage)",
+      "production_calibration_strategy": "GroupKFold(n_splits=5)",
+      "production_calibration_max_group_overlap": 0,
+      "fine_grained": {
+        "group_count": 56,
+        "n_splits": 5,
+        "max_outer_group_overlap": 0,
+        "max_inner_group_overlap": 0,
+        "min_fold_prevalence": 0.215827,
+        "max_fold_prevalence": 0.244755,
+        "completeness": {
+          "total_samples": 703,
+          "covered_sample_ids": 703,
+          "duplicate_sample_ids": 0,
+          "is_complete": true
+        },
+        "per_fold": [
+          {
+            "fold": 0,
+            "train_size": 562,
+            "val_size": 141,
+            "train_group_count": 47,
+            "val_group_count": 9,
+            "val_legit_count": 109,
+            "val_fraud_count": 32,
+            "val_fraud_rate": 0.22695,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9639,
+            "pr_auc": 0.9499,
+            "brier_score": 0.0629,
+            "precision": 1.0,
+            "recall": 0.8125,
+            "f1_score": 0.8966,
+            "confusion_matrix": {
+              "tp": 26,
+              "fp": 0,
+              "tn": 109,
+              "fn": 6
+            }
+          },
+          {
+            "fold": 1,
+            "train_size": 563,
+            "val_size": 140,
+            "train_group_count": 41,
+            "val_group_count": 15,
+            "val_legit_count": 108,
+            "val_fraud_count": 32,
+            "val_fraud_rate": 0.228571,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.978,
+            "pr_auc": 0.9626,
+            "brier_score": 0.0496,
+            "precision": 1.0,
+            "recall": 0.8125,
+            "f1_score": 0.8966,
+            "confusion_matrix": {
+              "tp": 26,
+              "fp": 0,
+              "tn": 108,
+              "fn": 6
+            }
+          },
+          {
+            "fold": 2,
+            "train_size": 560,
+            "val_size": 143,
+            "train_group_count": 48,
+            "val_group_count": 8,
+            "val_legit_count": 108,
+            "val_fraud_count": 35,
+            "val_fraud_rate": 0.244755,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 1.0,
+            "pr_auc": 1.0,
+            "brier_score": 0.0212,
+            "precision": 0.9722,
+            "recall": 1.0,
+            "f1_score": 0.9859,
+            "confusion_matrix": {
+              "tp": 35,
+              "fp": 1,
+              "tn": 107,
+              "fn": 0
+            }
+          },
+          {
+            "fold": 3,
+            "train_size": 564,
+            "val_size": 139,
+            "train_group_count": 47,
+            "val_group_count": 9,
+            "val_legit_count": 109,
+            "val_fraud_count": 30,
+            "val_fraud_rate": 0.215827,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 1.0,
+            "pr_auc": 1.0,
+            "brier_score": 0.0027,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "confusion_matrix": {
+              "tp": 30,
+              "fp": 0,
+              "tn": 109,
+              "fn": 0
+            }
+          },
+          {
+            "fold": 4,
+            "train_size": 563,
+            "val_size": 140,
+            "train_group_count": 41,
+            "val_group_count": 15,
+            "val_legit_count": 109,
+            "val_fraud_count": 31,
+            "val_fraud_rate": 0.221429,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.7715,
+            "pr_auc": 0.5791,
+            "brier_score": 0.203,
+            "precision": 0.2727,
+            "recall": 0.4839,
+            "f1_score": 0.3488,
+            "confusion_matrix": {
+              "tp": 15,
+              "fp": 40,
+              "tn": 69,
+              "fn": 16
+            }
+          }
+        ],
+        "per_fold_summary": {
+          "roc_auc": {
+            "mean": 0.9427,
+            "std": 0.0867
+          },
+          "pr_auc": {
+            "mean": 0.8983,
+            "std": 0.1609
+          },
+          "brier_score": {
+            "mean": 0.0679,
+            "std": 0.0708
+          },
+          "precision": {
+            "mean": 0.849,
+            "std": 0.2883
+          },
+          "recall": {
+            "mean": 0.8218,
+            "std": 0.1886
+          },
+          "f1_score": {
+            "mean": 0.8256,
+            "std": 0.2423
+          }
+        },
+        "pooled_oof_ml": {
+          "decision_threshold": 0.5,
+          "roc_auc": 0.9559,
+          "pr_auc": 0.8751,
+          "brier_score": 0.0678,
+          "ece": 0.091364,
+          "precision": 0.763,
+          "recall": 0.825,
+          "specificity": 0.9245,
+          "false_positive_rate": 0.0755,
+          "f1_score": 0.7928,
+          "confusion_matrix": {
+            "tp": 132,
+            "fp": 41,
+            "tn": 502,
+            "fn": 28
+          }
+        },
+        "pooled_oof_composite": {
+          "velocity_score": 0.0,
+          "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+          "tier1": {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 156,
+              "fp": 44,
+              "tn": 499,
+              "fn": 4
+            },
+            "precision": 0.78,
+            "recall": 0.975,
+            "specificity": 0.919,
+            "false_positive_rate": 0.081,
+            "f1_score": 0.8667
+          },
+          "tier2": {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 117,
+              "fp": 13,
+              "tn": 530,
+              "fn": 43
+            },
+            "precision": 0.9,
+            "recall": 0.7312,
+            "specificity": 0.9761,
+            "false_positive_rate": 0.0239,
+            "f1_score": 0.8069
+          }
+        },
+        "calibration_diagnostics": {
+          "bin_scheme": "equal_width_half_open_final_closed",
+          "n_bins": 10,
+          "sample_count": 703,
+          "ece": 0.091364,
+          "max_calibration_error": 0.408776,
+          "brier_score": 0.067781,
+          "reliability_bins": [
+            {
+              "bin_index": 0,
+              "bin_lower": 0.0,
+              "bin_upper": 0.1,
+              "sample_count": 390,
+              "mean_predicted_prob": 0.027775,
+              "empirical_positive_rate": 0.007692,
+              "abs_calibration_gap": 0.020082
+            },
+            {
+              "bin_index": 1,
+              "bin_lower": 0.1,
+              "bin_upper": 0.2,
+              "sample_count": 88,
+              "mean_predicted_prob": 0.157938,
+              "empirical_positive_rate": 0.034091,
+              "abs_calibration_gap": 0.123848
+            },
+            {
+              "bin_index": 2,
+              "bin_lower": 0.2,
+              "bin_upper": 0.3,
+              "sample_count": 28,
+              "mean_predicted_prob": 0.238486,
+              "empirical_positive_rate": 0.107143,
+              "abs_calibration_gap": 0.131343
+            },
+            {
+              "bin_index": 3,
+              "bin_lower": 0.3,
+              "bin_upper": 0.4,
+              "sample_count": 8,
+              "mean_predicted_prob": 0.341224,
+              "empirical_positive_rate": 0.75,
+              "abs_calibration_gap": 0.408776
+            },
+            {
+              "bin_index": 4,
+              "bin_lower": 0.4,
+              "bin_upper": 0.5,
+              "sample_count": 16,
+              "mean_predicted_prob": 0.465088,
+              "empirical_positive_rate": 0.8125,
+              "abs_calibration_gap": 0.347412
+            },
+            {
+              "bin_index": 5,
+              "bin_lower": 0.5,
+              "bin_upper": 0.6,
+              "sample_count": 29,
+              "mean_predicted_prob": 0.558427,
+              "empirical_positive_rate": 0.965517,
+              "abs_calibration_gap": 0.40709
+            },
+            {
+              "bin_index": 6,
+              "bin_lower": 0.6,
+              "bin_upper": 0.7,
+              "sample_count": 24,
+              "mean_predicted_prob": 0.664549,
+              "empirical_positive_rate": 0.458333,
+              "abs_calibration_gap": 0.206216
+            },
+            {
+              "bin_index": 7,
+              "bin_lower": 0.7,
+              "bin_upper": 0.8,
+              "sample_count": 37,
+              "mean_predicted_prob": 0.747819,
+              "empirical_positive_rate": 0.378378,
+              "abs_calibration_gap": 0.369441
+            },
+            {
+              "bin_index": 8,
+              "bin_lower": 0.8,
+              "bin_upper": 0.9,
+              "sample_count": 36,
+              "mean_predicted_prob": 0.849221,
+              "empirical_positive_rate": 0.888889,
+              "abs_calibration_gap": 0.039668
+            },
+            {
+              "bin_index": 9,
+              "bin_lower": 0.9,
+              "bin_upper": 1.0,
+              "sample_count": 47,
+              "mean_predicted_prob": 0.975747,
+              "empirical_positive_rate": 1.0,
+              "abs_calibration_gap": 0.024253
+            }
+          ]
+        },
+        "wilson_95_ci": {
+          "confidence_level": 0.95,
+          "z_score": 1.95996,
+          "methodology_note": "Message-level Wilson binomial intervals assume independent Bernoulli trials; consult cluster_bootstrap_95_ci for family-level uncertainty.",
+          "ml_p50_precision": [
+            0.694359,
+            0.820227
+          ],
+          "ml_p50_recall": [
+            0.758702,
+            0.876058
+          ],
+          "tier1_precision": [
+            0.717612,
+            0.831835
+          ],
+          "tier1_recall": [
+            0.93749,
+            0.990236
+          ],
+          "tier1_fpr": [
+            0.060914,
+            0.107034
+          ],
+          "tier2_precision": [
+            0.836414,
+            0.940624
+          ],
+          "tier2_recall": [
+            0.657732,
+            0.793924
+          ],
+          "tier2_fpr": [
+            0.014044,
+            0.040527
+          ]
+        },
+        "cluster_bootstrap_95_ci": {
+          "method": "nonparametric_cluster_percentile_bootstrap",
+          "resampling_unit": "semantic_family_id",
+          "independent_group_count": 56,
+          "replicate_count": 1000,
+          "seed": 42,
+          "confidence_level": 0.95,
+          "decision_threshold": 0.5,
+          "methodology_note": "Resamples whole semantic template families with replacement to preserve intra-family correlation; distinct from message-level Wilson binomial intervals.",
+          "metrics": {
+            "roc_auc": {
+              "ci_95": [
+                0.865417,
+                0.996022
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "pr_auc": {
+              "ci_95": [
+                0.543658,
+                0.991892
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "brier_score": {
+              "ci_95": [
+                0.025261,
+                0.137128
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "precision": {
+              "ci_95": [
+                0.384423,
+                1.0
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "recall": {
+              "ci_95": [
+                0.597534,
+                0.928305
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "f1_score": {
+              "ci_95": [
+                0.493329,
+                0.949238
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            }
+          }
+        }
+      },
+      "macro_bank_2way": {
+        "group_count": 54,
+        "n_splits": 5,
+        "max_outer_group_overlap": 0,
+        "max_inner_group_overlap": 0,
+        "min_fold_prevalence": 0.198675,
+        "max_fold_prevalence": 0.25,
+        "completeness": {
+          "total_samples": 703,
+          "covered_sample_ids": 703,
+          "duplicate_sample_ids": 0,
+          "is_complete": true
+        },
+        "per_fold": [
+          {
+            "fold": 0,
+            "train_size": 552,
+            "val_size": 151,
+            "train_group_count": 46,
+            "val_group_count": 8,
+            "val_legit_count": 121,
+            "val_fraud_count": 30,
+            "val_fraud_rate": 0.198675,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.6835,
+            "pr_auc": 0.3516,
+            "brier_score": 0.2492,
+            "precision": 0.3443,
+            "recall": 0.7,
+            "f1_score": 0.4615,
+            "confusion_matrix": {
+              "tp": 21,
+              "fp": 40,
+              "tn": 81,
+              "fn": 9
+            }
+          },
+          {
+            "fold": 1,
+            "train_size": 567,
+            "val_size": 136,
+            "train_group_count": 39,
+            "val_group_count": 15,
+            "val_legit_count": 105,
+            "val_fraud_count": 31,
+            "val_fraud_rate": 0.227941,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9853,
+            "pr_auc": 0.9501,
+            "brier_score": 0.0683,
+            "precision": 0.9333,
+            "recall": 0.4516,
+            "f1_score": 0.6087,
+            "confusion_matrix": {
+              "tp": 14,
+              "fp": 1,
+              "tn": 104,
+              "fn": 17
+            }
+          },
+          {
+            "fold": 2,
+            "train_size": 566,
+            "val_size": 137,
+            "train_group_count": 44,
+            "val_group_count": 10,
+            "val_legit_count": 105,
+            "val_fraud_count": 32,
+            "val_fraud_rate": 0.233577,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9887,
+            "pr_auc": 0.9793,
+            "brier_score": 0.0209,
+            "precision": 1.0,
+            "recall": 0.9375,
+            "f1_score": 0.9677,
+            "confusion_matrix": {
+              "tp": 30,
+              "fp": 0,
+              "tn": 105,
+              "fn": 2
+            }
+          },
+          {
+            "fold": 3,
+            "train_size": 564,
+            "val_size": 139,
+            "train_group_count": 43,
+            "val_group_count": 11,
+            "val_legit_count": 107,
+            "val_fraud_count": 32,
+            "val_fraud_rate": 0.230216,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9936,
+            "pr_auc": 0.9873,
+            "brier_score": 0.0411,
+            "precision": 1.0,
+            "recall": 0.9375,
+            "f1_score": 0.9677,
+            "confusion_matrix": {
+              "tp": 30,
+              "fp": 0,
+              "tn": 107,
+              "fn": 2
+            }
+          },
+          {
+            "fold": 4,
+            "train_size": 563,
+            "val_size": 140,
+            "train_group_count": 44,
+            "val_group_count": 10,
+            "val_legit_count": 105,
+            "val_fraud_count": 35,
+            "val_fraud_rate": 0.25,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9997,
+            "pr_auc": 0.9992,
+            "brier_score": 0.0261,
+            "precision": 0.9722,
+            "recall": 1.0,
+            "f1_score": 0.9859,
+            "confusion_matrix": {
+              "tp": 35,
+              "fp": 1,
+              "tn": 104,
+              "fn": 0
+            }
+          }
+        ],
+        "per_fold_summary": {
+          "roc_auc": {
+            "mean": 0.9302,
+            "std": 0.1234
+          },
+          "pr_auc": {
+            "mean": 0.8535,
+            "std": 0.2515
+          },
+          "brier_score": {
+            "mean": 0.0811,
+            "std": 0.0856
+          },
+          "precision": {
+            "mean": 0.85,
+            "std": 0.254
+          },
+          "recall": {
+            "mean": 0.8053,
+            "std": 0.2045
+          },
+          "f1_score": {
+            "mean": 0.7983,
+            "std": 0.22
+          }
+        },
+        "pooled_oof_ml": {
+          "decision_threshold": 0.5,
+          "roc_auc": 0.9309,
+          "pr_auc": 0.733,
+          "brier_score": 0.0842,
+          "ece": 0.10056,
+          "precision": 0.7558,
+          "recall": 0.8125,
+          "specificity": 0.9227,
+          "false_positive_rate": 0.0773,
+          "f1_score": 0.7831,
+          "confusion_matrix": {
+            "tp": 130,
+            "fp": 42,
+            "tn": 501,
+            "fn": 30
+          }
+        },
+        "pooled_oof_composite": {
+          "velocity_score": 0.0,
+          "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+          "tier1": {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 154,
+              "fp": 43,
+              "tn": 500,
+              "fn": 6
+            },
+            "precision": 0.7817,
+            "recall": 0.9625,
+            "specificity": 0.9208,
+            "false_positive_rate": 0.0792,
+            "f1_score": 0.8627
+          },
+          "tier2": {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 118,
+              "fp": 40,
+              "tn": 503,
+              "fn": 42
+            },
+            "precision": 0.7468,
+            "recall": 0.7375,
+            "specificity": 0.9263,
+            "false_positive_rate": 0.0737,
+            "f1_score": 0.7421
+          }
+        },
+        "calibration_diagnostics": {
+          "bin_scheme": "equal_width_half_open_final_closed",
+          "n_bins": 10,
+          "sample_count": 703,
+          "ece": 0.10056,
+          "max_calibration_error": 0.489681,
+          "brier_score": 0.084159,
+          "reliability_bins": [
+            {
+              "bin_index": 0,
+              "bin_lower": 0.0,
+              "bin_upper": 0.1,
+              "sample_count": 376,
+              "mean_predicted_prob": 0.028897,
+              "empirical_positive_rate": 0.010638,
+              "abs_calibration_gap": 0.018259
+            },
+            {
+              "bin_index": 1,
+              "bin_lower": 0.1,
+              "bin_upper": 0.2,
+              "sample_count": 69,
+              "mean_predicted_prob": 0.129342,
+              "empirical_positive_rate": 0.014493,
+              "abs_calibration_gap": 0.11485
+            },
+            {
+              "bin_index": 2,
+              "bin_lower": 0.2,
+              "bin_upper": 0.3,
+              "sample_count": 38,
+              "mean_predicted_prob": 0.252065,
+              "empirical_positive_rate": 0.105263,
+              "abs_calibration_gap": 0.146802
+            },
+            {
+              "bin_index": 3,
+              "bin_lower": 0.3,
+              "bin_upper": 0.4,
+              "sample_count": 32,
+              "mean_predicted_prob": 0.33667,
+              "empirical_positive_rate": 0.1875,
+              "abs_calibration_gap": 0.14917
+            },
+            {
+              "bin_index": 4,
+              "bin_lower": 0.4,
+              "bin_upper": 0.5,
+              "sample_count": 16,
+              "mean_predicted_prob": 0.447819,
+              "empirical_positive_rate": 0.9375,
+              "abs_calibration_gap": 0.489681
+            },
+            {
+              "bin_index": 5,
+              "bin_lower": 0.5,
+              "bin_upper": 0.6,
+              "sample_count": 18,
+              "mean_predicted_prob": 0.55384,
+              "empirical_positive_rate": 0.888889,
+              "abs_calibration_gap": 0.335049
+            },
+            {
+              "bin_index": 6,
+              "bin_lower": 0.6,
+              "bin_upper": 0.7,
+              "sample_count": 33,
+              "mean_predicted_prob": 0.65897,
+              "empirical_positive_rate": 1.0,
+              "abs_calibration_gap": 0.34103
+            },
+            {
+              "bin_index": 7,
+              "bin_lower": 0.7,
+              "bin_upper": 0.8,
+              "sample_count": 33,
+              "mean_predicted_prob": 0.758476,
+              "empirical_positive_rate": 0.757576,
+              "abs_calibration_gap": 0.0009
+            },
+            {
+              "bin_index": 8,
+              "bin_lower": 0.8,
+              "bin_upper": 0.9,
+              "sample_count": 75,
+              "mean_predicted_prob": 0.857749,
+              "empirical_positive_rate": 0.613333,
+              "abs_calibration_gap": 0.244415
+            },
+            {
+              "bin_index": 9,
+              "bin_lower": 0.9,
+              "bin_upper": 1.0,
+              "sample_count": 13,
+              "mean_predicted_prob": 0.928534,
+              "empirical_positive_rate": 0.769231,
+              "abs_calibration_gap": 0.159303
+            }
+          ]
+        },
+        "wilson_95_ci": {
+          "confidence_level": 0.95,
+          "z_score": 1.95996,
+          "methodology_note": "Message-level Wilson binomial intervals assume independent Bernoulli trials; consult cluster_bootstrap_95_ci for family-level uncertainty.",
+          "ml_p50_precision": [
+            0.686483,
+            0.813968
+          ],
+          "ml_p50_recall": [
+            0.744961,
+            0.865386
+          ],
+          "tier1_precision": [
+            0.718956,
+            0.833719
+          ],
+          "tier1_recall": [
+            0.92061,
+            0.982702
+          ],
+          "tier1_fpr": [
+            0.059321,
+            0.104971
+          ],
+          "tier2_precision": [
+            0.67373,
+            0.808223
+          ],
+          "tier2_recall": [
+            0.66433,
+            0.799534
+          ],
+          "tier2_fpr": [
+            0.054562,
+            0.098758
+          ]
+        },
+        "cluster_bootstrap_95_ci": {
+          "method": "nonparametric_cluster_percentile_bootstrap",
+          "resampling_unit": "semantic_family_id",
+          "independent_group_count": 54,
+          "replicate_count": 1000,
+          "seed": 42,
+          "confidence_level": 0.95,
+          "decision_threshold": 0.5,
+          "methodology_note": "Resamples whole semantic template families with replacement to preserve intra-family correlation; distinct from message-level Wilson binomial intervals.",
+          "metrics": {
+            "roc_auc": {
+              "ci_95": [
+                0.830547,
+                0.996
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "pr_auc": {
+              "ci_95": [
+                0.32636,
+                0.993973
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "brier_score": {
+              "ci_95": [
+                0.032242,
+                0.146141
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "precision": {
+              "ci_95": [
+                0.345149,
+                1.0
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "recall": {
+              "ci_95": [
+                0.54502,
+                0.920399
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "f1_score": {
+              "ci_95": [
+                0.429192,
+                0.938589
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            }
+          }
+        },
+        "collapsed_source_families": [
+          "legit_bank_auth_alert_yn",
+          "legit_bank_fraud_alert_yesno",
+          "legit_bank_security_alert_12"
+        ],
+        "macro_group_id": "legit_bank_2way_macro",
+        "sensitivity_note": "Collapsing 3 legitimate 2-way bank alert sub-templates (legit_bank_fraud_alert_yesno, legit_bank_security_alert_12, legit_bank_auth_alert_yn) into one single legit_bank_2way_macro archetype tests sensitivity to coarser template grouping; this is a sensitivity diagnostic only (fine-grained OOF remains primary)."
+      },
+      "oof_predictions_artifact": "oof_predictions.json",
+      "oof_predictions_sha256": "9b6376520d0161e6969646a07d98babc00231e51f166d9149e18b567bd163265"
+    }
   },
   "held_out_adversarial_metrics": {
     "sample_count": 400,
@@ -1089,49 +3156,279 @@
     "fraud_count": 200,
     "decision_threshold": 0.5,
     "confusion_matrix": {
-      "tp": 194,
+      "tp": 191,
       "fp": 7,
       "tn": 193,
-      "fn": 6
+      "fn": 9
     },
-    "accuracy": 0.9675,
-    "precision": 0.9652,
-    "recall": 0.97,
+    "accuracy": 0.96,
+    "precision": 0.9646,
+    "recall": 0.955,
     "specificity": 0.965,
-    "f1_score": 0.9676,
-    "roc_auc": 0.9947,
-    "pr_auc": 0.9951,
-    "brier_score": 0.0447,
+    "f1_score": 0.9598,
+    "roc_auc": 0.997,
+    "pr_auc": 0.997,
+    "brier_score": 0.0371,
+    "ece": 0.102692,
+    "reliability_bins": [
+      {
+        "bin_index": 0,
+        "bin_lower": 0.0,
+        "bin_upper": 0.1,
+        "sample_count": 158,
+        "mean_predicted_prob": 0.013874,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.013874
+      },
+      {
+        "bin_index": 1,
+        "bin_lower": 0.1,
+        "bin_upper": 0.2,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.142458,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.142458
+      },
+      {
+        "bin_index": 2,
+        "bin_lower": 0.2,
+        "bin_upper": 0.3,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.244714,
+        "empirical_positive_rate": 0.0,
+        "abs_calibration_gap": 0.244714
+      },
+      {
+        "bin_index": 3,
+        "bin_lower": 0.3,
+        "bin_upper": 0.4,
+        "sample_count": 8,
+        "mean_predicted_prob": 0.320747,
+        "empirical_positive_rate": 0.5,
+        "abs_calibration_gap": 0.179253
+      },
+      {
+        "bin_index": 4,
+        "bin_lower": 0.4,
+        "bin_upper": 0.5,
+        "sample_count": 8,
+        "mean_predicted_prob": 0.451082,
+        "empirical_positive_rate": 0.625,
+        "abs_calibration_gap": 0.173918
+      },
+      {
+        "bin_index": 5,
+        "bin_lower": 0.5,
+        "bin_upper": 0.6,
+        "sample_count": 5,
+        "mean_predicted_prob": 0.554953,
+        "empirical_positive_rate": 0.4,
+        "abs_calibration_gap": 0.154953
+      },
+      {
+        "bin_index": 6,
+        "bin_lower": 0.6,
+        "bin_upper": 0.7,
+        "sample_count": 14,
+        "mean_predicted_prob": 0.664927,
+        "empirical_positive_rate": 0.785714,
+        "abs_calibration_gap": 0.120788
+      },
+      {
+        "bin_index": 7,
+        "bin_lower": 0.7,
+        "bin_upper": 0.8,
+        "sample_count": 18,
+        "mean_predicted_prob": 0.755137,
+        "empirical_positive_rate": 0.944444,
+        "abs_calibration_gap": 0.189308
+      },
+      {
+        "bin_index": 8,
+        "bin_lower": 0.8,
+        "bin_upper": 0.9,
+        "sample_count": 161,
+        "mean_predicted_prob": 0.846178,
+        "empirical_positive_rate": 1.0,
+        "abs_calibration_gap": 0.153822
+      },
+      {
+        "bin_index": 9,
+        "bin_lower": 0.9,
+        "bin_upper": 1.0,
+        "sample_count": 0,
+        "mean_predicted_prob": null,
+        "empirical_positive_rate": null,
+        "abs_calibration_gap": null
+      }
+    ],
+    "calibration_diagnostics": {
+      "bin_scheme": "equal_width_half_open_final_closed",
+      "n_bins": 10,
+      "sample_count": 400,
+      "ece": 0.102692,
+      "max_calibration_error": 0.244714,
+      "brier_score": 0.037083,
+      "reliability_bins": [
+        {
+          "bin_index": 0,
+          "bin_lower": 0.0,
+          "bin_upper": 0.1,
+          "sample_count": 158,
+          "mean_predicted_prob": 0.013874,
+          "empirical_positive_rate": 0.0,
+          "abs_calibration_gap": 0.013874
+        },
+        {
+          "bin_index": 1,
+          "bin_lower": 0.1,
+          "bin_upper": 0.2,
+          "sample_count": 14,
+          "mean_predicted_prob": 0.142458,
+          "empirical_positive_rate": 0.0,
+          "abs_calibration_gap": 0.142458
+        },
+        {
+          "bin_index": 2,
+          "bin_lower": 0.2,
+          "bin_upper": 0.3,
+          "sample_count": 14,
+          "mean_predicted_prob": 0.244714,
+          "empirical_positive_rate": 0.0,
+          "abs_calibration_gap": 0.244714
+        },
+        {
+          "bin_index": 3,
+          "bin_lower": 0.3,
+          "bin_upper": 0.4,
+          "sample_count": 8,
+          "mean_predicted_prob": 0.320747,
+          "empirical_positive_rate": 0.5,
+          "abs_calibration_gap": 0.179253
+        },
+        {
+          "bin_index": 4,
+          "bin_lower": 0.4,
+          "bin_upper": 0.5,
+          "sample_count": 8,
+          "mean_predicted_prob": 0.451082,
+          "empirical_positive_rate": 0.625,
+          "abs_calibration_gap": 0.173918
+        },
+        {
+          "bin_index": 5,
+          "bin_lower": 0.5,
+          "bin_upper": 0.6,
+          "sample_count": 5,
+          "mean_predicted_prob": 0.554953,
+          "empirical_positive_rate": 0.4,
+          "abs_calibration_gap": 0.154953
+        },
+        {
+          "bin_index": 6,
+          "bin_lower": 0.6,
+          "bin_upper": 0.7,
+          "sample_count": 14,
+          "mean_predicted_prob": 0.664927,
+          "empirical_positive_rate": 0.785714,
+          "abs_calibration_gap": 0.120788
+        },
+        {
+          "bin_index": 7,
+          "bin_lower": 0.7,
+          "bin_upper": 0.8,
+          "sample_count": 18,
+          "mean_predicted_prob": 0.755137,
+          "empirical_positive_rate": 0.944444,
+          "abs_calibration_gap": 0.189308
+        },
+        {
+          "bin_index": 8,
+          "bin_lower": 0.8,
+          "bin_upper": 0.9,
+          "sample_count": 161,
+          "mean_predicted_prob": 0.846178,
+          "empirical_positive_rate": 1.0,
+          "abs_calibration_gap": 0.153822
+        },
+        {
+          "bin_index": 9,
+          "bin_lower": 0.9,
+          "bin_upper": 1.0,
+          "sample_count": 0,
+          "mean_predicted_prob": null,
+          "empirical_positive_rate": null,
+          "abs_calibration_gap": null
+        }
+      ]
+    },
+    "wilson_95_ci": {
+      "confidence_level": 0.95,
+      "z_score": 1.95996,
+      "methodology_note": "Message-level Wilson 95% binomial intervals assume independent Bernoulli trials; consult cluster-level semantic-family bootstrap CIs for correlated uncertainty.",
+      "ml_p50_precision": [
+        0.928836,
+        0.982771
+      ],
+      "ml_p50_recall": [
+        0.916703,
+        0.976147
+      ],
+      "tier1_precision": [
+        0.914577,
+        0.973932
+      ],
+      "tier1_recall": [
+        0.981155,
+        1.0
+      ],
+      "tier1_fpr": [
+        0.027383,
+        0.089578
+      ],
+      "tier2_precision": [
+        0.97899,
+        1.0
+      ],
+      "tier2_recall": [
+        0.84482,
+        0.930292
+      ],
+      "tier2_fpr": [
+        0.0,
+        0.018845
+      ]
+    },
     "false_positive_rate": 0.035,
-    "false_negative_rate": 0.03,
+    "false_negative_rate": 0.045,
     "tier1_escalation": {
       "threshold": 0.4,
       "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
       "confusion_matrix": {
         "tp": 200,
-        "fp": 12,
-        "tn": 188,
+        "fp": 10,
+        "tn": 190,
         "fn": 0
       },
-      "precision": 0.9434,
+      "precision": 0.9524,
       "recall": 1.0,
-      "specificity": 0.94,
-      "f1_score": 0.9709,
-      "false_positive_rate": 0.06
+      "specificity": 0.95,
+      "f1_score": 0.9756,
+      "false_positive_rate": 0.05
     },
     "tier2_block": {
       "threshold": 0.75,
       "description": "BLOCK (Immediate Carrier Wire Drop)",
       "confusion_matrix": {
-        "tp": 167,
+        "tp": 179,
         "fp": 0,
         "tn": 200,
-        "fn": 33
+        "fn": 21
       },
       "precision": 1.0,
-      "recall": 0.835,
+      "recall": 0.895,
       "specificity": 1.0,
-      "f1_score": 0.9101,
+      "f1_score": 0.9446,
       "false_positive_rate": 0.0
     },
     "category_analysis": {
@@ -1149,26 +3446,26 @@
           "tier2_blocked_count": 0,
           "tier1_rate": 0.0,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.0038,
+          "mean_onnx_probability": 0.0109,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.0038
+          "mean_composite_score": 0.0109
         },
         {
           "category_id": "benign_carrier_notices",
           "category_name": "Carrier Usage & Roaming Notices",
           "label": 0,
           "sample_count": 25,
-          "ml_p50_flagged_count": 0,
-          "ml_p50_rate": 0.0,
+          "ml_p50_flagged_count": 1,
+          "ml_p50_rate": 0.04,
           "heuristic_h50_flagged_count": 0,
           "heuristic_h50_rate": 0.0,
           "tier1_flagged_count": 2,
           "tier2_blocked_count": 0,
           "tier1_rate": 0.08,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1199,
+          "mean_onnx_probability": 0.0753,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.1199
+          "mean_composite_score": 0.0753
         },
         {
           "category_id": "benign_health_notices",
@@ -1183,9 +3480,9 @@
           "tier2_blocked_count": 0,
           "tier1_rate": 0.0,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.0928,
+          "mean_onnx_probability": 0.0492,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.0928
+          "mean_composite_score": 0.0492
         },
         {
           "category_id": "benign_2fa_auth_codes",
@@ -1200,9 +3497,9 @@
           "tier2_blocked_count": 0,
           "tier1_rate": 0.04,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1029,
+          "mean_onnx_probability": 0.0705,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.1029
+          "mean_composite_score": 0.0705
         },
         {
           "category_id": "benign_delivery_notices",
@@ -1213,30 +3510,30 @@
           "ml_p50_rate": 0.08,
           "heuristic_h50_flagged_count": 0,
           "heuristic_h50_rate": 0.0,
-          "tier1_flagged_count": 3,
+          "tier1_flagged_count": 2,
           "tier2_blocked_count": 0,
-          "tier1_rate": 0.12,
+          "tier1_rate": 0.08,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1598,
+          "mean_onnx_probability": 0.0956,
           "mean_heuristic_score": 0.168,
-          "mean_composite_score": 0.1695
+          "mean_composite_score": 0.0998
         },
         {
           "category_id": "benign_retail_receipts",
           "category_name": "Retail Receipts & Curbside Pickups",
           "label": 0,
           "sample_count": 25,
-          "ml_p50_flagged_count": 1,
-          "ml_p50_rate": 0.04,
+          "ml_p50_flagged_count": 0,
+          "ml_p50_rate": 0.0,
           "heuristic_h50_flagged_count": 0,
           "heuristic_h50_rate": 0.0,
           "tier1_flagged_count": 1,
           "tier2_blocked_count": 0,
           "tier1_rate": 0.04,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.085,
+          "mean_onnx_probability": 0.0512,
           "mean_heuristic_score": 0.008,
-          "mean_composite_score": 0.085
+          "mean_composite_score": 0.0512
         },
         {
           "category_id": "benign_crypto_notices",
@@ -1247,13 +3544,13 @@
           "ml_p50_rate": 0.12,
           "heuristic_h50_flagged_count": 0,
           "heuristic_h50_rate": 0.0,
-          "tier1_flagged_count": 4,
+          "tier1_flagged_count": 3,
           "tier2_blocked_count": 0,
-          "tier1_rate": 0.16,
+          "tier1_rate": 0.12,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1909,
+          "mean_onnx_probability": 0.158,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.1909
+          "mean_composite_score": 0.158
         },
         {
           "category_id": "benign_conversational",
@@ -1268,9 +3565,9 @@
           "tier2_blocked_count": 0,
           "tier1_rate": 0.04,
           "tier2_rate": 0.0,
-          "mean_onnx_probability": 0.1409,
+          "mean_onnx_probability": 0.0724,
           "mean_heuristic_score": 0.0,
-          "mean_composite_score": 0.1409
+          "mean_composite_score": 0.0724
         },
         {
           "category_id": "smish_bank_panic",
@@ -1285,7 +3582,7 @@
           "tier2_blocked_count": 30,
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
-          "mean_onnx_probability": 0.9679,
+          "mean_onnx_probability": 0.8715,
           "mean_heuristic_score": 0.82,
           "mean_composite_score": 1.0
         },
@@ -1302,9 +3599,9 @@
           "tier2_blocked_count": 30,
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
-          "mean_onnx_probability": 0.8818,
+          "mean_onnx_probability": 0.849,
           "mean_heuristic_score": 0.77,
-          "mean_composite_score": 0.9303
+          "mean_composite_score": 0.911
         },
         {
           "category_id": "smish_legal_extortion",
@@ -1319,7 +3616,7 @@
           "tier2_blocked_count": 30,
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
-          "mean_onnx_probability": 0.8165,
+          "mean_onnx_probability": 0.8194,
           "mean_heuristic_score": 0.832,
           "mean_composite_score": 1.0
         },
@@ -1333,12 +3630,12 @@
           "heuristic_h50_flagged_count": 20,
           "heuristic_h50_rate": 0.8,
           "tier1_flagged_count": 25,
-          "tier2_blocked_count": 20,
+          "tier2_blocked_count": 25,
           "tier1_rate": 1.0,
-          "tier2_rate": 0.8,
-          "mean_onnx_probability": 0.7825,
+          "tier2_rate": 1.0,
+          "mean_onnx_probability": 0.7899,
           "mean_heuristic_score": 0.686,
-          "mean_composite_score": 0.8799
+          "mean_composite_score": 0.8837
         },
         {
           "category_id": "smish_broken_phone",
@@ -1353,26 +3650,26 @@
           "tier2_blocked_count": 25,
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
-          "mean_onnx_probability": 0.8092,
+          "mean_onnx_probability": 0.8775,
           "mean_heuristic_score": 0.75,
-          "mean_composite_score": 0.8851
+          "mean_composite_score": 0.9262
         },
         {
           "category_id": "smish_doc_invoice",
           "category_name": "Fake DocuSign & Invoice Scams",
           "label": 1,
           "sample_count": 25,
-          "ml_p50_flagged_count": 23,
-          "ml_p50_rate": 0.92,
+          "ml_p50_flagged_count": 20,
+          "ml_p50_rate": 0.8,
           "heuristic_h50_flagged_count": 15,
           "heuristic_h50_rate": 0.6,
           "tier1_flagged_count": 25,
           "tier2_blocked_count": 15,
           "tier1_rate": 1.0,
           "tier2_rate": 0.6,
-          "mean_onnx_probability": 0.7412,
+          "mean_onnx_probability": 0.7147,
           "mean_heuristic_score": 0.562,
-          "mean_composite_score": 0.8065
+          "mean_composite_score": 0.7959
         },
         {
           "category_id": "smish_homoglyph",
@@ -1384,12 +3681,12 @@
           "heuristic_h50_flagged_count": 8,
           "heuristic_h50_rate": 0.4,
           "tier1_flagged_count": 20,
-          "tier2_blocked_count": 16,
+          "tier2_blocked_count": 19,
           "tier1_rate": 1.0,
-          "tier2_rate": 0.8,
-          "mean_onnx_probability": 0.7767,
+          "tier2_rate": 0.95,
+          "mean_onnx_probability": 0.793,
           "mean_heuristic_score": 0.458,
-          "mean_composite_score": 0.8179
+          "mean_composite_score": 0.8327
         },
         {
           "category_id": "smish_callback_scams",
@@ -1401,12 +3698,12 @@
           "heuristic_h50_flagged_count": 4,
           "heuristic_h50_rate": 0.2667,
           "tier1_flagged_count": 15,
-          "tier2_blocked_count": 1,
+          "tier2_blocked_count": 5,
           "tier1_rate": 1.0,
-          "tier2_rate": 0.0667,
-          "mean_onnx_probability": 0.5528,
+          "tier2_rate": 0.3333,
+          "mean_onnx_probability": 0.634,
           "mean_heuristic_score": 0.1867,
-          "mean_composite_score": 0.6299
+          "mean_composite_score": 0.7011
         }
       ],
       "total_categories": 16
@@ -1414,46 +3711,46 @@
     "ablation_analysis": {
       "model_alone": {
         "description": "ONNX Runtime Platt-calibrated model probability P_onnx alone without heuristics",
-        "roc_auc": 0.9947,
-        "pr_auc": 0.9951,
-        "brier_score": 0.0447,
+        "roc_auc": 0.997,
+        "pr_auc": 0.997,
+        "brier_score": 0.0371,
         "at_threshold_0_40": {
           "threshold": 0.4,
           "confusion_matrix": {
             "tp": 196,
-            "fp": 12,
-            "tn": 188,
+            "fp": 10,
+            "tn": 190,
             "fn": 4
           },
-          "precision": 0.9423,
+          "precision": 0.9515,
           "recall": 0.98,
-          "f1_score": 0.9608,
-          "false_positive_rate": 0.06
+          "f1_score": 0.9655,
+          "false_positive_rate": 0.05
         },
         "at_threshold_0_50": {
           "threshold": 0.5,
           "confusion_matrix": {
-            "tp": 194,
+            "tp": 191,
             "fp": 7,
             "tn": 193,
-            "fn": 6
+            "fn": 9
           },
-          "precision": 0.9652,
-          "recall": 0.97,
-          "f1_score": 0.9676,
+          "precision": 0.9646,
+          "recall": 0.955,
+          "f1_score": 0.9598,
           "false_positive_rate": 0.035
         },
         "at_threshold_0_75": {
           "threshold": 0.75,
           "confusion_matrix": {
-            "tp": 163,
+            "tp": 171,
             "fp": 0,
             "tn": 200,
-            "fn": 37
+            "fn": 29
           },
           "precision": 1.0,
-          "recall": 0.815,
-          "f1_score": 0.8981,
+          "recall": 0.855,
+          "f1_score": 0.9218,
           "false_positive_rate": 0.0
         }
       },
@@ -1505,33 +3802,33 @@
           "threshold": 0.4,
           "confusion_matrix": {
             "tp": 200,
-            "fp": 12,
-            "tn": 188,
+            "fp": 10,
+            "tn": 190,
             "fn": 0
           },
-          "precision": 0.9434,
+          "precision": 0.9524,
           "recall": 1.0,
-          "f1_score": 0.9709,
-          "false_positive_rate": 0.06
+          "f1_score": 0.9756,
+          "false_positive_rate": 0.05
         },
         "tier2_block": {
           "threshold": 0.75,
           "confusion_matrix": {
-            "tp": 167,
+            "tp": 179,
             "fp": 0,
             "tn": 200,
-            "fn": 33
+            "fn": 21
           },
           "precision": 1.0,
-          "recall": 0.835,
-          "f1_score": 0.9101,
+          "recall": 0.895,
+          "f1_score": 0.9446,
           "false_positive_rate": 0.0
         }
       },
       "velocity_ablation_note": "Velocity signals require multi-message temporal event streams (sender/IP sliding windows). On the static held-out test suite (N = 400), velocity is fixed to 0.0 to isolate content inspection. Velocity contributions are evaluated under synthetic multi-message velocity sweeps in test_telecom_gateway.py."
     },
     "error_analysis": {
-      "tier1_false_positives_count": 12,
+      "tier1_false_positives_count": 10,
       "tier1_false_positives": [
         {
           "sample_index": 27,
@@ -1539,11 +3836,11 @@
           "expected_label": "BENIGN",
           "category_name": "Carrier Usage & Roaming Notices",
           "category_id": "benign_carrier_notices",
-          "onnx_probability": 0.4186,
+          "onnx_probability": 0.5173,
           "heuristic_score": 0.0,
-          "composite_score": 0.4186,
+          "composite_score": 0.5173,
           "matched_rules": [],
-          "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.52) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 48,
@@ -1551,11 +3848,11 @@
           "expected_label": "BENIGN",
           "category_name": "Carrier Usage & Roaming Notices",
           "category_id": "benign_carrier_notices",
-          "onnx_probability": 0.4587,
+          "onnx_probability": 0.4497,
           "heuristic_score": 0.0,
-          "composite_score": 0.4587,
+          "composite_score": 0.4497,
           "matched_rules": [],
-          "reason": "Elevated content score (0.46) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.45) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 97,
@@ -1563,11 +3860,11 @@
           "expected_label": "BENIGN",
           "category_name": "2FA & OTP Authentication Codes",
           "category_id": "benign_2fa_auth_codes",
-          "onnx_probability": 0.694,
+          "onnx_probability": 0.6404,
           "heuristic_score": 0.0,
-          "composite_score": 0.694,
+          "composite_score": 0.6404,
           "matched_rules": [],
-          "reason": "Elevated content score (0.69) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.64) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 103,
@@ -1575,27 +3872,13 @@
           "expected_label": "BENIGN",
           "category_name": "Package Delivery Status Updates",
           "category_id": "benign_delivery_notices",
-          "onnx_probability": 0.6195,
+          "onnx_probability": 0.6765,
           "heuristic_score": 0.2,
-          "composite_score": 0.6461,
+          "composite_score": 0.6992,
           "matched_rules": [
             "RULE:GENERIC_DELIVERY_KEYWORD"
           ],
-          "reason": "Elevated content score (0.65) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
-        },
-        {
-          "sample_index": 119,
-          "text": "FedEx Ground: Package departed transit facility in Memphis, TN.",
-          "expected_label": "BENIGN",
-          "category_name": "Package Delivery Status Updates",
-          "category_id": "benign_delivery_notices",
-          "onnx_probability": 0.4501,
-          "heuristic_score": 0.2,
-          "composite_score": 0.4886,
-          "matched_rules": [
-            "RULE:GENERIC_DELIVERY_KEYWORD"
-          ],
-          "reason": "Elevated content score (0.49) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
+          "reason": "Elevated content score (0.70) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
         },
         {
           "sample_index": 122,
@@ -1603,25 +3886,25 @@
           "expected_label": "BENIGN",
           "category_name": "Package Delivery Status Updates",
           "category_id": "benign_delivery_notices",
-          "onnx_probability": 0.5181,
+          "onnx_probability": 0.5154,
           "heuristic_score": 0.2,
-          "composite_score": 0.5518,
+          "composite_score": 0.5493,
           "matched_rules": [
             "RULE:GENERIC_DELIVERY_KEYWORD"
           ],
           "reason": "Elevated content score (0.55) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
         },
         {
-          "sample_index": 139,
-          "text": "Walgreens Cash: You earned $2.50 Walgreens Cash rewards on today's purchase.",
+          "sample_index": 138,
+          "text": "CVS Carepass: Your $10 monthly reward has been loaded to your card.",
           "expected_label": "BENIGN",
           "category_name": "Retail Receipts & Curbside Pickups",
           "category_id": "benign_retail_receipts",
-          "onnx_probability": 0.504,
+          "onnx_probability": 0.4356,
           "heuristic_score": 0.0,
-          "composite_score": 0.504,
+          "composite_score": 0.4356,
           "matched_rules": [],
-          "reason": "Elevated content score (0.50) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.44) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 151,
@@ -1629,23 +3912,11 @@
           "expected_label": "BENIGN",
           "category_name": "Legitimate Crypto Exchange Notices",
           "category_id": "benign_crypto_notices",
-          "onnx_probability": 0.5259,
+          "onnx_probability": 0.7119,
           "heuristic_score": 0.0,
-          "composite_score": 0.5259,
+          "composite_score": 0.7119,
           "matched_rules": [],
-          "reason": "Elevated content score (0.53) from heuristic keywords (ML model probability alone) on legitimate message."
-        },
-        {
-          "sample_index": 154,
-          "text": "Bitstamp: Withdrawal of 2.50 ETH completed to wallet address 0x71C... TxId available in account history.",
-          "expected_label": "BENIGN",
-          "category_name": "Legitimate Crypto Exchange Notices",
-          "category_id": "benign_crypto_notices",
-          "onnx_probability": 0.498,
-          "heuristic_score": 0.0,
-          "composite_score": 0.498,
-          "matched_rules": [],
-          "reason": "Elevated content score (0.50) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.71) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 168,
@@ -1653,11 +3924,11 @@
           "expected_label": "BENIGN",
           "category_name": "Legitimate Crypto Exchange Notices",
           "category_id": "benign_crypto_notices",
-          "onnx_probability": 0.5422,
+          "onnx_probability": 0.5575,
           "heuristic_score": 0.0,
-          "composite_score": 0.5422,
+          "composite_score": 0.5575,
           "matched_rules": [],
-          "reason": "Elevated content score (0.54) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.56) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 172,
@@ -1665,11 +3936,11 @@
           "expected_label": "BENIGN",
           "category_name": "Legitimate Crypto Exchange Notices",
           "category_id": "benign_crypto_notices",
-          "onnx_probability": 0.5845,
+          "onnx_probability": 0.6437,
           "heuristic_score": 0.0,
-          "composite_score": 0.5845,
+          "composite_score": 0.6437,
           "matched_rules": [],
-          "reason": "Elevated content score (0.58) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.64) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
           "sample_index": 183,
@@ -1677,105 +3948,175 @@
           "expected_label": "BENIGN",
           "category_name": "Conversational & P2P Messages",
           "category_id": "benign_conversational",
-          "onnx_probability": 0.4756,
+          "onnx_probability": 0.4925,
           "heuristic_score": 0.0,
-          "composite_score": 0.4756,
+          "composite_score": 0.4925,
           "matched_rules": [],
-          "reason": "Elevated content score (0.48) from heuristic keywords (ML model probability alone) on legitimate message."
+          "reason": "Elevated content score (0.49) from heuristic keywords (ML model probability alone) on legitimate message."
         }
       ],
       "tier2_false_positives_count": 0,
       "tier2_false_positives": [],
       "tier1_false_negatives_count": 0,
       "tier1_false_negatives": [],
-      "tier2_false_negatives_count": 33,
+      "tier2_false_negatives_count": 21,
       "tier2_false_negatives": [
-        {
-          "sample_index": 292,
-          "text": "VIP Crypto Signals #3: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_02",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5122,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7124,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.71) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 297,
-          "text": "VIP Crypto Signals #8: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_07",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5285,
-          "heuristic_score": 0.77,
-          "composite_score": 0.722,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.72) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 302,
-          "text": "VIP Crypto Signals #13: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_12",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5431,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7306,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 307,
-          "text": "VIP Crypto Signals #18: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_17",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5431,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7306,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 312,
-          "text": "VIP Crypto Signals #23: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_22",
-          "expected_label": "FRAUD",
-          "category_name": "Cryptocurrency Giveaway & Seed Scams",
-          "category_id": "smish_crypto_lures",
-          "onnx_probability": 0.5431,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7306,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
         {
           "sample_index": 340,
           "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5000' for your signature. Review: http://docusign-viewer-docs.net/sign/0",
           "expected_label": "FRAUD",
           "category_name": "Fake DocuSign & Invoice Scams",
           "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.6964,
+          "heuristic_score": 0.25,
+          "composite_score": 0.7229,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.72) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 343,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/3",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4009,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6468,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.65) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 345,
+          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5005' for your signature. Review: http://docusign-viewer-docs.net/sign/5",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.5921,
+          "heuristic_score": 0.25,
+          "composite_score": 0.6278,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.63) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 348,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/8",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4367,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6679,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.67) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 350,
+          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5010' for your signature. Review: http://docusign-viewer-docs.net/sign/10",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.6126,
+          "heuristic_score": 0.25,
+          "composite_score": 0.6465,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.65) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 353,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/13",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4644,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6843,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.68) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 355,
+          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5015' for your signature. Review: http://docusign-viewer-docs.net/sign/15",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.5924,
+          "heuristic_score": 0.25,
+          "composite_score": 0.6281,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.63) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 358,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/18",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4644,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6843,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.68) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 360,
+          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5020' for your signature. Review: http://docusign-viewer-docs.net/sign/20",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.6416,
+          "heuristic_score": 0.25,
+          "composite_score": 0.6729,
+          "matched_rules": [
+            "RULE:STANDALONE_URL"
+          ],
+          "reason": "Composite score (0.67) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 363,
+          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/23",
+          "expected_label": "FRAUD",
+          "category_name": "Fake DocuSign & Invoice Scams",
+          "category_id": "smish_doc_invoice",
+          "onnx_probability": 0.4644,
+          "heuristic_score": 0.77,
+          "composite_score": 0.6843,
+          "matched_rules": [
+            "RULE:SUSPICIOUS_TLD",
+            "RULE:STANDALONE_URL",
+            "HEURISTIC:COMPOUND_SIGNALS"
+          ],
+          "reason": "Composite score (0.68) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 370,
+          "text": "P4yP4l Security: Unusual debit of $450.00 to CryptoCorp. Cancel transaction: http://p4ypal-dispute-center.com/5",
+          "expected_label": "FRAUD",
+          "category_name": "Homoglyph & Leetspeak Obfuscation",
+          "category_id": "smish_homoglyph",
           "onnx_probability": 0.7084,
           "heuristic_score": 0.25,
           "composite_score": 0.7339,
@@ -1785,140 +4126,56 @@
           "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
         },
         {
-          "sample_index": 343,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/3",
+          "sample_index": 385,
+          "text": "GeekSquad Invoice: $499.00 was auto-debited for 3-Year Total Tech Support. If you did not authorize this charge, call our billing desk immediately at 1-888-555-0110.",
           "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.4672,
-          "heuristic_score": 0.77,
-          "composite_score": 0.6859,
+          "category_name": "Zero-Link Call-Back Impersonation",
+          "category_id": "smish_callback_scams",
+          "onnx_probability": 0.3104,
+          "heuristic_score": 0.7,
+          "composite_score": 0.5621,
           "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
+            "RULE:TECH_SUPPORT_INVOICE_SCAM"
           ],
+          "reason": "Composite score (0.56) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 387,
+          "text": "PayPal Customer Care: Did you transfer $750.00 to Coinbase Inc? If you did not make this transaction, call 1-877-555-0132 right now to freeze transfer.",
+          "expected_label": "FRAUD",
+          "category_name": "Zero-Link Call-Back Impersonation",
+          "category_id": "smish_callback_scams",
+          "onnx_probability": 0.7355,
+          "heuristic_score": 0.0,
+          "composite_score": 0.7355,
+          "matched_rules": [],
+          "reason": "Composite score (0.74) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        },
+        {
+          "sample_index": 388,
+          "text": "Amazon Fraud Alert: iPhone 16 Pro Max ($1,299.00) ordered on your account. To cancel, call fraud department at 888-555-0143.",
+          "expected_label": "FRAUD",
+          "category_name": "Zero-Link Call-Back Impersonation",
+          "category_id": "smish_callback_scams",
+          "onnx_probability": 0.685,
+          "heuristic_score": 0.0,
+          "composite_score": 0.685,
+          "matched_rules": [],
           "reason": "Composite score (0.69) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
         },
         {
-          "sample_index": 345,
-          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5005' for your signature. Review: http://docusign-viewer-docs.net/sign/5",
+          "sample_index": 389,
+          "text": "GeekSquad Invoice: $499.00 was auto-debited for 3-Year Total Tech Support. If you did not authorize this charge, call our billing desk immediately at 1-888-555-0114.",
           "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5889,
-          "heuristic_score": 0.25,
-          "composite_score": 0.6248,
+          "category_name": "Zero-Link Call-Back Impersonation",
+          "category_id": "smish_callback_scams",
+          "onnx_probability": 0.3104,
+          "heuristic_score": 0.7,
+          "composite_score": 0.5621,
           "matched_rules": [
-            "RULE:STANDALONE_URL"
+            "RULE:TECH_SUPPORT_INVOICE_SCAM"
           ],
-          "reason": "Composite score (0.62) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 348,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/8",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.4989,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7046,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.70) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 350,
-          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5010' for your signature. Review: http://docusign-viewer-docs.net/sign/10",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5799,
-          "heuristic_score": 0.25,
-          "composite_score": 0.6166,
-          "matched_rules": [
-            "RULE:STANDALONE_URL"
-          ],
-          "reason": "Composite score (0.62) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 353,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/13",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5475,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7332,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 355,
-          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5015' for your signature. Review: http://docusign-viewer-docs.net/sign/15",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5567,
-          "heuristic_score": 0.25,
-          "composite_score": 0.5955,
-          "matched_rules": [
-            "RULE:STANDALONE_URL"
-          ],
-          "reason": "Composite score (0.60) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 358,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/18",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5475,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7332,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 360,
-          "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5020' for your signature. Review: http://docusign-viewer-docs.net/sign/20",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.6181,
-          "heuristic_score": 0.25,
-          "composite_score": 0.6515,
-          "matched_rules": [
-            "RULE:STANDALONE_URL"
-          ],
-          "reason": "Composite score (0.65) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-        },
-        {
-          "sample_index": 363,
-          "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/23",
-          "expected_label": "FRAUD",
-          "category_name": "Fake DocuSign & Invoice Scams",
-          "category_id": "smish_doc_invoice",
-          "onnx_probability": 0.5475,
-          "heuristic_score": 0.77,
-          "composite_score": 0.7332,
-          "matched_rules": [
-            "RULE:SUSPICIOUS_TLD",
-            "RULE:STANDALONE_URL",
-            "HEURISTIC:COMPOUND_SIGNALS"
-          ],
-          "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+          "reason": "Composite score (0.56) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
         }
       ],
       "representative_correct_count": 6,
@@ -1929,9 +4186,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0049,
+          "onnx_probability": 0.0118,
           "heuristic_score": 0.0,
-          "composite_score": 0.0049,
+          "composite_score": 0.0118,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -1941,9 +4198,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0045,
+          "onnx_probability": 0.0049,
           "heuristic_score": 0.0,
-          "composite_score": 0.0045,
+          "composite_score": 0.0049,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -1953,9 +4210,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0051,
+          "onnx_probability": 0.0222,
           "heuristic_score": 0.0,
-          "composite_score": 0.0051,
+          "composite_score": 0.0222,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -1965,9 +4222,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0052,
+          "onnx_probability": 0.0242,
           "heuristic_score": 0.0,
-          "composite_score": 0.0052,
+          "composite_score": 0.0242,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -1977,9 +4234,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.0043,
+          "onnx_probability": 0.0049,
           "heuristic_score": 0.0,
-          "composite_score": 0.0043,
+          "composite_score": 0.0049,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         },
@@ -1989,9 +4246,9 @@
           "expected_label": "BENIGN",
           "category_name": "Bank Fraud Alerts (YES/NO)",
           "category_id": "benign_bank_alerts",
-          "onnx_probability": 0.003,
+          "onnx_probability": 0.0056,
           "heuristic_score": 0.0,
-          "composite_score": 0.003,
+          "composite_score": 0.0056,
           "matched_rules": [],
           "reason": "Correctly classified with strong margin."
         }
@@ -1999,16 +4256,16 @@
     },
     "reproducibility": {
       "model_artifact": "sms_fraud_model.onnx",
-      "model_sha256": "32a54453aaeec4017fba6a4e015a0a130939566d2132b7e2225c6096edfde9ba",
+      "model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
       "model_artifact_size_bytes": 199525,
       "model_artifact_size_kb": 194.85,
       "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
       "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-      "benchmark_predictions_sha256": "c0530a06be081280c8a212d05bcf1c4fb5ca35707feeb2be496c2dbcc32a5831",
+      "benchmark_predictions_sha256": "66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e",
       "onnx_sklearn_parity": {
         "sample_count": 400,
-        "max_prob_abs_diff": 1.1641733321798853e-07,
-        "mean_prob_abs_diff": 1.8747076431422606e-08,
+        "max_prob_abs_diff": 1.0378382087061766e-07,
+        "mean_prob_abs_diff": 2.0879723874441468e-08,
         "ml_p50_parity_count": 400,
         "ml_p50_parity_rate": 1.0,
         "tier1_flag_parity_count": 400,
@@ -2020,7 +4277,7 @@
         "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
         "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
       },
-      "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
+      "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
@@ -2030,9 +4287,9 @@
         "calibration": {
           "method": "sigmoid",
           "cv_folds": 5,
-          "brier_score_before": 0.1166,
-          "brier_score_after": 0.0687,
-          "brier_score_improvement": 0.0479
+          "brier_score_before": 0.1472,
+          "brier_score_after": 0.0757,
+          "brier_score_improvement": 0.0714
         },
         "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
       },
@@ -2044,14 +4301,14 @@
     },
     "evaluator": "ONNXRuntime-CPU",
     "model_artifact": "sms_fraud_model.onnx",
-    "model_sha256": "32a54453aaeec4017fba6a4e015a0a130939566d2132b7e2225c6096edfde9ba",
+    "model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
     "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
     "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-    "benchmark_predictions_sha256": "c0530a06be081280c8a212d05bcf1c4fb5ca35707feeb2be496c2dbcc32a5831",
+    "benchmark_predictions_sha256": "66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e",
     "onnx_sklearn_parity": {
       "sample_count": 400,
-      "max_prob_abs_diff": 1.1641733321798853e-07,
-      "mean_prob_abs_diff": 1.8747076431422606e-08,
+      "max_prob_abs_diff": 1.0378382087061766e-07,
+      "mean_prob_abs_diff": 2.0879723874441468e-08,
       "ml_p50_parity_count": 400,
       "ml_p50_parity_rate": 1.0,
       "tier1_flag_parity_count": 400,
@@ -2065,7 +4322,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-10T16:03:16.298352+00:00",
+    "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -2074,7 +4331,829 @@
     "model_artifact_size_bytes": 199525,
     "model_artifact_size_kb": 194.85,
     "brier_score_before_calibration": 0.1472,
-    "brier_score_after_calibration": 0.0757
+    "brier_score_after_calibration": 0.0629,
+    "oof_cross_validation": {
+      "protocol": "Nested 5-fold StratifiedGroupKFold outer/inner with Pipeline(TfidfVectorizer -> LogisticRegression) fitted strictly inside inner calibration splits (zero vocabulary leakage)",
+      "production_calibration_strategy": "GroupKFold(n_splits=5)",
+      "production_calibration_max_group_overlap": 0,
+      "fine_grained": {
+        "group_count": 56,
+        "n_splits": 5,
+        "max_outer_group_overlap": 0,
+        "max_inner_group_overlap": 0,
+        "min_fold_prevalence": 0.215827,
+        "max_fold_prevalence": 0.244755,
+        "completeness": {
+          "total_samples": 703,
+          "covered_sample_ids": 703,
+          "duplicate_sample_ids": 0,
+          "is_complete": true
+        },
+        "per_fold": [
+          {
+            "fold": 0,
+            "train_size": 562,
+            "val_size": 141,
+            "train_group_count": 47,
+            "val_group_count": 9,
+            "val_legit_count": 109,
+            "val_fraud_count": 32,
+            "val_fraud_rate": 0.22695,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9639,
+            "pr_auc": 0.9499,
+            "brier_score": 0.0629,
+            "precision": 1.0,
+            "recall": 0.8125,
+            "f1_score": 0.8966,
+            "confusion_matrix": {
+              "tp": 26,
+              "fp": 0,
+              "tn": 109,
+              "fn": 6
+            }
+          },
+          {
+            "fold": 1,
+            "train_size": 563,
+            "val_size": 140,
+            "train_group_count": 41,
+            "val_group_count": 15,
+            "val_legit_count": 108,
+            "val_fraud_count": 32,
+            "val_fraud_rate": 0.228571,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.978,
+            "pr_auc": 0.9626,
+            "brier_score": 0.0496,
+            "precision": 1.0,
+            "recall": 0.8125,
+            "f1_score": 0.8966,
+            "confusion_matrix": {
+              "tp": 26,
+              "fp": 0,
+              "tn": 108,
+              "fn": 6
+            }
+          },
+          {
+            "fold": 2,
+            "train_size": 560,
+            "val_size": 143,
+            "train_group_count": 48,
+            "val_group_count": 8,
+            "val_legit_count": 108,
+            "val_fraud_count": 35,
+            "val_fraud_rate": 0.244755,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 1.0,
+            "pr_auc": 1.0,
+            "brier_score": 0.0212,
+            "precision": 0.9722,
+            "recall": 1.0,
+            "f1_score": 0.9859,
+            "confusion_matrix": {
+              "tp": 35,
+              "fp": 1,
+              "tn": 107,
+              "fn": 0
+            }
+          },
+          {
+            "fold": 3,
+            "train_size": 564,
+            "val_size": 139,
+            "train_group_count": 47,
+            "val_group_count": 9,
+            "val_legit_count": 109,
+            "val_fraud_count": 30,
+            "val_fraud_rate": 0.215827,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 1.0,
+            "pr_auc": 1.0,
+            "brier_score": 0.0027,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "confusion_matrix": {
+              "tp": 30,
+              "fp": 0,
+              "tn": 109,
+              "fn": 0
+            }
+          },
+          {
+            "fold": 4,
+            "train_size": 563,
+            "val_size": 140,
+            "train_group_count": 41,
+            "val_group_count": 15,
+            "val_legit_count": 109,
+            "val_fraud_count": 31,
+            "val_fraud_rate": 0.221429,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.7715,
+            "pr_auc": 0.5791,
+            "brier_score": 0.203,
+            "precision": 0.2727,
+            "recall": 0.4839,
+            "f1_score": 0.3488,
+            "confusion_matrix": {
+              "tp": 15,
+              "fp": 40,
+              "tn": 69,
+              "fn": 16
+            }
+          }
+        ],
+        "per_fold_summary": {
+          "roc_auc": {
+            "mean": 0.9427,
+            "std": 0.0867
+          },
+          "pr_auc": {
+            "mean": 0.8983,
+            "std": 0.1609
+          },
+          "brier_score": {
+            "mean": 0.0679,
+            "std": 0.0708
+          },
+          "precision": {
+            "mean": 0.849,
+            "std": 0.2883
+          },
+          "recall": {
+            "mean": 0.8218,
+            "std": 0.1886
+          },
+          "f1_score": {
+            "mean": 0.8256,
+            "std": 0.2423
+          }
+        },
+        "pooled_oof_ml": {
+          "decision_threshold": 0.5,
+          "roc_auc": 0.9559,
+          "pr_auc": 0.8751,
+          "brier_score": 0.0678,
+          "ece": 0.091364,
+          "precision": 0.763,
+          "recall": 0.825,
+          "specificity": 0.9245,
+          "false_positive_rate": 0.0755,
+          "f1_score": 0.7928,
+          "confusion_matrix": {
+            "tp": 132,
+            "fp": 41,
+            "tn": 502,
+            "fn": 28
+          }
+        },
+        "pooled_oof_composite": {
+          "velocity_score": 0.0,
+          "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+          "tier1": {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 156,
+              "fp": 44,
+              "tn": 499,
+              "fn": 4
+            },
+            "precision": 0.78,
+            "recall": 0.975,
+            "specificity": 0.919,
+            "false_positive_rate": 0.081,
+            "f1_score": 0.8667
+          },
+          "tier2": {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 117,
+              "fp": 13,
+              "tn": 530,
+              "fn": 43
+            },
+            "precision": 0.9,
+            "recall": 0.7312,
+            "specificity": 0.9761,
+            "false_positive_rate": 0.0239,
+            "f1_score": 0.8069
+          }
+        },
+        "calibration_diagnostics": {
+          "bin_scheme": "equal_width_half_open_final_closed",
+          "n_bins": 10,
+          "sample_count": 703,
+          "ece": 0.091364,
+          "max_calibration_error": 0.408776,
+          "brier_score": 0.067781,
+          "reliability_bins": [
+            {
+              "bin_index": 0,
+              "bin_lower": 0.0,
+              "bin_upper": 0.1,
+              "sample_count": 390,
+              "mean_predicted_prob": 0.027775,
+              "empirical_positive_rate": 0.007692,
+              "abs_calibration_gap": 0.020082
+            },
+            {
+              "bin_index": 1,
+              "bin_lower": 0.1,
+              "bin_upper": 0.2,
+              "sample_count": 88,
+              "mean_predicted_prob": 0.157938,
+              "empirical_positive_rate": 0.034091,
+              "abs_calibration_gap": 0.123848
+            },
+            {
+              "bin_index": 2,
+              "bin_lower": 0.2,
+              "bin_upper": 0.3,
+              "sample_count": 28,
+              "mean_predicted_prob": 0.238486,
+              "empirical_positive_rate": 0.107143,
+              "abs_calibration_gap": 0.131343
+            },
+            {
+              "bin_index": 3,
+              "bin_lower": 0.3,
+              "bin_upper": 0.4,
+              "sample_count": 8,
+              "mean_predicted_prob": 0.341224,
+              "empirical_positive_rate": 0.75,
+              "abs_calibration_gap": 0.408776
+            },
+            {
+              "bin_index": 4,
+              "bin_lower": 0.4,
+              "bin_upper": 0.5,
+              "sample_count": 16,
+              "mean_predicted_prob": 0.465088,
+              "empirical_positive_rate": 0.8125,
+              "abs_calibration_gap": 0.347412
+            },
+            {
+              "bin_index": 5,
+              "bin_lower": 0.5,
+              "bin_upper": 0.6,
+              "sample_count": 29,
+              "mean_predicted_prob": 0.558427,
+              "empirical_positive_rate": 0.965517,
+              "abs_calibration_gap": 0.40709
+            },
+            {
+              "bin_index": 6,
+              "bin_lower": 0.6,
+              "bin_upper": 0.7,
+              "sample_count": 24,
+              "mean_predicted_prob": 0.664549,
+              "empirical_positive_rate": 0.458333,
+              "abs_calibration_gap": 0.206216
+            },
+            {
+              "bin_index": 7,
+              "bin_lower": 0.7,
+              "bin_upper": 0.8,
+              "sample_count": 37,
+              "mean_predicted_prob": 0.747819,
+              "empirical_positive_rate": 0.378378,
+              "abs_calibration_gap": 0.369441
+            },
+            {
+              "bin_index": 8,
+              "bin_lower": 0.8,
+              "bin_upper": 0.9,
+              "sample_count": 36,
+              "mean_predicted_prob": 0.849221,
+              "empirical_positive_rate": 0.888889,
+              "abs_calibration_gap": 0.039668
+            },
+            {
+              "bin_index": 9,
+              "bin_lower": 0.9,
+              "bin_upper": 1.0,
+              "sample_count": 47,
+              "mean_predicted_prob": 0.975747,
+              "empirical_positive_rate": 1.0,
+              "abs_calibration_gap": 0.024253
+            }
+          ]
+        },
+        "wilson_95_ci": {
+          "confidence_level": 0.95,
+          "z_score": 1.95996,
+          "methodology_note": "Message-level Wilson binomial intervals assume independent Bernoulli trials; consult cluster_bootstrap_95_ci for family-level uncertainty.",
+          "ml_p50_precision": [
+            0.694359,
+            0.820227
+          ],
+          "ml_p50_recall": [
+            0.758702,
+            0.876058
+          ],
+          "tier1_precision": [
+            0.717612,
+            0.831835
+          ],
+          "tier1_recall": [
+            0.93749,
+            0.990236
+          ],
+          "tier1_fpr": [
+            0.060914,
+            0.107034
+          ],
+          "tier2_precision": [
+            0.836414,
+            0.940624
+          ],
+          "tier2_recall": [
+            0.657732,
+            0.793924
+          ],
+          "tier2_fpr": [
+            0.014044,
+            0.040527
+          ]
+        },
+        "cluster_bootstrap_95_ci": {
+          "method": "nonparametric_cluster_percentile_bootstrap",
+          "resampling_unit": "semantic_family_id",
+          "independent_group_count": 56,
+          "replicate_count": 1000,
+          "seed": 42,
+          "confidence_level": 0.95,
+          "decision_threshold": 0.5,
+          "methodology_note": "Resamples whole semantic template families with replacement to preserve intra-family correlation; distinct from message-level Wilson binomial intervals.",
+          "metrics": {
+            "roc_auc": {
+              "ci_95": [
+                0.865417,
+                0.996022
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "pr_auc": {
+              "ci_95": [
+                0.543658,
+                0.991892
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "brier_score": {
+              "ci_95": [
+                0.025261,
+                0.137128
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "precision": {
+              "ci_95": [
+                0.384423,
+                1.0
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "recall": {
+              "ci_95": [
+                0.597534,
+                0.928305
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "f1_score": {
+              "ci_95": [
+                0.493329,
+                0.949238
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            }
+          }
+        }
+      },
+      "macro_bank_2way": {
+        "group_count": 54,
+        "n_splits": 5,
+        "max_outer_group_overlap": 0,
+        "max_inner_group_overlap": 0,
+        "min_fold_prevalence": 0.198675,
+        "max_fold_prevalence": 0.25,
+        "completeness": {
+          "total_samples": 703,
+          "covered_sample_ids": 703,
+          "duplicate_sample_ids": 0,
+          "is_complete": true
+        },
+        "per_fold": [
+          {
+            "fold": 0,
+            "train_size": 552,
+            "val_size": 151,
+            "train_group_count": 46,
+            "val_group_count": 8,
+            "val_legit_count": 121,
+            "val_fraud_count": 30,
+            "val_fraud_rate": 0.198675,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.6835,
+            "pr_auc": 0.3516,
+            "brier_score": 0.2492,
+            "precision": 0.3443,
+            "recall": 0.7,
+            "f1_score": 0.4615,
+            "confusion_matrix": {
+              "tp": 21,
+              "fp": 40,
+              "tn": 81,
+              "fn": 9
+            }
+          },
+          {
+            "fold": 1,
+            "train_size": 567,
+            "val_size": 136,
+            "train_group_count": 39,
+            "val_group_count": 15,
+            "val_legit_count": 105,
+            "val_fraud_count": 31,
+            "val_fraud_rate": 0.227941,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9853,
+            "pr_auc": 0.9501,
+            "brier_score": 0.0683,
+            "precision": 0.9333,
+            "recall": 0.4516,
+            "f1_score": 0.6087,
+            "confusion_matrix": {
+              "tp": 14,
+              "fp": 1,
+              "tn": 104,
+              "fn": 17
+            }
+          },
+          {
+            "fold": 2,
+            "train_size": 566,
+            "val_size": 137,
+            "train_group_count": 44,
+            "val_group_count": 10,
+            "val_legit_count": 105,
+            "val_fraud_count": 32,
+            "val_fraud_rate": 0.233577,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9887,
+            "pr_auc": 0.9793,
+            "brier_score": 0.0209,
+            "precision": 1.0,
+            "recall": 0.9375,
+            "f1_score": 0.9677,
+            "confusion_matrix": {
+              "tp": 30,
+              "fp": 0,
+              "tn": 105,
+              "fn": 2
+            }
+          },
+          {
+            "fold": 3,
+            "train_size": 564,
+            "val_size": 139,
+            "train_group_count": 43,
+            "val_group_count": 11,
+            "val_legit_count": 107,
+            "val_fraud_count": 32,
+            "val_fraud_rate": 0.230216,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9936,
+            "pr_auc": 0.9873,
+            "brier_score": 0.0411,
+            "precision": 1.0,
+            "recall": 0.9375,
+            "f1_score": 0.9677,
+            "confusion_matrix": {
+              "tp": 30,
+              "fp": 0,
+              "tn": 107,
+              "fn": 2
+            }
+          },
+          {
+            "fold": 4,
+            "train_size": 563,
+            "val_size": 140,
+            "train_group_count": 44,
+            "val_group_count": 10,
+            "val_legit_count": 105,
+            "val_fraud_count": 35,
+            "val_fraud_rate": 0.25,
+            "outer_group_overlap_count": 0,
+            "roc_auc": 0.9997,
+            "pr_auc": 0.9992,
+            "brier_score": 0.0261,
+            "precision": 0.9722,
+            "recall": 1.0,
+            "f1_score": 0.9859,
+            "confusion_matrix": {
+              "tp": 35,
+              "fp": 1,
+              "tn": 104,
+              "fn": 0
+            }
+          }
+        ],
+        "per_fold_summary": {
+          "roc_auc": {
+            "mean": 0.9302,
+            "std": 0.1234
+          },
+          "pr_auc": {
+            "mean": 0.8535,
+            "std": 0.2515
+          },
+          "brier_score": {
+            "mean": 0.0811,
+            "std": 0.0856
+          },
+          "precision": {
+            "mean": 0.85,
+            "std": 0.254
+          },
+          "recall": {
+            "mean": 0.8053,
+            "std": 0.2045
+          },
+          "f1_score": {
+            "mean": 0.7983,
+            "std": 0.22
+          }
+        },
+        "pooled_oof_ml": {
+          "decision_threshold": 0.5,
+          "roc_auc": 0.9309,
+          "pr_auc": 0.733,
+          "brier_score": 0.0842,
+          "ece": 0.10056,
+          "precision": 0.7558,
+          "recall": 0.8125,
+          "specificity": 0.9227,
+          "false_positive_rate": 0.0773,
+          "f1_score": 0.7831,
+          "confusion_matrix": {
+            "tp": 130,
+            "fp": 42,
+            "tn": 501,
+            "fn": 30
+          }
+        },
+        "pooled_oof_composite": {
+          "velocity_score": 0.0,
+          "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+          "tier1": {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 154,
+              "fp": 43,
+              "tn": 500,
+              "fn": 6
+            },
+            "precision": 0.7817,
+            "recall": 0.9625,
+            "specificity": 0.9208,
+            "false_positive_rate": 0.0792,
+            "f1_score": 0.8627
+          },
+          "tier2": {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 118,
+              "fp": 40,
+              "tn": 503,
+              "fn": 42
+            },
+            "precision": 0.7468,
+            "recall": 0.7375,
+            "specificity": 0.9263,
+            "false_positive_rate": 0.0737,
+            "f1_score": 0.7421
+          }
+        },
+        "calibration_diagnostics": {
+          "bin_scheme": "equal_width_half_open_final_closed",
+          "n_bins": 10,
+          "sample_count": 703,
+          "ece": 0.10056,
+          "max_calibration_error": 0.489681,
+          "brier_score": 0.084159,
+          "reliability_bins": [
+            {
+              "bin_index": 0,
+              "bin_lower": 0.0,
+              "bin_upper": 0.1,
+              "sample_count": 376,
+              "mean_predicted_prob": 0.028897,
+              "empirical_positive_rate": 0.010638,
+              "abs_calibration_gap": 0.018259
+            },
+            {
+              "bin_index": 1,
+              "bin_lower": 0.1,
+              "bin_upper": 0.2,
+              "sample_count": 69,
+              "mean_predicted_prob": 0.129342,
+              "empirical_positive_rate": 0.014493,
+              "abs_calibration_gap": 0.11485
+            },
+            {
+              "bin_index": 2,
+              "bin_lower": 0.2,
+              "bin_upper": 0.3,
+              "sample_count": 38,
+              "mean_predicted_prob": 0.252065,
+              "empirical_positive_rate": 0.105263,
+              "abs_calibration_gap": 0.146802
+            },
+            {
+              "bin_index": 3,
+              "bin_lower": 0.3,
+              "bin_upper": 0.4,
+              "sample_count": 32,
+              "mean_predicted_prob": 0.33667,
+              "empirical_positive_rate": 0.1875,
+              "abs_calibration_gap": 0.14917
+            },
+            {
+              "bin_index": 4,
+              "bin_lower": 0.4,
+              "bin_upper": 0.5,
+              "sample_count": 16,
+              "mean_predicted_prob": 0.447819,
+              "empirical_positive_rate": 0.9375,
+              "abs_calibration_gap": 0.489681
+            },
+            {
+              "bin_index": 5,
+              "bin_lower": 0.5,
+              "bin_upper": 0.6,
+              "sample_count": 18,
+              "mean_predicted_prob": 0.55384,
+              "empirical_positive_rate": 0.888889,
+              "abs_calibration_gap": 0.335049
+            },
+            {
+              "bin_index": 6,
+              "bin_lower": 0.6,
+              "bin_upper": 0.7,
+              "sample_count": 33,
+              "mean_predicted_prob": 0.65897,
+              "empirical_positive_rate": 1.0,
+              "abs_calibration_gap": 0.34103
+            },
+            {
+              "bin_index": 7,
+              "bin_lower": 0.7,
+              "bin_upper": 0.8,
+              "sample_count": 33,
+              "mean_predicted_prob": 0.758476,
+              "empirical_positive_rate": 0.757576,
+              "abs_calibration_gap": 0.0009
+            },
+            {
+              "bin_index": 8,
+              "bin_lower": 0.8,
+              "bin_upper": 0.9,
+              "sample_count": 75,
+              "mean_predicted_prob": 0.857749,
+              "empirical_positive_rate": 0.613333,
+              "abs_calibration_gap": 0.244415
+            },
+            {
+              "bin_index": 9,
+              "bin_lower": 0.9,
+              "bin_upper": 1.0,
+              "sample_count": 13,
+              "mean_predicted_prob": 0.928534,
+              "empirical_positive_rate": 0.769231,
+              "abs_calibration_gap": 0.159303
+            }
+          ]
+        },
+        "wilson_95_ci": {
+          "confidence_level": 0.95,
+          "z_score": 1.95996,
+          "methodology_note": "Message-level Wilson binomial intervals assume independent Bernoulli trials; consult cluster_bootstrap_95_ci for family-level uncertainty.",
+          "ml_p50_precision": [
+            0.686483,
+            0.813968
+          ],
+          "ml_p50_recall": [
+            0.744961,
+            0.865386
+          ],
+          "tier1_precision": [
+            0.718956,
+            0.833719
+          ],
+          "tier1_recall": [
+            0.92061,
+            0.982702
+          ],
+          "tier1_fpr": [
+            0.059321,
+            0.104971
+          ],
+          "tier2_precision": [
+            0.67373,
+            0.808223
+          ],
+          "tier2_recall": [
+            0.66433,
+            0.799534
+          ],
+          "tier2_fpr": [
+            0.054562,
+            0.098758
+          ]
+        },
+        "cluster_bootstrap_95_ci": {
+          "method": "nonparametric_cluster_percentile_bootstrap",
+          "resampling_unit": "semantic_family_id",
+          "independent_group_count": 54,
+          "replicate_count": 1000,
+          "seed": 42,
+          "confidence_level": 0.95,
+          "decision_threshold": 0.5,
+          "methodology_note": "Resamples whole semantic template families with replacement to preserve intra-family correlation; distinct from message-level Wilson binomial intervals.",
+          "metrics": {
+            "roc_auc": {
+              "ci_95": [
+                0.830547,
+                0.996
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "pr_auc": {
+              "ci_95": [
+                0.32636,
+                0.993973
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "brier_score": {
+              "ci_95": [
+                0.032242,
+                0.146141
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "precision": {
+              "ci_95": [
+                0.345149,
+                1.0
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "recall": {
+              "ci_95": [
+                0.54502,
+                0.920399
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            },
+            "f1_score": {
+              "ci_95": [
+                0.429192,
+                0.938589
+              ],
+              "valid_replicates": 1000,
+              "undefined_replicates": 0
+            }
+          }
+        },
+        "collapsed_source_families": [
+          "legit_bank_auth_alert_yn",
+          "legit_bank_fraud_alert_yesno",
+          "legit_bank_security_alert_12"
+        ],
+        "macro_group_id": "legit_bank_2way_macro",
+        "sensitivity_note": "Collapsing 3 legitimate 2-way bank alert sub-templates (legit_bank_fraud_alert_yesno, legit_bank_security_alert_12, legit_bank_auth_alert_yn) into one single legit_bank_2way_macro archetype tests sensitivity to coarser template grouping; this is a sensitivity diagnostic only (fine-grained OOF remains primary)."
+      },
+      "oof_predictions_artifact": "oof_predictions.json",
+      "oof_predictions_sha256": "9b6376520d0161e6969646a07d98babc00231e51f166d9149e18b567bd163265"
+    }
   },
   "evaluation_artifacts_stale": false,
   "evaluation_artifacts_status": "synchronized"

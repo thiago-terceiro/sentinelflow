@@ -15,6 +15,7 @@ import re
 import statistics
 import tempfile
 from collections import Counter
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -22,11 +23,14 @@ from typing import Any
 import numpy as np
 import onnx
 from app.telecom.evaluate_model import (
+    _safe_wilson_ci,
+    compute_calibration_diagnostics,
     evaluate_onnx_model,
     get_canonical_artifact_paths,
     get_held_out_evaluation_set,
     publish_evaluation_artifacts_atomically,
 )
+from app.telecom.onnx_engine import compute_composite_score, evaluate_heuristics
 from skl2onnx import to_onnx
 from skl2onnx.common.data_types import StringTensorType
 from sklearn.calibration import CalibratedClassifierCV
@@ -36,12 +40,13 @@ from sklearn.metrics import (
     average_precision_score,
     brier_score_loss,
     classification_report,
+    confusion_matrix,
     f1_score,
     precision_score,
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.model_selection import GroupKFold, StratifiedGroupKFold
 from sklearn.pipeline import Pipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -922,6 +927,527 @@ def export_dataset_inventory(
     return target
 
 
+MACRO_BANK_2WAY_SOURCE_FAMILIES: frozenset[str] = frozenset(
+    {
+        "legit_bank_fraud_alert_yesno",
+        "legit_bank_security_alert_12",
+        "legit_bank_auth_alert_yn",
+    }
+)
+MACRO_BANK_2WAY_GROUP_ID = "legit_bank_2way_macro"
+
+
+def get_macro_archetype_groups(groups: Sequence[str]) -> list[str]:
+    """Collapses closely related legitimate 2-way bank alert templates for sensitivity checks."""
+    return [
+        MACRO_BANK_2WAY_GROUP_ID if g in MACRO_BANK_2WAY_SOURCE_FAMILIES else g
+        for g in groups
+    ]
+
+
+def _create_tfidf_vectorizer() -> TfidfVectorizer:
+    """Returns canonical TF-IDF vectorizer hyperparameters shared across train and OOF."""
+    return TfidfVectorizer(
+        ngram_range=(1, 2),
+        sublinear_tf=True,
+        max_features=2500,
+        min_df=1,
+        token_pattern=r"\b[a-zA-Z0-9_]+\b",
+    )
+
+
+def _create_base_logistic_regression() -> LogisticRegression:
+    """Returns canonical Logistic Regression classifier shared across train and OOF."""
+    return LogisticRegression(
+        C=1.5,
+        max_iter=1000,
+        class_weight="balanced",
+        random_state=42,
+    )
+
+
+def _create_text_lr_pipeline() -> Pipeline:
+    """Builds an unfitted TF-IDF + LogisticRegression pipeline for zero-leakage CV folds."""
+    return Pipeline(
+        [
+            ("tfidf", _create_tfidf_vectorizer()),
+            ("clf", _create_base_logistic_regression()),
+        ]
+    )
+
+
+def _assert_split_disjoint(
+    tr_idx: Sequence[int] | np.ndarray,
+    val_idx: Sequence[int] | np.ndarray,
+    groups: Sequence[str],
+    context: str,
+) -> int:
+    """Asserts zero semantic-family group overlap between train and validation indices."""
+    tr_groups = {str(groups[int(i)]) for i in tr_idx}
+    val_groups = {str(groups[int(i)]) for i in val_idx}
+    overlap = tr_groups.intersection(val_groups)
+    if overlap:
+        raise ValueError(f"Group leakage detected in {context}: {sorted(overlap)}")
+    return len(overlap)
+
+
+def build_production_calibration_splits(
+    texts: Sequence[str],
+    labels: Sequence[int],
+    groups: Sequence[str],
+    n_splits: int = 5,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Builds deterministic group-aware GroupKFold splits for production Platt calibration."""
+    gkf = GroupKFold(n_splits=n_splits)
+    splits: list[tuple[np.ndarray, np.ndarray]] = []
+    for fold_idx, (tr_idx, cal_idx) in enumerate(gkf.split(texts, labels, groups=groups)):
+        _assert_split_disjoint(
+            tr_idx,
+            cal_idx,
+            groups,
+            f"production_calibration_fold_{fold_idx}",
+        )
+        splits.append((np.asarray(tr_idx, dtype=int), np.asarray(cal_idx, dtype=int)))
+    return splits
+
+
+def build_production_pipeline(
+    texts: Sequence[str] | None = None,
+    labels: Sequence[int] | None = None,
+    groups: Sequence[str] | None = None,
+) -> Pipeline:
+    """Fits the canonical TF-IDF + GroupKFold Platt-calibrated production pipeline."""
+    if texts is None or labels is None or groups is None:
+        texts, labels, groups = build_augmented_dataset()
+    prod_splits = build_production_calibration_splits(texts, labels, groups, n_splits=5)
+    prod_calibrated_clf = CalibratedClassifierCV(
+        estimator=_create_base_logistic_regression(),
+        method="sigmoid",
+        cv=prod_splits,
+        ensemble="auto",
+    )
+    pipeline = Pipeline(
+        [
+            ("tfidf", _create_tfidf_vectorizer()),
+            ("clf", prod_calibrated_clf),
+        ]
+    )
+    pipeline.fit(list(texts), list(labels))
+    return pipeline
+
+
+def _safe_rate(num: int, den: int) -> float | None:
+    """Returns rounded fraction or None when denominator is zero (undefined rate)."""
+    return round(num / den, 4) if den > 0 else None
+
+
+def compute_cluster_bootstrap_ci(
+    y_true: Sequence[int] | np.ndarray,
+    y_prob: Sequence[float] | np.ndarray,
+    groups: Sequence[str],
+    threshold: float = 0.50,
+    n_replicates: int = 1000,
+    seed: int = 42,
+) -> dict[str, Any]:
+    """Computes deterministic semantic-family cluster percentile bootstrap 95% CIs."""
+    y_arr = np.asarray(y_true, dtype=int)
+    p_arr = np.asarray(y_prob, dtype=float)
+    unique_groups = sorted({str(g) for g in groups})
+    n_groups = len(unique_groups)
+    if n_groups == 0:
+        raise ValueError("Cluster bootstrap requires at least one semantic family group")
+
+    g_arr = np.asarray([str(g) for g in groups])
+    group_y = [y_arr[g_arr == gid] for gid in unique_groups]
+    group_p = [p_arr[g_arr == gid] for gid in unique_groups]
+
+    rng = np.random.default_rng(seed)
+    metric_keys = ("roc_auc", "pr_auc", "brier_score", "precision", "recall", "f1_score")
+    samples_by_metric: dict[str, list[float]] = {k: [] for k in metric_keys}
+    undefined_counts: dict[str, int] = {k: 0 for k in metric_keys}
+
+    for _ in range(n_replicates):
+        drawn = rng.integers(0, n_groups, size=n_groups)
+        boot_y = np.concatenate([group_y[int(i)] for i in drawn])
+        boot_p = np.concatenate([group_p[int(i)] for i in drawn])
+        samples_by_metric["brier_score"].append(float(brier_score_loss(boot_y, boot_p)))
+
+        if np.any(boot_y == 0) and np.any(boot_y == 1):
+            samples_by_metric["roc_auc"].append(float(roc_auc_score(boot_y, boot_p)))
+            samples_by_metric["pr_auc"].append(float(average_precision_score(boot_y, boot_p)))
+        else:
+            undefined_counts["roc_auc"] += 1
+            undefined_counts["pr_auc"] += 1
+
+        boot_pred = (boot_p >= threshold).astype(int)
+        _tn, fp, fn, tp = confusion_matrix(boot_y, boot_pred, labels=[0, 1]).ravel()
+        if (tp + fp) > 0:
+            samples_by_metric["precision"].append(float(tp / (tp + fp)))
+        else:
+            undefined_counts["precision"] += 1
+        if (tp + fn) > 0:
+            samples_by_metric["recall"].append(float(tp / (tp + fn)))
+        else:
+            undefined_counts["recall"] += 1
+        f1_denom = 2 * int(tp) + int(fp) + int(fn)
+        if f1_denom > 0:
+            samples_by_metric["f1_score"].append(float((2 * tp) / f1_denom))
+        else:
+            undefined_counts["f1_score"] += 1
+
+    metrics_out: dict[str, Any] = {}
+    for k in metric_keys:
+        vals = samples_by_metric[k]
+        ci_bounds: list[float] | None = None
+        if vals:
+            ci_bounds = [
+                round(float(np.percentile(vals, 2.5)), 6),
+                round(float(np.percentile(vals, 97.5)), 6),
+            ]
+        metrics_out[k] = {
+            "ci_95": ci_bounds,
+            "valid_replicates": len(vals),
+            "undefined_replicates": undefined_counts[k],
+        }
+
+    return {
+        "method": "nonparametric_cluster_percentile_bootstrap",
+        "resampling_unit": "semantic_family_id",
+        "independent_group_count": n_groups,
+        "replicate_count": n_replicates,
+        "seed": seed,
+        "confidence_level": 0.95,
+        "decision_threshold": threshold,
+        "methodology_note": (
+            "Resamples whole semantic template families with replacement to preserve intra-family "
+            "correlation; distinct from message-level Wilson binomial intervals."
+        ),
+        "metrics": metrics_out,
+    }
+
+
+def _build_pooled_oof_summaries(
+    texts: Sequence[str],
+    y_arr: np.ndarray,
+    oof_probs: np.ndarray,
+    groups: Sequence[str],
+    fine_groups: Sequence[str],
+    oof_fold_ids: np.ndarray,
+    threshold: float = 0.50,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    """Computes pooled OOF ML, composite (V=0.0), Wilson CI, calibration, and records."""
+    cal_diag = compute_calibration_diagnostics(y_arr, oof_probs, n_bins=10)
+    pred_ml = (oof_probs >= threshold).astype(int)
+    tn, fp, fn, tp = confusion_matrix(y_arr, pred_ml, labels=[0, 1]).ravel()
+    ml_summary = {
+        "decision_threshold": threshold,
+        "roc_auc": round(float(roc_auc_score(y_arr, oof_probs)), 4),
+        "pr_auc": round(float(average_precision_score(y_arr, oof_probs)), 4),
+        "brier_score": round(float(brier_score_loss(y_arr, oof_probs)), 4),
+        "ece": cal_diag["ece"],
+        "precision": _safe_rate(int(tp), int(tp + fp)),
+        "recall": _safe_rate(int(tp), int(tp + fn)),
+        "specificity": _safe_rate(int(tn), int(tn + fp)),
+        "false_positive_rate": _safe_rate(int(fp), int(fp + tn)),
+        "f1_score": round(float(f1_score(y_arr, pred_ml, zero_division=0)), 4),
+        "confusion_matrix": {"tp": int(tp), "fp": int(fp), "tn": int(tn), "fn": int(fn)},
+    }
+
+    records: list[dict[str, Any]] = []
+    comp_scores = np.zeros(len(texts), dtype=float)
+    for idx, (text, p_val) in enumerate(zip(texts, oof_probs, strict=True)):
+        h_val, _ = evaluate_heuristics(text)
+        s_val = compute_composite_score(
+            heuristic_score=h_val,
+            onnx_probability=float(p_val),
+            velocity_score=0.0,
+        )
+        comp_scores[idx] = s_val
+        verdict = "BLOCK" if s_val >= 0.75 else ("FLAG" if s_val >= 0.40 else "ALLOW")
+        records.append(
+            {
+                "sample_id": idx,
+                "family_id": str(fine_groups[idx]),
+                "eval_group_id": str(groups[idx]),
+                "outer_fold": int(oof_fold_ids[idx]),
+                "true_label": int(y_arr[idx]),
+                "oof_probability": round(float(p_val), 8),
+                "oof_prediction_p50": int(p_val >= threshold),
+                "heuristic_score": round(float(h_val), 4),
+                "oof_composite_score": round(float(s_val), 6),
+                "oof_verdict": verdict,
+            }
+        )
+
+    pred_t1 = (comp_scores >= 0.40).astype(int)
+    tn1, fp1, fn1, tp1 = confusion_matrix(y_arr, pred_t1, labels=[0, 1]).ravel()
+    pred_t2 = (comp_scores >= 0.75).astype(int)
+    tn2, fp2, fn2, tp2 = confusion_matrix(y_arr, pred_t2, labels=[0, 1]).ravel()
+
+    composite_summary = {
+        "velocity_score": 0.0,
+        "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+        "tier1": {
+            "threshold": 0.40,
+            "confusion_matrix": {"tp": int(tp1), "fp": int(fp1), "tn": int(tn1), "fn": int(fn1)},
+            "precision": _safe_rate(int(tp1), int(tp1 + fp1)),
+            "recall": _safe_rate(int(tp1), int(tp1 + fn1)),
+            "specificity": _safe_rate(int(tn1), int(tn1 + fp1)),
+            "false_positive_rate": _safe_rate(int(fp1), int(fp1 + tn1)),
+            "f1_score": round(float(f1_score(y_arr, pred_t1, zero_division=0)), 4),
+        },
+        "tier2": {
+            "threshold": 0.75,
+            "confusion_matrix": {"tp": int(tp2), "fp": int(fp2), "tn": int(tn2), "fn": int(fn2)},
+            "precision": _safe_rate(int(tp2), int(tp2 + fp2)),
+            "recall": _safe_rate(int(tp2), int(tp2 + fn2)),
+            "specificity": _safe_rate(int(tn2), int(tn2 + fp2)),
+            "false_positive_rate": _safe_rate(int(fp2), int(fp2 + tn2)),
+            "f1_score": round(float(f1_score(y_arr, pred_t2, zero_division=0)), 4),
+        },
+    }
+
+    wilson_ci = {
+        "confidence_level": 0.95,
+        "z_score": 1.95996,
+        "methodology_note": (
+            "Message-level Wilson binomial intervals assume independent Bernoulli trials; "
+            "consult cluster_bootstrap_95_ci for family-level uncertainty."
+        ),
+        "ml_p50_precision": _safe_wilson_ci(int(tp), int(tp + fp)),
+        "ml_p50_recall": _safe_wilson_ci(int(tp), int(tp + fn)),
+        "tier1_precision": _safe_wilson_ci(int(tp1), int(tp1 + fp1)),
+        "tier1_recall": _safe_wilson_ci(int(tp1), int(tp1 + fn1)),
+        "tier1_fpr": _safe_wilson_ci(int(fp1), int(fp1 + tn1)),
+        "tier2_precision": _safe_wilson_ci(int(tp2), int(tp2 + fp2)),
+        "tier2_recall": _safe_wilson_ci(int(tp2), int(tp2 + fn2)),
+        "tier2_fpr": _safe_wilson_ci(int(fp2), int(fp2 + tn2)),
+    }
+    return ml_summary, composite_summary, cal_diag, wilson_ci, records
+
+
+def _evaluate_grouping_variant_oof(
+    texts: Sequence[str],
+    labels: Sequence[int],
+    groups: Sequence[str],
+    fine_groups: Sequence[str],
+    *,
+    n_splits: int = 5,
+    threshold: float = 0.50,
+    n_bootstrap: int = 1000,
+    bootstrap_seed: int = 42,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Runs nested zero-leakage 5-fold StratifiedGroupKFold OOF evaluation."""
+    n_samples = len(texts)
+    y_arr = np.asarray(labels, dtype=int)
+    outer_sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+    oof_probs = np.zeros(n_samples, dtype=float)
+    oof_fold_ids = np.full(n_samples, -1, dtype=int)
+    assigned_ids: list[int] = []
+    max_outer_overlap = 0
+    max_inner_overlap = 0
+    per_fold: list[dict[str, Any]] = []
+
+    for fold_idx, (tr_idx, val_idx) in enumerate(outer_sgkf.split(texts, labels, groups=groups)):
+        outer_ov = _assert_split_disjoint(tr_idx, val_idx, groups, f"oof_outer_fold_{fold_idx}")
+        max_outer_overlap = max(max_outer_overlap, outer_ov)
+
+        x_tr = [texts[int(i)] for i in tr_idx]
+        y_tr = [int(labels[int(i)]) for i in tr_idx]
+        g_tr = [str(groups[int(i)]) for i in tr_idx]
+        x_val = [texts[int(i)] for i in val_idx]
+        y_val_arr = np.asarray([int(labels[int(i)]) for i in val_idx], dtype=int)
+
+        inner_sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=42)
+        inner_splits: list[tuple[np.ndarray, np.ndarray]] = []
+        for in_idx, (in_tr, in_val) in enumerate(inner_sgkf.split(x_tr, y_tr, groups=g_tr)):
+            in_ov = _assert_split_disjoint(
+                in_tr,
+                in_val,
+                g_tr,
+                f"oof_outer_{fold_idx}_inner_{in_idx}",
+            )
+            max_inner_overlap = max(max_inner_overlap, in_ov)
+            inner_splits.append((np.asarray(in_tr, dtype=int), np.asarray(in_val, dtype=int)))
+
+        # Fit full Pipeline(TfidfVectorizer -> LogisticRegression) strictly inside inner splits
+        fold_model = CalibratedClassifierCV(
+            estimator=_create_text_lr_pipeline(),
+            method="sigmoid",
+            cv=inner_splits,
+            ensemble="auto",
+        )
+        fold_model.fit(x_tr, y_tr)
+        val_probs = np.asarray(fold_model.predict_proba(x_val)[:, 1], dtype=float)
+
+        for local_pos, orig_idx in enumerate(val_idx):
+            idx_int = int(orig_idx)
+            oof_probs[idx_int] = float(val_probs[local_pos])
+            oof_fold_ids[idx_int] = fold_idx
+            assigned_ids.append(idx_int)
+
+        val_pred = (val_probs >= threshold).astype(int)
+        tn_f, fp_f, fn_f, tp_f = confusion_matrix(y_val_arr, val_pred, labels=[0, 1]).ravel()
+        per_fold.append(
+            {
+                "fold": fold_idx,
+                "train_size": len(tr_idx),
+                "val_size": len(val_idx),
+                "train_group_count": len({str(groups[int(i)]) for i in tr_idx}),
+                "val_group_count": len({str(groups[int(i)]) for i in val_idx}),
+                "val_legit_count": int(np.sum(y_val_arr == 0)),
+                "val_fraud_count": int(np.sum(y_val_arr == 1)),
+                "val_fraud_rate": round(float(np.mean(y_val_arr)), 6),
+                "outer_group_overlap_count": outer_ov,
+                "roc_auc": round(float(roc_auc_score(y_val_arr, val_probs)), 4),
+                "pr_auc": round(float(average_precision_score(y_val_arr, val_probs)), 4),
+                "brier_score": round(float(brier_score_loss(y_val_arr, val_probs)), 4),
+                "precision": round(float(precision_score(y_val_arr, val_pred, zero_division=0)), 4),
+                "recall": round(float(recall_score(y_val_arr, val_pred, zero_division=0)), 4),
+                "f1_score": round(float(f1_score(y_val_arr, val_pred, zero_division=0)), 4),
+                "confusion_matrix": {"tp": int(tp_f), "fp": int(fp_f), "tn": int(tn_f), "fn": int(fn_f)},
+            }
+        )
+
+    duplicate_count = len(assigned_ids) - len(set(assigned_ids))
+    is_complete = (
+        len(assigned_ids) == n_samples
+        and duplicate_count == 0
+        and np.all(oof_fold_ids >= 0)
+        and set(assigned_ids) == set(range(n_samples))
+    )
+    if not is_complete:
+        raise ValueError(
+            f"OOF predictions incomplete: covered={len(set(assigned_ids))}/{n_samples}, "
+            f"duplicates={duplicate_count}"
+        )
+
+    per_fold_summary: dict[str, dict[str, float]] = {}
+    for m_key in ("roc_auc", "pr_auc", "brier_score", "precision", "recall", "f1_score"):
+        vals = [float(f[m_key]) for f in per_fold]
+        per_fold_summary[m_key] = {
+            "mean": round(float(np.mean(vals)), 4),
+            "std": round(float(np.std(vals, ddof=0)), 4),
+        }
+
+    ml_summary, comp_summary, cal_diag, wilson_ci, records = _build_pooled_oof_summaries(
+        texts,
+        y_arr,
+        oof_probs,
+        groups,
+        fine_groups,
+        oof_fold_ids,
+        threshold=threshold,
+    )
+    cluster_boot = compute_cluster_bootstrap_ci(
+        y_arr,
+        oof_probs,
+        groups,
+        threshold=threshold,
+        n_replicates=n_bootstrap,
+        seed=bootstrap_seed,
+    )
+    fold_rates = [float(f["val_fraud_rate"]) for f in per_fold]
+
+    summary = {
+        "group_count": len(set(groups)),
+        "n_splits": n_splits,
+        "max_outer_group_overlap": max_outer_overlap,
+        "max_inner_group_overlap": max_inner_overlap,
+        "min_fold_prevalence": round(min(fold_rates), 6),
+        "max_fold_prevalence": round(max(fold_rates), 6),
+        "completeness": {
+            "total_samples": n_samples,
+            "covered_sample_ids": len(set(assigned_ids)),
+            "duplicate_sample_ids": duplicate_count,
+            "is_complete": True,
+        },
+        "per_fold": per_fold,
+        "per_fold_summary": per_fold_summary,
+        "pooled_oof_ml": ml_summary,
+        "pooled_oof_composite": comp_summary,
+        "calibration_diagnostics": cal_diag,
+        "wilson_95_ci": wilson_ci,
+        "cluster_bootstrap_95_ci": cluster_boot,
+    }
+    return summary, records
+
+
+def evaluate_oof_cross_validation(
+    texts: Sequence[str] | None = None,
+    labels: Sequence[int] | None = None,
+    groups: Sequence[str] | None = None,
+    *,
+    n_splits: int = 5,
+    n_bootstrap: int = 1000,
+    bootstrap_seed: int = 42,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Evaluates zero-leakage nested OOF CV across fine-grained and macro-archetype groupings."""
+    if texts is None or labels is None or groups is None:
+        texts, labels, groups = build_augmented_dataset()
+
+    fine_summary, fine_records = _evaluate_grouping_variant_oof(
+        texts,
+        labels,
+        groups,
+        groups,
+        n_splits=n_splits,
+        n_bootstrap=n_bootstrap,
+        bootstrap_seed=bootstrap_seed,
+    )
+    macro_groups = get_macro_archetype_groups(groups)
+    macro_summary, _ = _evaluate_grouping_variant_oof(
+        texts,
+        labels,
+        macro_groups,
+        groups,
+        n_splits=n_splits,
+        n_bootstrap=n_bootstrap,
+        bootstrap_seed=bootstrap_seed,
+    )
+    macro_summary["collapsed_source_families"] = sorted(MACRO_BANK_2WAY_SOURCE_FAMILIES)
+    macro_summary["macro_group_id"] = MACRO_BANK_2WAY_GROUP_ID
+    macro_summary["sensitivity_note"] = (
+        "Collapsing 3 legitimate 2-way bank alert sub-templates (legit_bank_fraud_alert_yesno, "
+        "legit_bank_security_alert_12, legit_bank_auth_alert_yn) into one single "
+        "legit_bank_2way_macro archetype tests sensitivity to coarser template grouping; "
+        "this is a sensitivity diagnostic only (fine-grained OOF remains primary)."
+    )
+
+    report = {
+        "protocol": (
+            "Nested 5-fold StratifiedGroupKFold outer/inner with Pipeline(TfidfVectorizer -> "
+            "LogisticRegression) fitted strictly inside inner calibration splits (zero vocabulary leakage)"
+        ),
+        "production_calibration_strategy": "GroupKFold(n_splits=5)",
+        "production_calibration_max_group_overlap": 0,
+        "fine_grained": fine_summary,
+        "macro_bank_2way": macro_summary,
+    }
+    return report, fine_records
+
+
+def export_oof_predictions(
+    records: list[dict[str, Any]],
+    output_path: Path | None = None,
+) -> tuple[Path, str]:
+    """Atomically writes sanitized out-of-fold prediction rows (zero raw SMS text)."""
+    for row in records:
+        if "text" in row:
+            raise ValueError("OOF predictions artifact must never serialize raw SMS text")
+    target = (
+        output_path
+        if output_path is not None
+        else Path(__file__).resolve().parent / "oof_predictions.json"
+    )
+    payload = (json.dumps(records, indent=2) + "\n").encode("utf-8")
+    digest = hashlib.sha256(payload).hexdigest()
+    _atomic_write_text(target, payload.decode("utf-8"))
+    logger.info("Exported OOF predictions report (%d rows) to %s", len(records), target)
+    return target, digest
+
+
 def train_and_export_model(
     output_dir: str = "app/telecom/models",
     model_name: str = "sms_fraud_model.onnx",
@@ -964,19 +1490,18 @@ def train_and_export_model(
         len(held_out_hashes),
     )
 
-    # Group-based train / validation split (80 / 20) with StratifiedGroupKFold
+    # Group-based Fold-0 Brier diagnostic with strict inner StratifiedGroupKFold (zero TF-IDF leakage)
     sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
     train_idx, val_idx = next(sgkf.split(texts, labels, groups=template_family_ids))
-    x_train = [texts[i] for i in train_idx]
-    y_train = [labels[i] for i in train_idx]
-    x_test = [texts[i] for i in val_idx]
-    y_test = [labels[i] for i in val_idx]
+    x_train = [texts[int(i)] for i in train_idx]
+    y_train = [labels[int(i)] for i in train_idx]
+    g_train = [template_family_ids[int(i)] for i in train_idx]
+    x_test = [texts[int(i)] for i in val_idx]
+    y_test = [labels[int(i)] for i in val_idx]
 
-    groups_train = {template_family_ids[i] for i in train_idx}
-    groups_val = {template_family_ids[i] for i in val_idx}
-    if not groups_train.isdisjoint(groups_val):
-        overlap = groups_train.intersection(groups_val)
-        raise ValueError(f"CRITICAL: Template-family leakage between train and val: {overlap}")
+    _assert_split_disjoint(train_idx, val_idx, template_family_ids, "fold0_validation")
+    groups_train = {template_family_ids[int(i)] for i in train_idx}
+    groups_val = {template_family_ids[int(i)] for i in val_idx}
     logger.info(
         "Group split verified: %d train template families (%d samples, %d legit / %d fraud) | %d val template families (%d samples, %d legit / %d fraud) | Template family overlap: 0",
         len(groups_train),
@@ -989,57 +1514,26 @@ def train_and_export_model(
         y_test.count(1),
     )
 
-    # Base Logistic Regression classifier
-    base_clf = LogisticRegression(
-        C=1.5,
-        max_iter=1000,
-        class_weight="balanced",
-        random_state=42,
-    )
-
-    # 1. Uncalibrated pipeline (baseline for Brier score measurement)
-    tfidf = TfidfVectorizer(
-        ngram_range=(1, 2),
-        sublinear_tf=True,
-        max_features=2500,
-        min_df=1,
-        token_pattern=r"\b[a-zA-Z0-9_]+\b",
-    )
-    uncalibrated_pipeline = Pipeline([("tfidf", tfidf), ("clf", base_clf)])
+    uncalibrated_pipeline = _create_text_lr_pipeline()
     uncalibrated_pipeline.fit(x_train, y_train)
     y_prob_uncal = uncalibrated_pipeline.predict_proba(x_test)[:, 1]
     brier_before = float(brier_score_loss(y_test, y_prob_uncal))
 
-    # 2. Fully calibrated pipeline using 5-fold cross-validated Platt scaling (sigmoid)
-    logger.info("Training CalibratedClassifierCV(LogisticRegression, method='sigmoid', cv=5)...")
-    calibrated_clf = CalibratedClassifierCV(
-        estimator=LogisticRegression(
-            C=1.5,
-            max_iter=1000,
-            class_weight="balanced",
-            random_state=42,
-        ),
+    inner_fold0_sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    inner_fold0_splits: list[tuple[np.ndarray, np.ndarray]] = []
+    for in_idx, (in_tr, in_va) in enumerate(inner_fold0_sgkf.split(x_train, y_train, groups=g_train)):
+        _assert_split_disjoint(in_tr, in_va, g_train, f"fold0_inner_{in_idx}")
+        inner_fold0_splits.append((np.asarray(in_tr, dtype=int), np.asarray(in_va, dtype=int)))
+
+    logger.info("Training zero-leakage Fold-0 nested Pipeline inside CalibratedClassifierCV...")
+    calibrated_pipeline = CalibratedClassifierCV(
+        estimator=_create_text_lr_pipeline(),
         method="sigmoid",
-        cv=5,
-    )
-    calibrated_pipeline = Pipeline(
-        [
-            (
-                "tfidf",
-                TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    sublinear_tf=True,
-                    max_features=2500,
-                    min_df=1,
-                    token_pattern=r"\b[a-zA-Z0-9_]+\b",
-                ),
-            ),
-            ("clf", calibrated_clf),
-        ]
+        cv=inner_fold0_splits,
+        ensemble="auto",
     )
     calibrated_pipeline.fit(x_train, y_train)
 
-    # Evaluate calibrated model on stratified validation split
     y_pred = calibrated_pipeline.predict(x_test)
     y_prob = calibrated_pipeline.predict_proba(x_test)[:, 1]
 
@@ -1051,43 +1545,18 @@ def train_and_export_model(
     brier_after = float(brier_score_loss(y_test, y_prob))
     report = classification_report(y_test, y_pred, output_dict=True)
 
-    logger.info("Stratified Validation Split Results:")
+    logger.info("Nested Fold-0 StratifiedGroupKFold Results:")
     logger.info("  Brier Score (Before Calibration): %.4f", brier_before)
     logger.info("  Brier Score (After Calibration):  %.4f", brier_after)
-    logger.info("  Precision: %.4f", precision)
-    logger.info("  Recall:    %.4f", recall)
-    logger.info("  F1 Score:  %.4f", f1)
-    logger.info("  ROC-AUC:   %.4f", roc_auc)
-    logger.info("  PR-AUC:    %.4f", pr_auc)
+    logger.info("  Precision: %.4f | Recall: %.4f | F1: %.4f | ROC-AUC: %.4f | PR-AUC: %.4f", precision, recall, f1, roc_auc, pr_auc)
 
-    # 3. Fit production calibrated pipeline on full augmented dataset for ONNX export
-    logger.info("Fitting production pipeline on all %d samples for ONNX export...", len(texts))
-    prod_calibrated_clf = CalibratedClassifierCV(
-        estimator=LogisticRegression(
-            C=1.5,
-            max_iter=1000,
-            class_weight="balanced",
-            random_state=42,
-        ),
-        method="sigmoid",
-        cv=5,
-    )
-    prod_pipeline = Pipeline(
-        [
-            (
-                "tfidf",
-                TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    sublinear_tf=True,
-                    max_features=2500,
-                    min_df=1,
-                    token_pattern=r"\b[a-zA-Z0-9_]+\b",
-                ),
-            ),
-            ("clf", prod_calibrated_clf),
-        ]
-    )
-    prod_pipeline.fit(texts, labels)
+    # Full 5-fold zero-leakage nested OOF evaluation (fine-grained + macro sensitivity + cluster bootstrap)
+    logger.info("Executing 5-fold zero-leakage nested OOF evaluation and cluster bootstrap...")
+    oof_report, oof_records = evaluate_oof_cross_validation(texts, labels, template_family_ids)
+
+    # Fit production calibrated pipeline using deterministic GroupKFold(n_splits=5) calibration folds
+    logger.info("Fitting production pipeline on all %d samples with GroupKFold(5) calibration...", len(texts))
+    prod_pipeline = build_production_pipeline(texts, labels, template_family_ids)
 
     # Export calibrated production pipeline to ONNX with string tensor input
     logger.info("Exporting calibrated pipeline to ONNX format (opset 14)...")
@@ -1116,10 +1585,22 @@ def train_and_export_model(
         is_canonical_target if publish_eval_artifacts is None else publish_eval_artifacts
     )
 
+    oof_output_path = (
+        canonical_paths["model"].resolve().parents[1] / "oof_predictions.json"
+        if should_publish_canonical
+        else output_path / "oof_predictions.json"
+    )
+    _, oof_sha256 = export_oof_predictions(oof_records, output_path=oof_output_path)
+    oof_report["oof_predictions_artifact"] = "oof_predictions.json"
+    oof_report["oof_predictions_sha256"] = oof_sha256
+
     base_metadata: dict[str, Any] = {
         "model_name": "SentinelPulse-SMS-Fraud-ONNX",
         "version": "1.0.0",
-        "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=5)",
+        "architecture": (
+            "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> "
+            "CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=GroupKFold(5))"
+        ),
         "framework": "scikit-learn + skl2onnx + onnxruntime",
         "opset": 14,
         "model_sha256": model_sha256,
@@ -1127,6 +1608,9 @@ def train_and_export_model(
         "calibration": {
             "method": "sigmoid",
             "cv_folds": 5,
+            "cv_strategy": "GroupKFold(n_splits=5)",
+            "max_group_overlap": 0,
+            "ensemble": "auto",
             "brier_score_before": round(brier_before, 4),
             "brier_score_after": round(brier_after, 4),
             "brier_score_improvement": round(brier_before - brier_after, 4),
@@ -1173,6 +1657,7 @@ def train_and_export_model(
             extra_metrics_fields={
                 "brier_score_before_calibration": round(brier_before, 4),
                 "brier_score_after_calibration": round(brier_after, 4),
+                "oof_cross_validation": oof_report,
             },
         )
         return dict(json.loads(canonical_paths["metadata"].read_text(encoding="utf-8")))
@@ -1191,6 +1676,7 @@ def train_and_export_model(
         )
     held_out_metrics["brier_score_before_calibration"] = round(brier_before, 4)
     held_out_metrics["brier_score_after_calibration"] = round(brier_after, 4)
+    held_out_metrics["oof_cross_validation"] = oof_report
 
     base_metadata["evaluation_dataset_sha256"] = held_out_metrics["evaluation_dataset_sha256"]
     base_metadata["benchmark_predictions_artifact"] = held_out_metrics[
@@ -1200,6 +1686,11 @@ def train_and_export_model(
         "benchmark_predictions_sha256"
     ]
     base_metadata["onnx_sklearn_parity"] = held_out_metrics["onnx_sklearn_parity"]
+    base_metadata["ece"] = held_out_metrics["ece"]
+    base_metadata["reliability_bins"] = held_out_metrics["reliability_bins"]
+    base_metadata["calibration_diagnostics"] = held_out_metrics["calibration_diagnostics"]
+    base_metadata["wilson_95_ci"] = held_out_metrics["wilson_95_ci"]
+    base_metadata["oof_cross_validation"] = oof_report
     base_metadata["evaluation_timestamp"] = held_out_metrics["evaluation_timestamp"]
     base_metadata["software_versions"] = held_out_metrics["software_versions"]
     base_metadata["dev_benchmark_metrics"] = held_out_metrics
