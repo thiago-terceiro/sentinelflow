@@ -70,15 +70,15 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
         "RULE:TAX_ARREST_THREAT",
         re.compile(
             # Require (1) explicit coercive arrest/warrant/detention/seizure/dispatch threat,
-            # (2) legal/tax/enforcement authority, AND (3) explicit extortion/financial/callback
+            # (2) legal/tax/enforcement authority, AND (3) explicit extortion/financial/CTA
             # demand (omitting bare "final notice", bare "tax penalty abatement", and bare
-            # administrative "case #" references; allowing parenthesized callbacks "(800)").
+            # "case #" references; supporting "(800)" phones and urgent contact CTAs).
             r"^(?=.*\b(?:arrest\s+warrant|bench\s+warrant|seizure\s+warrant|"
             r"warrant\s+(?:issued|pending|active)|federal\s+arrest|"
             r"avoid\s+(?:arrest|detention|prosecution|seizure|jail)|"
             r"detain(?:ed)?|detention|seiz(?:e|ed|ure)|"
             r"process\s+server\s+(?:dispatched|en\s+route|assigned|sent)|"
-            r"(?:marshal|officer|agent|deputy|police)\s+dispatched|"
+            r"(?:marshal|officer|agent|deputy|police)s?\s+(?:dispatched|en\s+route)|"
             r"failure\s+to\s+appear|contempt\s+of\s+court)\b)"
             r"(?=.*\b(?:irs|customs|magistrate|sheriff|police|court(?:house)?|judge|"
             r"federal\s+(?:tax|agent|court|marshal|enforcement|bureau)|"
@@ -93,7 +93,7 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
             r"unless\s+(?:paid|settled|resolved|verified)|"
             r"(?:federal|court|customs)\s+(?:penalty|fine)|"
             r"within\s+\d+\s*(?:hours?|hrs?|minutes?)|"
-            r"call\s+(?:immediately|now|"
+            r"(?:call|contact\s+us|reply|respond)\s+(?:immediately|urgently|now|"
             r"\+?1?[-.\s]?(?:\(\d{3}\)|\d{3})[-.\s]?\d{3}[-.\s]?\d{4}))\b|"
             r"https?://\S+"
             r"))",

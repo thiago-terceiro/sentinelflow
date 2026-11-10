@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -18,9 +19,9 @@ import numpy as np
 import onnx
 from app.telecom.evaluate_model import (
     evaluate_onnx_model,
-    export_markdown_report,
-    export_ml_metrics,
+    get_canonical_artifact_paths,
     get_held_out_evaluation_set,
+    publish_evaluation_artifacts_atomically,
 )
 from skl2onnx import to_onnx
 from skl2onnx.common.data_types import StringTensorType
@@ -576,6 +577,8 @@ def train_and_export_model(
     output_dir: str = "app/telecom/models",
     model_name: str = "sms_fraud_model.onnx",
     metadata_name: str = "sms_fraud_metadata.json",
+    *,
+    publish_eval_artifacts: bool | None = None,
 ) -> dict[str, Any]:
     """Trains the NLP model, evaluates performance metrics, and exports to ONNX."""
     output_path = Path(output_dir)
@@ -743,25 +746,28 @@ def train_and_export_model(
     onnx_model = to_onnx(prod_pipeline, initial_types=initial_type, target_opset=14)
     onnx_model = patch_skl2onnx_tfidf_bugs(onnx_model, prod_pipeline.named_steps["tfidf"])
 
-    # Serialize ONNX model to disk
-    with open(onnx_file, "wb") as f:
-        f.write(onnx_model.SerializeToString())
-    model_bytes = onnx_file.read_bytes()
+    # Serialize ONNX model bytes in memory before touching disk
+    model_bytes = onnx_model.SerializeToString()
     model_sha256 = hashlib.sha256(model_bytes).hexdigest()
     training_dataset_sha256 = hashlib.sha256(
         "".join(f"{t}:{lbl}" for t, lbl in zip(texts, labels, strict=True)).encode("utf-8")
     ).hexdigest()
-    logger.info("Saved ONNX model to: %s (%d bytes, SHA256: %s)", onnx_file, len(model_bytes), model_sha256)
+    logger.info("Compiled ONNX model in memory (%d bytes, SHA256: %s)", len(model_bytes), model_sha256)
 
-    # Execute empirical evaluation on development and validation benchmark suite
-    logger.info("Running empirical evaluation on development & validation benchmark suite (N = 400)...")
-    held_out_metrics = evaluate_onnx_model(onnx_file, reference_pipeline=prod_pipeline)
-    held_out_metrics["brier_score_before_calibration"] = round(brier_before, 4)
-    held_out_metrics["brier_score_after_calibration"] = round(brier_after, 4)
-    export_ml_metrics(held_out_metrics)
+    canonical_paths = get_canonical_artifact_paths()
+    is_canonical_target = (
+        onnx_file.resolve() == canonical_paths["model"].resolve()
+        and metadata_file.resolve() == canonical_paths["metadata"].resolve()
+    )
+    if publish_eval_artifacts is True and not is_canonical_target:
+        raise ValueError(
+            "publish_eval_artifacts=True requires targeting canonical model and metadata paths"
+        )
+    should_publish_canonical = (
+        is_canonical_target if publish_eval_artifacts is None else publish_eval_artifacts
+    )
 
-    # Save comprehensive metadata
-    metadata = {
+    base_metadata: dict[str, Any] = {
         "model_name": "SentinelPulse-SMS-Fraud-ONNX",
         "version": "1.0.0",
         "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=5)",
@@ -769,12 +775,6 @@ def train_and_export_model(
         "opset": 14,
         "model_sha256": model_sha256,
         "training_dataset_sha256": training_dataset_sha256,
-        "evaluation_dataset_sha256": held_out_metrics["evaluation_dataset_sha256"],
-        "benchmark_predictions_artifact": held_out_metrics["benchmark_predictions_artifact"],
-        "benchmark_predictions_sha256": held_out_metrics["benchmark_predictions_sha256"],
-        "onnx_sklearn_parity": held_out_metrics["onnx_sklearn_parity"],
-        "evaluation_timestamp": held_out_metrics["evaluation_timestamp"],
-        "software_versions": held_out_metrics["software_versions"],
         "calibration": {
             "method": "sigmoid",
             "cv_folds": 5,
@@ -797,8 +797,6 @@ def train_and_export_model(
             "brier_score": round(brier_after, 4),
             "detailed_report": report,
         },
-        "dev_benchmark_metrics": held_out_metrics,
-        "held_out_adversarial_metrics": held_out_metrics,
         "operating_thresholds": {
             "allow_below": 0.40,
             "flag_threshold": 0.40,
@@ -811,15 +809,56 @@ def train_and_export_model(
         },
     }
 
-    with open(metadata_file, "w", encoding="utf-8") as meta_out:
-        json.dump(metadata, meta_out, indent=2)
-    logger.info("Saved model metadata to: %s", metadata_file)
+    if should_publish_canonical:
+        logger.info("Publishing trained ONNX model and evaluation artifacts atomically...")
+        publish_evaluation_artifacts_atomically(
+            artifact_paths=canonical_paths,
+            reference_pipeline=prod_pipeline,
+            staged_model_bytes=model_bytes,
+            base_metadata=base_metadata,
+            extra_metrics_fields={
+                "brier_score_before_calibration": round(brier_before, 4),
+                "brier_score_after_calibration": round(brier_after, 4),
+            },
+        )
+        return dict(json.loads(canonical_paths["metadata"].read_text(encoding="utf-8")))
 
-    # Simultaneously export Markdown report to docs/ to guarantee 100% artifact parity
-    export_markdown_report(held_out_metrics)
-    logger.info("Exported synchronized Markdown report to docs/ml_evaluation_report.md")
+    # Custom/non-canonical export: evaluate staged bytes in memory and explicitly mark
+    # canonical repo evaluation artifacts as stale for this custom build.
+    with tempfile.TemporaryDirectory(prefix="sentinelflow_custom_eval_") as tmp_dir:
+        tmp_onnx = Path(tmp_dir) / model_name
+        tmp_onnx.write_bytes(model_bytes)
+        held_out_metrics = evaluate_onnx_model(
+            tmp_onnx,
+            reference_pipeline=prod_pipeline,
+            write_predictions=False,
+        )
+    held_out_metrics["brier_score_before_calibration"] = round(brier_before, 4)
+    held_out_metrics["brier_score_after_calibration"] = round(brier_after, 4)
 
-    return metadata
+    base_metadata["evaluation_dataset_sha256"] = held_out_metrics["evaluation_dataset_sha256"]
+    base_metadata["benchmark_predictions_artifact"] = held_out_metrics[
+        "benchmark_predictions_artifact"
+    ]
+    base_metadata["benchmark_predictions_sha256"] = held_out_metrics[
+        "benchmark_predictions_sha256"
+    ]
+    base_metadata["onnx_sklearn_parity"] = held_out_metrics["onnx_sklearn_parity"]
+    base_metadata["evaluation_timestamp"] = held_out_metrics["evaluation_timestamp"]
+    base_metadata["software_versions"] = held_out_metrics["software_versions"]
+    base_metadata["dev_benchmark_metrics"] = held_out_metrics
+    base_metadata["held_out_adversarial_metrics"] = held_out_metrics
+    base_metadata["evaluation_artifacts_stale"] = True
+    base_metadata["evaluation_artifacts_status"] = "stale_not_published"
+
+    onnx_file.write_bytes(model_bytes)
+    metadata_file.write_text(json.dumps(base_metadata, indent=2) + "\n", encoding="utf-8")
+    logger.warning(
+        "Trained model exported to %s without publishing canonical evaluation artifacts; "
+        "marked evaluation_artifacts_stale=True (run evaluate_model --all to synchronize).",
+        onnx_file,
+    )
+    return base_metadata
 
 
 if __name__ == "__main__":

@@ -697,6 +697,197 @@ ADVERSARIAL_CORPUS: tuple[AdversarialCase, ...] = (
 )
 
 
+@dataclass(frozen=True)
+class DroppedClauseCase:
+    """Dropped-clause adversarial or benign legal/tax contrastive fixture (SF-005B)."""
+
+    case_id: str
+    expected_label: GroundTruthLabel
+    confidence_nature: Literal["high_confidence_fraud", "ambiguous", "benign_legitimate"]
+    expected_tax_rule_match: bool
+    allowed_verdicts: tuple[str, ...]
+    text: str
+    rationale: str
+
+
+DROPPED_CLAUSE_CORPUS: tuple[DroppedClauseCase, ...] = (
+    DroppedClauseCase(
+        case_id="DC01",
+        expected_label="FRAUD",
+        confidence_nature="high_confidence_fraud",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("FLAG", "BLOCK"),
+        text=(
+            "FINAL NOTICE: An arrest warrant has been issued by the IRS under your name. "
+            "Face immediate detention."
+        ),
+        rationale=(
+            "Dropped URL/money/phone/contact-CTA extortion variant; omits extortion demand clause "
+            "so TAX_ARREST_THREAT stays inactive while calibrated ML catches it at Tier-1 FLAG."
+        ),
+    ),
+    DroppedClauseCase(
+        case_id="DC02",
+        expected_label="AMBIGUOUS",
+        confidence_nature="ambiguous",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW", "FLAG"),
+        text="Federal magistrate warrant issued for your arrest.",
+        rationale=(
+            "Ambiguous 7-word statement with zero CTA/URL/payment extortion context; must NOT "
+            "blindly trigger hard H=0.80 BLOCK without actionable fraud evidence."
+        ),
+    ),
+    DroppedClauseCase(
+        case_id="DC03",
+        expected_label="FRAUD",
+        confidence_nature="high_confidence_fraud",
+        expected_tax_rule_match=True,
+        allowed_verdicts=("BLOCK",),
+        text=(
+            "Authorities have issued a warrant in your name. "
+            "Contact us immediately to avoid detention."
+        ),
+        rationale=(
+            "Dropped URL/money/phone variant with explicit urgent CTA ('Contact us immediately') "
+            "and detention coercion; caught by hardened TAX_ARREST_THREAT CTA extension."
+        ),
+    ),
+    DroppedClauseCase(
+        case_id="DC04",
+        expected_label="FRAUD",
+        confidence_nature="high_confidence_fraud",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW", "FLAG", "BLOCK"),
+        text=(
+            "US Customs Enforcement: Seizure warrant active on your identity. "
+            "Officers en route for immediate detention."
+        ),
+        rationale=(
+            "Documented heuristic boundary limit: omits URL, dollar amount, phone, AND all "
+            "contact/reply CTAs; cannot be promoted to H=0.80 without collapsing 3-clause guard."
+        ),
+    ),
+    DroppedClauseCase(
+        case_id="DC05",
+        expected_label="FRAUD",
+        confidence_nature="high_confidence_fraud",
+        expected_tax_rule_match=True,
+        allowed_verdicts=("BLOCK",),
+        text=(
+            "County Sheriff Desk: Bench warrant issued for contempt of court. "
+            "Contact us urgently before arrest."
+        ),
+        rationale=(
+            "Failing dropped-clause fixture closed by SF-005B: low ML probability (P=0.3421) "
+            "previously allowed ALLOW bypass; 'Contact us urgently' restores Tier-2 BLOCK."
+        ),
+    ),
+    DroppedClauseCase(
+        case_id="DC06",
+        expected_label="FRAUD",
+        confidence_nature="high_confidence_fraud",
+        expected_tax_rule_match=True,
+        allowed_verdicts=("BLOCK",),
+        text=(
+            "IRS Enforcement Division: Federal arrest warrant pending under your SSN. "
+            "Respond immediately to avoid jail."
+        ),
+        rationale=(
+            "Dropped phone/URL extortion using 'Respond immediately' coercion CTA -> Tier-2 BLOCK."
+        ),
+    ),
+    # --- Aggressive benign contrastive counterparts ---
+    DroppedClauseCase(
+        case_id="DC_B01",
+        expected_label="BENIGN",
+        confidence_nature="benign_legitimate",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW",),
+        text=(
+            "Paralegal Team: Process server scheduling confirmed for Tuesday 10 AM at "
+            "defendant counsel office."
+        ),
+        rationale="Genuine process-server scheduling update with zero extortion or coercion.",
+    ),
+    DroppedClauseCase(
+        case_id="DC_B02",
+        expected_label="BENIGN",
+        confidence_nature="benign_legitimate",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW",),
+        text=(
+            "IRS Automated Notice CP14: View your installment status and 2025 balance "
+            "transcript online at https://www.irs.gov/payments"
+        ),
+        rationale="Legitimate informational IRS payment portal link without threat.",
+    ),
+    DroppedClauseCase(
+        case_id="DC_B03",
+        expected_label="BENIGN",
+        confidence_nature="benign_legitimate",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW",),
+        text=(
+            "Clerk of Court: Notice of hearing in Case #2026-CV-881 set for May 14, Dept 3. "
+            "Call 415-555-0190 for calendar questions."
+        ),
+        rationale="Genuine court correspondence citing case number and clerk callback phone.",
+    ),
+    DroppedClauseCase(
+        case_id="DC_B04",
+        expected_label="BENIGN",
+        confidence_nature="benign_legitimate",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW",),
+        text=(
+            "Local Gazette: Police report a federal arrest warrant was issued in "
+            "yesterday's embezzlement indictment."
+        ),
+        rationale="Informational news article reporting an arrest warrant with no demand.",
+    ),
+    DroppedClauseCase(
+        case_id="DC_B05",
+        expected_label="BENIGN",
+        confidence_nature="benign_legitimate",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW",),
+        text=(
+            "Security Reminder: Beware of fake messages claiming an arrest warrant was "
+            "issued by the IRS under your name."
+        ),
+        rationale="Quoted scam warning mentioning IRS and arrest warrant under your name.",
+    ),
+    DroppedClauseCase(
+        case_id="DC_B06",
+        expected_label="BENIGN",
+        confidence_nature="benign_legitimate",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW",),
+        text=(
+            "Did you hear police finally served the arrest warrant on the burglary "
+            "suspect across the street?"
+        ),
+        rationale="Third-person neighborhood conversation mentioning arrest warrant.",
+    ),
+    DroppedClauseCase(
+        case_id="DC_B07",
+        expected_label="BENIGN",
+        confidence_nature="benign_legitimate",
+        expected_tax_rule_match=False,
+        allowed_verdicts=("ALLOW", "FLAG"),
+        text=(
+            "Traffic Desk: Police officers dispatched to 5th & Main for fender bender "
+            "investigation."
+        ),
+        rationale=(
+            "Routine police dispatch stays TAX_ARREST_THREAT-clean (H=0.0, never BLOCK); "
+            "frozen TF-IDF model alone yields Tier-1 FLAG (P=0.4694)."
+        ),
+    ),
+)
+
+
 def compute_confusion_metrics(tp: int, fp: int, tn: int, fn: int) -> dict[str, float | int]:
     """Computes standard binary confusion counts and derived rates cleanly."""
     precision = round(tp / (tp + fp), 4) if (tp + fp) > 0 else 1.0

@@ -9,7 +9,7 @@
 - **Evaluation Dataset SHA-256:** `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03`
 - **Canonical 400-Row Predictions Artifact:** `benchmark_predictions_400.json`
 - **Canonical 400-Row Predictions SHA-256:** `af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956`
-- **Timestamp:** `2026-11-10T12:34:44.194608+00:00`
+- **Timestamp:** `2026-11-10T12:51:27.447077+00:00`
 - **Evaluator Engine:** `ONNXRuntime-CPU (AVX-512)`
 - **Software Versions:** `onnxruntime=1.31.0`, `numpy=2.5.4`, `scikit-learn=1.9.1`
 - **Dataset Size:** 400 samples (200 Benign, 200 Fraud)

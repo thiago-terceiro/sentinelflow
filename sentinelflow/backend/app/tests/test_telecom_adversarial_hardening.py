@@ -30,6 +30,7 @@ from app.telecom.onnx_engine import (
 from app.telecom.train_onnx_model import build_augmented_dataset
 from app.tests.telecom_adversarial_fixtures import (
     ADVERSARIAL_CORPUS,
+    DROPPED_CLAUSE_CORPUS,
     evaluate_adversarial_suite,
     normalized_sha256,
 )
@@ -58,8 +59,11 @@ def _min_per_call_ms(pattern: re.Pattern[str], text: str, rounds: int = 3, iters
 
 def test_adversarial_corpus_zero_leakage_against_dev_val_and_training() -> None:
     """Enforces 100% separation between synthetic adversarial fixtures, Dev/Val, and train data."""
-    adv_hashes = {normalized_sha256(case.text): case.case_id for case in ADVERSARIAL_CORPUS}
-    assert len(adv_hashes) == len(ADVERSARIAL_CORPUS), "Duplicate texts in ADVERSARIAL_CORPUS"
+    all_fixture_texts = [case.text for case in ADVERSARIAL_CORPUS] + [
+        case.text for case in DROPPED_CLAUSE_CORPUS
+    ]
+    adv_hashes = {normalized_sha256(txt) for txt in all_fixture_texts}
+    assert len(adv_hashes) == len(all_fixture_texts), "Duplicate texts in adversarial corpora"
 
     dev_val_hashes = {
         normalized_sha256(sample["text"]): idx
@@ -68,11 +72,50 @@ def test_adversarial_corpus_zero_leakage_against_dev_val_and_training() -> None:
     train_texts, _, _ = build_augmented_dataset()
     train_hashes = {normalized_sha256(txt) for txt in train_texts}
 
-    overlap_dev_val = set(adv_hashes).intersection(dev_val_hashes)
-    overlap_train = set(adv_hashes).intersection(train_hashes)
+    overlap_dev_val = adv_hashes.intersection(dev_val_hashes)
+    overlap_train = adv_hashes.intersection(train_hashes)
 
     assert not overlap_dev_val, f"Leakage into Dev/Val benchmark: {overlap_dev_val}"
     assert not overlap_train, f"Leakage into training dataset: {overlap_train}"
+
+
+def test_dropped_clause_adversarial_and_benign_contrastive_matrix() -> None:
+    """Verifies dropped-clause coercion detection vs benign/ambiguous precision (SF-005B)."""
+    engine = get_inference_engine()
+
+    observed: dict[str, dict[str, object]] = {}
+    for case in DROPPED_CLAUSE_CORPUS:
+        res = engine.predict(case.text)
+        tax_hit = "RULE:TAX_ARREST_THREAT" in res.signals
+        observed[case.case_id] = {
+            "verdict": res.verdict,
+            "tax_hit": tax_hit,
+            "fraud_score": res.fraud_score,
+            "heuristic_score": res.heuristic_score,
+            "onnx_probability": res.onnx_probability,
+        }
+        assert tax_hit is case.expected_tax_rule_match, (
+            f"{case.case_id} expected tax_hit={case.expected_tax_rule_match}, "
+            f"got {tax_hit} (signals={res.signals})"
+        )
+        assert res.verdict in case.allowed_verdicts, (
+            f"{case.case_id} verdict {res.verdict} not in allowed {case.allowed_verdicts} "
+            f"(S={res.fraud_score})"
+        )
+
+    # Confirm explicit behavior across all 6 adversarial & 7 benign cases
+    assert observed["DC01"]["verdict"] == "FLAG"
+    assert observed["DC02"]["verdict"] == "ALLOW"
+    assert observed["DC03"]["verdict"] == "BLOCK"
+    assert observed["DC04"]["verdict"] == "ALLOW"  # Documented 3-clause boundary limit
+    assert observed["DC05"]["verdict"] == "BLOCK"
+    assert observed["DC06"]["verdict"] == "BLOCK"
+    for benign_id in ("DC_B01", "DC_B02", "DC_B03", "DC_B04", "DC_B05", "DC_B06"):
+        assert observed[benign_id]["tax_hit"] is False
+        assert observed[benign_id]["verdict"] == "ALLOW"
+    assert observed["DC_B07"]["tax_hit"] is False
+    assert observed["DC_B07"]["heuristic_score"] == 0.0
+    assert observed["DC_B07"]["verdict"] != "BLOCK"
 
 
 def test_adversarial_suite_categories_and_evidence_honesty() -> None:
@@ -301,6 +344,18 @@ def test_mutation_suite_kills_predicate_and_threshold_regressions(
     # Mutation 9: Removing +0.12 compound boost breaks S >= 0.80 override on two-rule phish.
     assert compute_composite_score(0.70 + 0.12, 0.10, 0.0) == 1.0
     assert compute_composite_score(0.70, 0.10, 0.0) < 0.75, "Mutation 9 survived!"
+
+    # Mutation 10: Removing dropped-phone urgent CTA verbs ("contact us"/"reply"/"respond")
+    # causes DC05 to fall out of TAX_ARREST_THREAT and regress to ALLOW.
+    cta_slice = r"(?:call|contact\s+us|reply|respond)"
+    assert cta_slice in tax_pat_str
+    mutated_call_only_cta = re.compile(
+        tax_pat_str.replace(cta_slice, "call"),
+        re_flags,
+    )
+    dc05_text = next(c.text for c in DROPPED_CLAUSE_CORPUS if c.case_id == "DC05")
+    assert _tax_rule_pattern().search(dc05_text) is not None
+    assert mutated_call_only_cta.search(dc05_text) is None, "Mutation 10 survived!"
 
 
 @pytest.mark.asyncio

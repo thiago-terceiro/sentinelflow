@@ -1,0 +1,61 @@
+{
+  "delta_generated_at": "2026-11-10T12:51:27.450176+00:00",
+  "baseline_present": true,
+  "old_sample_count": 400,
+  "new_sample_count": 400,
+  "old_model_sha256": "32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c",
+  "new_model_sha256": "32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c",
+  "tolerances": {
+    "onnx_probability": 1e-06,
+    "heuristic_score": 0.0001,
+    "composite_score": 0.0001
+  },
+  "sample_identity_changes": {
+    "added_sample_ids": [],
+    "removed_sample_ids": [],
+    "duplicate_old_ids": [],
+    "duplicate_new_ids": [],
+    "missing_contiguous_ids": [],
+    "changed_labels": [],
+    "changed_text_hashes": []
+  },
+  "verdict_changes": [],
+  "onnx_probability_changes": [],
+  "heuristic_score_changes": [],
+  "tier_transitions": {
+    "ALLOW->FLAG": {
+      "count": 0,
+      "sample_ids": []
+    },
+    "ALLOW->BLOCK": {
+      "count": 0,
+      "sample_ids": []
+    },
+    "FLAG->ALLOW": {
+      "count": 0,
+      "sample_ids": []
+    },
+    "FLAG->BLOCK": {
+      "count": 0,
+      "sample_ids": []
+    },
+    "BLOCK->FLAG": {
+      "count": 0,
+      "sample_ids": []
+    },
+    "BLOCK->ALLOW": {
+      "count": 0,
+      "sample_ids": []
+    }
+  },
+  "change_interpretation": {
+    "model_changed": false,
+    "model_retraining_sample_ids": [],
+    "heuristic_modification_sample_ids": [],
+    "evaluation_or_numerical_drift_sample_ids": [],
+    "below_tolerance_precision_only_count": 0,
+    "review_required_sample_ids": [],
+    "requires_manual_review": false,
+    "review_policy_note": "All material changes require explicit engineering review; zero changes are auto-classified as harmless or defects."
+  }
+}

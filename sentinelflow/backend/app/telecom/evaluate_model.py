@@ -17,7 +17,13 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
+import shutil
+import tempfile
+import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -38,6 +44,35 @@ from sklearn.metrics import (
 )
 
 logger = logging.getLogger(__name__)
+
+PROB_DELTA_TOLERANCE = 1e-6
+HEURISTIC_DELTA_TOLERANCE = 1e-4
+COMPOSITE_DELTA_TOLERANCE = 1e-4
+TIER_TRANSITION_KEYS: tuple[str, ...] = (
+    "ALLOW->FLAG",
+    "ALLOW->BLOCK",
+    "FLAG->ALLOW",
+    "FLAG->BLOCK",
+    "BLOCK->FLAG",
+    "BLOCK->ALLOW",
+)
+
+
+def get_canonical_artifact_paths(telecom_dir: Path | None = None) -> dict[str, Path]:
+    """Returns canonical paths for ONNX model, predictions, metrics, metadata, delta, and docs."""
+    base_telecom = (telecom_dir or Path(__file__).resolve().parent).resolve()
+    project_root = base_telecom.parents[2]
+    workspace_root = base_telecom.parents[3]
+    return {
+        "model": base_telecom / "models" / "sms_fraud_model.onnx",
+        "metadata": base_telecom / "models" / "sms_fraud_metadata.json",
+        "predictions": base_telecom / "benchmark_predictions_400.json",
+        "metrics": base_telecom / "ml_metrics.json",
+        "delta": base_telecom / "evaluation_delta_latest.json",
+        "report_root": workspace_root / "docs" / "ml_evaluation_report.md",
+        "report_mirror": project_root / "docs" / "ml_evaluation_report.md",
+        "lock": base_telecom / ".evaluation_publish.lock",
+    }
 
 
 def _normalize_text(text: str) -> str:
@@ -860,18 +895,12 @@ def _compute_tfidf_vector_parity(
     return float(np.max(row_max_diffs)), float(np.mean(row_max_diffs))
 
 
-def export_benchmark_predictions_400(
+def build_benchmark_prediction_rows(
     samples: list[dict[str, Any]],
     sklearn_probs: np.ndarray,
     onnx_probs: np.ndarray,
-    output_path: str | Path | None = None,
-) -> tuple[Path, str, list[dict[str, Any]], dict[str, Any]]:
-    """Exports the canonical 400-row sample-level evaluation artifact and computes parity summary."""
-    if output_path is None:
-        target_path = Path(__file__).resolve().parent / "benchmark_predictions_400.json"
-    else:
-        target_path = Path(output_path)
-
+) -> tuple[list[dict[str, Any]], dict[str, Any], bytes, str]:
+    """Builds canonical sample-level predictions and parity summary purely in memory."""
     rows: list[dict[str, Any]] = []
     verdict_matches = 0
     p50_matches = 0
@@ -932,15 +961,8 @@ def export_benchmark_predictions_400(
             }
         )
 
-    target_path.parent.mkdir(parents=True, exist_ok=True)
     json_bytes = (json.dumps(rows, indent=2) + "\n").encode("utf-8")
-    target_path.write_bytes(json_bytes)
     artifact_sha256 = hashlib.sha256(json_bytes).hexdigest()
-    logger.info(
-        "Exported canonical 400-row sample-level predictions to %s (SHA-256: %s)",
-        target_path,
-        artifact_sha256,
-    )
 
     abs_diffs = np.abs(sklearn_probs - onnx_probs)
     total = len(samples)
@@ -957,14 +979,73 @@ def export_benchmark_predictions_400(
         "verdict_parity_count": verdict_matches,
         "verdict_parity_rate": round(verdict_matches / total, 4) if total > 0 else 1.0,
     }
+    return rows, parity_summary, json_bytes, artifact_sha256
+
+
+def _atomic_write_bytes(target_path: Path, payload: bytes) -> None:
+    """Atomically writes payload bytes via a sibling temp file and os.replace."""
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(target_path.parent), prefix=f".{target_path.name}.")
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, target_path)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def export_benchmark_predictions_400(
+    samples: list[dict[str, Any]],
+    sklearn_probs: np.ndarray,
+    onnx_probs: np.ndarray,
+    output_path: str | Path | None = None,
+) -> tuple[Path, str, list[dict[str, Any]], dict[str, Any]]:
+    """Exports the canonical 400-row sample-level evaluation artifact and computes parity summary."""
+    target_path = (
+        Path(__file__).resolve().parent / "benchmark_predictions_400.json"
+        if output_path is None
+        else Path(output_path)
+    )
+    rows, parity_summary, json_bytes, artifact_sha256 = build_benchmark_prediction_rows(
+        samples=samples,
+        sklearn_probs=sklearn_probs,
+        onnx_probs=onnx_probs,
+    )
+    _atomic_write_bytes(target_path, json_bytes)
+    logger.info(
+        "Exported canonical sample-level predictions to %s (SHA-256: %s)",
+        target_path,
+        artifact_sha256,
+    )
     return target_path, artifact_sha256, rows, parity_summary
 
 
 def evaluate_onnx_model(
     model_path: str | Path | None = None,
     reference_pipeline: Any | None = None,
+    *,
+    write_predictions: bool = False,
 ) -> dict[str, Any]:
-    """Evaluates the compiled ONNX model on the N = 400 held-out adversarial test set."""
+    """Evaluates the compiled ONNX model on the N = 400 development/validation benchmark."""
+    metrics, _, _, _ = _run_evaluation_snapshot(
+        model_path=model_path,
+        reference_pipeline=reference_pipeline,
+        write_predictions=write_predictions,
+    )
+    return metrics
+
+
+def _run_evaluation_snapshot(
+    model_path: str | Path | None = None,
+    reference_pipeline: Any | None = None,
+    *,
+    write_predictions: bool = False,
+) -> tuple[dict[str, Any], list[dict[str, Any]], bytes, str]:
+    """Runs full ONNX + reference parity evaluation and returns metrics + prediction bundle."""
     import onnxruntime as ort
     import sklearn
 
@@ -1000,11 +1081,21 @@ def evaluate_onnx_model(
         reference_pipeline=reference_pipeline,
     )
 
-    predictions_path, predictions_sha256, _, parity_summary = export_benchmark_predictions_400(
-        samples=samples,
-        sklearn_probs=sklearn_probs_arr,
-        onnx_probs=onnx_probs_arr,
-    )
+    canonical_preds_name = "benchmark_predictions_400.json"
+    if write_predictions:
+        preds_path, predictions_sha256, pred_rows, parity_summary = export_benchmark_predictions_400(
+            samples=samples,
+            sklearn_probs=sklearn_probs_arr,
+            onnx_probs=onnx_probs_arr,
+        )
+        preds_bytes = preds_path.read_bytes()
+    else:
+        pred_rows, parity_summary, preds_bytes, predictions_sha256 = build_benchmark_prediction_rows(
+            samples=samples,
+            sklearn_probs=sklearn_probs_arr,
+            onnx_probs=onnx_probs_arr,
+        )
+
     parity_summary["max_tfidf_vector_abs_diff"] = max_vec_diff
     parity_summary["mean_tfidf_vector_abs_diff"] = mean_vec_diff
 
@@ -1015,8 +1106,9 @@ def evaluate_onnx_model(
         "".join(f"{t}:{lbl}" for t, lbl in zip(texts, labels, strict=True)).encode("utf-8")
     ).hexdigest()
 
-    # Load training metadata if present
-    metadata_path = model_path.parent / "sms_fraud_metadata.json"
+    metadata_path = Path(__file__).resolve().parent / "models" / "sms_fraud_metadata.json"
+    if not metadata_path.exists():
+        metadata_path = model_path.parent / "sms_fraud_metadata.json"
     training_config: dict[str, Any] = {}
     if metadata_path.exists():
         try:
@@ -1032,12 +1124,12 @@ def evaluate_onnx_model(
             logger.warning("Could not read training metadata: %s", e)
 
     metrics["reproducibility"] = {
-        "model_artifact": str(model_path.name),
+        "model_artifact": "sms_fraud_model.onnx",
         "model_sha256": model_sha256,
         "model_artifact_size_bytes": len(model_bytes),
         "model_artifact_size_kb": round(len(model_bytes) / 1024, 2),
         "evaluation_dataset_sha256": eval_dataset_sha256,
-        "benchmark_predictions_artifact": str(predictions_path.name),
+        "benchmark_predictions_artifact": canonical_preds_name,
         "benchmark_predictions_sha256": predictions_sha256,
         "onnx_sklearn_parity": parity_summary,
         "evaluation_timestamp": datetime.now(UTC).isoformat(),
@@ -1052,12 +1144,11 @@ def evaluate_onnx_model(
         },
     }
 
-    # Backward-compatible top-level keys
     metrics["evaluator"] = "ONNXRuntime-CPU"
-    metrics["model_artifact"] = str(model_path.name)
+    metrics["model_artifact"] = "sms_fraud_model.onnx"
     metrics["model_sha256"] = model_sha256
     metrics["evaluation_dataset_sha256"] = eval_dataset_sha256
-    metrics["benchmark_predictions_artifact"] = str(predictions_path.name)
+    metrics["benchmark_predictions_artifact"] = canonical_preds_name
     metrics["benchmark_predictions_sha256"] = predictions_sha256
     metrics["onnx_sklearn_parity"] = parity_summary
     metrics["evaluation_mode"] = "content_only_zero_velocity"
@@ -1074,7 +1165,32 @@ def evaluate_onnx_model(
         if "brier_score_after" in calibration_meta:
             metrics["brier_score_after_calibration"] = calibration_meta["brier_score_after"]
 
-    return metrics
+    return metrics, pred_rows, preds_bytes, predictions_sha256
+
+
+def build_merged_metadata(
+    metrics: dict[str, Any],
+    base_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Builds synchronized sms_fraud_metadata dictionary from evaluation metrics."""
+    metadata = dict(base_metadata) if base_metadata is not None else {}
+    if metadata and metadata.get("model_sha256") != metrics.get("model_sha256"):
+        raise ValueError(
+            "Metadata model_sha256 mismatch "
+            f"({metadata.get('model_sha256')} != {metrics.get('model_sha256')})"
+        )
+
+    metadata["evaluation_dataset_sha256"] = metrics["evaluation_dataset_sha256"]
+    metadata["benchmark_predictions_artifact"] = metrics["benchmark_predictions_artifact"]
+    metadata["benchmark_predictions_sha256"] = metrics["benchmark_predictions_sha256"]
+    metadata["onnx_sklearn_parity"] = metrics["onnx_sklearn_parity"]
+    metadata["evaluation_timestamp"] = metrics["evaluation_timestamp"]
+    metadata["software_versions"] = metrics["software_versions"]
+    metadata["dev_benchmark_metrics"] = metrics
+    metadata["held_out_adversarial_metrics"] = metrics
+    metadata["evaluation_artifacts_stale"] = False
+    metadata["evaluation_artifacts_status"] = "synchronized"
+    return metadata
 
 
 def sync_model_metadata_metrics(
@@ -1102,17 +1218,8 @@ def sync_model_metadata_metrics(
         )
         return None
 
-    metadata["evaluation_dataset_sha256"] = metrics["evaluation_dataset_sha256"]
-    metadata["benchmark_predictions_artifact"] = metrics["benchmark_predictions_artifact"]
-    metadata["benchmark_predictions_sha256"] = metrics["benchmark_predictions_sha256"]
-    metadata["onnx_sklearn_parity"] = metrics["onnx_sklearn_parity"]
-    metadata["evaluation_timestamp"] = metrics["evaluation_timestamp"]
-    metadata["software_versions"] = metrics["software_versions"]
-    metadata["dev_benchmark_metrics"] = metrics
-    metadata["held_out_adversarial_metrics"] = metrics
-
-    with open(target_path, "w", encoding="utf-8") as f:
-        json.dump(metadata, f, indent=2)
+    merged = build_merged_metadata(metrics, base_metadata=metadata)
+    _atomic_write_bytes(target_path, (json.dumps(merged, indent=2) + "\n").encode("utf-8"))
     logger.info("Synchronized evaluation metrics in %s", target_path)
     return target_path
 
@@ -1124,9 +1231,7 @@ def export_ml_metrics(metrics: dict[str, Any], output_path: str | Path | None = 
     else:
         output_path = Path(output_path)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(metrics, f, indent=2)
+    _atomic_write_bytes(output_path, (json.dumps(metrics, indent=2) + "\n").encode("utf-8"))
     logger.info("Exported empirical ML metrics to %s", output_path)
     return output_path
 
@@ -1296,11 +1401,705 @@ def export_markdown_report(metrics: dict[str, Any], output_path: str | Path | No
 
     # Mirror to nested sentinelflow/docs/ if different from target_path
     if default_nested_path.parent.exists() and default_nested_path != target_path:
-        with open(default_nested_path, "w", encoding="utf-8") as f:
-            f.write(report_text)
+        _atomic_write_bytes(default_nested_path, report_text.encode("utf-8"))
         logger.info("Mirrored evaluation report to %s", default_nested_path)
 
     return target_path
+
+
+def _compute_binary_stats(tp: int, fp: int, tn: int, fn: int) -> dict[str, Any]:
+    """Computes exact confusion counts and rounded classification rates from integer counts."""
+    pos_pred = tp + fp
+    pos_true = tp + fn
+    neg_true = tn + fp
+    precision_raw = tp / pos_pred if pos_pred > 0 else 0.0
+    recall_raw = tp / pos_true if pos_true > 0 else 0.0
+    specificity_raw = tn / neg_true if neg_true > 0 else 0.0
+    fpr_raw = fp / neg_true if neg_true > 0 else 0.0
+    fnr_raw = fn / pos_true if pos_true > 0 else 0.0
+    f1_denom = 2 * tp + fp + fn
+    f1_raw = (2 * tp) / f1_denom if f1_denom > 0 else 0.0
+    return {
+        "confusion_matrix": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
+        "precision": round(precision_raw, 4),
+        "recall": round(recall_raw, 4),
+        "specificity": round(specificity_raw, 4),
+        "false_positive_rate": round(fpr_raw, 4),
+        "false_negative_rate": round(fnr_raw, 4),
+        "f1_score": round(f1_raw, 4),
+    }
+
+
+def _reconstruct_tier_from_rows(
+    prediction_rows: list[dict[str, Any]],
+    score_key: str,
+    threshold: float,
+) -> dict[str, Any]:
+    tp = fp = tn = fn = 0
+    for row in prediction_rows:
+        y_true = int(row["expected_label"])
+        y_pred = 1 if float(row[score_key]) >= threshold else 0
+        if y_true == 1 and y_pred == 1:
+            tp += 1
+        elif y_true == 0 and y_pred == 1:
+            fp += 1
+        elif y_true == 0 and y_pred == 0:
+            tn += 1
+        else:
+            fn += 1
+    return _compute_binary_stats(tp, fp, tn, fn)
+
+
+def reconstruct_binary_metrics_from_predictions(
+    prediction_rows: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Independently reconstructs confusion matrices and metrics for all 4 operational regimes."""
+    return {
+        "pure_ml_p50": _reconstruct_tier_from_rows(prediction_rows, "onnx_prob", 0.50),
+        "heuristics_h50": _reconstruct_tier_from_rows(prediction_rows, "heuristic_score", 0.50),
+        "tier1_flagged": _reconstruct_tier_from_rows(prediction_rows, "onnx_composite_score", 0.40),
+        "tier2_blocked": _reconstruct_tier_from_rows(prediction_rows, "onnx_composite_score", 0.75),
+    }
+
+
+def reconstruct_category_accounting_from_predictions(
+    prediction_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Independently reconstructs per-category accounting and aggregate totals from row predictions."""
+    by_cat: dict[str, dict[str, Any]] = {}
+    for row in prediction_rows:
+        cat_id = str(row["category_id"])
+        label = int(row["expected_label"])
+        prob = float(row["onnx_prob"])
+        heur = float(row["heuristic_score"])
+        comp = float(row["onnx_composite_score"])
+
+        if cat_id not in by_cat:
+            by_cat[cat_id] = {
+                "category_id": cat_id,
+                "category_name": str(row["category_name"]),
+                "label": label,
+                "sample_count": 0,
+                "positive_count": 0,
+                "negative_count": 0,
+                "ml_p50_flagged_count": 0,
+                "heuristic_h50_flagged_count": 0,
+                "tier1_flagged_count": 0,
+                "tier2_blocked_count": 0,
+                "tier1_tp": 0,
+                "tier1_fp": 0,
+                "tier1_tn": 0,
+                "tier1_fn": 0,
+                "tier2_tp": 0,
+                "tier2_fp": 0,
+                "tier2_tn": 0,
+                "tier2_fn": 0,
+                "_prob_sum": 0.0,
+                "_heur_sum": 0.0,
+                "_comp_sum": 0.0,
+            }
+
+        cat = by_cat[cat_id]
+        if cat["label"] != label:
+            raise ValueError(f"Mixed labels within category {cat_id}: {cat['label']} vs {label}")
+
+        cat["sample_count"] += 1
+        cat["positive_count"] += 1 if label == 1 else 0
+        cat["negative_count"] += 1 if label == 0 else 0
+        cat["_prob_sum"] += prob
+        cat["_heur_sum"] += heur
+        cat["_comp_sum"] += comp
+
+        p50 = prob >= 0.50
+        h50 = heur >= 0.50
+        t1 = comp >= 0.40
+        t2 = comp >= 0.75
+
+        if p50:
+            cat["ml_p50_flagged_count"] += 1
+        if h50:
+            cat["heuristic_h50_flagged_count"] += 1
+        if t1:
+            cat["tier1_flagged_count"] += 1
+            cat["tier1_tp" if label == 1 else "tier1_fp"] += 1
+        else:
+            cat["tier1_fn" if label == 1 else "tier1_tn"] += 1
+
+        if t2:
+            cat["tier2_blocked_count"] += 1
+            cat["tier2_tp" if label == 1 else "tier2_fp"] += 1
+        else:
+            cat["tier2_fn" if label == 1 else "tier2_tn"] += 1
+
+    categories_out: list[dict[str, Any]] = []
+    totals = {
+        "sample_count": 0,
+        "positive_count": 0,
+        "negative_count": 0,
+        "ml_p50_flagged_count": 0,
+        "heuristic_h50_flagged_count": 0,
+        "tier1_tp": 0,
+        "tier1_fp": 0,
+        "tier1_tn": 0,
+        "tier1_fn": 0,
+        "tier2_tp": 0,
+        "tier2_fp": 0,
+        "tier2_tn": 0,
+        "tier2_fn": 0,
+    }
+    for cat in by_cat.values():
+        cnt = cat["sample_count"]
+        for k in totals:
+            totals[k] += int(cat[k])
+        entry = {
+            **{k: v for k, v in cat.items() if not k.startswith("_")},
+            "mean_onnx_probability": round(cat["_prob_sum"] / cnt, 4) if cnt else 0.0,
+            "mean_heuristic_score": round(cat["_heur_sum"] / cnt, 4) if cnt else 0.0,
+            "mean_composite_score": round(cat["_comp_sum"] / cnt, 4) if cnt else 0.0,
+        }
+        categories_out.append(entry)
+
+    return {"categories": categories_out, "totals": totals}
+
+
+def compute_sample_level_delta(
+    old_rows: list[dict[str, Any]] | None,
+    new_rows: list[dict[str, Any]],
+    *,
+    old_model_sha256: str | None = None,
+    new_model_sha256: str | None = None,
+    prob_tolerance: float = PROB_DELTA_TOLERANCE,
+    heuristic_tolerance: float = HEURISTIC_DELTA_TOLERANCE,
+) -> dict[str, Any]:
+    """Generates a deterministic Canonical Sample-Level Delta Summary without raw SMS text."""
+    old_list = old_rows if old_rows is not None else []
+    old_seen: set[int] = set()
+    duplicate_old_ids: list[int] = []
+    old_map: dict[int, dict[str, Any]] = {}
+    for row in old_list:
+        sid = int(row["sample_id"])
+        if sid in old_seen:
+            duplicate_old_ids.append(sid)
+        old_seen.add(sid)
+        old_map[sid] = row
+
+    new_seen: set[int] = set()
+    duplicate_new_ids: list[int] = []
+    new_map: dict[int, dict[str, Any]] = {}
+    for row in new_rows:
+        sid = int(row["sample_id"])
+        if sid in new_seen:
+            duplicate_new_ids.append(sid)
+        new_seen.add(sid)
+        new_map[sid] = row
+
+    added_ids = sorted(sid for sid in new_map if sid not in old_map)
+    removed_ids = sorted(sid for sid in old_map if sid not in new_map)
+    expected_contiguous = set(range(len(new_map)))
+    missing_contiguous_ids = sorted(expected_contiguous - set(new_map))
+
+    changed_labels: list[dict[str, Any]] = []
+    changed_text_hashes: list[dict[str, Any]] = []
+    verdict_changes: list[dict[str, Any]] = []
+    prob_changes: list[dict[str, Any]] = []
+    heuristic_changes: list[dict[str, Any]] = []
+    tier_transitions: dict[str, dict[str, Any]] = {
+        key: {"count": 0, "sample_ids": []} for key in TIER_TRANSITION_KEYS
+    }
+
+    below_tolerance_prob_diffs = 0
+    model_retraining_ids: list[int] = []
+    heuristic_mod_ids: list[int] = []
+    eval_or_numerical_ids: list[int] = []
+    review_ids: set[int] = set(added_ids) | set(removed_ids)
+
+    model_changed = (
+        old_model_sha256 is not None
+        and new_model_sha256 is not None
+        and old_model_sha256 != new_model_sha256
+    )
+
+    for sid in sorted(set(old_map).intersection(new_map)):
+        o_row = old_map[sid]
+        n_row = new_map[sid]
+
+        if int(o_row["expected_label"]) != int(n_row["expected_label"]):
+            changed_labels.append(
+                {
+                    "sample_id": sid,
+                    "old_label": int(o_row["expected_label"]),
+                    "new_label": int(n_row["expected_label"]),
+                }
+            )
+            review_ids.add(sid)
+
+        if str(o_row["text_sha256"]) != str(n_row["text_sha256"]):
+            changed_text_hashes.append(
+                {
+                    "sample_id": sid,
+                    "old_text_sha256": str(o_row["text_sha256"]),
+                    "new_text_sha256": str(n_row["text_sha256"]),
+                }
+            )
+            review_ids.add(sid)
+
+        old_p = float(o_row["onnx_prob"])
+        new_p = float(n_row["onnx_prob"])
+        p_diff = abs(new_p - old_p)
+        if p_diff > prob_tolerance:
+            prob_changes.append(
+                {
+                    "sample_id": sid,
+                    "old_probability": round(old_p, 10),
+                    "new_probability": round(new_p, 10),
+                    "abs_diff": round(p_diff, 10),
+                }
+            )
+            review_ids.add(sid)
+            if model_changed:
+                model_retraining_ids.append(sid)
+            else:
+                eval_or_numerical_ids.append(sid)
+        elif p_diff > 0.0:
+            below_tolerance_prob_diffs += 1
+
+        old_h = float(o_row["heuristic_score"])
+        new_h = float(n_row["heuristic_score"])
+        old_rules = [str(r) for r in o_row.get("triggered_rules", [])]
+        new_rules = [str(r) for r in n_row.get("triggered_rules", [])]
+        h_diff = abs(new_h - old_h)
+        if h_diff > heuristic_tolerance or old_rules != new_rules:
+            old_set = set(old_rules)
+            new_set = set(new_rules)
+            heuristic_changes.append(
+                {
+                    "sample_id": sid,
+                    "old_heuristic_score": round(old_h, 4),
+                    "new_heuristic_score": round(new_h, 4),
+                    "abs_diff": round(h_diff, 4),
+                    "added_rules": sorted(new_set - old_set),
+                    "removed_rules": sorted(old_set - new_set),
+                }
+            )
+            heuristic_mod_ids.append(sid)
+            review_ids.add(sid)
+
+        old_v = str(o_row["onnx_verdict"])
+        new_v = str(n_row["onnx_verdict"])
+        if old_v != new_v:
+            verdict_changes.append(
+                {
+                    "sample_id": sid,
+                    "old_verdict": old_v,
+                    "new_verdict": new_v,
+                    "old_composite_score": round(float(o_row["onnx_composite_score"]), 10),
+                    "new_composite_score": round(float(n_row["onnx_composite_score"]), 10),
+                }
+            )
+            t_key = f"{old_v}->{new_v}"
+            if t_key in tier_transitions:
+                tier_transitions[t_key]["count"] += 1
+                tier_transitions[t_key]["sample_ids"].append(sid)
+            review_ids.add(sid)
+            if sid not in heuristic_mod_ids and sid not in model_retraining_ids:
+                eval_or_numerical_ids.append(sid)
+
+    review_sorted = sorted(review_ids)
+    return {
+        "delta_generated_at": datetime.now(UTC).isoformat(),
+        "baseline_present": old_rows is not None,
+        "old_sample_count": len(old_list),
+        "new_sample_count": len(new_rows),
+        "old_model_sha256": old_model_sha256,
+        "new_model_sha256": new_model_sha256,
+        "tolerances": {
+            "onnx_probability": prob_tolerance,
+            "heuristic_score": heuristic_tolerance,
+            "composite_score": COMPOSITE_DELTA_TOLERANCE,
+        },
+        "sample_identity_changes": {
+            "added_sample_ids": added_ids,
+            "removed_sample_ids": removed_ids,
+            "duplicate_old_ids": sorted(set(duplicate_old_ids)),
+            "duplicate_new_ids": sorted(set(duplicate_new_ids)),
+            "missing_contiguous_ids": missing_contiguous_ids,
+            "changed_labels": changed_labels,
+            "changed_text_hashes": changed_text_hashes,
+        },
+        "verdict_changes": verdict_changes,
+        "onnx_probability_changes": prob_changes,
+        "heuristic_score_changes": heuristic_changes,
+        "tier_transitions": tier_transitions,
+        "change_interpretation": {
+            "model_changed": model_changed,
+            "model_retraining_sample_ids": sorted(set(model_retraining_ids)),
+            "heuristic_modification_sample_ids": sorted(set(heuristic_mod_ids)),
+            "evaluation_or_numerical_drift_sample_ids": sorted(set(eval_or_numerical_ids)),
+            "below_tolerance_precision_only_count": below_tolerance_prob_diffs,
+            "review_required_sample_ids": review_sorted,
+            "requires_manual_review": bool(review_sorted),
+            "review_policy_note": (
+                "All material changes require explicit engineering review; zero changes "
+                "are auto-classified as harmless or defects."
+            ),
+        },
+    }
+
+
+def _assert_close_metrics(
+    section_name: str,
+    expected: dict[str, Any],
+    actual: dict[str, Any],
+    *,
+    require_specificity: bool = True,
+    require_fnr: bool = False,
+) -> None:
+    if expected["confusion_matrix"] != actual["confusion_matrix"]:
+        raise ValueError(
+            f"{section_name} confusion matrix mismatch: "
+            f"reconstructed={expected['confusion_matrix']} vs stored={actual['confusion_matrix']}"
+        )
+    for key in ("precision", "recall", "false_positive_rate", "f1_score"):
+        if abs(float(expected[key]) - float(actual[key])) > 1e-4:
+            raise ValueError(
+                f"{section_name} metric '{key}' mismatch: "
+                f"reconstructed={expected[key]} vs stored={actual[key]}"
+            )
+    if require_specificity and "specificity" in actual:
+        if abs(float(expected["specificity"]) - float(actual["specificity"])) > 1e-4:
+            raise ValueError(
+                f"{section_name} specificity mismatch: "
+                f"reconstructed={expected['specificity']} vs stored={actual['specificity']}"
+            )
+    if require_fnr and "false_negative_rate" in actual:
+        if abs(float(expected["false_negative_rate"]) - float(actual["false_negative_rate"])) > 1e-4:
+            raise ValueError(
+                f"{section_name} fnr mismatch: "
+                f"reconstructed={expected['false_negative_rate']} vs stored={actual['false_negative_rate']}"
+            )
+
+
+def _validate_markdown_report_content(
+    report_bytes: bytes,
+    mirror_bytes: bytes,
+    model_sha256: str,
+    dataset_sha256: str,
+    predictions_sha256: str,
+    reconstructed: dict[str, dict[str, Any]],
+) -> None:
+    if report_bytes != mirror_bytes:
+        raise ValueError("Markdown evaluation report mirror is out of sync (byte mismatch)")
+    text = report_bytes.decode("utf-8")
+    for label, digest in (
+        ("model_sha256", model_sha256),
+        ("evaluation_dataset_sha256", dataset_sha256),
+        ("benchmark_predictions_sha256", predictions_sha256),
+    ):
+        if digest not in text:
+            raise ValueError(f"Markdown report missing current {label} ({digest})")
+    if "Development & Validation Benchmark" not in text:
+        raise ValueError("Markdown report missing Dev/Val benchmark classification disclaimer")
+
+    for pattern, expected_cm in (
+        (
+            r"Tier 1: Escalation Queue.*?TP=(\d+),\s*FP=(\d+),\s*TN=(\d+),\s*FN=(\d+)",
+            reconstructed["tier1_flagged"]["confusion_matrix"],
+        ),
+        (
+            r"Tier 2: Immediate Wire Drop.*?TP=(\d+),\s*FP=(\d+),\s*TN=(\d+),\s*FN=(\d+)",
+            reconstructed["tier2_blocked"]["confusion_matrix"],
+        ),
+    ):
+        match = re.search(pattern, text)
+        if match is None:
+            raise ValueError(f"Markdown report missing table confusion counts for pattern: {pattern}")
+        parsed = {
+            "tp": int(match.group(1)),
+            "fp": int(match.group(2)),
+            "tn": int(match.group(3)),
+            "fn": int(match.group(4)),
+        }
+        if parsed != expected_cm:
+            raise ValueError(f"Markdown report confusion mismatch: parsed={parsed} vs expected={expected_cm}")
+
+
+def validate_artifact_bundle_invariants(
+    artifact_paths: dict[str, Path],
+    held_out_samples: list[dict[str, Any]] | None = None,
+) -> None:
+    """Validates all cross-artifact cryptographic, metric, category, doc, and delta invariants."""
+    required_keys = ("model", "predictions", "metrics", "metadata", "report_root", "report_mirror")
+    for key in required_keys:
+        path = artifact_paths[key]
+        if not path.exists() or path.stat().st_size == 0:
+            raise ValueError(f"Missing or empty artifact '{key}': {path}")
+
+    samples = held_out_samples if held_out_samples is not None else get_held_out_samples_with_metadata()
+    texts = [s["text"] for s in samples]
+    labels = [int(s["label"]) for s in samples]
+    live_dataset_sha256 = hashlib.sha256(
+        "".join(f"{t}:{lbl}" for t, lbl in zip(texts, labels, strict=True)).encode("utf-8")
+    ).hexdigest()
+    live_model_sha256 = hashlib.sha256(artifact_paths["model"].read_bytes()).hexdigest()
+    pred_bytes = artifact_paths["predictions"].read_bytes()
+    live_pred_sha256 = hashlib.sha256(pred_bytes).hexdigest()
+
+    pred_rows = json.loads(pred_bytes.decode("utf-8"))
+    metrics = json.loads(artifact_paths["metrics"].read_text(encoding="utf-8"))
+    metadata = json.loads(artifact_paths["metadata"].read_text(encoding="utf-8"))
+
+    if not isinstance(pred_rows, list) or len(pred_rows) != len(samples):
+        raise ValueError(f"Expected {len(samples)} prediction rows, got {len(pred_rows)}")
+    if [int(r["sample_id"]) for r in pred_rows] != list(range(len(samples))):
+        raise ValueError("Prediction sample_ids are non-contiguous or out of order")
+    if len({str(r["text_sha256"]) for r in pred_rows}) != len(samples):
+        raise ValueError("Duplicate text_sha256 detected in predictions artifact")
+    for idx, (row, sample) in enumerate(zip(pred_rows, samples, strict=True)):
+        expected_hash = hashlib.sha256(sample["text"].encode("utf-8")).hexdigest()
+        if str(row["text_sha256"]) != expected_hash or int(row["expected_label"]) != int(sample["label"]):
+            raise ValueError(f"Prediction identity mismatch at sample {idx}")
+
+    hash_targets = [
+        ("ml_metrics", metrics),
+        ("ml_metrics.reproducibility", metrics["reproducibility"]),
+        ("metadata.dev_benchmark_metrics", metadata["dev_benchmark_metrics"]),
+        ("metadata.held_out_adversarial_metrics", metadata["held_out_adversarial_metrics"]),
+    ]
+    if str(metadata.get("model_sha256")) != live_model_sha256:
+        raise ValueError("metadata.model_sha256 mismatch against ONNX binary")
+    if str(metadata.get("benchmark_predictions_sha256")) != live_pred_sha256:
+        raise ValueError("metadata.benchmark_predictions_sha256 mismatch against predictions JSON")
+    if str(metadata.get("evaluation_dataset_sha256")) != live_dataset_sha256:
+        raise ValueError("metadata.evaluation_dataset_sha256 mismatch against live dataset")
+
+    for name, container in hash_targets:
+        if str(container.get("model_sha256")) != live_model_sha256:
+            raise ValueError(f"{name}.model_sha256 mismatch against ONNX binary")
+        if str(container.get("benchmark_predictions_sha256")) != live_pred_sha256:
+            raise ValueError(f"{name}.benchmark_predictions_sha256 mismatch against predictions JSON")
+        if str(container.get("evaluation_dataset_sha256")) != live_dataset_sha256:
+            raise ValueError(f"{name}.evaluation_dataset_sha256 mismatch against live dataset")
+
+    reconstructed = reconstruct_binary_metrics_from_predictions(pred_rows)
+    for target_name, metrics_obj in (
+        ("ml_metrics", metrics),
+        ("metadata.dev_benchmark_metrics", metadata["dev_benchmark_metrics"]),
+        ("metadata.held_out_adversarial_metrics", metadata["held_out_adversarial_metrics"]),
+    ):
+        _assert_close_metrics(f"{target_name}.pure_ml", reconstructed["pure_ml_p50"], metrics_obj, require_fnr=True)
+        _assert_close_metrics(
+            f"{target_name}.tier1",
+            reconstructed["tier1_flagged"],
+            metrics_obj["tier1_escalation"],
+        )
+        _assert_close_metrics(
+            f"{target_name}.tier2",
+            reconstructed["tier2_blocked"],
+            metrics_obj["tier2_block"],
+        )
+        ablation = metrics_obj["ablation_analysis"]
+        _assert_close_metrics(
+            f"{target_name}.ablation.model_p50",
+            reconstructed["pure_ml_p50"],
+            ablation["model_alone"]["at_threshold_0_50"],
+            require_specificity=False,
+        )
+        _assert_close_metrics(
+            f"{target_name}.ablation.heuristics_h50",
+            reconstructed["heuristics_h50"],
+            ablation["heuristics_alone"]["at_threshold_0_50"],
+            require_specificity=False,
+        )
+
+    cat_reconstructed = reconstruct_category_accounting_from_predictions(pred_rows)
+    rec_by_id = {c["category_id"]: c for c in cat_reconstructed["categories"]}
+    stored_cats = metrics["category_analysis"]["categories"]
+    if len(stored_cats) != len(rec_by_id):
+        raise ValueError(f"Category count mismatch: {len(stored_cats)} vs {len(rec_by_id)}")
+
+    for stored_cat in stored_cats:
+        cid = str(stored_cat["category_id"])
+        if cid not in rec_by_id:
+            raise ValueError(f"Unknown category in metrics: {cid}")
+        rec_cat = rec_by_id[cid]
+        for field in (
+            "label",
+            "sample_count",
+            "ml_p50_flagged_count",
+            "heuristic_h50_flagged_count",
+            "tier1_flagged_count",
+            "tier2_blocked_count",
+        ):
+            if int(stored_cat[field]) != int(rec_cat[field]):
+                raise ValueError(
+                    f"Category {cid} field {field} mismatch: "
+                    f"stored={stored_cat[field]} vs reconstructed={rec_cat[field]}"
+                )
+        for mean_field in ("mean_onnx_probability", "mean_heuristic_score", "mean_composite_score"):
+            if abs(float(stored_cat[mean_field]) - float(rec_cat[mean_field])) > 2e-4:
+                raise ValueError(
+                    f"Category {cid} {mean_field} mismatch: "
+                    f"stored={stored_cat[mean_field]} vs reconstructed={rec_cat[mean_field]}"
+                )
+
+    totals = cat_reconstructed["totals"]
+    if totals["sample_count"] != len(pred_rows):
+        raise ValueError(f"Category sample total {totals['sample_count']} != {len(pred_rows)}")
+    t1_cm = metrics["tier1_escalation"]["confusion_matrix"]
+    t2_cm = metrics["tier2_block"]["confusion_matrix"]
+    for cm_key, sum_key in (("tp", "tier1_tp"), ("fp", "tier1_fp"), ("tn", "tier1_tn"), ("fn", "tier1_fn")):
+        if totals[sum_key] != int(t1_cm[cm_key]):
+            raise ValueError(f"Category sum {sum_key}={totals[sum_key]} != Tier 1 {cm_key}={t1_cm[cm_key]}")
+    for cm_key, sum_key in (("tp", "tier2_tp"), ("fp", "tier2_fp"), ("tn", "tier2_tn"), ("fn", "tier2_fn")):
+        if totals[sum_key] != int(t2_cm[cm_key]):
+            raise ValueError(f"Category sum {sum_key}={totals[sum_key]} != Tier 2 {cm_key}={t2_cm[cm_key]}")
+
+    _validate_markdown_report_content(
+        report_bytes=artifact_paths["report_root"].read_bytes(),
+        mirror_bytes=artifact_paths["report_mirror"].read_bytes(),
+        model_sha256=live_model_sha256,
+        dataset_sha256=live_dataset_sha256,
+        predictions_sha256=live_pred_sha256,
+        reconstructed=reconstructed,
+    )
+
+    delta_path = artifact_paths.get("delta")
+    if delta_path is not None and delta_path.exists():
+        delta_raw = delta_path.read_text(encoding="utf-8")
+        delta_obj = json.loads(delta_raw)
+        if '"text"' in delta_raw:
+            raise ValueError("Delta artifact must never serialize raw SMS text fields")
+        if "tier_transitions" not in delta_obj or "change_interpretation" not in delta_obj:
+            raise ValueError("Delta artifact missing required summary sections")
+
+
+@contextmanager
+def _evaluation_publish_lock(lock_path: Path, timeout_s: float = 30.0) -> Iterator[None]:
+    """Cross-process exclusive lock file protecting atomic artifact publication."""
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + timeout_s
+    acquired = False
+    while not acquired:
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(f"pid={os.getpid()}\n")
+            acquired = True
+        except FileExistsError as err:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Timed out waiting for evaluation publish lock: {lock_path}") from err
+            time.sleep(0.05)
+    try:
+        yield
+    finally:
+        lock_path.unlink(missing_ok=True)
+
+
+def publish_evaluation_artifacts_atomically(
+    *,
+    artifact_paths: dict[str, Path] | None = None,
+    reference_pipeline: Any | None = None,
+    staged_model_bytes: bytes | None = None,
+    base_metadata: dict[str, Any] | None = None,
+    extra_metrics_fields: dict[str, Any] | None = None,
+    fault_injection_hook: Callable[[str, Path], None] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Evaluates, validates in isolated staging, and atomically publishes with full rollback."""
+    paths = artifact_paths if artifact_paths is not None else get_canonical_artifact_paths()
+    samples = get_held_out_samples_with_metadata()
+
+    with _evaluation_publish_lock(paths["lock"]):
+        old_rows: list[dict[str, Any]] | None = None
+        if paths["predictions"].exists():
+            old_rows = json.loads(paths["predictions"].read_text(encoding="utf-8"))
+
+        old_model_sha256: str | None = None
+        if paths["metadata"].exists():
+            existing_meta = json.loads(paths["metadata"].read_text(encoding="utf-8"))
+            old_model_sha256 = existing_meta.get("model_sha256")
+            if base_metadata is None:
+                base_metadata = existing_meta
+
+        with tempfile.TemporaryDirectory(prefix="sentinelflow_eval_stage_") as stage_raw:
+            stage_dir = Path(stage_raw)
+            staged_model = stage_dir / "sms_fraud_model.onnx"
+            if staged_model_bytes is not None:
+                staged_model.write_bytes(staged_model_bytes)
+            else:
+                shutil.copy2(paths["model"], staged_model)
+
+            metrics, new_rows, preds_bytes, _ = _run_evaluation_snapshot(
+                model_path=staged_model,
+                reference_pipeline=reference_pipeline,
+                write_predictions=False,
+            )
+            if extra_metrics_fields:
+                metrics.update(extra_metrics_fields)
+
+            merged_metadata = build_merged_metadata(metrics, base_metadata=base_metadata)
+            delta_summary = compute_sample_level_delta(
+                old_rows=old_rows,
+                new_rows=new_rows,
+                old_model_sha256=old_model_sha256,
+                new_model_sha256=metrics["model_sha256"],
+            )
+            report_text = generate_markdown_report(metrics)
+
+            staged_bundle: dict[str, Path] = {
+                "model": staged_model,
+                "predictions": stage_dir / "benchmark_predictions_400.json",
+                "metrics": stage_dir / "ml_metrics.json",
+                "metadata": stage_dir / "sms_fraud_metadata.json",
+                "delta": stage_dir / "evaluation_delta_latest.json",
+                "report_root": stage_dir / "ml_evaluation_report.root.md",
+                "report_mirror": stage_dir / "ml_evaluation_report.mirror.md",
+            }
+            staged_bundle["predictions"].write_bytes(preds_bytes)
+            staged_bundle["metrics"].write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+            staged_bundle["metadata"].write_text(
+                json.dumps(merged_metadata, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            staged_bundle["delta"].write_text(
+                json.dumps(delta_summary, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            staged_bundle["report_root"].write_text(report_text, encoding="utf-8")
+            staged_bundle["report_mirror"].write_text(report_text, encoding="utf-8")
+
+            validate_artifact_bundle_invariants(staged_bundle, held_out_samples=samples)
+
+            publish_keys = ["predictions", "metrics", "metadata", "delta", "report_root", "report_mirror"]
+            if staged_model_bytes is not None:
+                publish_keys.insert(0, "model")
+
+            with tempfile.TemporaryDirectory(prefix="sentinelflow_eval_backup_") as backup_raw:
+                backup_dir = Path(backup_raw)
+                backups: dict[Path, bytes] = {}
+                newly_created: list[Path] = []
+                for key in publish_keys:
+                    dst = paths[key]
+                    if dst.exists():
+                        backups[dst] = dst.read_bytes()
+                        bak_file = backup_dir / key
+                        bak_file.write_bytes(backups[dst])
+                    else:
+                        newly_created.append(dst)
+
+                try:
+                    for key in publish_keys:
+                        dst = paths[key]
+                        _atomic_write_bytes(dst, staged_bundle[key].read_bytes())
+                        if fault_injection_hook is not None:
+                            fault_injection_hook(key, dst)
+                except Exception:
+                    for dst, prev_bytes in backups.items():
+                        _atomic_write_bytes(dst, prev_bytes)
+                    for new_path in newly_created:
+                        new_path.unlink(missing_ok=True)
+                    raise
+
+        return metrics, delta_summary
 
 
 def main() -> None:
@@ -1312,20 +2111,22 @@ def main() -> None:
     parser.add_argument("--output-json", type=str, default=None, help="Custom output path for metrics JSON")
     parser.add_argument("--output-md", type=str, default=None, help="Custom output path for Markdown report")
     parser.add_argument("--report", action="store_true", help="Generate and export human-readable Markdown report")
-    parser.add_argument("--all", action="store_true", help="Run full evaluation and export both JSON and Markdown")
+    parser.add_argument("--all", action="store_true", help="Run full atomic evaluation and publish all artifacts")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger.info("Executing SentinelPulse Empirical ML Evaluation Suite (N = 400)...")
 
-    metrics = evaluate_onnx_model(args.model_path)
-    export_ml_metrics(metrics, args.output_json)
-
-    if args.all and args.model_path is None and args.output_json is None:
-        sync_model_metadata_metrics(metrics)
-
-    if args.report or args.all:
-        export_markdown_report(metrics, args.output_md)
+    delta_summary: dict[str, Any] | None = None
+    if args.all and args.model_path is None and args.output_json is None and args.output_md is None:
+        metrics, delta_summary = publish_evaluation_artifacts_atomically()
+    else:
+        metrics = evaluate_onnx_model(args.model_path, write_predictions=False)
+        export_ml_metrics(metrics, args.output_json)
+        if args.all and args.model_path is None and args.output_json is None:
+            sync_model_metadata_metrics(metrics)
+        if args.report or args.all:
+            export_markdown_report(metrics, args.output_md)
 
     t1 = metrics["tier1_escalation"]
     t2 = metrics["tier2_block"]
@@ -1337,6 +2138,7 @@ def main() -> None:
     print(f"Model Artifact:    {repro.get('model_artifact', metrics.get('model_artifact'))} ({repro.get('model_artifact_size_kb', metrics.get('model_artifact_size_kb'))} KB)")
     print(f"Model SHA-256:     {repro.get('model_sha256', metrics.get('model_sha256'))}")
     print(f"Dataset SHA-256:   {repro.get('evaluation_dataset_sha256', metrics.get('evaluation_dataset_sha256'))}")
+    print(f"Predictions SHA:   {repro.get('benchmark_predictions_sha256', metrics.get('benchmark_predictions_sha256'))}")
     print(f"Evaluator:         {metrics['evaluator']}")
     print(f"Held-Out Samples:  {metrics['sample_count']} (Benign: {metrics['benign_count']}, Fraud: {metrics['fraud_count']})")
     print(f"ROC-AUC:           {metrics['roc_auc']:.4f}")
@@ -1356,6 +2158,15 @@ def main() -> None:
     print(f"FPR (False Pos):   {t2['false_positive_rate']*100:.2f}% (Target <= 1.5%)")
     print(f"Recall:            {t2['recall']*100:.2f}%")
     print(f"F1-Score:          {t2['f1_score']:.4f}")
+    if delta_summary is not None:
+        interp = delta_summary["change_interpretation"]
+        print("-" * 70)
+        print("CANONICAL SAMPLE-LEVEL DELTA SUMMARY")
+        print(f"Added/Removed IDs: +{len(delta_summary['sample_identity_changes']['added_sample_ids'])} / -{len(delta_summary['sample_identity_changes']['removed_sample_ids'])}")
+        print(f"Verdict Changes:   {len(delta_summary['verdict_changes'])}")
+        print(f"Prob Diffs (>1e-6):{len(delta_summary['onnx_probability_changes'])}")
+        print(f"Heuristic Changes: {len(delta_summary['heuristic_score_changes'])}")
+        print(f"Requires Review:   {interp['requires_manual_review']} (IDs: {interp['review_required_sample_ids']})")
     print("-" * 70)
     print(f"Categories Analyzed: {len(metrics['category_analysis']['categories'])} sub-types")
     print("Ablation Models:     ML Alone, Heuristics Alone, ML+Heuristics Combined")
