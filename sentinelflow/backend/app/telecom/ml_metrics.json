@@ -4,50 +4,50 @@
   "fraud_count": 200,
   "decision_threshold": 0.5,
   "confusion_matrix": {
-    "tp": 194,
-    "fp": 15,
-    "tn": 185,
-    "fn": 6
+    "tp": 195,
+    "fp": 7,
+    "tn": 193,
+    "fn": 5
   },
-  "accuracy": 0.9475,
-  "precision": 0.9282,
-  "recall": 0.97,
-  "specificity": 0.925,
-  "f1_score": 0.9487,
-  "roc_auc": 0.9844,
-  "pr_auc": 0.9848,
-  "brier_score": 0.062,
-  "false_positive_rate": 0.075,
-  "false_negative_rate": 0.03,
+  "accuracy": 0.97,
+  "precision": 0.9653,
+  "recall": 0.975,
+  "specificity": 0.965,
+  "f1_score": 0.9701,
+  "roc_auc": 0.9934,
+  "pr_auc": 0.994,
+  "brier_score": 0.0494,
+  "false_positive_rate": 0.035,
+  "false_negative_rate": 0.025,
   "tier1_escalation": {
     "threshold": 0.4,
     "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
     "confusion_matrix": {
       "tp": 200,
-      "fp": 35,
-      "tn": 165,
+      "fp": 18,
+      "tn": 182,
       "fn": 0
     },
-    "precision": 0.8511,
+    "precision": 0.9174,
     "recall": 1.0,
-    "specificity": 0.825,
-    "f1_score": 0.9195,
-    "false_positive_rate": 0.175
+    "specificity": 0.91,
+    "f1_score": 0.9569,
+    "false_positive_rate": 0.09
   },
   "tier2_block": {
     "threshold": 0.75,
     "description": "BLOCK (Immediate Carrier Wire Drop)",
     "confusion_matrix": {
       "tp": 171,
-      "fp": 1,
-      "tn": 199,
+      "fp": 0,
+      "tn": 200,
       "fn": 29
     },
-    "precision": 0.9942,
+    "precision": 1.0,
     "recall": 0.855,
-    "specificity": 0.995,
-    "f1_score": 0.9194,
-    "false_positive_rate": 0.005
+    "specificity": 1.0,
+    "f1_score": 0.9218,
+    "false_positive_rate": 0.0
   },
   "category_analysis": {
     "categories": [
@@ -64,26 +64,26 @@
         "tier2_blocked_count": 0,
         "tier1_rate": 0.0,
         "tier2_rate": 0.0,
-        "mean_onnx_probability": 0.0046,
+        "mean_onnx_probability": 0.0053,
         "mean_heuristic_score": 0.0,
-        "mean_composite_score": 0.0046
+        "mean_composite_score": 0.0053
       },
       {
         "category_id": "benign_carrier_notices",
         "category_name": "Carrier Usage & Roaming Notices",
         "label": 0,
         "sample_count": 25,
-        "ml_p50_flagged_count": 1,
-        "ml_p50_rate": 0.04,
+        "ml_p50_flagged_count": 0,
+        "ml_p50_rate": 0.0,
         "heuristic_h50_flagged_count": 0,
         "heuristic_h50_rate": 0.0,
         "tier1_flagged_count": 3,
         "tier2_blocked_count": 0,
         "tier1_rate": 0.12,
         "tier2_rate": 0.0,
-        "mean_onnx_probability": 0.1392,
+        "mean_onnx_probability": 0.134,
         "mean_heuristic_score": 0.0,
-        "mean_composite_score": 0.1391
+        "mean_composite_score": 0.134
       },
       {
         "category_id": "benign_health_notices",
@@ -94,30 +94,30 @@
         "ml_p50_rate": 0.0,
         "heuristic_h50_flagged_count": 0,
         "heuristic_h50_rate": 0.0,
-        "tier1_flagged_count": 2,
+        "tier1_flagged_count": 0,
         "tier2_blocked_count": 0,
-        "tier1_rate": 0.08,
+        "tier1_rate": 0.0,
         "tier2_rate": 0.0,
-        "mean_onnx_probability": 0.1192,
+        "mean_onnx_probability": 0.1023,
         "mean_heuristic_score": 0.0,
-        "mean_composite_score": 0.1192
+        "mean_composite_score": 0.1023
       },
       {
         "category_id": "benign_2fa_auth_codes",
         "category_name": "2FA & OTP Authentication Codes",
         "label": 0,
         "sample_count": 25,
-        "ml_p50_flagged_count": 5,
-        "ml_p50_rate": 0.2,
+        "ml_p50_flagged_count": 1,
+        "ml_p50_rate": 0.04,
         "heuristic_h50_flagged_count": 0,
         "heuristic_h50_rate": 0.0,
-        "tier1_flagged_count": 9,
-        "tier2_blocked_count": 1,
-        "tier1_rate": 0.36,
-        "tier2_rate": 0.04,
-        "mean_onnx_probability": 0.2767,
+        "tier1_flagged_count": 1,
+        "tier2_blocked_count": 0,
+        "tier1_rate": 0.04,
+        "tier2_rate": 0.0,
+        "mean_onnx_probability": 0.1122,
         "mean_heuristic_score": 0.0,
-        "mean_composite_score": 0.2767
+        "mean_composite_score": 0.1122
       },
       {
         "category_id": "benign_delivery_notices",
@@ -128,64 +128,64 @@
         "ml_p50_rate": 0.12,
         "heuristic_h50_flagged_count": 0,
         "heuristic_h50_rate": 0.0,
-        "tier1_flagged_count": 7,
+        "tier1_flagged_count": 5,
         "tier2_blocked_count": 0,
-        "tier1_rate": 0.28,
+        "tier1_rate": 0.2,
         "tier2_rate": 0.0,
-        "mean_onnx_probability": 0.2,
+        "mean_onnx_probability": 0.1839,
         "mean_heuristic_score": 0.168,
-        "mean_composite_score": 0.2111
+        "mean_composite_score": 0.1946
       },
       {
         "category_id": "benign_retail_receipts",
         "category_name": "Retail Receipts & Curbside Pickups",
         "label": 0,
         "sample_count": 25,
-        "ml_p50_flagged_count": 1,
-        "ml_p50_rate": 0.04,
+        "ml_p50_flagged_count": 0,
+        "ml_p50_rate": 0.0,
         "heuristic_h50_flagged_count": 0,
         "heuristic_h50_rate": 0.0,
         "tier1_flagged_count": 2,
         "tier2_blocked_count": 0,
         "tier1_rate": 0.08,
         "tier2_rate": 0.0,
-        "mean_onnx_probability": 0.104,
+        "mean_onnx_probability": 0.0989,
         "mean_heuristic_score": 0.008,
-        "mean_composite_score": 0.104
+        "mean_composite_score": 0.099
       },
       {
         "category_id": "benign_crypto_notices",
         "category_name": "Legitimate Crypto Exchange Notices",
         "label": 0,
         "sample_count": 25,
-        "ml_p50_flagged_count": 4,
-        "ml_p50_rate": 0.16,
+        "ml_p50_flagged_count": 3,
+        "ml_p50_rate": 0.12,
         "heuristic_h50_flagged_count": 0,
         "heuristic_h50_rate": 0.0,
-        "tier1_flagged_count": 7,
+        "tier1_flagged_count": 4,
         "tier2_blocked_count": 0,
-        "tier1_rate": 0.28,
+        "tier1_rate": 0.16,
         "tier2_rate": 0.0,
-        "mean_onnx_probability": 0.2442,
+        "mean_onnx_probability": 0.1994,
         "mean_heuristic_score": 0.0,
-        "mean_composite_score": 0.2442
+        "mean_composite_score": 0.1994
       },
       {
         "category_id": "benign_conversational",
         "category_name": "Conversational & P2P Messages",
         "label": 0,
         "sample_count": 25,
-        "ml_p50_flagged_count": 1,
-        "ml_p50_rate": 0.04,
+        "ml_p50_flagged_count": 0,
+        "ml_p50_rate": 0.0,
         "heuristic_h50_flagged_count": 0,
         "heuristic_h50_rate": 0.0,
-        "tier1_flagged_count": 5,
+        "tier1_flagged_count": 3,
         "tier2_blocked_count": 0,
-        "tier1_rate": 0.2,
+        "tier1_rate": 0.12,
         "tier2_rate": 0.0,
-        "mean_onnx_probability": 0.2097,
+        "mean_onnx_probability": 0.1852,
         "mean_heuristic_score": 0.0,
-        "mean_composite_score": 0.2097
+        "mean_composite_score": 0.1852
       },
       {
         "category_id": "smish_bank_panic",
@@ -200,7 +200,7 @@
         "tier2_blocked_count": 30,
         "tier1_rate": 1.0,
         "tier2_rate": 1.0,
-        "mean_onnx_probability": 0.9534,
+        "mean_onnx_probability": 0.9536,
         "mean_heuristic_score": 0.82,
         "mean_composite_score": 1.0
       },
@@ -217,9 +217,9 @@
         "tier2_blocked_count": 30,
         "tier1_rate": 1.0,
         "tier2_rate": 1.0,
-        "mean_onnx_probability": 0.891,
+        "mean_onnx_probability": 0.8905,
         "mean_heuristic_score": 0.77,
-        "mean_composite_score": 0.9357
+        "mean_composite_score": 0.9355
       },
       {
         "category_id": "smish_legal_extortion",
@@ -234,7 +234,7 @@
         "tier2_blocked_count": 30,
         "tier1_rate": 1.0,
         "tier2_rate": 1.0,
-        "mean_onnx_probability": 0.8264,
+        "mean_onnx_probability": 0.8155,
         "mean_heuristic_score": 0.832,
         "mean_composite_score": 1.0
       },
@@ -248,12 +248,12 @@
         "heuristic_h50_flagged_count": 20,
         "heuristic_h50_rate": 0.8,
         "tier1_flagged_count": 25,
-        "tier2_blocked_count": 25,
+        "tier2_blocked_count": 24,
         "tier1_rate": 1.0,
-        "tier2_rate": 1.0,
-        "mean_onnx_probability": 0.8111,
+        "tier2_rate": 0.96,
+        "mean_onnx_probability": 0.7872,
         "mean_heuristic_score": 0.686,
-        "mean_composite_score": 0.9095
+        "mean_composite_score": 0.8898
       },
       {
         "category_id": "smish_broken_phone",
@@ -268,26 +268,26 @@
         "tier2_blocked_count": 25,
         "tier1_rate": 1.0,
         "tier2_rate": 1.0,
-        "mean_onnx_probability": 0.736,
+        "mean_onnx_probability": 0.7271,
         "mean_heuristic_score": 0.65,
-        "mean_composite_score": 0.8238
+        "mean_composite_score": 0.8178
       },
       {
         "category_id": "smish_doc_invoice",
         "category_name": "Fake DocuSign & Invoice Scams",
         "label": 1,
         "sample_count": 25,
-        "ml_p50_flagged_count": 23,
-        "ml_p50_rate": 0.92,
+        "ml_p50_flagged_count": 24,
+        "ml_p50_rate": 0.96,
         "heuristic_h50_flagged_count": 15,
         "heuristic_h50_rate": 0.6,
         "tier1_flagged_count": 25,
-        "tier2_blocked_count": 11,
+        "tier2_blocked_count": 12,
         "tier1_rate": 1.0,
-        "tier2_rate": 0.44,
-        "mean_onnx_probability": 0.7268,
+        "tier2_rate": 0.48,
+        "mean_onnx_probability": 0.7359,
         "mean_heuristic_score": 0.562,
-        "mean_composite_score": 0.7913
+        "mean_composite_score": 0.7986
       },
       {
         "category_id": "smish_homoglyph",
@@ -302,9 +302,9 @@
         "tier2_blocked_count": 16,
         "tier1_rate": 1.0,
         "tier2_rate": 0.8,
-        "mean_onnx_probability": 0.8158,
+        "mean_onnx_probability": 0.8175,
         "mean_heuristic_score": 0.458,
-        "mean_composite_score": 0.8529
+        "mean_composite_score": 0.8533
       },
       {
         "category_id": "smish_callback_scams",
@@ -319,9 +319,9 @@
         "tier2_blocked_count": 4,
         "tier1_rate": 1.0,
         "tier2_rate": 0.2667,
-        "mean_onnx_probability": 0.5049,
+        "mean_onnx_probability": 0.5155,
         "mean_heuristic_score": 0.1867,
-        "mean_composite_score": 0.5868
+        "mean_composite_score": 0.5933
       }
     ],
     "total_categories": 16
@@ -329,47 +329,47 @@
   "ablation_analysis": {
     "model_alone": {
       "description": "ONNX Runtime Platt-calibrated model probability P_onnx alone without heuristics",
-      "roc_auc": 0.9844,
-      "pr_auc": 0.9848,
-      "brier_score": 0.062,
+      "roc_auc": 0.9934,
+      "pr_auc": 0.994,
+      "brier_score": 0.0494,
       "at_threshold_0_40": {
         "threshold": 0.4,
         "confusion_matrix": {
           "tp": 196,
-          "fp": 34,
-          "tn": 166,
+          "fp": 16,
+          "tn": 184,
           "fn": 4
         },
-        "precision": 0.8522,
+        "precision": 0.9245,
         "recall": 0.98,
-        "f1_score": 0.9116,
-        "false_positive_rate": 0.17
+        "f1_score": 0.9515,
+        "false_positive_rate": 0.08
       },
       "at_threshold_0_50": {
         "threshold": 0.5,
         "confusion_matrix": {
-          "tp": 194,
-          "fp": 15,
-          "tn": 185,
-          "fn": 6
+          "tp": 195,
+          "fp": 7,
+          "tn": 193,
+          "fn": 5
         },
-        "precision": 0.9282,
-        "recall": 0.97,
-        "f1_score": 0.9487,
-        "false_positive_rate": 0.075
+        "precision": 0.9653,
+        "recall": 0.975,
+        "f1_score": 0.9701,
+        "false_positive_rate": 0.035
       },
       "at_threshold_0_75": {
         "threshold": 0.75,
         "confusion_matrix": {
-          "tp": 139,
-          "fp": 1,
-          "tn": 199,
-          "fn": 61
+          "tp": 140,
+          "fp": 0,
+          "tn": 200,
+          "fn": 60
         },
-        "precision": 0.9929,
-        "recall": 0.695,
-        "f1_score": 0.8176,
-        "false_positive_rate": 0.005
+        "precision": 1.0,
+        "recall": 0.7,
+        "f1_score": 0.8235,
+        "false_positive_rate": 0.0
       }
     },
     "heuristics_alone": {
@@ -420,33 +420,33 @@
         "threshold": 0.4,
         "confusion_matrix": {
           "tp": 200,
-          "fp": 35,
-          "tn": 165,
+          "fp": 18,
+          "tn": 182,
           "fn": 0
         },
-        "precision": 0.8511,
+        "precision": 0.9174,
         "recall": 1.0,
-        "f1_score": 0.9195,
-        "false_positive_rate": 0.175
+        "f1_score": 0.9569,
+        "false_positive_rate": 0.09
       },
       "tier2_block": {
         "threshold": 0.75,
         "confusion_matrix": {
           "tp": 171,
-          "fp": 1,
-          "tn": 199,
+          "fp": 0,
+          "tn": 200,
           "fn": 29
         },
-        "precision": 0.9942,
+        "precision": 1.0,
         "recall": 0.855,
-        "f1_score": 0.9194,
-        "false_positive_rate": 0.005
+        "f1_score": 0.9218,
+        "false_positive_rate": 0.0
       }
     },
     "velocity_ablation_note": "Velocity signals require multi-message temporal event streams (sender/IP sliding windows). On the static held-out test suite (N = 400), velocity is fixed to 0.0 to isolate content inspection. Velocity contributions are evaluated under synthetic multi-message velocity sweeps in test_telecom_gateway.py."
   },
   "error_analysis": {
-    "tier1_false_positives_count": 35,
+    "tier1_false_positives_count": 18,
     "tier1_false_positives": [
       {
         "sample_index": 26,
@@ -454,11 +454,11 @@
         "expected_label": "BENIGN",
         "category_name": "Carrier Usage & Roaming Notices",
         "category_id": "benign_carrier_notices",
-        "onnx_probability": 0.5041,
+        "onnx_probability": 0.4211,
         "heuristic_score": 0.0,
-        "composite_score": 0.5041,
+        "composite_score": 0.4211,
         "matched_rules": [],
-        "reason": "Elevated content score (0.50) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 27,
@@ -466,11 +466,11 @@
         "expected_label": "BENIGN",
         "category_name": "Carrier Usage & Roaming Notices",
         "category_id": "benign_carrier_notices",
-        "onnx_probability": 0.4328,
+        "onnx_probability": 0.4226,
         "heuristic_score": 0.0,
-        "composite_score": 0.4328,
+        "composite_score": 0.4226,
         "matched_rules": [],
-        "reason": "Elevated content score (0.43) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 48,
@@ -478,119 +478,11 @@
         "expected_label": "BENIGN",
         "category_name": "Carrier Usage & Roaming Notices",
         "category_id": "benign_carrier_notices",
-        "onnx_probability": 0.4702,
+        "onnx_probability": 0.4487,
         "heuristic_score": 0.0,
-        "composite_score": 0.4702,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.47) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 66,
-        "text": "Orthopedic Center: X-ray imaging results have been uploaded to your patient chart.",
-        "expected_label": "BENIGN",
-        "category_name": "Clinical Appointments & Billing",
-        "category_id": "benign_health_notices",
-        "onnx_probability": 0.4239,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4239,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 67,
-        "text": "City Hospital: Discharge summary notes and recovery guidelines sent to your registered email.",
-        "expected_label": "BENIGN",
-        "category_name": "Clinical Appointments & Billing",
-        "category_id": "benign_health_notices",
-        "onnx_probability": 0.4455,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4455,
+        "composite_score": 0.4487,
         "matched_rules": [],
         "reason": "Elevated content score (0.45) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 82,
-        "text": "Okta Verify: Tap to approve login attempt from Firefox on Windows.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.4174,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4174,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 86,
-        "text": "Dropbox security alert: New browser login from Chicago, IL.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.687,
-        "heuristic_score": 0.0,
-        "composite_score": 0.687,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.69) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 87,
-        "text": "Zoom: Verification code 492810 to reset meeting host password.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.4001,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4001,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.40) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 89,
-        "text": "DocuSign Security: Passcode 582910 to access completed signing envelope.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.6495,
-        "heuristic_score": 0.0,
-        "composite_score": 0.6495,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.65) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 93,
-        "text": "Twitter/X: Confirmation code 918203 to verify phone number.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.8591,
-        "heuristic_score": 0.0,
-        "composite_score": 0.8591,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.86) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 94,
-        "text": "LinkedIn security PIN: 482910 for account recovery.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.4633,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4633,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.46) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 95,
-        "text": "PayPal security code: 829104. Use to complete authentication.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.4201,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4201,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 97,
@@ -598,37 +490,11 @@
         "expected_label": "BENIGN",
         "category_name": "2FA & OTP Authentication Codes",
         "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.7038,
+        "onnx_probability": 0.5407,
         "heuristic_score": 0.0,
-        "composite_score": 0.7038,
+        "composite_score": 0.5407,
         "matched_rules": [],
-        "reason": "Elevated content score (0.70) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 98,
-        "text": "Intuit TurboTax: Security verification code 829103 to file tax return.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.5012,
-        "heuristic_score": 0.0,
-        "composite_score": 0.5012,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.50) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 101,
-        "text": "FedEx: Shipment 789102847201 delivered to front porch. Photo available at fedex.com",
-        "expected_label": "BENIGN",
-        "category_name": "Package Delivery Status Updates",
-        "category_id": "benign_delivery_notices",
-        "onnx_probability": 0.3914,
-        "heuristic_score": 0.2,
-        "composite_score": 0.4325,
-        "matched_rules": [
-          "RULE:GENERIC_DELIVERY_KEYWORD"
-        ],
-        "reason": "Elevated content score (0.43) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
+        "reason": "Elevated content score (0.54) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 103,
@@ -636,27 +502,13 @@
         "expected_label": "BENIGN",
         "category_name": "Package Delivery Status Updates",
         "category_id": "benign_delivery_notices",
-        "onnx_probability": 0.6809,
+        "onnx_probability": 0.6556,
         "heuristic_score": 0.2,
-        "composite_score": 0.7032,
+        "composite_score": 0.6797,
         "matched_rules": [
           "RULE:GENERIC_DELIVERY_KEYWORD"
         ],
-        "reason": "Elevated content score (0.70) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
-      },
-      {
-        "sample_index": 104,
-        "text": "DHL Express: Waybill 4920182910 cleared customs and is in transit to local delivery hub.",
-        "expected_label": "BENIGN",
-        "category_name": "Package Delivery Status Updates",
-        "category_id": "benign_delivery_notices",
-        "onnx_probability": 0.4285,
-        "heuristic_score": 0.2,
-        "composite_score": 0.4685,
-        "matched_rules": [
-          "RULE:GENERIC_DELIVERY_KEYWORD"
-        ],
-        "reason": "Elevated content score (0.47) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
+        "reason": "Elevated content score (0.68) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
       },
       {
         "sample_index": 114,
@@ -664,13 +516,13 @@
         "expected_label": "BENIGN",
         "category_name": "Package Delivery Status Updates",
         "category_id": "benign_delivery_notices",
-        "onnx_probability": 0.4128,
+        "onnx_probability": 0.3707,
         "heuristic_score": 0.2,
-        "composite_score": 0.4539,
+        "composite_score": 0.4096,
         "matched_rules": [
           "RULE:GENERIC_DELIVERY_KEYWORD"
         ],
-        "reason": "Elevated content score (0.45) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
+        "reason": "Elevated content score (0.41) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
       },
       {
         "sample_index": 118,
@@ -678,13 +530,13 @@
         "expected_label": "BENIGN",
         "category_name": "Package Delivery Status Updates",
         "category_id": "benign_delivery_notices",
-        "onnx_probability": 0.4241,
+        "onnx_probability": 0.3848,
         "heuristic_score": 0.2,
-        "composite_score": 0.4645,
+        "composite_score": 0.4252,
         "matched_rules": [
           "RULE:GENERIC_DELIVERY_KEYWORD"
         ],
-        "reason": "Elevated content score (0.46) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
+        "reason": "Elevated content score (0.43) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
       },
       {
         "sample_index": 119,
@@ -692,13 +544,13 @@
         "expected_label": "BENIGN",
         "category_name": "Package Delivery Status Updates",
         "category_id": "benign_delivery_notices",
-        "onnx_probability": 0.5463,
+        "onnx_probability": 0.5066,
         "heuristic_score": 0.2,
-        "composite_score": 0.5781,
+        "composite_score": 0.5412,
         "matched_rules": [
           "RULE:GENERIC_DELIVERY_KEYWORD"
         ],
-        "reason": "Elevated content score (0.58) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
+        "reason": "Elevated content score (0.54) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
       },
       {
         "sample_index": 122,
@@ -706,25 +558,25 @@
         "expected_label": "BENIGN",
         "category_name": "Package Delivery Status Updates",
         "category_id": "benign_delivery_notices",
-        "onnx_probability": 0.6382,
+        "onnx_probability": 0.5793,
         "heuristic_score": 0.2,
-        "composite_score": 0.6636,
+        "composite_score": 0.6087,
         "matched_rules": [
           "RULE:GENERIC_DELIVERY_KEYWORD"
         ],
-        "reason": "Elevated content score (0.66) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
+        "reason": "Elevated content score (0.61) from heuristic keywords (RULE:GENERIC_DELIVERY_KEYWORD) on legitimate message."
       },
       {
-        "sample_index": 134,
-        "text": "Sephora: Beauty Insider points updated: 450 points available.",
+        "sample_index": 138,
+        "text": "CVS Carepass: Your $10 monthly reward has been loaded to your card.",
         "expected_label": "BENIGN",
         "category_name": "Retail Receipts & Curbside Pickups",
         "category_id": "benign_retail_receipts",
-        "onnx_probability": 0.427,
+        "onnx_probability": 0.4043,
         "heuristic_score": 0.0,
-        "composite_score": 0.427,
+        "composite_score": 0.4043,
         "matched_rules": [],
-        "reason": "Elevated content score (0.43) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.40) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 139,
@@ -732,23 +584,23 @@
         "expected_label": "BENIGN",
         "category_name": "Retail Receipts & Curbside Pickups",
         "category_id": "benign_retail_receipts",
-        "onnx_probability": 0.5171,
+        "onnx_probability": 0.4826,
         "heuristic_score": 0.0,
-        "composite_score": 0.5171,
+        "composite_score": 0.4826,
         "matched_rules": [],
-        "reason": "Elevated content score (0.52) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.48) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
-        "sample_index": 150,
-        "text": "Coinbase: You successfully initiated a withdrawal of 0.25 BTC to external address 3J98t... View on blockchain: coinbase.com/transfers",
+        "sample_index": 151,
+        "text": "Kraken: Your fiat deposit of $1,500.00 via Fedwire has been credited to your balance. Trade now at kraken.com/trade",
         "expected_label": "BENIGN",
         "category_name": "Legitimate Crypto Exchange Notices",
         "category_id": "benign_crypto_notices",
-        "onnx_probability": 0.4569,
+        "onnx_probability": 0.4483,
         "heuristic_score": 0.0,
-        "composite_score": 0.4569,
+        "composite_score": 0.4483,
         "matched_rules": [],
-        "reason": "Elevated content score (0.46) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.45) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 154,
@@ -756,35 +608,11 @@
         "expected_label": "BENIGN",
         "category_name": "Legitimate Crypto Exchange Notices",
         "category_id": "benign_crypto_notices",
-        "onnx_probability": 0.7148,
+        "onnx_probability": 0.6003,
         "heuristic_score": 0.0,
-        "composite_score": 0.7148,
+        "composite_score": 0.6003,
         "matched_rules": [],
-        "reason": "Elevated content score (0.71) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 157,
-        "text": "Kraken: Staking reward of 0.0042 ETH credited to your spot balance.",
-        "expected_label": "BENIGN",
-        "category_name": "Legitimate Crypto Exchange Notices",
-        "category_id": "benign_crypto_notices",
-        "onnx_probability": 0.4315,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4315,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.43) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 163,
-        "text": "Coinbase: Address book whitelist: New external BTC address added. 48h withdrawal lock active.",
-        "expected_label": "BENIGN",
-        "category_name": "Legitimate Crypto Exchange Notices",
-        "category_id": "benign_crypto_notices",
-        "onnx_probability": 0.5483,
-        "heuristic_score": 0.0,
-        "composite_score": 0.5483,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.55) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.60) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 168,
@@ -792,23 +620,11 @@
         "expected_label": "BENIGN",
         "category_name": "Legitimate Crypto Exchange Notices",
         "category_id": "benign_crypto_notices",
-        "onnx_probability": 0.7187,
+        "onnx_probability": 0.5926,
         "heuristic_score": 0.0,
-        "composite_score": 0.7187,
+        "composite_score": 0.5926,
         "matched_rules": [],
-        "reason": "Elevated content score (0.72) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 171,
-        "text": "Kraken: Account Tier 3 intermediate verification approved. Higher withdrawal limits active.",
-        "expected_label": "BENIGN",
-        "category_name": "Legitimate Crypto Exchange Notices",
-        "category_id": "benign_crypto_notices",
-        "onnx_probability": 0.4383,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4383,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.44) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.59) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 172,
@@ -816,11 +632,11 @@
         "expected_label": "BENIGN",
         "category_name": "Legitimate Crypto Exchange Notices",
         "category_id": "benign_crypto_notices",
-        "onnx_probability": 0.6955,
+        "onnx_probability": 0.6175,
         "heuristic_score": 0.0,
-        "composite_score": 0.6955,
+        "composite_score": 0.6175,
         "matched_rules": [],
-        "reason": "Elevated content score (0.70) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.62) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 176,
@@ -828,23 +644,11 @@
         "expected_label": "BENIGN",
         "category_name": "Conversational & P2P Messages",
         "category_id": "benign_conversational",
-        "onnx_probability": 0.4503,
+        "onnx_probability": 0.439,
         "heuristic_score": 0.0,
-        "composite_score": 0.4503,
+        "composite_score": 0.439,
         "matched_rules": [],
-        "reason": "Elevated content score (0.45) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 179,
-        "text": "Make sure you don't click any weird links in that email the accountant sent, I'll call them to verify.",
-        "expected_label": "BENIGN",
-        "category_name": "Conversational & P2P Messages",
-        "category_id": "benign_conversational",
-        "onnx_probability": 0.4939,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4939,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.49) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.44) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 183,
@@ -852,23 +656,11 @@
         "expected_label": "BENIGN",
         "category_name": "Conversational & P2P Messages",
         "category_id": "benign_conversational",
-        "onnx_probability": 0.6239,
+        "onnx_probability": 0.4705,
         "heuristic_score": 0.0,
-        "composite_score": 0.6239,
+        "composite_score": 0.4705,
         "matched_rules": [],
-        "reason": "Elevated content score (0.62) from heuristic keywords (ML model probability alone) on legitimate message."
-      },
-      {
-        "sample_index": 185,
-        "text": "Don't worry about the credit card dispute, the merchant agreed to issue a full refund.",
-        "expected_label": "BENIGN",
-        "category_name": "Conversational & P2P Messages",
-        "category_id": "benign_conversational",
-        "onnx_probability": 0.4238,
-        "heuristic_score": 0.0,
-        "composite_score": 0.4238,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
+        "reason": "Elevated content score (0.47) from heuristic keywords (ML model probability alone) on legitimate message."
       },
       {
         "sample_index": 188,
@@ -876,45 +668,48 @@
         "expected_label": "BENIGN",
         "category_name": "Conversational & P2P Messages",
         "category_id": "benign_conversational",
-        "onnx_probability": 0.4244,
+        "onnx_probability": 0.4208,
         "heuristic_score": 0.0,
-        "composite_score": 0.4244,
+        "composite_score": 0.4208,
         "matched_rules": [],
         "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
       }
     ],
-    "tier2_false_positives_count": 1,
-    "tier2_false_positives": [
-      {
-        "sample_index": 93,
-        "text": "Twitter/X: Confirmation code 918203 to verify phone number.",
-        "expected_label": "BENIGN",
-        "category_name": "2FA & OTP Authentication Codes",
-        "category_id": "benign_2fa_auth_codes",
-        "onnx_probability": 0.8591,
-        "heuristic_score": 0.0,
-        "composite_score": 0.8591,
-        "matched_rules": [],
-        "reason": "Elevated content score (0.86) from heuristic keywords (ML model probability alone) on legitimate message."
-      }
-    ],
+    "tier2_false_positives_count": 0,
+    "tier2_false_positives": [],
     "tier1_false_negatives_count": 0,
     "tier1_false_negatives": [],
     "tier2_false_negatives_count": 29,
     "tier2_false_negatives": [
+      {
+        "sample_index": 292,
+        "text": "VIP Crypto Signals #3: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_02",
+        "expected_label": "FRAUD",
+        "category_name": "Cryptocurrency Giveaway & Seed Scams",
+        "category_id": "smish_crypto_lures",
+        "onnx_probability": 0.5712,
+        "heuristic_score": 0.77,
+        "composite_score": 0.7472,
+        "matched_rules": [
+          "RULE:SUSPICIOUS_TLD",
+          "RULE:STANDALONE_URL",
+          "HEURISTIC:COMPOUND_SIGNALS"
+        ],
+        "reason": "Composite score (0.75) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+      },
       {
         "sample_index": 340,
         "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5000' for your signature. Review: http://docusign-viewer-docs.net/sign/0",
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.6316,
+        "onnx_probability": 0.6618,
         "heuristic_score": 0.25,
-        "composite_score": 0.6638,
+        "composite_score": 0.6914,
         "matched_rules": [
           "RULE:STANDALONE_URL"
         ],
-        "reason": "Composite score (0.66) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        "reason": "Composite score (0.69) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
         "sample_index": 341,
@@ -922,13 +717,13 @@
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.7018,
+        "onnx_probability": 0.6978,
         "heuristic_score": 0.25,
-        "composite_score": 0.7279,
+        "composite_score": 0.7242,
         "matched_rules": [
           "RULE:STANDALONE_URL"
         ],
-        "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        "reason": "Composite score (0.72) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
         "sample_index": 343,
@@ -936,15 +731,15 @@
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.4681,
+        "onnx_probability": 0.4984,
         "heuristic_score": 0.77,
-        "composite_score": 0.6865,
+        "composite_score": 0.7043,
         "matched_rules": [
           "RULE:SUSPICIOUS_TLD",
           "RULE:STANDALONE_URL",
           "HEURISTIC:COMPOUND_SIGNALS"
         ],
-        "reason": "Composite score (0.69) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        "reason": "Composite score (0.70) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
         "sample_index": 345,
@@ -952,13 +747,13 @@
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.4597,
+        "onnx_probability": 0.5185,
         "heuristic_score": 0.25,
-        "composite_score": 0.507,
+        "composite_score": 0.5606,
         "matched_rules": [
           "RULE:STANDALONE_URL"
         ],
-        "reason": "Composite score (0.51) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        "reason": "Composite score (0.56) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
         "sample_index": 346,
@@ -966,13 +761,13 @@
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.7088,
+        "onnx_probability": 0.6942,
         "heuristic_score": 0.25,
-        "composite_score": 0.7343,
+        "composite_score": 0.7209,
         "matched_rules": [
           "RULE:STANDALONE_URL"
         ],
-        "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        "reason": "Composite score (0.72) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
         "sample_index": 348,
@@ -980,9 +775,9 @@
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.5231,
+        "onnx_probability": 0.5333,
         "heuristic_score": 0.77,
-        "composite_score": 0.7189,
+        "composite_score": 0.7249,
         "matched_rules": [
           "RULE:SUSPICIOUS_TLD",
           "RULE:STANDALONE_URL",
@@ -996,13 +791,13 @@
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.5532,
+        "onnx_probability": 0.5893,
         "heuristic_score": 0.25,
-        "composite_score": 0.5923,
+        "composite_score": 0.6252,
         "matched_rules": [
           "RULE:STANDALONE_URL"
         ],
-        "reason": "Composite score (0.59) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        "reason": "Composite score (0.63) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
         "sample_index": 351,
@@ -1010,29 +805,13 @@
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.7036,
+        "onnx_probability": 0.689,
         "heuristic_score": 0.25,
-        "composite_score": 0.7295,
+        "composite_score": 0.7162,
         "matched_rules": [
           "RULE:STANDALONE_URL"
         ],
-        "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-      },
-      {
-        "sample_index": 353,
-        "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/13",
-        "expected_label": "FRAUD",
-        "category_name": "Fake DocuSign & Invoice Scams",
-        "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.5666,
-        "heuristic_score": 0.77,
-        "composite_score": 0.7445,
-        "matched_rules": [
-          "RULE:SUSPICIOUS_TLD",
-          "RULE:STANDALONE_URL",
-          "HEURISTIC:COMPOUND_SIGNALS"
-        ],
-        "reason": "Composite score (0.74) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        "reason": "Composite score (0.72) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
         "sample_index": 355,
@@ -1040,23 +819,65 @@
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.5304,
+        "onnx_probability": 0.5646,
         "heuristic_score": 0.25,
-        "composite_score": 0.5715,
+        "composite_score": 0.6027,
         "matched_rules": [
           "RULE:STANDALONE_URL"
         ],
-        "reason": "Composite score (0.57) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+        "reason": "Composite score (0.60) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
-        "sample_index": 358,
-        "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/18",
+        "sample_index": 356,
+        "text": "QuickBooks: Invoice #INV-2026-816 from Alpha Tech is past due ($840.00). Settle invoice: http://qb-invoicing-portal.com/pay/16",
         "expected_label": "FRAUD",
         "category_name": "Fake DocuSign & Invoice Scams",
         "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.5666,
+        "onnx_probability": 0.7207,
+        "heuristic_score": 0.25,
+        "composite_score": 0.7452,
+        "matched_rules": [
+          "RULE:STANDALONE_URL"
+        ],
+        "reason": "Composite score (0.75) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+      },
+      {
+        "sample_index": 360,
+        "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5020' for your signature. Review: http://docusign-viewer-docs.net/sign/20",
+        "expected_label": "FRAUD",
+        "category_name": "Fake DocuSign & Invoice Scams",
+        "category_id": "smish_doc_invoice",
+        "onnx_probability": 0.6302,
+        "heuristic_score": 0.25,
+        "composite_score": 0.6625,
+        "matched_rules": [
+          "RULE:STANDALONE_URL"
+        ],
+        "reason": "Composite score (0.66) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+      },
+      {
+        "sample_index": 361,
+        "text": "QuickBooks: Invoice #INV-2026-821 from Alpha Tech is past due ($840.00). Settle invoice: http://qb-invoicing-portal.com/pay/21",
+        "expected_label": "FRAUD",
+        "category_name": "Fake DocuSign & Invoice Scams",
+        "category_id": "smish_doc_invoice",
+        "onnx_probability": 0.6942,
+        "heuristic_score": 0.25,
+        "composite_score": 0.7209,
+        "matched_rules": [
+          "RULE:STANDALONE_URL"
+        ],
+        "reason": "Composite score (0.72) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
+      },
+      {
+        "sample_index": 363,
+        "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/23",
+        "expected_label": "FRAUD",
+        "category_name": "Fake DocuSign & Invoice Scams",
+        "category_id": "smish_doc_invoice",
+        "onnx_probability": 0.5516,
         "heuristic_score": 0.77,
-        "composite_score": 0.7445,
+        "composite_score": 0.7357,
         "matched_rules": [
           "RULE:SUSPICIOUS_TLD",
           "RULE:STANDALONE_URL",
@@ -1065,58 +886,14 @@
         "reason": "Composite score (0.74) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
       },
       {
-        "sample_index": 360,
-        "text": "DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #5020' for your signature. Review: http://docusign-viewer-docs.net/sign/20",
-        "expected_label": "FRAUD",
-        "category_name": "Fake DocuSign & Invoice Scams",
-        "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.5852,
-        "heuristic_score": 0.25,
-        "composite_score": 0.6215,
-        "matched_rules": [
-          "RULE:STANDALONE_URL"
-        ],
-        "reason": "Composite score (0.62) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-      },
-      {
-        "sample_index": 361,
-        "text": "QuickBooks: Invoice #INV-2026-821 from Alpha Tech is past due ($840.00). Settle invoice: http://qb-invoicing-portal.com/pay/21",
-        "expected_label": "FRAUD",
-        "category_name": "Fake DocuSign & Invoice Scams",
-        "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.7088,
-        "heuristic_score": 0.25,
-        "composite_score": 0.7343,
-        "matched_rules": [
-          "RULE:STANDALONE_URL"
-        ],
-        "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-      },
-      {
-        "sample_index": 363,
-        "text": "Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/23",
-        "expected_label": "FRAUD",
-        "category_name": "Fake DocuSign & Invoice Scams",
-        "category_id": "smish_doc_invoice",
-        "onnx_probability": 0.5406,
-        "heuristic_score": 0.77,
-        "composite_score": 0.7292,
-        "matched_rules": [
-          "RULE:SUSPICIOUS_TLD",
-          "RULE:STANDALONE_URL",
-          "HEURISTIC:COMPOUND_SIGNALS"
-        ],
-        "reason": "Composite score (0.73) reached Tier 1 escalation but fell below Tier 2 wire-drop (0.75). Requires human or agent forensic review."
-      },
-      {
         "sample_index": 369,
         "text": "Amaz0n: Your Prime order was placed on hold due to billing error. Update card: http://amaz0n-orders-review.com/4",
         "expected_label": "FRAUD",
         "category_name": "Homoglyph & Leetspeak Obfuscation",
         "category_id": "smish_homoglyph",
-        "onnx_probability": 0.6377,
+        "onnx_probability": 0.6346,
         "heuristic_score": 0.25,
-        "composite_score": 0.6694,
+        "composite_score": 0.6666,
         "matched_rules": [
           "RULE:STANDALONE_URL"
         ],
@@ -1131,9 +908,9 @@
         "expected_label": "BENIGN",
         "category_name": "Bank Fraud Alerts (YES/NO)",
         "category_id": "benign_bank_alerts",
-        "onnx_probability": 0.0059,
+        "onnx_probability": 0.0067,
         "heuristic_score": 0.0,
-        "composite_score": 0.0059,
+        "composite_score": 0.0067,
         "matched_rules": [],
         "reason": "Correctly classified with strong margin."
       },
@@ -1143,9 +920,9 @@
         "expected_label": "BENIGN",
         "category_name": "Bank Fraud Alerts (YES/NO)",
         "category_id": "benign_bank_alerts",
-        "onnx_probability": 0.0054,
+        "onnx_probability": 0.006,
         "heuristic_score": 0.0,
-        "composite_score": 0.0054,
+        "composite_score": 0.006,
         "matched_rules": [],
         "reason": "Correctly classified with strong margin."
       },
@@ -1155,9 +932,9 @@
         "expected_label": "BENIGN",
         "category_name": "Bank Fraud Alerts (YES/NO)",
         "category_id": "benign_bank_alerts",
-        "onnx_probability": 0.0065,
+        "onnx_probability": 0.0075,
         "heuristic_score": 0.0,
-        "composite_score": 0.0065,
+        "composite_score": 0.0075,
         "matched_rules": [],
         "reason": "Correctly classified with strong margin."
       },
@@ -1167,9 +944,9 @@
         "expected_label": "BENIGN",
         "category_name": "Bank Fraud Alerts (YES/NO)",
         "category_id": "benign_bank_alerts",
-        "onnx_probability": 0.0066,
+        "onnx_probability": 0.0075,
         "heuristic_score": 0.0,
-        "composite_score": 0.0066,
+        "composite_score": 0.0075,
         "matched_rules": [],
         "reason": "Correctly classified with strong margin."
       },
@@ -1179,9 +956,9 @@
         "expected_label": "BENIGN",
         "category_name": "Bank Fraud Alerts (YES/NO)",
         "category_id": "benign_bank_alerts",
-        "onnx_probability": 0.0059,
+        "onnx_probability": 0.0053,
         "heuristic_score": 0.0,
-        "composite_score": 0.0059,
+        "composite_score": 0.0053,
         "matched_rules": [],
         "reason": "Correctly classified with strong margin."
       },
@@ -1191,9 +968,9 @@
         "expected_label": "BENIGN",
         "category_name": "Bank Fraud Alerts (YES/NO)",
         "category_id": "benign_bank_alerts",
-        "onnx_probability": 0.0036,
+        "onnx_probability": 0.0045,
         "heuristic_score": 0.0,
-        "composite_score": 0.0036,
+        "composite_score": 0.0045,
         "matched_rules": [],
         "reason": "Correctly classified with strong margin."
       }
@@ -1201,16 +978,16 @@
   },
   "reproducibility": {
     "model_artifact": "sms_fraud_model.onnx",
-    "model_sha256": "32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c",
-    "model_artifact_size_bytes": 199326,
-    "model_artifact_size_kb": 194.65,
+    "model_sha256": "143f6749f219ed815a337f123e5e6462af46b637e5b3fdb54d6e2a1cfbe3eef0",
+    "model_artifact_size_bytes": 199612,
+    "model_artifact_size_kb": 194.93,
     "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
     "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-    "benchmark_predictions_sha256": "af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956",
+    "benchmark_predictions_sha256": "5ddc8c1841f5975d0de5fcc0cf9d03abad6d3256d16839243fb90613be9a5106",
     "onnx_sklearn_parity": {
       "sample_count": 400,
-      "max_prob_abs_diff": 1.4528442737749003e-07,
-      "mean_prob_abs_diff": 2.308084712806559e-08,
+      "max_prob_abs_diff": 1.0463781574543418e-07,
+      "mean_prob_abs_diff": 1.949708779852685e-08,
       "ml_p50_parity_count": 400,
       "ml_p50_parity_rate": 1.0,
       "tier1_flag_parity_count": 400,
@@ -1219,10 +996,10 @@
       "tier2_block_parity_rate": 1.0,
       "verdict_parity_count": 400,
       "verdict_parity_rate": 1.0,
-      "max_tfidf_vector_abs_diff": 7.367914711675638e-08,
-      "mean_tfidf_vector_abs_diff": 2.4200046876456106e-08
+      "max_tfidf_vector_abs_diff": 7.091498777089811e-08,
+      "mean_tfidf_vector_abs_diff": 2.4211359789527708e-08
     },
-    "evaluation_timestamp": "2026-11-10T12:51:27.447077+00:00",
+    "evaluation_timestamp": "2026-11-10T13:00:11.887167+00:00",
     "evaluator": "ONNXRuntime-CPU (AVX-512)",
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
@@ -1246,14 +1023,14 @@
   },
   "evaluator": "ONNXRuntime-CPU",
   "model_artifact": "sms_fraud_model.onnx",
-  "model_sha256": "32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c",
+  "model_sha256": "143f6749f219ed815a337f123e5e6462af46b637e5b3fdb54d6e2a1cfbe3eef0",
   "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
   "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-  "benchmark_predictions_sha256": "af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956",
+  "benchmark_predictions_sha256": "5ddc8c1841f5975d0de5fcc0cf9d03abad6d3256d16839243fb90613be9a5106",
   "onnx_sklearn_parity": {
     "sample_count": 400,
-    "max_prob_abs_diff": 1.4528442737749003e-07,
-    "mean_prob_abs_diff": 2.308084712806559e-08,
+    "max_prob_abs_diff": 1.0463781574543418e-07,
+    "mean_prob_abs_diff": 1.949708779852685e-08,
     "ml_p50_parity_count": 400,
     "ml_p50_parity_rate": 1.0,
     "tier1_flag_parity_count": 400,
@@ -1262,19 +1039,19 @@
     "tier2_block_parity_rate": 1.0,
     "verdict_parity_count": 400,
     "verdict_parity_rate": 1.0,
-    "max_tfidf_vector_abs_diff": 7.367914711675638e-08,
-    "mean_tfidf_vector_abs_diff": 2.4200046876456106e-08
+    "max_tfidf_vector_abs_diff": 7.091498777089811e-08,
+    "mean_tfidf_vector_abs_diff": 2.4211359789527708e-08
   },
   "evaluation_mode": "content_only_zero_velocity",
   "velocity_score_fixed": 0.0,
-  "evaluation_timestamp": "2026-11-10T12:51:27.447077+00:00",
+  "evaluation_timestamp": "2026-11-10T13:00:11.887167+00:00",
   "software_versions": {
     "onnxruntime": "1.31.0",
     "numpy": "2.5.4",
     "scikit_learn": "1.9.1"
   },
-  "model_artifact_size_bytes": 199326,
-  "model_artifact_size_kb": 194.65,
-  "brier_score_before_calibration": 0.1628,
-  "brier_score_after_calibration": 0.1573
+  "model_artifact_size_bytes": 199612,
+  "model_artifact_size_kb": 194.93,
+  "brier_score_before_calibration": 0.1592,
+  "brier_score_after_calibration": 0.1551
 }

@@ -1,10 +1,10 @@
 {
-  "delta_generated_at": "2026-11-10T12:51:27.450176+00:00",
+  "delta_generated_at": "2026-11-10T13:00:11.890263+00:00",
   "baseline_present": true,
   "old_sample_count": 400,
   "new_sample_count": 400,
   "old_model_sha256": "32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c",
-  "new_model_sha256": "32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c",
+  "new_model_sha256": "143f6749f219ed815a337f123e5e6462af46b637e5b3fdb54d6e2a1cfbe3eef0",
   "tolerances": {
     "onnx_probability": 1e-06,
     "heuristic_score": 0.0001,
@@ -19,43 +19,3452 @@
     "changed_labels": [],
     "changed_text_hashes": []
   },
-  "verdict_changes": [],
-  "onnx_probability_changes": [],
+  "verdict_changes": [
+    {
+      "sample_id": 66,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4239,
+      "new_composite_score": 0.3777
+    },
+    {
+      "sample_id": 67,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4455,
+      "new_composite_score": 0.1229
+    },
+    {
+      "sample_id": 82,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4174,
+      "new_composite_score": 0.0543
+    },
+    {
+      "sample_id": 86,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.687,
+      "new_composite_score": 0.1506
+    },
+    {
+      "sample_id": 87,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4001,
+      "new_composite_score": 0.0746
+    },
+    {
+      "sample_id": 89,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.6495,
+      "new_composite_score": 0.1282
+    },
+    {
+      "sample_id": 93,
+      "old_verdict": "BLOCK",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.8591,
+      "new_composite_score": 0.2024
+    },
+    {
+      "sample_id": 94,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4633,
+      "new_composite_score": 0.0852
+    },
+    {
+      "sample_id": 95,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4201,
+      "new_composite_score": 0.2543
+    },
+    {
+      "sample_id": 98,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.5012,
+      "new_composite_score": 0.2567
+    },
+    {
+      "sample_id": 101,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4325,
+      "new_composite_score": 0.3637
+    },
+    {
+      "sample_id": 104,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4685,
+      "new_composite_score": 0.3701
+    },
+    {
+      "sample_id": 134,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.427,
+      "new_composite_score": 0.3596
+    },
+    {
+      "sample_id": 138,
+      "old_verdict": "ALLOW",
+      "new_verdict": "FLAG",
+      "old_composite_score": 0.3923,
+      "new_composite_score": 0.4043
+    },
+    {
+      "sample_id": 150,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4569,
+      "new_composite_score": 0.3522
+    },
+    {
+      "sample_id": 151,
+      "old_verdict": "ALLOW",
+      "new_verdict": "FLAG",
+      "old_composite_score": 0.3767,
+      "new_composite_score": 0.4483
+    },
+    {
+      "sample_id": 157,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4315,
+      "new_composite_score": 0.3456
+    },
+    {
+      "sample_id": 163,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.5483,
+      "new_composite_score": 0.3029
+    },
+    {
+      "sample_id": 171,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4383,
+      "new_composite_score": 0.3428
+    },
+    {
+      "sample_id": 179,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4939,
+      "new_composite_score": 0.2137
+    },
+    {
+      "sample_id": 185,
+      "old_verdict": "FLAG",
+      "new_verdict": "ALLOW",
+      "old_composite_score": 0.4238,
+      "new_composite_score": 0.3965
+    },
+    {
+      "sample_id": 292,
+      "old_verdict": "BLOCK",
+      "new_verdict": "FLAG",
+      "old_composite_score": 0.761,
+      "new_composite_score": 0.7472
+    },
+    {
+      "sample_id": 353,
+      "old_verdict": "FLAG",
+      "new_verdict": "BLOCK",
+      "old_composite_score": 0.7445,
+      "new_composite_score": 0.7576
+    },
+    {
+      "sample_id": 356,
+      "old_verdict": "BLOCK",
+      "new_verdict": "FLAG",
+      "old_composite_score": 0.7519,
+      "new_composite_score": 0.7452
+    },
+    {
+      "sample_id": 358,
+      "old_verdict": "FLAG",
+      "new_verdict": "BLOCK",
+      "old_composite_score": 0.7445,
+      "new_composite_score": 0.7576
+    }
+  ],
+  "onnx_probability_changes": [
+    {
+      "sample_id": 0,
+      "old_probability": 0.0059201475,
+      "new_probability": 0.0066922009,
+      "abs_diff": 0.0007720534
+    },
+    {
+      "sample_id": 1,
+      "old_probability": 0.0053798426,
+      "new_probability": 0.0060470002,
+      "abs_diff": 0.0006671576
+    },
+    {
+      "sample_id": 2,
+      "old_probability": 0.0065179332,
+      "new_probability": 0.0075022057,
+      "abs_diff": 0.0009842725
+    },
+    {
+      "sample_id": 3,
+      "old_probability": 0.0065536527,
+      "new_probability": 0.0075373463,
+      "abs_diff": 0.0009836936
+    },
+    {
+      "sample_id": 4,
+      "old_probability": 0.0058565554,
+      "new_probability": 0.0053215506,
+      "abs_diff": 0.0005350048
+    },
+    {
+      "sample_id": 5,
+      "old_probability": 0.003576149,
+      "new_probability": 0.0044654822,
+      "abs_diff": 0.0008893332
+    },
+    {
+      "sample_id": 6,
+      "old_probability": 0.0023893127,
+      "new_probability": 0.0039213197,
+      "abs_diff": 0.001532007
+    },
+    {
+      "sample_id": 7,
+      "old_probability": 0.0039543365,
+      "new_probability": 0.0044707479,
+      "abs_diff": 0.0005164114
+    },
+    {
+      "sample_id": 8,
+      "old_probability": 0.00248174,
+      "new_probability": 0.0037837061,
+      "abs_diff": 0.0013019661
+    },
+    {
+      "sample_id": 9,
+      "old_probability": 0.0039543365,
+      "new_probability": 0.0044707479,
+      "abs_diff": 0.0005164114
+    },
+    {
+      "sample_id": 10,
+      "old_probability": 0.0052842093,
+      "new_probability": 0.0059013804,
+      "abs_diff": 0.0006171711
+    },
+    {
+      "sample_id": 11,
+      "old_probability": 0.0046878792,
+      "new_probability": 0.005243917,
+      "abs_diff": 0.0005560378
+    },
+    {
+      "sample_id": 12,
+      "old_probability": 0.005669151,
+      "new_probability": 0.006504362,
+      "abs_diff": 0.000835211
+    },
+    {
+      "sample_id": 13,
+      "old_probability": 0.0057026921,
+      "new_probability": 0.0065376176,
+      "abs_diff": 0.0008349255
+    },
+    {
+      "sample_id": 14,
+      "old_probability": 0.0051436322,
+      "new_probability": 0.0045012929,
+      "abs_diff": 0.0006423393
+    },
+    {
+      "sample_id": 15,
+      "old_probability": 0.003302081,
+      "new_probability": 0.0041361772,
+      "abs_diff": 0.0008340962
+    },
+    {
+      "sample_id": 16,
+      "old_probability": 0.0023893127,
+      "new_probability": 0.0039213197,
+      "abs_diff": 0.001532007
+    },
+    {
+      "sample_id": 17,
+      "old_probability": 0.0039543365,
+      "new_probability": 0.0044707479,
+      "abs_diff": 0.0005164114
+    },
+    {
+      "sample_id": 18,
+      "old_probability": 0.00248174,
+      "new_probability": 0.0037837061,
+      "abs_diff": 0.0013019661
+    },
+    {
+      "sample_id": 19,
+      "old_probability": 0.0039543365,
+      "new_probability": 0.0044707479,
+      "abs_diff": 0.0005164114
+    },
+    {
+      "sample_id": 20,
+      "old_probability": 0.0052842093,
+      "new_probability": 0.0059013804,
+      "abs_diff": 0.0006171711
+    },
+    {
+      "sample_id": 21,
+      "old_probability": 0.0046878792,
+      "new_probability": 0.005243917,
+      "abs_diff": 0.0005560378
+    },
+    {
+      "sample_id": 22,
+      "old_probability": 0.005669151,
+      "new_probability": 0.006504362,
+      "abs_diff": 0.000835211
+    },
+    {
+      "sample_id": 23,
+      "old_probability": 0.0057026921,
+      "new_probability": 0.0065376176,
+      "abs_diff": 0.0008349255
+    },
+    {
+      "sample_id": 24,
+      "old_probability": 0.0051436322,
+      "new_probability": 0.0045012929,
+      "abs_diff": 0.0006423393
+    },
+    {
+      "sample_id": 25,
+      "old_probability": 0.0888182446,
+      "new_probability": 0.1351863891,
+      "abs_diff": 0.0463681445
+    },
+    {
+      "sample_id": 26,
+      "old_probability": 0.5040546656,
+      "new_probability": 0.4211274087,
+      "abs_diff": 0.0829272569
+    },
+    {
+      "sample_id": 27,
+      "old_probability": 0.4328042567,
+      "new_probability": 0.4226369262,
+      "abs_diff": 0.0101673305
+    },
+    {
+      "sample_id": 28,
+      "old_probability": 0.015405966,
+      "new_probability": 0.0170246623,
+      "abs_diff": 0.0016186963
+    },
+    {
+      "sample_id": 29,
+      "old_probability": 0.0463142805,
+      "new_probability": 0.0378387123,
+      "abs_diff": 0.0084755682
+    },
+    {
+      "sample_id": 30,
+      "old_probability": 0.0694544837,
+      "new_probability": 0.0647172481,
+      "abs_diff": 0.0047372356
+    },
+    {
+      "sample_id": 31,
+      "old_probability": 0.2859873176,
+      "new_probability": 0.2119280994,
+      "abs_diff": 0.0740592182
+    },
+    {
+      "sample_id": 32,
+      "old_probability": 0.0674679503,
+      "new_probability": 0.0460087582,
+      "abs_diff": 0.0214591921
+    },
+    {
+      "sample_id": 33,
+      "old_probability": 0.0242164396,
+      "new_probability": 0.0313018784,
+      "abs_diff": 0.0070854388
+    },
+    {
+      "sample_id": 34,
+      "old_probability": 0.0721957907,
+      "new_probability": 0.0615194924,
+      "abs_diff": 0.0106762983
+    },
+    {
+      "sample_id": 35,
+      "old_probability": 0.0099826232,
+      "new_probability": 0.0084875654,
+      "abs_diff": 0.0014950578
+    },
+    {
+      "sample_id": 36,
+      "old_probability": 0.2620346248,
+      "new_probability": 0.2859593332,
+      "abs_diff": 0.0239247084
+    },
+    {
+      "sample_id": 37,
+      "old_probability": 0.1398487091,
+      "new_probability": 0.1625399143,
+      "abs_diff": 0.0226912052
+    },
+    {
+      "sample_id": 38,
+      "old_probability": 0.0333408415,
+      "new_probability": 0.0341922157,
+      "abs_diff": 0.0008513742
+    },
+    {
+      "sample_id": 39,
+      "old_probability": 0.020627683,
+      "new_probability": 0.0266726762,
+      "abs_diff": 0.0060449932
+    },
+    {
+      "sample_id": 40,
+      "old_probability": 0.1745600849,
+      "new_probability": 0.163387388,
+      "abs_diff": 0.0111726969
+    },
+    {
+      "sample_id": 41,
+      "old_probability": 0.108315751,
+      "new_probability": 0.1037461385,
+      "abs_diff": 0.0045696125
+    },
+    {
+      "sample_id": 42,
+      "old_probability": 0.1491173804,
+      "new_probability": 0.1370021403,
+      "abs_diff": 0.0121152401
+    },
+    {
+      "sample_id": 43,
+      "old_probability": 0.0420932248,
+      "new_probability": 0.0709602386,
+      "abs_diff": 0.0288670138
+    },
+    {
+      "sample_id": 44,
+      "old_probability": 0.0861341879,
+      "new_probability": 0.0639823154,
+      "abs_diff": 0.0221518725
+    },
+    {
+      "sample_id": 45,
+      "old_probability": 0.1374651343,
+      "new_probability": 0.1543634832,
+      "abs_diff": 0.0168983489
+    },
+    {
+      "sample_id": 46,
+      "old_probability": 0.0549450107,
+      "new_probability": 0.0366804674,
+      "abs_diff": 0.0182645433
+    },
+    {
+      "sample_id": 47,
+      "old_probability": 0.1598255336,
+      "new_probability": 0.1790179312,
+      "abs_diff": 0.0191923976
+    },
+    {
+      "sample_id": 48,
+      "old_probability": 0.4702087343,
+      "new_probability": 0.4487312734,
+      "abs_diff": 0.0214774609
+    },
+    {
+      "sample_id": 49,
+      "old_probability": 0.0236239024,
+      "new_probability": 0.0253426135,
+      "abs_diff": 0.0017187111
+    },
+    {
+      "sample_id": 50,
+      "old_probability": 0.0611164346,
+      "new_probability": 0.0624432191,
+      "abs_diff": 0.0013267845
+    },
+    {
+      "sample_id": 51,
+      "old_probability": 0.1804901063,
+      "new_probability": 0.1890616715,
+      "abs_diff": 0.0085715652
+    },
+    {
+      "sample_id": 52,
+      "old_probability": 0.0021784711,
+      "new_probability": 0.0034639477,
+      "abs_diff": 0.0012854766
+    },
+    {
+      "sample_id": 53,
+      "old_probability": 0.0676827133,
+      "new_probability": 0.0686841309,
+      "abs_diff": 0.0010014176
+    },
+    {
+      "sample_id": 54,
+      "old_probability": 0.0843517333,
+      "new_probability": 0.0804683119,
+      "abs_diff": 0.0038834214
+    },
+    {
+      "sample_id": 55,
+      "old_probability": 0.0114542292,
+      "new_probability": 0.0138100581,
+      "abs_diff": 0.0023558289
+    },
+    {
+      "sample_id": 56,
+      "old_probability": 0.0905284956,
+      "new_probability": 0.079281643,
+      "abs_diff": 0.0112468526
+    },
+    {
+      "sample_id": 57,
+      "old_probability": 0.0005615528,
+      "new_probability": 0.0011613446,
+      "abs_diff": 0.0005997918
+    },
+    {
+      "sample_id": 58,
+      "old_probability": 0.0190190226,
+      "new_probability": 0.0185248516,
+      "abs_diff": 0.000494171
+    },
+    {
+      "sample_id": 59,
+      "old_probability": 0.02689448,
+      "new_probability": 0.030675197,
+      "abs_diff": 0.003780717
+    },
+    {
+      "sample_id": 60,
+      "old_probability": 0.053038992,
+      "new_probability": 0.0667913258,
+      "abs_diff": 0.0137523338
+    },
+    {
+      "sample_id": 61,
+      "old_probability": 0.0573489442,
+      "new_probability": 0.0610518642,
+      "abs_diff": 0.00370292
+    },
+    {
+      "sample_id": 62,
+      "old_probability": 0.0206655953,
+      "new_probability": 0.0180484504,
+      "abs_diff": 0.0026171449
+    },
+    {
+      "sample_id": 63,
+      "old_probability": 0.0432815477,
+      "new_probability": 0.0452899858,
+      "abs_diff": 0.0020084381
+    },
+    {
+      "sample_id": 64,
+      "old_probability": 0.1509344131,
+      "new_probability": 0.1743485779,
+      "abs_diff": 0.0234141648
+    },
+    {
+      "sample_id": 65,
+      "old_probability": 0.0219637249,
+      "new_probability": 0.0235397108,
+      "abs_diff": 0.0015759859
+    },
+    {
+      "sample_id": 66,
+      "old_probability": 0.4239066243,
+      "new_probability": 0.377684474,
+      "abs_diff": 0.0462221503
+    },
+    {
+      "sample_id": 67,
+      "old_probability": 0.4455109537,
+      "new_probability": 0.1229428202,
+      "abs_diff": 0.3225681335
+    },
+    {
+      "sample_id": 68,
+      "old_probability": 0.1167991608,
+      "new_probability": 0.1099942923,
+      "abs_diff": 0.0068048685
+    },
+    {
+      "sample_id": 69,
+      "old_probability": 0.3599970043,
+      "new_probability": 0.3306171894,
+      "abs_diff": 0.0293798149
+    },
+    {
+      "sample_id": 70,
+      "old_probability": 0.3224950433,
+      "new_probability": 0.3186251223,
+      "abs_diff": 0.003869921
+    },
+    {
+      "sample_id": 71,
+      "old_probability": 0.1139598638,
+      "new_probability": 0.1030730456,
+      "abs_diff": 0.0108868182
+    },
+    {
+      "sample_id": 72,
+      "old_probability": 0.1136580706,
+      "new_probability": 0.0983462557,
+      "abs_diff": 0.0153118149
+    },
+    {
+      "sample_id": 73,
+      "old_probability": 0.0954479426,
+      "new_probability": 0.0861421973,
+      "abs_diff": 0.0093057453
+    },
+    {
+      "sample_id": 74,
+      "old_probability": 0.0955246091,
+      "new_probability": 0.0729297101,
+      "abs_diff": 0.022594899
+    },
+    {
+      "sample_id": 75,
+      "old_probability": 0.1932287812,
+      "new_probability": 0.0920002908,
+      "abs_diff": 0.1012284904
+    },
+    {
+      "sample_id": 76,
+      "old_probability": 0.0814345703,
+      "new_probability": 0.0763916299,
+      "abs_diff": 0.0050429404
+    },
+    {
+      "sample_id": 77,
+      "old_probability": 0.1800166667,
+      "new_probability": 0.1370885521,
+      "abs_diff": 0.0429281146
+    },
+    {
+      "sample_id": 78,
+      "old_probability": 0.0478837714,
+      "new_probability": 0.0340780355,
+      "abs_diff": 0.0138057359
+    },
+    {
+      "sample_id": 79,
+      "old_probability": 0.0401473455,
+      "new_probability": 0.0264889449,
+      "abs_diff": 0.0136584006
+    },
+    {
+      "sample_id": 80,
+      "old_probability": 0.0974117145,
+      "new_probability": 0.0321471542,
+      "abs_diff": 0.0652645603
+    },
+    {
+      "sample_id": 81,
+      "old_probability": 0.0453650765,
+      "new_probability": 0.0326270908,
+      "abs_diff": 0.0127379857
+    },
+    {
+      "sample_id": 82,
+      "old_probability": 0.41741243,
+      "new_probability": 0.0542903729,
+      "abs_diff": 0.3631220571
+    },
+    {
+      "sample_id": 83,
+      "old_probability": 0.2703568637,
+      "new_probability": 0.1566038132,
+      "abs_diff": 0.1137530505
+    },
+    {
+      "sample_id": 84,
+      "old_probability": 0.1562509835,
+      "new_probability": 0.0819752961,
+      "abs_diff": 0.0742756874
+    },
+    {
+      "sample_id": 85,
+      "old_probability": 0.2253613472,
+      "new_probability": 0.1129978523,
+      "abs_diff": 0.1123634949
+    },
+    {
+      "sample_id": 86,
+      "old_probability": 0.6869883537,
+      "new_probability": 0.1506482214,
+      "abs_diff": 0.5363401323
+    },
+    {
+      "sample_id": 87,
+      "old_probability": 0.4000730515,
+      "new_probability": 0.0746088997,
+      "abs_diff": 0.3254641518
+    },
+    {
+      "sample_id": 88,
+      "old_probability": 0.01282488,
+      "new_probability": 0.0168867819,
+      "abs_diff": 0.0040619019
+    },
+    {
+      "sample_id": 89,
+      "old_probability": 0.6494811177,
+      "new_probability": 0.1281527579,
+      "abs_diff": 0.5213283598
+    },
+    {
+      "sample_id": 90,
+      "old_probability": 0.262250632,
+      "new_probability": 0.1185002699,
+      "abs_diff": 0.1437503621
+    },
+    {
+      "sample_id": 91,
+      "old_probability": 0.016175868,
+      "new_probability": 0.0155578805,
+      "abs_diff": 0.0006179875
+    },
+    {
+      "sample_id": 92,
+      "old_probability": 0.0980634913,
+      "new_probability": 0.0748575553,
+      "abs_diff": 0.023205936
+    },
+    {
+      "sample_id": 93,
+      "old_probability": 0.8590555191,
+      "new_probability": 0.2024078667,
+      "abs_diff": 0.6566476524
+    },
+    {
+      "sample_id": 94,
+      "old_probability": 0.4632512629,
+      "new_probability": 0.0852314383,
+      "abs_diff": 0.3780198246
+    },
+    {
+      "sample_id": 95,
+      "old_probability": 0.4200534821,
+      "new_probability": 0.2543184161,
+      "abs_diff": 0.165735066
+    },
+    {
+      "sample_id": 96,
+      "old_probability": 0.077932775,
+      "new_probability": 0.0415491164,
+      "abs_diff": 0.0363836586
+    },
+    {
+      "sample_id": 97,
+      "old_probability": 0.7038408518,
+      "new_probability": 0.5407222509,
+      "abs_diff": 0.1631186009
+    },
+    {
+      "sample_id": 98,
+      "old_probability": 0.501234293,
+      "new_probability": 0.2566680014,
+      "abs_diff": 0.2445662916
+    },
+    {
+      "sample_id": 99,
+      "old_probability": 0.0106011424,
+      "new_probability": 0.0073961383,
+      "abs_diff": 0.0032050041
+    },
+    {
+      "sample_id": 100,
+      "old_probability": 0.0823188052,
+      "new_probability": 0.0784532055,
+      "abs_diff": 0.0038655997
+    },
+    {
+      "sample_id": 101,
+      "old_probability": 0.3913955688,
+      "new_probability": 0.3299170136,
+      "abs_diff": 0.0614785552
+    },
+    {
+      "sample_id": 102,
+      "old_probability": 0.0637765229,
+      "new_probability": 0.0564931817,
+      "abs_diff": 0.0072833412
+    },
+    {
+      "sample_id": 103,
+      "old_probability": 0.6808944941,
+      "new_probability": 0.655590415,
+      "abs_diff": 0.0253040791
+    },
+    {
+      "sample_id": 104,
+      "old_probability": 0.4285203516,
+      "new_probability": 0.3355415463,
+      "abs_diff": 0.0929788053
+    },
+    {
+      "sample_id": 105,
+      "old_probability": 0.1208914146,
+      "new_probability": 0.1087213308,
+      "abs_diff": 0.0121700838
+    },
+    {
+      "sample_id": 106,
+      "old_probability": 0.0124977082,
+      "new_probability": 0.0140486266,
+      "abs_diff": 0.0015509184
+    },
+    {
+      "sample_id": 107,
+      "old_probability": 0.0278442763,
+      "new_probability": 0.0290760808,
+      "abs_diff": 0.0012318045
+    },
+    {
+      "sample_id": 108,
+      "old_probability": 0.0417548791,
+      "new_probability": 0.0209427234,
+      "abs_diff": 0.0208121557
+    },
+    {
+      "sample_id": 109,
+      "old_probability": 0.0748810098,
+      "new_probability": 0.0919822901,
+      "abs_diff": 0.0171012803
+    },
+    {
+      "sample_id": 110,
+      "old_probability": 0.1025068313,
+      "new_probability": 0.1289460361,
+      "abs_diff": 0.0264392048
+    },
+    {
+      "sample_id": 111,
+      "old_probability": 0.3482846916,
+      "new_probability": 0.3058959544,
+      "abs_diff": 0.0423887372
+    },
+    {
+      "sample_id": 112,
+      "old_probability": 0.125066638,
+      "new_probability": 0.1196090207,
+      "abs_diff": 0.0054576173
+    },
+    {
+      "sample_id": 113,
+      "old_probability": 0.1192088574,
+      "new_probability": 0.1121346503,
+      "abs_diff": 0.0070742071
+    },
+    {
+      "sample_id": 114,
+      "old_probability": 0.4128335118,
+      "new_probability": 0.3706904948,
+      "abs_diff": 0.042143017
+    },
+    {
+      "sample_id": 115,
+      "old_probability": 0.0717860684,
+      "new_probability": 0.0786491111,
+      "abs_diff": 0.0068630427
+    },
+    {
+      "sample_id": 116,
+      "old_probability": 0.010461824,
+      "new_probability": 0.0149971126,
+      "abs_diff": 0.0045352886
+    },
+    {
+      "sample_id": 117,
+      "old_probability": 0.018278569,
+      "new_probability": 0.0178301521,
+      "abs_diff": 0.0004484169
+    },
+    {
+      "sample_id": 118,
+      "old_probability": 0.4241456389,
+      "new_probability": 0.3847617507,
+      "abs_diff": 0.0393838882
+    },
+    {
+      "sample_id": 119,
+      "old_probability": 0.5463286042,
+      "new_probability": 0.5066210032,
+      "abs_diff": 0.039707601
+    },
+    {
+      "sample_id": 120,
+      "old_probability": 0.0649661943,
+      "new_probability": 0.0535123944,
+      "abs_diff": 0.0114537999
+    },
+    {
+      "sample_id": 121,
+      "old_probability": 0.0482465401,
+      "new_probability": 0.0484013073,
+      "abs_diff": 0.0001547672
+    },
+    {
+      "sample_id": 122,
+      "old_probability": 0.6382357478,
+      "new_probability": 0.5792779922,
+      "abs_diff": 0.0589577556
+    },
+    {
+      "sample_id": 123,
+      "old_probability": 0.0775672123,
+      "new_probability": 0.0724970177,
+      "abs_diff": 0.0050701946
+    },
+    {
+      "sample_id": 124,
+      "old_probability": 0.0671844929,
+      "new_probability": 0.0833917633,
+      "abs_diff": 0.0162072704
+    },
+    {
+      "sample_id": 125,
+      "old_probability": 0.0014642999,
+      "new_probability": 0.0025332787,
+      "abs_diff": 0.0010689788
+    },
+    {
+      "sample_id": 126,
+      "old_probability": 0.010600049,
+      "new_probability": 0.0147908237,
+      "abs_diff": 0.0041907747
+    },
+    {
+      "sample_id": 127,
+      "old_probability": 0.0023604571,
+      "new_probability": 0.0041590356,
+      "abs_diff": 0.0017985785
+    },
+    {
+      "sample_id": 128,
+      "old_probability": 0.0650133118,
+      "new_probability": 0.0618129186,
+      "abs_diff": 0.0032003932
+    },
+    {
+      "sample_id": 129,
+      "old_probability": 0.0039141709,
+      "new_probability": 0.0064614541,
+      "abs_diff": 0.0025472832
+    },
+    {
+      "sample_id": 130,
+      "old_probability": 0.007771811,
+      "new_probability": 0.0119095054,
+      "abs_diff": 0.0041376944
+    },
+    {
+      "sample_id": 131,
+      "old_probability": 0.0348325521,
+      "new_probability": 0.0323929638,
+      "abs_diff": 0.0024395883
+    },
+    {
+      "sample_id": 132,
+      "old_probability": 0.1099185124,
+      "new_probability": 0.1015553921,
+      "abs_diff": 0.0083631203
+    },
+    {
+      "sample_id": 133,
+      "old_probability": 0.0101086749,
+      "new_probability": 0.0076719346,
+      "abs_diff": 0.0024367403
+    },
+    {
+      "sample_id": 134,
+      "old_probability": 0.4270193577,
+      "new_probability": 0.3595516682,
+      "abs_diff": 0.0674676895
+    },
+    {
+      "sample_id": 135,
+      "old_probability": 0.2165216953,
+      "new_probability": 0.1780920029,
+      "abs_diff": 0.0384296924
+    },
+    {
+      "sample_id": 136,
+      "old_probability": 0.0322212763,
+      "new_probability": 0.0343092158,
+      "abs_diff": 0.0020879395
+    },
+    {
+      "sample_id": 137,
+      "old_probability": 0.0103745665,
+      "new_probability": 0.0135230077,
+      "abs_diff": 0.0031484412
+    },
+    {
+      "sample_id": 138,
+      "old_probability": 0.3922600448,
+      "new_probability": 0.4042676389,
+      "abs_diff": 0.0120075941
+    },
+    {
+      "sample_id": 139,
+      "old_probability": 0.5170930624,
+      "new_probability": 0.4825657904,
+      "abs_diff": 0.034527272
+    },
+    {
+      "sample_id": 140,
+      "old_probability": 0.0682865307,
+      "new_probability": 0.0830359086,
+      "abs_diff": 0.0147493779
+    },
+    {
+      "sample_id": 141,
+      "old_probability": 0.035331212,
+      "new_probability": 0.035574168,
+      "abs_diff": 0.000242956
+    },
+    {
+      "sample_id": 142,
+      "old_probability": 0.0322870016,
+      "new_probability": 0.0454570726,
+      "abs_diff": 0.013170071
+    },
+    {
+      "sample_id": 143,
+      "old_probability": 0.0025539864,
+      "new_probability": 0.0044846041,
+      "abs_diff": 0.0019306177
+    },
+    {
+      "sample_id": 144,
+      "old_probability": 0.0241243355,
+      "new_probability": 0.0340549871,
+      "abs_diff": 0.0099306516
+    },
+    {
+      "sample_id": 145,
+      "old_probability": 0.0929374844,
+      "new_probability": 0.0881695598,
+      "abs_diff": 0.0047679246
+    },
+    {
+      "sample_id": 146,
+      "old_probability": 0.0857453346,
+      "new_probability": 0.0579513498,
+      "abs_diff": 0.0277939848
+    },
+    {
+      "sample_id": 147,
+      "old_probability": 0.224473834,
+      "new_probability": 0.2126519233,
+      "abs_diff": 0.0118219107
+    },
+    {
+      "sample_id": 148,
+      "old_probability": 0.039115943,
+      "new_probability": 0.043188367,
+      "abs_diff": 0.004072424
+    },
+    {
+      "sample_id": 149,
+      "old_probability": 0.1525188833,
+      "new_probability": 0.1531857699,
+      "abs_diff": 0.0006668866
+    },
+    {
+      "sample_id": 150,
+      "old_probability": 0.456911236,
+      "new_probability": 0.3522352278,
+      "abs_diff": 0.1046760082
+    },
+    {
+      "sample_id": 151,
+      "old_probability": 0.3767413497,
+      "new_probability": 0.4482668936,
+      "abs_diff": 0.0715255439
+    },
+    {
+      "sample_id": 152,
+      "old_probability": 0.2466957122,
+      "new_probability": 0.1448771805,
+      "abs_diff": 0.1018185317
+    },
+    {
+      "sample_id": 153,
+      "old_probability": 0.1090446487,
+      "new_probability": 0.1030361876,
+      "abs_diff": 0.0060084611
+    },
+    {
+      "sample_id": 154,
+      "old_probability": 0.7147749066,
+      "new_probability": 0.6002544165,
+      "abs_diff": 0.1145204901
+    },
+    {
+      "sample_id": 155,
+      "old_probability": 0.0669647604,
+      "new_probability": 0.0647778437,
+      "abs_diff": 0.0021869167
+    },
+    {
+      "sample_id": 156,
+      "old_probability": 0.0310188029,
+      "new_probability": 0.0369356535,
+      "abs_diff": 0.0059168506
+    },
+    {
+      "sample_id": 157,
+      "old_probability": 0.4314877391,
+      "new_probability": 0.3456431329,
+      "abs_diff": 0.0858446062
+    },
+    {
+      "sample_id": 158,
+      "old_probability": 0.0520393252,
+      "new_probability": 0.0308851097,
+      "abs_diff": 0.0211542155
+    },
+    {
+      "sample_id": 159,
+      "old_probability": 0.0744816065,
+      "new_probability": 0.06092887,
+      "abs_diff": 0.0135527365
+    },
+    {
+      "sample_id": 160,
+      "old_probability": 0.0521642752,
+      "new_probability": 0.0343145393,
+      "abs_diff": 0.0178497359
+    },
+    {
+      "sample_id": 161,
+      "old_probability": 0.1087324247,
+      "new_probability": 0.1068206578,
+      "abs_diff": 0.0019117669
+    },
+    {
+      "sample_id": 162,
+      "old_probability": 0.0486377776,
+      "new_probability": 0.0318130553,
+      "abs_diff": 0.0168247223
+    },
+    {
+      "sample_id": 163,
+      "old_probability": 0.5483418703,
+      "new_probability": 0.3029125035,
+      "abs_diff": 0.2454293668
+    },
+    {
+      "sample_id": 164,
+      "old_probability": 0.1972799003,
+      "new_probability": 0.1364424527,
+      "abs_diff": 0.0608374476
+    },
+    {
+      "sample_id": 165,
+      "old_probability": 0.0310515277,
+      "new_probability": 0.019195037,
+      "abs_diff": 0.0118564907
+    },
+    {
+      "sample_id": 166,
+      "old_probability": 0.0845505446,
+      "new_probability": 0.0855581015,
+      "abs_diff": 0.0010075569
+    },
+    {
+      "sample_id": 167,
+      "old_probability": 0.1275560707,
+      "new_probability": 0.0959825963,
+      "abs_diff": 0.0315734744
+    },
+    {
+      "sample_id": 168,
+      "old_probability": 0.7187380195,
+      "new_probability": 0.5926197767,
+      "abs_diff": 0.1261182428
+    },
+    {
+      "sample_id": 169,
+      "old_probability": 0.0134459613,
+      "new_probability": 0.0169853605,
+      "abs_diff": 0.0035393992
+    },
+    {
+      "sample_id": 170,
+      "old_probability": 0.0117479442,
+      "new_probability": 0.0170837585,
+      "abs_diff": 0.0053358143
+    },
+    {
+      "sample_id": 171,
+      "old_probability": 0.4382894635,
+      "new_probability": 0.3428090513,
+      "abs_diff": 0.0954804122
+    },
+    {
+      "sample_id": 172,
+      "old_probability": 0.6955180764,
+      "new_probability": 0.6175032258,
+      "abs_diff": 0.0780148506
+    },
+    {
+      "sample_id": 173,
+      "old_probability": 0.3011282086,
+      "new_probability": 0.281376183,
+      "abs_diff": 0.0197520256
+    },
+    {
+      "sample_id": 174,
+      "old_probability": 0.1687236279,
+      "new_probability": 0.1166374311,
+      "abs_diff": 0.0520861968
+    },
+    {
+      "sample_id": 175,
+      "old_probability": 0.097048834,
+      "new_probability": 0.1013117433,
+      "abs_diff": 0.0042629093
+    },
+    {
+      "sample_id": 176,
+      "old_probability": 0.4503218532,
+      "new_probability": 0.4389756322,
+      "abs_diff": 0.011346221
+    },
+    {
+      "sample_id": 177,
+      "old_probability": 0.1322181821,
+      "new_probability": 0.1407837421,
+      "abs_diff": 0.00856556
+    },
+    {
+      "sample_id": 178,
+      "old_probability": 0.1634559631,
+      "new_probability": 0.1519505382,
+      "abs_diff": 0.0115054249
+    },
+    {
+      "sample_id": 179,
+      "old_probability": 0.4938692451,
+      "new_probability": 0.2137016952,
+      "abs_diff": 0.2801675499
+    },
+    {
+      "sample_id": 180,
+      "old_probability": 0.1585928947,
+      "new_probability": 0.16731821,
+      "abs_diff": 0.0087253153
+    },
+    {
+      "sample_id": 181,
+      "old_probability": 0.2272232026,
+      "new_probability": 0.2118639946,
+      "abs_diff": 0.015359208
+    },
+    {
+      "sample_id": 182,
+      "old_probability": 0.2516860962,
+      "new_probability": 0.2285259068,
+      "abs_diff": 0.0231601894
+    },
+    {
+      "sample_id": 183,
+      "old_probability": 0.6239186525,
+      "new_probability": 0.4704864025,
+      "abs_diff": 0.15343225
+    },
+    {
+      "sample_id": 184,
+      "old_probability": 0.0825464949,
+      "new_probability": 0.0794973224,
+      "abs_diff": 0.0030491725
+    },
+    {
+      "sample_id": 185,
+      "old_probability": 0.4238064885,
+      "new_probability": 0.3964951038,
+      "abs_diff": 0.0273113847
+    },
+    {
+      "sample_id": 186,
+      "old_probability": 0.1153265834,
+      "new_probability": 0.1251867115,
+      "abs_diff": 0.0098601281
+    },
+    {
+      "sample_id": 187,
+      "old_probability": 0.2274991572,
+      "new_probability": 0.2198865861,
+      "abs_diff": 0.0076125711
+    },
+    {
+      "sample_id": 188,
+      "old_probability": 0.4244037569,
+      "new_probability": 0.420786798,
+      "abs_diff": 0.0036169589
+    },
+    {
+      "sample_id": 189,
+      "old_probability": 0.2115567178,
+      "new_probability": 0.1697497368,
+      "abs_diff": 0.041806981
+    },
+    {
+      "sample_id": 190,
+      "old_probability": 0.0288638286,
+      "new_probability": 0.0341078714,
+      "abs_diff": 0.0052440428
+    },
+    {
+      "sample_id": 191,
+      "old_probability": 0.1186617613,
+      "new_probability": 0.0865598395,
+      "abs_diff": 0.0321019218
+    },
+    {
+      "sample_id": 192,
+      "old_probability": 0.1379513741,
+      "new_probability": 0.145816952,
+      "abs_diff": 0.0078655779
+    },
+    {
+      "sample_id": 193,
+      "old_probability": 0.0690298155,
+      "new_probability": 0.0627024621,
+      "abs_diff": 0.0063273534
+    },
+    {
+      "sample_id": 194,
+      "old_probability": 0.158221215,
+      "new_probability": 0.1614056677,
+      "abs_diff": 0.0031844527
+    },
+    {
+      "sample_id": 195,
+      "old_probability": 0.0369822606,
+      "new_probability": 0.0501562171,
+      "abs_diff": 0.0131739565
+    },
+    {
+      "sample_id": 196,
+      "old_probability": 0.1305743009,
+      "new_probability": 0.1511744857,
+      "abs_diff": 0.0206001848
+    },
+    {
+      "sample_id": 197,
+      "old_probability": 0.0518515892,
+      "new_probability": 0.0518143252,
+      "abs_diff": 3.7264e-05
+    },
+    {
+      "sample_id": 198,
+      "old_probability": 0.1684694588,
+      "new_probability": 0.1294743717,
+      "abs_diff": 0.0389950871
+    },
+    {
+      "sample_id": 199,
+      "old_probability": 0.2578615844,
+      "new_probability": 0.2195233554,
+      "abs_diff": 0.038338229
+    },
+    {
+      "sample_id": 200,
+      "old_probability": 0.9745084643,
+      "new_probability": 0.9673895836,
+      "abs_diff": 0.0071188807
+    },
+    {
+      "sample_id": 201,
+      "old_probability": 0.9665981531,
+      "new_probability": 0.9692198634,
+      "abs_diff": 0.0026217103
+    },
+    {
+      "sample_id": 202,
+      "old_probability": 0.950155139,
+      "new_probability": 0.9496763349,
+      "abs_diff": 0.0004788041
+    },
+    {
+      "sample_id": 203,
+      "old_probability": 0.9618627429,
+      "new_probability": 0.9608392715,
+      "abs_diff": 0.0010234714
+    },
+    {
+      "sample_id": 204,
+      "old_probability": 0.9581629038,
+      "new_probability": 0.9553721547,
+      "abs_diff": 0.0027907491
+    },
+    {
+      "sample_id": 205,
+      "old_probability": 0.9151767492,
+      "new_probability": 0.9226581454,
+      "abs_diff": 0.0074813962
+    },
+    {
+      "sample_id": 206,
+      "old_probability": 0.9395319819,
+      "new_probability": 0.9308351278,
+      "abs_diff": 0.0086968541
+    },
+    {
+      "sample_id": 207,
+      "old_probability": 0.9709858894,
+      "new_probability": 0.9739663005,
+      "abs_diff": 0.0029804111
+    },
+    {
+      "sample_id": 208,
+      "old_probability": 0.9518982768,
+      "new_probability": 0.9546167254,
+      "abs_diff": 0.0027184486
+    },
+    {
+      "sample_id": 209,
+      "old_probability": 0.9660310745,
+      "new_probability": 0.9675005078,
+      "abs_diff": 0.0014694333
+    },
+    {
+      "sample_id": 210,
+      "old_probability": 0.9612674713,
+      "new_probability": 0.9606369734,
+      "abs_diff": 0.0006304979
+    },
+    {
+      "sample_id": 211,
+      "old_probability": 0.958594501,
+      "new_probability": 0.9598287344,
+      "abs_diff": 0.0012342334
+    },
+    {
+      "sample_id": 212,
+      "old_probability": 0.9570001364,
+      "new_probability": 0.9447045326,
+      "abs_diff": 0.0122956038
+    },
+    {
+      "sample_id": 213,
+      "old_probability": 0.9668079615,
+      "new_probability": 0.9681569338,
+      "abs_diff": 0.0013489723
+    },
+    {
+      "sample_id": 214,
+      "old_probability": 0.9480313063,
+      "new_probability": 0.9467720985,
+      "abs_diff": 0.0012592078
+    },
+    {
+      "sample_id": 215,
+      "old_probability": 0.9237954021,
+      "new_probability": 0.9304720163,
+      "abs_diff": 0.0066766142
+    },
+    {
+      "sample_id": 216,
+      "old_probability": 0.9192752838,
+      "new_probability": 0.9245849848,
+      "abs_diff": 0.005309701
+    },
+    {
+      "sample_id": 217,
+      "old_probability": 0.9641081095,
+      "new_probability": 0.9657672048,
+      "abs_diff": 0.0016590953
+    },
+    {
+      "sample_id": 218,
+      "old_probability": 0.9665105939,
+      "new_probability": 0.9594219327,
+      "abs_diff": 0.0070886612
+    },
+    {
+      "sample_id": 219,
+      "old_probability": 0.9709858894,
+      "new_probability": 0.9739663005,
+      "abs_diff": 0.0029804111
+    },
+    {
+      "sample_id": 220,
+      "old_probability": 0.9551538229,
+      "new_probability": 0.9558595419,
+      "abs_diff": 0.000705719
+    },
+    {
+      "sample_id": 221,
+      "old_probability": 0.9617751837,
+      "new_probability": 0.9623541832,
+      "abs_diff": 0.0005789995
+    },
+    {
+      "sample_id": 222,
+      "old_probability": 0.9476450682,
+      "new_probability": 0.9470569491,
+      "abs_diff": 0.0005881191
+    },
+    {
+      "sample_id": 223,
+      "old_probability": 0.9590034485,
+      "new_probability": 0.9586938024,
+      "abs_diff": 0.0003096461
+    },
+    {
+      "sample_id": 224,
+      "old_probability": 0.9667995572,
+      "new_probability": 0.955930829,
+      "abs_diff": 0.0108687282
+    },
+    {
+      "sample_id": 225,
+      "old_probability": 0.931505084,
+      "new_probability": 0.942876637,
+      "abs_diff": 0.011371553
+    },
+    {
+      "sample_id": 226,
+      "old_probability": 0.9003347158,
+      "new_probability": 0.9072273374,
+      "abs_diff": 0.0068926216
+    },
+    {
+      "sample_id": 227,
+      "old_probability": 0.9660310745,
+      "new_probability": 0.9675005078,
+      "abs_diff": 0.0014694333
+    },
+    {
+      "sample_id": 228,
+      "old_probability": 0.9582372904,
+      "new_probability": 0.9598022699,
+      "abs_diff": 0.0015649795
+    },
+    {
+      "sample_id": 229,
+      "old_probability": 0.9641081095,
+      "new_probability": 0.9657672048,
+      "abs_diff": 0.0016590953
+    },
+    {
+      "sample_id": 230,
+      "old_probability": 0.9198266268,
+      "new_probability": 0.9244132042,
+      "abs_diff": 0.0045865774
+    },
+    {
+      "sample_id": 231,
+      "old_probability": 0.8849338293,
+      "new_probability": 0.8781935573,
+      "abs_diff": 0.006740272
+    },
+    {
+      "sample_id": 232,
+      "old_probability": 0.8833271861,
+      "new_probability": 0.8857947588,
+      "abs_diff": 0.0024675727
+    },
+    {
+      "sample_id": 233,
+      "old_probability": 0.8971176147,
+      "new_probability": 0.8976098299,
+      "abs_diff": 0.0004922152
+    },
+    {
+      "sample_id": 234,
+      "old_probability": 0.8793552518,
+      "new_probability": 0.877922833,
+      "abs_diff": 0.0014324188
+    },
+    {
+      "sample_id": 235,
+      "old_probability": 0.9123619199,
+      "new_probability": 0.9127427936,
+      "abs_diff": 0.0003808737
+    },
+    {
+      "sample_id": 236,
+      "old_probability": 0.8743263483,
+      "new_probability": 0.8690307736,
+      "abs_diff": 0.0052955747
+    },
+    {
+      "sample_id": 237,
+      "old_probability": 0.9006252289,
+      "new_probability": 0.9064629674,
+      "abs_diff": 0.0058377385
+    },
+    {
+      "sample_id": 238,
+      "old_probability": 0.904263854,
+      "new_probability": 0.9052289724,
+      "abs_diff": 0.0009651184
+    },
+    {
+      "sample_id": 239,
+      "old_probability": 0.8597346544,
+      "new_probability": 0.8536732793,
+      "abs_diff": 0.0060613751
+    },
+    {
+      "sample_id": 240,
+      "old_probability": 0.9019368887,
+      "new_probability": 0.9038293958,
+      "abs_diff": 0.0018925071
+    },
+    {
+      "sample_id": 241,
+      "old_probability": 0.8901463747,
+      "new_probability": 0.8870212436,
+      "abs_diff": 0.0031251311
+    },
+    {
+      "sample_id": 242,
+      "old_probability": 0.9060926437,
+      "new_probability": 0.9115093946,
+      "abs_diff": 0.0054167509
+    },
+    {
+      "sample_id": 243,
+      "old_probability": 0.8930643201,
+      "new_probability": 0.8893808126,
+      "abs_diff": 0.0036835075
+    },
+    {
+      "sample_id": 244,
+      "old_probability": 0.8475750089,
+      "new_probability": 0.8432326317,
+      "abs_diff": 0.0043423772
+    },
+    {
+      "sample_id": 245,
+      "old_probability": 0.9164618254,
+      "new_probability": 0.9212797284,
+      "abs_diff": 0.004817903
+    },
+    {
+      "sample_id": 246,
+      "old_probability": 0.8995804787,
+      "new_probability": 0.8978679776,
+      "abs_diff": 0.0017125011
+    },
+    {
+      "sample_id": 247,
+      "old_probability": 0.8951975107,
+      "new_probability": 0.8959590793,
+      "abs_diff": 0.0007615686
+    },
+    {
+      "sample_id": 248,
+      "old_probability": 0.88215065,
+      "new_probability": 0.8798683882,
+      "abs_diff": 0.0022822618
+    },
+    {
+      "sample_id": 249,
+      "old_probability": 0.866135776,
+      "new_probability": 0.8637362719,
+      "abs_diff": 0.0023995041
+    },
+    {
+      "sample_id": 250,
+      "old_probability": 0.9198266268,
+      "new_probability": 0.9244132042,
+      "abs_diff": 0.0045865774
+    },
+    {
+      "sample_id": 251,
+      "old_probability": 0.8849338293,
+      "new_probability": 0.8781935573,
+      "abs_diff": 0.006740272
+    },
+    {
+      "sample_id": 252,
+      "old_probability": 0.8833271861,
+      "new_probability": 0.8857947588,
+      "abs_diff": 0.0024675727
+    },
+    {
+      "sample_id": 253,
+      "old_probability": 0.8971176147,
+      "new_probability": 0.8976098299,
+      "abs_diff": 0.0004922152
+    },
+    {
+      "sample_id": 254,
+      "old_probability": 0.8793552518,
+      "new_probability": 0.877922833,
+      "abs_diff": 0.0014324188
+    },
+    {
+      "sample_id": 255,
+      "old_probability": 0.9123619199,
+      "new_probability": 0.9127427936,
+      "abs_diff": 0.0003808737
+    },
+    {
+      "sample_id": 256,
+      "old_probability": 0.8743263483,
+      "new_probability": 0.8690307736,
+      "abs_diff": 0.0052955747
+    },
+    {
+      "sample_id": 257,
+      "old_probability": 0.9006252289,
+      "new_probability": 0.9064629674,
+      "abs_diff": 0.0058377385
+    },
+    {
+      "sample_id": 258,
+      "old_probability": 0.904263854,
+      "new_probability": 0.9052289724,
+      "abs_diff": 0.0009651184
+    },
+    {
+      "sample_id": 259,
+      "old_probability": 0.8597346544,
+      "new_probability": 0.8536732793,
+      "abs_diff": 0.0060613751
+    },
+    {
+      "sample_id": 260,
+      "old_probability": 0.794192791,
+      "new_probability": 0.7911791205,
+      "abs_diff": 0.0030136705
+    },
+    {
+      "sample_id": 261,
+      "old_probability": 0.7840510607,
+      "new_probability": 0.7776178122,
+      "abs_diff": 0.0064332485
+    },
+    {
+      "sample_id": 262,
+      "old_probability": 0.8470925093,
+      "new_probability": 0.8442179561,
+      "abs_diff": 0.0028745532
+    },
+    {
+      "sample_id": 263,
+      "old_probability": 0.8466717601,
+      "new_probability": 0.8374959826,
+      "abs_diff": 0.0091757775
+    },
+    {
+      "sample_id": 264,
+      "old_probability": 0.8586985469,
+      "new_probability": 0.8265311122,
+      "abs_diff": 0.0321674347
+    },
+    {
+      "sample_id": 265,
+      "old_probability": 0.794192791,
+      "new_probability": 0.7911791205,
+      "abs_diff": 0.0030136705
+    },
+    {
+      "sample_id": 266,
+      "old_probability": 0.7840510607,
+      "new_probability": 0.7776178122,
+      "abs_diff": 0.0064332485
+    },
+    {
+      "sample_id": 267,
+      "old_probability": 0.8470925093,
+      "new_probability": 0.8442179561,
+      "abs_diff": 0.0028745532
+    },
+    {
+      "sample_id": 268,
+      "old_probability": 0.8466717601,
+      "new_probability": 0.8374959826,
+      "abs_diff": 0.0091757775
+    },
+    {
+      "sample_id": 269,
+      "old_probability": 0.8622686267,
+      "new_probability": 0.827468574,
+      "abs_diff": 0.0348000527
+    },
+    {
+      "sample_id": 270,
+      "old_probability": 0.794192791,
+      "new_probability": 0.7911791205,
+      "abs_diff": 0.0030136705
+    },
+    {
+      "sample_id": 271,
+      "old_probability": 0.7840510607,
+      "new_probability": 0.7776178122,
+      "abs_diff": 0.0064332485
+    },
+    {
+      "sample_id": 272,
+      "old_probability": 0.8470925093,
+      "new_probability": 0.8442179561,
+      "abs_diff": 0.0028745532
+    },
+    {
+      "sample_id": 273,
+      "old_probability": 0.8466717601,
+      "new_probability": 0.8374959826,
+      "abs_diff": 0.0091757775
+    },
+    {
+      "sample_id": 274,
+      "old_probability": 0.8586985469,
+      "new_probability": 0.8265311122,
+      "abs_diff": 0.0321674347
+    },
+    {
+      "sample_id": 275,
+      "old_probability": 0.794192791,
+      "new_probability": 0.7911791205,
+      "abs_diff": 0.0030136705
+    },
+    {
+      "sample_id": 276,
+      "old_probability": 0.7840510607,
+      "new_probability": 0.7776178122,
+      "abs_diff": 0.0064332485
+    },
+    {
+      "sample_id": 277,
+      "old_probability": 0.8470925093,
+      "new_probability": 0.8442179561,
+      "abs_diff": 0.0028745532
+    },
+    {
+      "sample_id": 278,
+      "old_probability": 0.8466717601,
+      "new_probability": 0.8374959826,
+      "abs_diff": 0.0091757775
+    },
+    {
+      "sample_id": 279,
+      "old_probability": 0.8586985469,
+      "new_probability": 0.8265311122,
+      "abs_diff": 0.0321674347
+    },
+    {
+      "sample_id": 280,
+      "old_probability": 0.794192791,
+      "new_probability": 0.7911791205,
+      "abs_diff": 0.0030136705
+    },
+    {
+      "sample_id": 281,
+      "old_probability": 0.7840510607,
+      "new_probability": 0.7776178122,
+      "abs_diff": 0.0064332485
+    },
+    {
+      "sample_id": 282,
+      "old_probability": 0.8470925093,
+      "new_probability": 0.8442179561,
+      "abs_diff": 0.0028745532
+    },
+    {
+      "sample_id": 283,
+      "old_probability": 0.8466717601,
+      "new_probability": 0.8374959826,
+      "abs_diff": 0.0091757775
+    },
+    {
+      "sample_id": 284,
+      "old_probability": 0.8628754616,
+      "new_probability": 0.827709496,
+      "abs_diff": 0.0351659656
+    },
+    {
+      "sample_id": 285,
+      "old_probability": 0.794192791,
+      "new_probability": 0.7911791205,
+      "abs_diff": 0.0030136705
+    },
+    {
+      "sample_id": 286,
+      "old_probability": 0.7840510607,
+      "new_probability": 0.7776178122,
+      "abs_diff": 0.0064332485
+    },
+    {
+      "sample_id": 287,
+      "old_probability": 0.8470925093,
+      "new_probability": 0.8442179561,
+      "abs_diff": 0.0028745532
+    },
+    {
+      "sample_id": 288,
+      "old_probability": 0.8466717601,
+      "new_probability": 0.8374959826,
+      "abs_diff": 0.0091757775
+    },
+    {
+      "sample_id": 289,
+      "old_probability": 0.8586985469,
+      "new_probability": 0.8265311122,
+      "abs_diff": 0.0321674347
+    },
+    {
+      "sample_id": 290,
+      "old_probability": 0.8669292331,
+      "new_probability": 0.853582859,
+      "abs_diff": 0.0133463741
+    },
+    {
+      "sample_id": 291,
+      "old_probability": 0.9209986925,
+      "new_probability": 0.8426898122,
+      "abs_diff": 0.0783088803
+    },
+    {
+      "sample_id": 292,
+      "old_probability": 0.5946216583,
+      "new_probability": 0.571162343,
+      "abs_diff": 0.0234593153
+    },
+    {
+      "sample_id": 293,
+      "old_probability": 0.7695877552,
+      "new_probability": 0.7767642736,
+      "abs_diff": 0.0071765184
+    },
+    {
+      "sample_id": 294,
+      "old_probability": 0.8961342573,
+      "new_probability": 0.8819281459,
+      "abs_diff": 0.0142061114
+    },
+    {
+      "sample_id": 295,
+      "old_probability": 0.8333312869,
+      "new_probability": 0.8159925342,
+      "abs_diff": 0.0173387527
+    },
+    {
+      "sample_id": 296,
+      "old_probability": 0.928863883,
+      "new_probability": 0.8540183306,
+      "abs_diff": 0.0748455524
+    },
+    {
+      "sample_id": 297,
+      "old_probability": 0.6102765203,
+      "new_probability": 0.5881034732,
+      "abs_diff": 0.0221730471
+    },
+    {
+      "sample_id": 298,
+      "old_probability": 0.7759857774,
+      "new_probability": 0.7818409204,
+      "abs_diff": 0.005855143
+    },
+    {
+      "sample_id": 299,
+      "old_probability": 0.8859114647,
+      "new_probability": 0.8707329035,
+      "abs_diff": 0.0151785612
+    },
+    {
+      "sample_id": 300,
+      "old_probability": 0.8465727568,
+      "new_probability": 0.8466815948,
+      "abs_diff": 0.000108838
+    },
+    {
+      "sample_id": 301,
+      "old_probability": 0.9015259743,
+      "new_probability": 0.8159304857,
+      "abs_diff": 0.0855954886
+    },
+    {
+      "sample_id": 302,
+      "old_probability": 0.6242485642,
+      "new_probability": 0.6055207253,
+      "abs_diff": 0.0187278389
+    },
+    {
+      "sample_id": 303,
+      "old_probability": 0.7824086547,
+      "new_probability": 0.7881031036,
+      "abs_diff": 0.0056944489
+    },
+    {
+      "sample_id": 304,
+      "old_probability": 0.8878065944,
+      "new_probability": 0.8723161817,
+      "abs_diff": 0.0154904127
+    },
+    {
+      "sample_id": 305,
+      "old_probability": 0.8854365349,
+      "new_probability": 0.8764485121,
+      "abs_diff": 0.0089880228
+    },
+    {
+      "sample_id": 306,
+      "old_probability": 0.9414598346,
+      "new_probability": 0.8770367503,
+      "abs_diff": 0.0644230843
+    },
+    {
+      "sample_id": 307,
+      "old_probability": 0.6242485642,
+      "new_probability": 0.6055207253,
+      "abs_diff": 0.0187278389
+    },
+    {
+      "sample_id": 308,
+      "old_probability": 0.7824086547,
+      "new_probability": 0.7881031036,
+      "abs_diff": 0.0056944489
+    },
+    {
+      "sample_id": 309,
+      "old_probability": 0.9000522494,
+      "new_probability": 0.885347724,
+      "abs_diff": 0.0147045254
+    },
+    {
+      "sample_id": 310,
+      "old_probability": 0.8538265228,
+      "new_probability": 0.8367683291,
+      "abs_diff": 0.0170581937
+    },
+    {
+      "sample_id": 311,
+      "old_probability": 0.9037703276,
+      "new_probability": 0.8194121122,
+      "abs_diff": 0.0843582154
+    },
+    {
+      "sample_id": 312,
+      "old_probability": 0.6245051026,
+      "new_probability": 0.6002638936,
+      "abs_diff": 0.024241209
+    },
+    {
+      "sample_id": 313,
+      "old_probability": 0.7821632624,
+      "new_probability": 0.7859200835,
+      "abs_diff": 0.0037568211
+    },
+    {
+      "sample_id": 314,
+      "old_probability": 0.8542433977,
+      "new_probability": 0.8405269384,
+      "abs_diff": 0.0137164593
+    },
+    {
+      "sample_id": 315,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 316,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 317,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 318,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 319,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 320,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 321,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 322,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 323,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 324,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 325,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 326,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 327,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 328,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 329,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 330,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 331,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 332,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 333,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 334,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 335,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 336,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 337,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 338,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 339,
+      "old_probability": 0.7360059619,
+      "new_probability": 0.7270827889,
+      "abs_diff": 0.008923173
+    },
+    {
+      "sample_id": 340,
+      "old_probability": 0.6315544844,
+      "new_probability": 0.6617797017,
+      "abs_diff": 0.0302252173
+    },
+    {
+      "sample_id": 341,
+      "old_probability": 0.701772809,
+      "new_probability": 0.6977729201,
+      "abs_diff": 0.0039998889
+    },
+    {
+      "sample_id": 342,
+      "old_probability": 0.9105019569,
+      "new_probability": 0.9118858576,
+      "abs_diff": 0.0013839007
+    },
+    {
+      "sample_id": 343,
+      "old_probability": 0.4681229591,
+      "new_probability": 0.4983782768,
+      "abs_diff": 0.0302553177
+    },
+    {
+      "sample_id": 344,
+      "old_probability": 0.9475120306,
+      "new_probability": 0.9464432001,
+      "abs_diff": 0.0010688305
+    },
+    {
+      "sample_id": 345,
+      "old_probability": 0.4596766531,
+      "new_probability": 0.5185087919,
+      "abs_diff": 0.0588321388
+    },
+    {
+      "sample_id": 346,
+      "old_probability": 0.7088475227,
+      "new_probability": 0.6941665411,
+      "abs_diff": 0.0146809816
+    },
+    {
+      "sample_id": 347,
+      "old_probability": 0.872738719,
+      "new_probability": 0.8703530431,
+      "abs_diff": 0.0023856759
+    },
+    {
+      "sample_id": 348,
+      "old_probability": 0.5231208205,
+      "new_probability": 0.5332905054,
+      "abs_diff": 0.0101696849
+    },
+    {
+      "sample_id": 349,
+      "old_probability": 0.9353567958,
+      "new_probability": 0.9339141846,
+      "abs_diff": 0.0014426112
+    },
+    {
+      "sample_id": 350,
+      "old_probability": 0.5532298684,
+      "new_probability": 0.5892807245,
+      "abs_diff": 0.0360508561
+    },
+    {
+      "sample_id": 351,
+      "old_probability": 0.7035755515,
+      "new_probability": 0.688970983,
+      "abs_diff": 0.0146045685
+    },
+    {
+      "sample_id": 352,
+      "old_probability": 0.8965875506,
+      "new_probability": 0.8930004239,
+      "abs_diff": 0.0035871267
+    },
+    {
+      "sample_id": 353,
+      "old_probability": 0.5665787458,
+      "new_probability": 0.5887325406,
+      "abs_diff": 0.0221537948
+    },
+    {
+      "sample_id": 354,
+      "old_probability": 0.9371806979,
+      "new_probability": 0.9352261424,
+      "abs_diff": 0.0019545555
+    },
+    {
+      "sample_id": 355,
+      "old_probability": 0.5303739309,
+      "new_probability": 0.5645807981,
+      "abs_diff": 0.0342068672
+    },
+    {
+      "sample_id": 356,
+      "old_probability": 0.7281525731,
+      "new_probability": 0.7207275629,
+      "abs_diff": 0.0074250102
+    },
+    {
+      "sample_id": 357,
+      "old_probability": 0.9128451347,
+      "new_probability": 0.9107783437,
+      "abs_diff": 0.002066791
+    },
+    {
+      "sample_id": 358,
+      "old_probability": 0.5665787458,
+      "new_probability": 0.5887325406,
+      "abs_diff": 0.0221537948
+    },
+    {
+      "sample_id": 359,
+      "old_probability": 0.9584153891,
+      "new_probability": 0.9569942355,
+      "abs_diff": 0.0014211536
+    },
+    {
+      "sample_id": 360,
+      "old_probability": 0.5852013826,
+      "new_probability": 0.6301656961,
+      "abs_diff": 0.0449643135
+    },
+    {
+      "sample_id": 361,
+      "old_probability": 0.7088475227,
+      "new_probability": 0.6941665411,
+      "abs_diff": 0.0146809816
+    },
+    {
+      "sample_id": 362,
+      "old_probability": 0.881097436,
+      "new_probability": 0.8764010668,
+      "abs_diff": 0.0046963692
+    },
+    {
+      "sample_id": 363,
+      "old_probability": 0.5406309366,
+      "new_probability": 0.5516082048,
+      "abs_diff": 0.0109772682
+    },
+    {
+      "sample_id": 364,
+      "old_probability": 0.9411194921,
+      "new_probability": 0.9412161708,
+      "abs_diff": 9.66787e-05
+    },
+    {
+      "sample_id": 365,
+      "old_probability": 0.927690804,
+      "new_probability": 0.9160324931,
+      "abs_diff": 0.0116583109
+    },
+    {
+      "sample_id": 366,
+      "old_probability": 0.7515488863,
+      "new_probability": 0.769916594,
+      "abs_diff": 0.0183677077
+    },
+    {
+      "sample_id": 367,
+      "old_probability": 0.9237090945,
+      "new_probability": 0.9305473566,
+      "abs_diff": 0.0068382621
+    },
+    {
+      "sample_id": 368,
+      "old_probability": 0.8548472524,
+      "new_probability": 0.86330235,
+      "abs_diff": 0.0084550976
+    },
+    {
+      "sample_id": 369,
+      "old_probability": 0.637696743,
+      "new_probability": 0.6346138716,
+      "abs_diff": 0.0030828714
+    },
+    {
+      "sample_id": 370,
+      "old_probability": 0.8927618861,
+      "new_probability": 0.8814988136,
+      "abs_diff": 0.0112630725
+    },
+    {
+      "sample_id": 371,
+      "old_probability": 0.7506351471,
+      "new_probability": 0.7585231066,
+      "abs_diff": 0.0078879595
+    },
+    {
+      "sample_id": 372,
+      "old_probability": 0.9098041654,
+      "new_probability": 0.9155164957,
+      "abs_diff": 0.0057123303
+    },
+    {
+      "sample_id": 373,
+      "old_probability": 0.8639392853,
+      "new_probability": 0.8706078529,
+      "abs_diff": 0.0066685676
+    },
+    {
+      "sample_id": 374,
+      "old_probability": 0.6132560968,
+      "new_probability": 0.6081212759,
+      "abs_diff": 0.0051348209
+    },
+    {
+      "sample_id": 375,
+      "old_probability": 0.906874299,
+      "new_probability": 0.8950566053,
+      "abs_diff": 0.0118176937
+    },
+    {
+      "sample_id": 376,
+      "old_probability": 0.7459698915,
+      "new_probability": 0.7543913722,
+      "abs_diff": 0.0084214807
+    },
+    {
+      "sample_id": 377,
+      "old_probability": 0.9230982065,
+      "new_probability": 0.9273132086,
+      "abs_diff": 0.0042150021
+    },
+    {
+      "sample_id": 378,
+      "old_probability": 0.883366704,
+      "new_probability": 0.890909493,
+      "abs_diff": 0.007542789
+    },
+    {
+      "sample_id": 379,
+      "old_probability": 0.6190463305,
+      "new_probability": 0.6132116914,
+      "abs_diff": 0.0058346391
+    },
+    {
+      "sample_id": 380,
+      "old_probability": 0.8998681307,
+      "new_probability": 0.8869155049,
+      "abs_diff": 0.0129526258
+    },
+    {
+      "sample_id": 381,
+      "old_probability": 0.7692090273,
+      "new_probability": 0.7808527946,
+      "abs_diff": 0.0116437673
+    },
+    {
+      "sample_id": 382,
+      "old_probability": 0.9249073267,
+      "new_probability": 0.9300199747,
+      "abs_diff": 0.005112648
+    },
+    {
+      "sample_id": 383,
+      "old_probability": 0.883366704,
+      "new_probability": 0.890909493,
+      "abs_diff": 0.007542789
+    },
+    {
+      "sample_id": 384,
+      "old_probability": 0.6347600818,
+      "new_probability": 0.6308299303,
+      "abs_diff": 0.0039301515
+    },
+    {
+      "sample_id": 385,
+      "old_probability": 0.158329159,
+      "new_probability": 0.2004538029,
+      "abs_diff": 0.0421246439
+    },
+    {
+      "sample_id": 386,
+      "old_probability": 0.7572001219,
+      "new_probability": 0.7552329302,
+      "abs_diff": 0.0019671917
+    },
+    {
+      "sample_id": 387,
+      "old_probability": 0.5339984894,
+      "new_probability": 0.5247324705,
+      "abs_diff": 0.0092660189
+    },
+    {
+      "sample_id": 388,
+      "old_probability": 0.5697971582,
+      "new_probability": 0.5894557238,
+      "abs_diff": 0.0196585656
+    },
+    {
+      "sample_id": 389,
+      "old_probability": 0.158329159,
+      "new_probability": 0.2004538029,
+      "abs_diff": 0.0421246439
+    },
+    {
+      "sample_id": 390,
+      "old_probability": 0.7572001219,
+      "new_probability": 0.7552329302,
+      "abs_diff": 0.0019671917
+    },
+    {
+      "sample_id": 391,
+      "old_probability": 0.5339984894,
+      "new_probability": 0.5247324705,
+      "abs_diff": 0.0092660189
+    },
+    {
+      "sample_id": 392,
+      "old_probability": 0.5697971582,
+      "new_probability": 0.5894557238,
+      "abs_diff": 0.0196585656
+    },
+    {
+      "sample_id": 393,
+      "old_probability": 0.158329159,
+      "new_probability": 0.2004538029,
+      "abs_diff": 0.0421246439
+    },
+    {
+      "sample_id": 394,
+      "old_probability": 0.778234303,
+      "new_probability": 0.7732363939,
+      "abs_diff": 0.0049979091
+    },
+    {
+      "sample_id": 395,
+      "old_probability": 0.5339984894,
+      "new_probability": 0.5247324705,
+      "abs_diff": 0.0092660189
+    },
+    {
+      "sample_id": 396,
+      "old_probability": 0.5697971582,
+      "new_probability": 0.5894557238,
+      "abs_diff": 0.0196585656
+    },
+    {
+      "sample_id": 397,
+      "old_probability": 0.158329159,
+      "new_probability": 0.2004538029,
+      "abs_diff": 0.0421246439
+    },
+    {
+      "sample_id": 398,
+      "old_probability": 0.7572001219,
+      "new_probability": 0.7552329302,
+      "abs_diff": 0.0019671917
+    },
+    {
+      "sample_id": 399,
+      "old_probability": 0.5782364011,
+      "new_probability": 0.5490945578,
+      "abs_diff": 0.0291418433
+    }
+  ],
   "heuristic_score_changes": [],
   "tier_transitions": {
     "ALLOW->FLAG": {
-      "count": 0,
-      "sample_ids": []
+      "count": 2,
+      "sample_ids": [
+        138,
+        151
+      ]
     },
     "ALLOW->BLOCK": {
       "count": 0,
       "sample_ids": []
     },
     "FLAG->ALLOW": {
-      "count": 0,
-      "sample_ids": []
+      "count": 18,
+      "sample_ids": [
+        66,
+        67,
+        82,
+        86,
+        87,
+        89,
+        94,
+        95,
+        98,
+        101,
+        104,
+        134,
+        150,
+        157,
+        163,
+        171,
+        179,
+        185
+      ]
     },
     "FLAG->BLOCK": {
-      "count": 0,
-      "sample_ids": []
+      "count": 2,
+      "sample_ids": [
+        353,
+        358
+      ]
     },
     "BLOCK->FLAG": {
-      "count": 0,
-      "sample_ids": []
+      "count": 2,
+      "sample_ids": [
+        292,
+        356
+      ]
     },
     "BLOCK->ALLOW": {
-      "count": 0,
-      "sample_ids": []
+      "count": 1,
+      "sample_ids": [
+        93
+      ]
     }
   },
   "change_interpretation": {
-    "model_changed": false,
-    "model_retraining_sample_ids": [],
+    "model_changed": true,
+    "model_retraining_sample_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148,
+      149,
+      150,
+      151,
+      152,
+      153,
+      154,
+      155,
+      156,
+      157,
+      158,
+      159,
+      160,
+      161,
+      162,
+      163,
+      164,
+      165,
+      166,
+      167,
+      168,
+      169,
+      170,
+      171,
+      172,
+      173,
+      174,
+      175,
+      176,
+      177,
+      178,
+      179,
+      180,
+      181,
+      182,
+      183,
+      184,
+      185,
+      186,
+      187,
+      188,
+      189,
+      190,
+      191,
+      192,
+      193,
+      194,
+      195,
+      196,
+      197,
+      198,
+      199,
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209,
+      210,
+      211,
+      212,
+      213,
+      214,
+      215,
+      216,
+      217,
+      218,
+      219,
+      220,
+      221,
+      222,
+      223,
+      224,
+      225,
+      226,
+      227,
+      228,
+      229,
+      230,
+      231,
+      232,
+      233,
+      234,
+      235,
+      236,
+      237,
+      238,
+      239,
+      240,
+      241,
+      242,
+      243,
+      244,
+      245,
+      246,
+      247,
+      248,
+      249,
+      250,
+      251,
+      252,
+      253,
+      254,
+      255,
+      256,
+      257,
+      258,
+      259,
+      260,
+      261,
+      262,
+      263,
+      264,
+      265,
+      266,
+      267,
+      268,
+      269,
+      270,
+      271,
+      272,
+      273,
+      274,
+      275,
+      276,
+      277,
+      278,
+      279,
+      280,
+      281,
+      282,
+      283,
+      284,
+      285,
+      286,
+      287,
+      288,
+      289,
+      290,
+      291,
+      292,
+      293,
+      294,
+      295,
+      296,
+      297,
+      298,
+      299,
+      300,
+      301,
+      302,
+      303,
+      304,
+      305,
+      306,
+      307,
+      308,
+      309,
+      310,
+      311,
+      312,
+      313,
+      314,
+      315,
+      316,
+      317,
+      318,
+      319,
+      320,
+      321,
+      322,
+      323,
+      324,
+      325,
+      326,
+      327,
+      328,
+      329,
+      330,
+      331,
+      332,
+      333,
+      334,
+      335,
+      336,
+      337,
+      338,
+      339,
+      340,
+      341,
+      342,
+      343,
+      344,
+      345,
+      346,
+      347,
+      348,
+      349,
+      350,
+      351,
+      352,
+      353,
+      354,
+      355,
+      356,
+      357,
+      358,
+      359,
+      360,
+      361,
+      362,
+      363,
+      364,
+      365,
+      366,
+      367,
+      368,
+      369,
+      370,
+      371,
+      372,
+      373,
+      374,
+      375,
+      376,
+      377,
+      378,
+      379,
+      380,
+      381,
+      382,
+      383,
+      384,
+      385,
+      386,
+      387,
+      388,
+      389,
+      390,
+      391,
+      392,
+      393,
+      394,
+      395,
+      396,
+      397,
+      398,
+      399
+    ],
     "heuristic_modification_sample_ids": [],
     "evaluation_or_numerical_drift_sample_ids": [],
     "below_tolerance_precision_only_count": 0,
-    "review_required_sample_ids": [],
-    "requires_manual_review": false,
+    "review_required_sample_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148,
+      149,
+      150,
+      151,
+      152,
+      153,
+      154,
+      155,
+      156,
+      157,
+      158,
+      159,
+      160,
+      161,
+      162,
+      163,
+      164,
+      165,
+      166,
+      167,
+      168,
+      169,
+      170,
+      171,
+      172,
+      173,
+      174,
+      175,
+      176,
+      177,
+      178,
+      179,
+      180,
+      181,
+      182,
+      183,
+      184,
+      185,
+      186,
+      187,
+      188,
+      189,
+      190,
+      191,
+      192,
+      193,
+      194,
+      195,
+      196,
+      197,
+      198,
+      199,
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209,
+      210,
+      211,
+      212,
+      213,
+      214,
+      215,
+      216,
+      217,
+      218,
+      219,
+      220,
+      221,
+      222,
+      223,
+      224,
+      225,
+      226,
+      227,
+      228,
+      229,
+      230,
+      231,
+      232,
+      233,
+      234,
+      235,
+      236,
+      237,
+      238,
+      239,
+      240,
+      241,
+      242,
+      243,
+      244,
+      245,
+      246,
+      247,
+      248,
+      249,
+      250,
+      251,
+      252,
+      253,
+      254,
+      255,
+      256,
+      257,
+      258,
+      259,
+      260,
+      261,
+      262,
+      263,
+      264,
+      265,
+      266,
+      267,
+      268,
+      269,
+      270,
+      271,
+      272,
+      273,
+      274,
+      275,
+      276,
+      277,
+      278,
+      279,
+      280,
+      281,
+      282,
+      283,
+      284,
+      285,
+      286,
+      287,
+      288,
+      289,
+      290,
+      291,
+      292,
+      293,
+      294,
+      295,
+      296,
+      297,
+      298,
+      299,
+      300,
+      301,
+      302,
+      303,
+      304,
+      305,
+      306,
+      307,
+      308,
+      309,
+      310,
+      311,
+      312,
+      313,
+      314,
+      315,
+      316,
+      317,
+      318,
+      319,
+      320,
+      321,
+      322,
+      323,
+      324,
+      325,
+      326,
+      327,
+      328,
+      329,
+      330,
+      331,
+      332,
+      333,
+      334,
+      335,
+      336,
+      337,
+      338,
+      339,
+      340,
+      341,
+      342,
+      343,
+      344,
+      345,
+      346,
+      347,
+      348,
+      349,
+      350,
+      351,
+      352,
+      353,
+      354,
+      355,
+      356,
+      357,
+      358,
+      359,
+      360,
+      361,
+      362,
+      363,
+      364,
+      365,
+      366,
+      367,
+      368,
+      369,
+      370,
+      371,
+      372,
+      373,
+      374,
+      375,
+      376,
+      377,
+      378,
+      379,
+      380,
+      381,
+      382,
+      383,
+      384,
+      385,
+      386,
+      387,
+      388,
+      389,
+      390,
+      391,
+      392,
+      393,
+      394,
+      395,
+      396,
+      397,
+      398,
+      399
+    ],
+    "requires_manual_review": true,
     "review_policy_note": "All material changes require explicit engineering review; zero changes are auto-classified as harmless or defects."
   }
 }

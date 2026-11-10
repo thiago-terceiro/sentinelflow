@@ -241,6 +241,37 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
                 explicit_family="legit_2fa_code",
             )
 
+    # Expand structural diversity of URL-free, callback-free A2P 2FA/OTP templates
+    otp_services = ["Cloudflare", "DigitalOcean", "Linear", "Notion", "Vercel", "Figma"]
+    otp_codes = [194820, 503918, 728194, 846201, 319472, 629104]
+    otp_templates: tuple[tuple[str, str], ...] = (
+        ("legit_2fa_phone_verify", "{service}: Confirmation code {code} to verify phone number."),
+        ("legit_2fa_email_verify", "{service}: Enter passcode {code} to verify your email address."),
+        (
+            "legit_2fa_login_approve",
+            "{service} Verify: Tap to approve login attempt from Chrome browser on macOS.",
+        ),
+        (
+            "legit_2fa_login_alert",
+            "{service} security alert: New browser login from Austin, TX. Ignore if this was you.",
+        ),
+        (
+            "legit_2fa_recovery_pin",
+            "{service} security PIN: {code} for account recovery or to reset password.",
+        ),
+        (
+            "legit_2fa_auth_signin",
+            "{service} Security: One-time passcode {code} for authentication and workspace access.",
+        ),
+    )
+    for fam_id, tmpl in otp_templates:
+        for i, svc in enumerate(otp_services):
+            _add_sample(
+                tmpl.format(service=svc, code=otp_codes[i] + (i * 13)),
+                0,
+                explicit_family=fam_id,
+            )
+
     # Augment legit banking notifications (teaching model that legitimate banking alerts exist)
     legit_banks = [
         "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One",

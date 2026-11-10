@@ -1491,5 +1491,75 @@ def test_tax_arrest_threat_contrastive_precision() -> None:
     assert per_call_ms < 2.0, f"Heuristic scan latency regression on 1600-char input: {per_call_ms:.3f}ms"
 
 
+def test_otp_2fa_benign_vs_phishing_contrastive() -> None:
+    """Verifies SF-006 URL-free 2FA/OTP precision (0 Tier-2 blocks) vs link/callback 2FA phishing."""
+    from app.telecom.evaluate_model import get_held_out_samples_with_metadata
+
+    engine = get_inference_engine()
+    samples = get_held_out_samples_with_metadata()
+
+    # 1. Sample 93 + contrastive URL-free A2P 2FA/OTP messages -> ALLOW (S < 0.40, H = 0.0)
+    benign_otp_messages = [
+        samples[93]["text"],  # Twitter/X: Confirmation code 918203 to verify phone number.
+        "Cloudflare: Confirmation code 481920 to verify phone number.",
+        "Linear: Enter passcode 739201 to verify your email address.",
+        "Notion Verify: Tap to approve login attempt from Chrome browser on macOS.",
+        "Vercel security alert: New browser login from Seattle, WA. Ignore if this was you.",
+        "Figma security PIN: 618294 for account recovery or to reset password.",
+        "DigitalOcean Security: One-time passcode 904182 for authentication and workspace access.",
+        "Slack: 6-digit confirmation code 519204 to verify your workspace sign-in.",
+    ]
+    for msg in benign_otp_messages:
+        res = engine.predict(msg)
+        assert res.verdict == "ALLOW", (
+            f"Expected ALLOW on benign OTP message, got {res.verdict} (S={res.fraud_score}): {msg}"
+        )
+        assert res.fraud_score < 0.40
+        assert res.heuristic_score == 0.0
+
+    # 2. All 25 benchmark benign_2fa_auth_codes samples (indices 75..99) must have 0 Tier-2 BLOCKs
+    otp_benchmark = samples[75:100]
+    assert len(otp_benchmark) == 25
+    assert all(s["category_id"] == "benign_2fa_auth_codes" for s in otp_benchmark)
+    tier2_otp_blocks = [
+        (idx, engine.predict(sample["text"]))
+        for idx, sample in enumerate(otp_benchmark, start=75)
+        if engine.predict(sample["text"]).verdict == "BLOCK"
+    ]
+    assert tier2_otp_blocks == [], f"Unexpected Tier-2 OTP blocks: {tier2_otp_blocks}"
+
+    # 3. Fraudulent 2FA/OTP phishing lures with malicious URLs or callback numbers -> FLAG / BLOCK
+    phishing_otp_messages = [
+        (
+            "Security code 839201: If you did not request this login, cancel immediately at "
+            "http://auth-cancel-verify.xyz/8392",
+            ("BLOCK",),
+        ),
+        (
+            "Google Security Alert: Call 1-888-555-0199 immediately to block unauthorized "
+            "2FA login attempt.",
+            ("FLAG", "BLOCK"),
+        ),
+        (
+            "Apple ID: Verification code 491028 requested from Russia. Secure account now: "
+            "http://appleid-protect.top/login",
+            ("BLOCK",),
+        ),
+        (
+            "URGENT 2FA Alert: Unauthorized phone number verification attempted. Unlock "
+            "profile at http://bit.ly/sec-2fa-verify",
+            ("BLOCK",),
+        ),
+    ]
+    for msg, allowed_tiers in phishing_otp_messages:
+        res = engine.predict(msg)
+        assert res.verdict in allowed_tiers, (
+            f"Expected {allowed_tiers} on 2FA phishing lure, got {res.verdict} "
+            f"(S={res.fraud_score}): {msg}"
+        )
+        assert res.fraud_score >= 0.40
+
+
+
 
 
