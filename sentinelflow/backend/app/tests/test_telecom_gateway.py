@@ -1423,4 +1423,73 @@ async def test_api_classify_threshold_rounding_and_redis_outage_degraded_matrix(
             await dead_redis_store.close()
 
 
+def test_tax_arrest_threat_contrastive_precision() -> None:
+    """Verifies SF-005 contrastive precision on legal/tax/process text without breaking extortion recall."""
+    import time
+
+    from app.telecom.evaluate_model import get_held_out_samples_with_metadata
+
+    engine = get_inference_engine()
+
+    # 1. Benign conversational/professional legal & tax texts (including Sample 184) -> ALLOW (S < 0.40, H = 0.0)
+    benign_legal_and_tax = [
+        "Process server showed up at the neighbors house looking for the previous tenant.",
+        "Hi Jordan, our attorney confirmed the court date is scheduled for Thursday at 10:00 AM in Room 4B.",
+        "CPA Office: Your 2025 IRS tax return draft is ready for review. Please reply when convenient to discuss.",
+        "Municipal Clerk: Your jury duty service reminder for Monday at 8:30 AM has been postponed to next week.",
+        "Did you hear the landlord handed the previous tenant a formal eviction notice on apartment 3B yesterday?",
+        "Did you read that news article about the magistrate quashing an old bench warrant from the zoning case?",
+        "Hey honey, did you remember to file our state tax extension with the CPA before midnight?",
+    ]
+    for msg in benign_legal_and_tax:
+        h_score, h_signals = evaluate_heuristics(msg)
+        assert h_score == 0.0, f"Benign legal/tax msg falsely matched heuristics {h_signals}: {msg}"
+        assert "RULE:TAX_ARREST_THREAT" not in h_signals
+
+        res = engine.predict(msg)
+        assert res.verdict == "ALLOW", f"Expected ALLOW, got {res.verdict} (S={res.fraud_score}): {msg}"
+        assert res.fraud_score < 0.40
+        assert res.heuristic_score == 0.0
+
+    # 2. True legal/tax extortion smishing lures -> BLOCK (S >= 0.75) with RULE:TAX_ARREST_THREAT
+    coercive_extortion_scams = [
+        "IRS FINAL NOTICE: Federal arrest warrant issued for delinquent taxes. Call 1-800-555-0199 immediately to avoid arrest.",
+        "Magistrate Court Notice: Process server dispatched to your address unless $480 fine is paid today via https://court-fee.xyz/pay",
+        "County Magistrate Alert: Process server en route for failure to appear. Call 888-555-0142 within 2 hours to settle court fine.",
+        "US Customs Enforcement: Seizure warrant issued under Case #88412 for detained parcel. Pay $320 federal penalty immediately at http://customs-duty.top",
+        "Sheriff Warrant Division Badge #4412: Bench warrant pending for citation #9011. Call 1-877-555-0166 within 2 hours to avoid detention.",
+        "Urgent Legal Notice: Police arrest warrant pending for unpaid federal tax penalty under Case #55219. Settle balance now at https://tax-resolve.info",
+        "IRS FINAL NOTICE: Federal arrest warrant issued for unpaid tax penalty under Case #31022 unless settled immediately.",
+    ]
+    for msg in coercive_extortion_scams:
+        res = engine.predict(msg)
+        assert "RULE:TAX_ARREST_THREAT" in res.signals, f"Expected RULE:TAX_ARREST_THREAT on extortion: {msg}"
+        assert res.verdict == "BLOCK", f"Expected BLOCK, got {res.verdict} (S={res.fraud_score}): {msg}"
+        assert res.fraud_score >= 0.75
+
+    # 3. All 30 smish_legal_extortion benchmark samples (indices 260..289) -> 100% BLOCK recall
+    samples = get_held_out_samples_with_metadata()
+    assert samples[184]["text"] == benign_legal_and_tax[0]
+    legal_extortion_samples = samples[260:290]
+    assert len(legal_extortion_samples) == 30
+    assert all(s["category_id"] == "smish_legal_extortion" for s in legal_extortion_samples)
+
+    for idx, sample in enumerate(legal_extortion_samples, start=260):
+        res = engine.predict(sample["text"])
+        assert res.verdict == "BLOCK", (
+            f"Benchmark smish_legal_extortion sample {idx} dropped from BLOCK to {res.verdict} (S={res.fraud_score})"
+        )
+        assert res.fraud_score >= 0.75
+
+    # 4. Worst-case 1600-char latency guard (verifying anchored O(N) scan stays << 15ms SLA)
+    long_benign = ("Lawyer confirmed court date scheduled with attorney and IRS refund check. " * 22)[:1600]
+    t0 = time.perf_counter()
+    for _ in range(100):
+        h_long, _ = evaluate_heuristics(long_benign)
+        assert h_long == 0.0
+    per_call_ms = ((time.perf_counter() - t0) * 1000.0) / 100.0
+    assert per_call_ms < 2.0, f"Heuristic scan latency regression on 1600-char input: {per_call_ms:.3f}ms"
+
+
+
 

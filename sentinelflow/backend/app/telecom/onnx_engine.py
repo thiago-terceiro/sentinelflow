@@ -68,9 +68,34 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:TAX_ARREST_THREAT",
         re.compile(
-            r"\b(?:irs.{0,30}(?:arrest|warrant|delinquent|penalty|police|seiz|debt)|"
-            r"arrest warrant|delinquent taxes|lawsuit pending|process server)\b",
-            re.IGNORECASE,
+            # Require (1) coercive threat/dispatch, (2) legal/tax/enforcement authority, AND
+            # (3) explicit extortion demand (delinquency, financial settlement, intimidation ID,
+            # urgency window, callback number, or URL) to prevent benign P2P/legal false blocks.
+            r"^(?=.*\b(?:arrest\s+warrant|bench\s+warrant|seizure\s+warrant|"
+            r"warrant\s+(?:issued|pending|active)|federal\s+arrest|"
+            r"avoid\s+(?:arrest|detention|prosecution|seizure|jail)|"
+            r"detain(?:ed)?|detention|seiz(?:e|ed|ure)|"
+            r"process\s+server\s+(?:dispatched|en\s+route|assigned|sent)|"
+            r"(?:marshal|officer|agent|deputy|police)\s+dispatched|"
+            r"final\s+(?:notice|warning|demand)|urgent\s+legal\s+(?:warning|notice)|"
+            r"failure\s+to\s+appear|contempt\s+of\s+court)\b)"
+            r"(?=.*\b(?:irs|customs|magistrate|sheriff|police|court(?:house)?|judge|"
+            r"federal\s+(?:tax|agent|court|marshal|enforcement|bureau)|"
+            r"tax\w*|delinquent|warrant|process\s+server|lawsuit|enforcement)\b)"
+            r"(?=.*(?:"
+            r"\b(?:delinquent\s+tax\w*|tax\s+(?:debt|balance|penalty|lien|levy|evasion)|"
+            r"unpaid\s+(?:tax\w*|fine|penalty|customs|duty|fee|balance|citation|toll)|"
+            r"(?:pay|settle)\s+(?:\$\d+(?:,\d{3})*(?:\.\d{2})?\s+)?"
+            r"(?:federal\s+|court\s+|customs\s+|tax\s+)?"
+            r"(?:fine|penalty|tax\w*|balance|bail|duty|fee|case|dispute|now|immediately)|"
+            r"unless\s+(?:paid|settled|resolved|verified)|"
+            r"(?:federal|court|customs)\s+(?:penalty|fine)|"
+            r"within\s+\d+\s*(?:hours?|hrs?|minutes?)|"
+            r"(?:case|badge|docket|warrant)\s*#\s*[a-z0-9\-]+|"
+            r"call\s+(?:immediately|now|\+?1?[-.\s]?\d{3}[-.\s]\d{3}[-.\s]\d{4}))\b|"
+            r"https?://\S+"
+            r"))",
+            re.IGNORECASE | re.DOTALL,
         ),
         0.80,
     ),

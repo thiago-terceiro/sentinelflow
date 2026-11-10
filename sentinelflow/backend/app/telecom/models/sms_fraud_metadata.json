@@ -8,7 +8,7 @@
   "training_dataset_sha256": "e559e765a892ad650f68599a2702219de0c7f21201778c75afa6a2d81a83152a",
   "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
   "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-  "benchmark_predictions_sha256": "8fadbb9c26021604c14e757a4b266ca33a78466a7f9f5c69ee333bc76566ff55",
+  "benchmark_predictions_sha256": "af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956",
   "onnx_sklearn_parity": {
     "sample_count": 400,
     "max_prob_abs_diff": 1.4528442737749003e-07,
@@ -24,7 +24,7 @@
     "max_tfidf_vector_abs_diff": 7.367914711675638e-08,
     "mean_tfidf_vector_abs_diff": 2.4200046876456106e-08
   },
-  "evaluation_timestamp": "2026-11-07T12:44:44.016630+00:00",
+  "evaluation_timestamp": "2026-11-10T11:58:59.119133+00:00",
   "software_versions": {
     "onnxruntime": "1.31.0",
     "numpy": "2.5.4",
@@ -106,30 +106,30 @@
       "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
       "confusion_matrix": {
         "tp": 200,
-        "fp": 36,
-        "tn": 164,
+        "fp": 35,
+        "tn": 165,
         "fn": 0
       },
-      "precision": 0.8475,
+      "precision": 0.8511,
       "recall": 1.0,
-      "specificity": 0.82,
-      "f1_score": 0.9174,
-      "false_positive_rate": 0.18
+      "specificity": 0.825,
+      "f1_score": 0.9195,
+      "false_positive_rate": 0.175
     },
     "tier2_block": {
       "threshold": 0.75,
       "description": "BLOCK (Immediate Carrier Wire Drop)",
       "confusion_matrix": {
         "tp": 171,
-        "fp": 2,
-        "tn": 198,
+        "fp": 1,
+        "tn": 199,
         "fn": 29
       },
-      "precision": 0.9884,
+      "precision": 0.9942,
       "recall": 0.855,
-      "specificity": 0.99,
-      "f1_score": 0.9169,
-      "false_positive_rate": 0.01
+      "specificity": 0.995,
+      "f1_score": 0.9194,
+      "false_positive_rate": 0.005
     },
     "category_analysis": {
       "categories": [
@@ -259,15 +259,15 @@
           "sample_count": 25,
           "ml_p50_flagged_count": 1,
           "ml_p50_rate": 0.04,
-          "heuristic_h50_flagged_count": 1,
-          "heuristic_h50_rate": 0.04,
-          "tier1_flagged_count": 6,
-          "tier2_blocked_count": 1,
-          "tier1_rate": 0.24,
-          "tier2_rate": 0.04,
+          "heuristic_h50_flagged_count": 0,
+          "heuristic_h50_rate": 0.0,
+          "tier1_flagged_count": 5,
+          "tier2_blocked_count": 0,
+          "tier1_rate": 0.2,
+          "tier2_rate": 0.0,
           "mean_onnx_probability": 0.2097,
-          "mean_heuristic_score": 0.032,
-          "mean_composite_score": 0.2464
+          "mean_heuristic_score": 0.0,
+          "mean_composite_score": 0.2097
         },
         {
           "category_id": "smish_bank_panic",
@@ -317,8 +317,8 @@
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
           "mean_onnx_probability": 0.8264,
-          "mean_heuristic_score": 0.802,
-          "mean_composite_score": 0.9745
+          "mean_heuristic_score": 0.832,
+          "mean_composite_score": 1.0
         },
         {
           "category_id": "smish_crypto_lures",
@@ -460,40 +460,40 @@
           "threshold": 0.4,
           "confusion_matrix": {
             "tp": 162,
-            "fp": 1,
-            "tn": 199,
+            "fp": 0,
+            "tn": 200,
             "fn": 38
           },
-          "precision": 0.9939,
+          "precision": 1.0,
           "recall": 0.81,
-          "f1_score": 0.8926,
-          "false_positive_rate": 0.005
+          "f1_score": 0.895,
+          "false_positive_rate": 0.0
         },
         "at_threshold_0_50": {
           "threshold": 0.5,
           "confusion_matrix": {
             "tp": 162,
-            "fp": 1,
-            "tn": 199,
+            "fp": 0,
+            "tn": 200,
             "fn": 38
           },
-          "precision": 0.9939,
+          "precision": 1.0,
           "recall": 0.81,
-          "f1_score": 0.8926,
-          "false_positive_rate": 0.005
+          "f1_score": 0.895,
+          "false_positive_rate": 0.0
         },
         "at_threshold_0_75": {
           "threshold": 0.75,
           "confusion_matrix": {
             "tp": 133,
-            "fp": 1,
-            "tn": 199,
+            "fp": 0,
+            "tn": 200,
             "fn": 67
           },
-          "precision": 0.9925,
+          "precision": 1.0,
           "recall": 0.665,
-          "f1_score": 0.7964,
-          "false_positive_rate": 0.005
+          "f1_score": 0.7988,
+          "false_positive_rate": 0.0
         }
       },
       "ml_plus_heuristics": {
@@ -502,33 +502,33 @@
           "threshold": 0.4,
           "confusion_matrix": {
             "tp": 200,
-            "fp": 36,
-            "tn": 164,
+            "fp": 35,
+            "tn": 165,
             "fn": 0
           },
-          "precision": 0.8475,
+          "precision": 0.8511,
           "recall": 1.0,
-          "f1_score": 0.9174,
-          "false_positive_rate": 0.18
+          "f1_score": 0.9195,
+          "false_positive_rate": 0.175
         },
         "tier2_block": {
           "threshold": 0.75,
           "confusion_matrix": {
             "tp": 171,
-            "fp": 2,
-            "tn": 198,
+            "fp": 1,
+            "tn": 199,
             "fn": 29
           },
-          "precision": 0.9884,
+          "precision": 0.9942,
           "recall": 0.855,
-          "f1_score": 0.9169,
-          "false_positive_rate": 0.01
+          "f1_score": 0.9194,
+          "false_positive_rate": 0.005
         }
       },
       "velocity_ablation_note": "Velocity signals require multi-message temporal event streams (sender/IP sliding windows). On the static held-out test suite (N = 400), velocity is fixed to 0.0 to isolate content inspection. Velocity contributions are evaluated under synthetic multi-message velocity sweeps in test_telecom_gateway.py."
     },
     "error_analysis": {
-      "tier1_false_positives_count": 36,
+      "tier1_false_positives_count": 35,
       "tier1_false_positives": [
         {
           "sample_index": 26,
@@ -941,20 +941,6 @@
           "reason": "Elevated content score (0.62) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
-          "sample_index": 184,
-          "text": "Process server showed up at the neighbors house looking for the previous tenant.",
-          "expected_label": "BENIGN",
-          "category_name": "Conversational & P2P Messages",
-          "category_id": "benign_conversational",
-          "onnx_probability": 0.0825,
-          "heuristic_score": 0.8,
-          "composite_score": 1.0,
-          "matched_rules": [
-            "RULE:TAX_ARREST_THREAT"
-          ],
-          "reason": "Elevated content score (1.00) from heuristic keywords (RULE:TAX_ARREST_THREAT) on legitimate message."
-        },
-        {
           "sample_index": 185,
           "text": "Don't worry about the credit card dispute, the merchant agreed to issue a full refund.",
           "expected_label": "BENIGN",
@@ -979,7 +965,7 @@
           "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
         }
       ],
-      "tier2_false_positives_count": 2,
+      "tier2_false_positives_count": 1,
       "tier2_false_positives": [
         {
           "sample_index": 93,
@@ -992,20 +978,6 @@
           "composite_score": 0.8591,
           "matched_rules": [],
           "reason": "Elevated content score (0.86) from heuristic keywords (ML model probability alone) on legitimate message."
-        },
-        {
-          "sample_index": 184,
-          "text": "Process server showed up at the neighbors house looking for the previous tenant.",
-          "expected_label": "BENIGN",
-          "category_name": "Conversational & P2P Messages",
-          "category_id": "benign_conversational",
-          "onnx_probability": 0.0825,
-          "heuristic_score": 0.8,
-          "composite_score": 1.0,
-          "matched_rules": [
-            "RULE:TAX_ARREST_THREAT"
-          ],
-          "reason": "Elevated content score (1.00) from heuristic keywords (RULE:TAX_ARREST_THREAT) on legitimate message."
         }
       ],
       "tier1_false_negatives_count": 0,
@@ -1316,7 +1288,7 @@
       "model_artifact_size_kb": 194.65,
       "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
       "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-      "benchmark_predictions_sha256": "8fadbb9c26021604c14e757a4b266ca33a78466a7f9f5c69ee333bc76566ff55",
+      "benchmark_predictions_sha256": "af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956",
       "onnx_sklearn_parity": {
         "sample_count": 400,
         "max_prob_abs_diff": 1.4528442737749003e-07,
@@ -1332,7 +1304,7 @@
         "max_tfidf_vector_abs_diff": 7.367914711675638e-08,
         "mean_tfidf_vector_abs_diff": 2.4200046876456106e-08
       },
-      "evaluation_timestamp": "2026-11-07T12:44:44.016630+00:00",
+      "evaluation_timestamp": "2026-11-10T11:58:59.119133+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
@@ -1359,7 +1331,7 @@
     "model_sha256": "32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c",
     "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
     "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-    "benchmark_predictions_sha256": "8fadbb9c26021604c14e757a4b266ca33a78466a7f9f5c69ee333bc76566ff55",
+    "benchmark_predictions_sha256": "af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956",
     "onnx_sklearn_parity": {
       "sample_count": 400,
       "max_prob_abs_diff": 1.4528442737749003e-07,
@@ -1377,7 +1349,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-07T12:44:44.016630+00:00",
+    "evaluation_timestamp": "2026-11-10T11:58:59.119133+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -1414,30 +1386,30 @@
       "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
       "confusion_matrix": {
         "tp": 200,
-        "fp": 36,
-        "tn": 164,
+        "fp": 35,
+        "tn": 165,
         "fn": 0
       },
-      "precision": 0.8475,
+      "precision": 0.8511,
       "recall": 1.0,
-      "specificity": 0.82,
-      "f1_score": 0.9174,
-      "false_positive_rate": 0.18
+      "specificity": 0.825,
+      "f1_score": 0.9195,
+      "false_positive_rate": 0.175
     },
     "tier2_block": {
       "threshold": 0.75,
       "description": "BLOCK (Immediate Carrier Wire Drop)",
       "confusion_matrix": {
         "tp": 171,
-        "fp": 2,
-        "tn": 198,
+        "fp": 1,
+        "tn": 199,
         "fn": 29
       },
-      "precision": 0.9884,
+      "precision": 0.9942,
       "recall": 0.855,
-      "specificity": 0.99,
-      "f1_score": 0.9169,
-      "false_positive_rate": 0.01
+      "specificity": 0.995,
+      "f1_score": 0.9194,
+      "false_positive_rate": 0.005
     },
     "category_analysis": {
       "categories": [
@@ -1567,15 +1539,15 @@
           "sample_count": 25,
           "ml_p50_flagged_count": 1,
           "ml_p50_rate": 0.04,
-          "heuristic_h50_flagged_count": 1,
-          "heuristic_h50_rate": 0.04,
-          "tier1_flagged_count": 6,
-          "tier2_blocked_count": 1,
-          "tier1_rate": 0.24,
-          "tier2_rate": 0.04,
+          "heuristic_h50_flagged_count": 0,
+          "heuristic_h50_rate": 0.0,
+          "tier1_flagged_count": 5,
+          "tier2_blocked_count": 0,
+          "tier1_rate": 0.2,
+          "tier2_rate": 0.0,
           "mean_onnx_probability": 0.2097,
-          "mean_heuristic_score": 0.032,
-          "mean_composite_score": 0.2464
+          "mean_heuristic_score": 0.0,
+          "mean_composite_score": 0.2097
         },
         {
           "category_id": "smish_bank_panic",
@@ -1625,8 +1597,8 @@
           "tier1_rate": 1.0,
           "tier2_rate": 1.0,
           "mean_onnx_probability": 0.8264,
-          "mean_heuristic_score": 0.802,
-          "mean_composite_score": 0.9745
+          "mean_heuristic_score": 0.832,
+          "mean_composite_score": 1.0
         },
         {
           "category_id": "smish_crypto_lures",
@@ -1768,40 +1740,40 @@
           "threshold": 0.4,
           "confusion_matrix": {
             "tp": 162,
-            "fp": 1,
-            "tn": 199,
+            "fp": 0,
+            "tn": 200,
             "fn": 38
           },
-          "precision": 0.9939,
+          "precision": 1.0,
           "recall": 0.81,
-          "f1_score": 0.8926,
-          "false_positive_rate": 0.005
+          "f1_score": 0.895,
+          "false_positive_rate": 0.0
         },
         "at_threshold_0_50": {
           "threshold": 0.5,
           "confusion_matrix": {
             "tp": 162,
-            "fp": 1,
-            "tn": 199,
+            "fp": 0,
+            "tn": 200,
             "fn": 38
           },
-          "precision": 0.9939,
+          "precision": 1.0,
           "recall": 0.81,
-          "f1_score": 0.8926,
-          "false_positive_rate": 0.005
+          "f1_score": 0.895,
+          "false_positive_rate": 0.0
         },
         "at_threshold_0_75": {
           "threshold": 0.75,
           "confusion_matrix": {
             "tp": 133,
-            "fp": 1,
-            "tn": 199,
+            "fp": 0,
+            "tn": 200,
             "fn": 67
           },
-          "precision": 0.9925,
+          "precision": 1.0,
           "recall": 0.665,
-          "f1_score": 0.7964,
-          "false_positive_rate": 0.005
+          "f1_score": 0.7988,
+          "false_positive_rate": 0.0
         }
       },
       "ml_plus_heuristics": {
@@ -1810,33 +1782,33 @@
           "threshold": 0.4,
           "confusion_matrix": {
             "tp": 200,
-            "fp": 36,
-            "tn": 164,
+            "fp": 35,
+            "tn": 165,
             "fn": 0
           },
-          "precision": 0.8475,
+          "precision": 0.8511,
           "recall": 1.0,
-          "f1_score": 0.9174,
-          "false_positive_rate": 0.18
+          "f1_score": 0.9195,
+          "false_positive_rate": 0.175
         },
         "tier2_block": {
           "threshold": 0.75,
           "confusion_matrix": {
             "tp": 171,
-            "fp": 2,
-            "tn": 198,
+            "fp": 1,
+            "tn": 199,
             "fn": 29
           },
-          "precision": 0.9884,
+          "precision": 0.9942,
           "recall": 0.855,
-          "f1_score": 0.9169,
-          "false_positive_rate": 0.01
+          "f1_score": 0.9194,
+          "false_positive_rate": 0.005
         }
       },
       "velocity_ablation_note": "Velocity signals require multi-message temporal event streams (sender/IP sliding windows). On the static held-out test suite (N = 400), velocity is fixed to 0.0 to isolate content inspection. Velocity contributions are evaluated under synthetic multi-message velocity sweeps in test_telecom_gateway.py."
     },
     "error_analysis": {
-      "tier1_false_positives_count": 36,
+      "tier1_false_positives_count": 35,
       "tier1_false_positives": [
         {
           "sample_index": 26,
@@ -2249,20 +2221,6 @@
           "reason": "Elevated content score (0.62) from heuristic keywords (ML model probability alone) on legitimate message."
         },
         {
-          "sample_index": 184,
-          "text": "Process server showed up at the neighbors house looking for the previous tenant.",
-          "expected_label": "BENIGN",
-          "category_name": "Conversational & P2P Messages",
-          "category_id": "benign_conversational",
-          "onnx_probability": 0.0825,
-          "heuristic_score": 0.8,
-          "composite_score": 1.0,
-          "matched_rules": [
-            "RULE:TAX_ARREST_THREAT"
-          ],
-          "reason": "Elevated content score (1.00) from heuristic keywords (RULE:TAX_ARREST_THREAT) on legitimate message."
-        },
-        {
           "sample_index": 185,
           "text": "Don't worry about the credit card dispute, the merchant agreed to issue a full refund.",
           "expected_label": "BENIGN",
@@ -2287,7 +2245,7 @@
           "reason": "Elevated content score (0.42) from heuristic keywords (ML model probability alone) on legitimate message."
         }
       ],
-      "tier2_false_positives_count": 2,
+      "tier2_false_positives_count": 1,
       "tier2_false_positives": [
         {
           "sample_index": 93,
@@ -2300,20 +2258,6 @@
           "composite_score": 0.8591,
           "matched_rules": [],
           "reason": "Elevated content score (0.86) from heuristic keywords (ML model probability alone) on legitimate message."
-        },
-        {
-          "sample_index": 184,
-          "text": "Process server showed up at the neighbors house looking for the previous tenant.",
-          "expected_label": "BENIGN",
-          "category_name": "Conversational & P2P Messages",
-          "category_id": "benign_conversational",
-          "onnx_probability": 0.0825,
-          "heuristic_score": 0.8,
-          "composite_score": 1.0,
-          "matched_rules": [
-            "RULE:TAX_ARREST_THREAT"
-          ],
-          "reason": "Elevated content score (1.00) from heuristic keywords (RULE:TAX_ARREST_THREAT) on legitimate message."
         }
       ],
       "tier1_false_negatives_count": 0,
@@ -2624,7 +2568,7 @@
       "model_artifact_size_kb": 194.65,
       "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
       "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-      "benchmark_predictions_sha256": "8fadbb9c26021604c14e757a4b266ca33a78466a7f9f5c69ee333bc76566ff55",
+      "benchmark_predictions_sha256": "af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956",
       "onnx_sklearn_parity": {
         "sample_count": 400,
         "max_prob_abs_diff": 1.4528442737749003e-07,
@@ -2640,7 +2584,7 @@
         "max_tfidf_vector_abs_diff": 7.367914711675638e-08,
         "mean_tfidf_vector_abs_diff": 2.4200046876456106e-08
       },
-      "evaluation_timestamp": "2026-11-07T12:44:44.016630+00:00",
+      "evaluation_timestamp": "2026-11-10T11:58:59.119133+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
@@ -2667,7 +2611,7 @@
     "model_sha256": "32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c",
     "evaluation_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
     "benchmark_predictions_artifact": "benchmark_predictions_400.json",
-    "benchmark_predictions_sha256": "8fadbb9c26021604c14e757a4b266ca33a78466a7f9f5c69ee333bc76566ff55",
+    "benchmark_predictions_sha256": "af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956",
     "onnx_sklearn_parity": {
       "sample_count": 400,
       "max_prob_abs_diff": 1.4528442737749003e-07,
@@ -2685,7 +2629,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-07T12:44:44.016630+00:00",
+    "evaluation_timestamp": "2026-11-10T11:58:59.119133+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",

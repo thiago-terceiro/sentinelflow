@@ -3180,14 +3180,12 @@
     "sklearn_prob": 0.0825464964,
     "onnx_prob": 0.0825464949,
     "prob_abs_diff": 1.5e-09,
-    "heuristic_score": 0.8,
-    "triggered_rules": [
-      "RULE:TAX_ARREST_THREAT"
-    ],
-    "sklearn_composite_score": 1.0,
-    "onnx_composite_score": 1.0,
-    "sklearn_verdict": "BLOCK",
-    "onnx_verdict": "BLOCK",
+    "heuristic_score": 0.0,
+    "triggered_rules": [],
+    "sklearn_composite_score": 0.0825,
+    "onnx_composite_score": 0.0825,
+    "sklearn_verdict": "ALLOW",
+    "onnx_verdict": "ALLOW",
     "verdict_match": true
   },
   {
@@ -4808,14 +4806,15 @@
     "sklearn_prob": 0.7840510496,
     "onnx_prob": 0.7840510607,
     "prob_abs_diff": 1.11e-08,
-    "heuristic_score": 0.77,
+    "heuristic_score": 0.92,
     "triggered_rules": [
       "RULE:SUSPICIOUS_TLD",
+      "RULE:TAX_ARREST_THREAT",
       "RULE:STANDALONE_URL",
       "HEURISTIC:COMPOUND_SIGNALS"
     ],
-    "sklearn_composite_score": 0.8727,
-    "onnx_composite_score": 0.8727,
+    "sklearn_composite_score": 1.0,
+    "onnx_composite_score": 1.0,
     "sklearn_verdict": "BLOCK",
     "onnx_verdict": "BLOCK",
     "verdict_match": true
@@ -4911,14 +4910,15 @@
     "sklearn_prob": 0.7840510496,
     "onnx_prob": 0.7840510607,
     "prob_abs_diff": 1.11e-08,
-    "heuristic_score": 0.77,
+    "heuristic_score": 0.92,
     "triggered_rules": [
       "RULE:SUSPICIOUS_TLD",
+      "RULE:TAX_ARREST_THREAT",
       "RULE:STANDALONE_URL",
       "HEURISTIC:COMPOUND_SIGNALS"
     ],
-    "sklearn_composite_score": 0.8727,
-    "onnx_composite_score": 0.8727,
+    "sklearn_composite_score": 1.0,
+    "onnx_composite_score": 1.0,
     "sklearn_verdict": "BLOCK",
     "onnx_verdict": "BLOCK",
     "verdict_match": true
@@ -5014,14 +5014,15 @@
     "sklearn_prob": 0.7840510496,
     "onnx_prob": 0.7840510607,
     "prob_abs_diff": 1.11e-08,
-    "heuristic_score": 0.77,
+    "heuristic_score": 0.92,
     "triggered_rules": [
       "RULE:SUSPICIOUS_TLD",
+      "RULE:TAX_ARREST_THREAT",
       "RULE:STANDALONE_URL",
       "HEURISTIC:COMPOUND_SIGNALS"
     ],
-    "sklearn_composite_score": 0.8727,
-    "onnx_composite_score": 0.8727,
+    "sklearn_composite_score": 1.0,
+    "onnx_composite_score": 1.0,
     "sklearn_verdict": "BLOCK",
     "onnx_verdict": "BLOCK",
     "verdict_match": true
@@ -5117,14 +5118,15 @@
     "sklearn_prob": 0.7840510496,
     "onnx_prob": 0.7840510607,
     "prob_abs_diff": 1.11e-08,
-    "heuristic_score": 0.77,
+    "heuristic_score": 0.92,
     "triggered_rules": [
       "RULE:SUSPICIOUS_TLD",
+      "RULE:TAX_ARREST_THREAT",
       "RULE:STANDALONE_URL",
       "HEURISTIC:COMPOUND_SIGNALS"
     ],
-    "sklearn_composite_score": 0.8727,
-    "onnx_composite_score": 0.8727,
+    "sklearn_composite_score": 1.0,
+    "onnx_composite_score": 1.0,
     "sklearn_verdict": "BLOCK",
     "onnx_verdict": "BLOCK",
     "verdict_match": true
@@ -5220,14 +5222,15 @@
     "sklearn_prob": 0.7840510496,
     "onnx_prob": 0.7840510607,
     "prob_abs_diff": 1.11e-08,
-    "heuristic_score": 0.77,
+    "heuristic_score": 0.92,
     "triggered_rules": [
       "RULE:SUSPICIOUS_TLD",
+      "RULE:TAX_ARREST_THREAT",
       "RULE:STANDALONE_URL",
       "HEURISTIC:COMPOUND_SIGNALS"
     ],
-    "sklearn_composite_score": 0.8727,
-    "onnx_composite_score": 0.8727,
+    "sklearn_composite_score": 1.0,
+    "onnx_composite_score": 1.0,
     "sklearn_verdict": "BLOCK",
     "onnx_verdict": "BLOCK",
     "verdict_match": true
@@ -5323,14 +5326,15 @@
     "sklearn_prob": 0.7840510496,
     "onnx_prob": 0.7840510607,
     "prob_abs_diff": 1.11e-08,
-    "heuristic_score": 0.77,
+    "heuristic_score": 0.92,
     "triggered_rules": [
       "RULE:SUSPICIOUS_TLD",
+      "RULE:TAX_ARREST_THREAT",
       "RULE:STANDALONE_URL",
       "HEURISTIC:COMPOUND_SIGNALS"
     ],
-    "sklearn_composite_score": 0.8727,
-    "onnx_composite_score": 0.8727,
+    "sklearn_composite_score": 1.0,
+    "onnx_composite_score": 1.0,
     "sklearn_verdict": "BLOCK",
     "onnx_verdict": "BLOCK",
     "verdict_match": true

@@ -8,8 +8,8 @@
 - **Model SHA-256:** `32c4a024070ccd51a0360fed2f55d6632785016a6d69642a43a011d06578144c`
 - **Evaluation Dataset SHA-256:** `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03`
 - **Canonical 400-Row Predictions Artifact:** `benchmark_predictions_400.json`
-- **Canonical 400-Row Predictions SHA-256:** `8fadbb9c26021604c14e757a4b266ca33a78466a7f9f5c69ee333bc76566ff55`
-- **Timestamp:** `2026-11-07T12:44:44.016630+00:00`
+- **Canonical 400-Row Predictions SHA-256:** `af087b07dd02b83643cc4d02ebce2c887354a9b8767b915f6fe9083d2fb55956`
+- **Timestamp:** `2026-11-10T11:58:59.119133+00:00`
 - **Evaluator Engine:** `ONNXRuntime-CPU (AVX-512)`
 - **Software Versions:** `onnxruntime=1.31.0`, `numpy=2.5.4`, `scikit-learn=1.9.1`
 - **Dataset Size:** 400 samples (200 Benign, 200 Fraud)
@@ -48,17 +48,17 @@ To measure unbiased real-world generalization, production release candidates mus
 
 | Operational Tier | Threshold | Purpose | Recall | Precision | FPR | Confusion Matrix |
 |---|:---:|---|:---:|:---:|:---:|---|
-| **Tier 1: Escalation Queue** | $S \ge 0.40$ | Async SentinelFlow Review | **100.00%** | **84.75%** | **18.00%** | TP=200, FP=36, TN=164, FN=0 |
-| **Tier 2: Immediate Wire Drop** | $S \ge 0.75$ | Synchronous Wire Drop | **85.50%** | **98.84%** | **1.00%** | TP=171, FP=2, TN=198, FN=29 |
+| **Tier 1: Escalation Queue** | $S \ge 0.40$ | Async SentinelFlow Review | **100.00%** | **85.11%** | **17.50%** | TP=200, FP=35, TN=165, FN=0 |
+| **Tier 2: Immediate Wire Drop** | $S \ge 0.75$ | Synchronous Wire Drop | **85.50%** | **99.42%** | **0.50%** | TP=171, FP=1, TN=199, FN=29 |
 
 ## 4. Component Ablation Study (ML vs. Heuristics vs. Combined)
 
 | Strategy | Metric Floor / Threshold | Recall | Precision | FPR | F1-Score | Architectural Role |
 |---|:---:|:---:|:---:|:---:|:---:|---|
 | **ML Model Alone** | $P \ge 0.50$ | 97.00% | 92.82% | 7.50% | 0.9487 | Statistical semantic pattern recognition |
-| **Heuristics Alone** | $H \ge 0.50$ | 81.00% | 99.39% | 0.50% | 0.8926 | Deterministic regex rule triggers |
-| **Combined (Tier 1)** | $S \ge 0.40$ | 100.00% | 84.75% | 18.00% | 0.9174 | Zero FN guarantee for human escalation |
-| **Combined (Tier 2)** | $S \ge 0.75$ | 85.50% | 98.84% | 1.00% | 0.9169 | High-precision wire drop (>98.5% precision) |
+| **Heuristics Alone** | $H \ge 0.50$ | 81.00% | 100.00% | 0.00% | 0.8950 | Deterministic regex rule triggers |
+| **Combined (Tier 1)** | $S \ge 0.40$ | 100.00% | 85.11% | 17.50% | 0.9195 | Zero FN guarantee for human escalation |
+| **Combined (Tier 2)** | $S \ge 0.75$ | 85.50% | 99.42% | 0.50% | 0.9194 | High-precision wire drop (>98.5% precision) |
 
 ## 5. Fine-Grained Category-Level Performance Breakdown
 
@@ -71,10 +71,10 @@ To measure unbiased real-world generalization, production release candidates mus
 | Package Delivery Status Updates | BENIGN | 25 | 0.2000 | 0.1680 | 0.2111 | 3/25 (12.0%) | 0/25 (0.0%) | 7/25 (28.0%) | 0/25 (0.0%) | PASSED |
 | Retail Receipts & Curbside Pickups | BENIGN | 25 | 0.1040 | 0.0080 | 0.1040 | 1/25 (4.0%) | 0/25 (0.0%) | 2/25 (8.0%) | 0/25 (0.0%) | PASSED |
 | Legitimate Crypto Exchange Notices | BENIGN | 25 | 0.2442 | 0.0000 | 0.2442 | 4/25 (16.0%) | 0/25 (0.0%) | 7/25 (28.0%) | 0/25 (0.0%) | PASSED |
-| Conversational & P2P Messages | BENIGN | 25 | 0.2097 | 0.0320 | 0.2464 | 1/25 (4.0%) | 1/25 (4.0%) | 6/25 (24.0%) | 1/25 (4.0%) | PASSED |
+| Conversational & P2P Messages | BENIGN | 25 | 0.2097 | 0.0000 | 0.2097 | 1/25 (4.0%) | 0/25 (0.0%) | 5/25 (20.0%) | 0/25 (0.0%) | PASSED |
 | Bank Account Suspension Panic Lures | FRAUD | 30 | 0.9534 | 0.8200 | 1.0000 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
 | Parcel Delivery Customs Fee Scams | FRAUD | 30 | 0.8910 | 0.7700 | 0.9357 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
-| Tax & Court Legal Extortion Threats | FRAUD | 30 | 0.8264 | 0.8020 | 0.9745 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
+| Tax & Court Legal Extortion Threats | FRAUD | 30 | 0.8264 | 0.8320 | 1.0000 | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | 30/30 (100.0%) | PASSED |
 | Cryptocurrency Giveaway & Seed Scams | FRAUD | 25 | 0.8111 | 0.6860 | 0.9095 | 25/25 (100.0%) | 20/25 (80.0%) | 25/25 (100.0%) | 25/25 (100.0%) | PASSED |
 | Broken Phone Family WhatsApp Lures | FRAUD | 25 | 0.7360 | 0.6500 | 0.8238 | 25/25 (100.0%) | 25/25 (100.0%) | 25/25 (100.0%) | 25/25 (100.0%) | PASSED |
 | Fake DocuSign & Invoice Scams | FRAUD | 25 | 0.7268 | 0.5620 | 0.7913 | 23/25 (92.0%) | 15/25 (60.0%) | 25/25 (100.0%) | 11/25 (44.0%) | PASSED |
@@ -83,13 +83,17 @@ To measure unbiased real-world generalization, production release candidates mus
 
 ## 6. Error Analysis Summary
 
-- **Tier 1 False Positives ($S \ge 0.40$, Benign):** 36 samples
-- **Tier 2 False Positives ($S \ge 0.75$, Benign):** 2 samples
+- **Tier 1 False Positives ($S \ge 0.40$, Benign):** 35 samples
+- **Tier 2 False Positives ($S \ge 0.75$, Benign):** 1 samples
 - **Tier 1 False Negatives ($S < 0.40$, Fraud):** 0 samples (Zero Escaped Attacks)
 - **Tier 2 False Negatives ($S < 0.75$, Fraud):** 29 samples (Safely caught in Tier 1 queue)
 
 ### Key False Positive Insights
-Legitimate banking fraud alerts with urgency keywords (e.g. *'Chase Fraud Alert: Did you attempt $35.50? Reply YES or NO'*), and carrier data threshold alerts with tracking shortlinks account for benign messages receiving Tier 1 review. Because they are routed to Tier 1 review rather than dropped on the wire, no customer transaction or OTP is blocked.
+Legitimate banking fraud alerts with urgency keywords (e.g. *'Chase Fraud Alert: Did you attempt $35.50? Reply YES or NO'*), and carrier data threshold alerts account for benign messages receiving Tier 1 review. Because they are routed to Tier 1 review rather than dropped on the wire, no legitimate alert or OTP is blocked by those Tier 1 flags.
+
+### Heuristic Rule Refinement Audit Trail (`SF-005`)
+- **Sample 184 Remediation (`RULE:TAX_ARREST_THREAT`):** Driven directly by `Dev/Val N=400` error analysis on Sample 184 (*"Process server showed up at the neighbors house looking for the previous tenant."*), `RULE:TAX_ARREST_THREAT` ($H = 0.80$) was refined in [`onnx_engine.py`](../sentinelflow/backend/app/telecom/onnx_engine.py) so legal/tax/process terms require paired coercive enforcement/extortion context rather than matching third-person narrative.
+- **Measured Benchmark Impact (`Dev/Val N=400`):** Sample 184 shifted from unconditional wire drop (`BLOCK`, $S = 1.0$) to `ALLOW` ($S = 0.0825$, $H = 0.0$), reducing Tier 2 false positives from 2 to 1 and improving Tier 2 precision while preserving `100%` recall (`30/30`) on `smish_legal_extortion` without retraining or altering model weights (`32c4a024...`).
 
 ## 7. Mathematical Formulation & Monotonicity Guarantees
 
