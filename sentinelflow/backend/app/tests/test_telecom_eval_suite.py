@@ -998,4 +998,238 @@ def test_oof_completeness_macro_sensitivity_and_cluster_bootstrap() -> None:
         assert w_key in metrics["wilson_95_ci"]
 
 
+def test_sf010_frozen_baseline_artifacts_and_blocked_holdout_status() -> None:
+    """Verifies frozen model/corpus SHA locks remain unchanged and primary Class C holdout stays blocked."""
+    from app.telecom.dataset_quarantine import (
+        FROZEN_DEV_VAL_DATASET_SHA256,
+        FROZEN_ONNX_MODEL_SHA256,
+        FROZEN_TRAINING_DATASET_SHA256,
+        get_dataset_governance_paths,
+        sha256_bytes,
+    )
+    from app.telecom.train_onnx_model import build_augmented_dataset
+
+    canon = get_canonical_artifact_paths()
+    gov_paths = get_dataset_governance_paths()
+
+    assert sha256_bytes(canon["model"].read_bytes()) == FROZEN_ONNX_MODEL_SHA256
+    metadata = json.loads(canon["metadata"].read_text(encoding="utf-8"))
+    metrics = json.loads(canon["metrics"].read_text(encoding="utf-8"))
+    inventory = json.loads((canon["model"].resolve().parents[1] / "dataset_inventory.json").read_text(encoding="utf-8"))
+
+    assert metadata["model_sha256"] == FROZEN_ONNX_MODEL_SHA256
+    assert metrics["model_sha256"] == FROZEN_ONNX_MODEL_SHA256
+    assert inventory["training_dataset_sha256"] == FROZEN_TRAINING_DATASET_SHA256
+    assert metrics["evaluation_dataset_sha256"] == FROZEN_DEV_VAL_DATASET_SHA256
+
+    train_texts, _, _ = build_augmented_dataset()
+    assert len(train_texts) == 703
+    assert len(get_held_out_samples_with_metadata()) == 400
+
+    # Primary external fraud holdout must NOT be created while no source passes all gates
+    assert not gov_paths["primary_holdout"].exists(), (
+        "quarantined_test_holdout.json must not exist while primary external holdout gate is blocked"
+    )
+    assessment = json.loads(gov_paths["source_assessment"].read_text(encoding="utf-8"))
+    assert assessment["primary_external_holdout_status"] == "UNAVAILABLE_BLOCKED"
+    assert assessment["primary_external_holdout_artifact"] is None
+    assert assessment["sf_011_status"] == "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT"
+
+
+def test_sf010_uci_secondary_quarantine_provenance_and_zero_relabeling() -> None:
+    """Verifies UCI secondary spam transfer benchmark hash locks, counts, labels, and zero overlap."""
+    from app.telecom.dataset_quarantine import (
+        compute_overlap_audit,
+        get_dataset_governance_paths,
+        normalized_sha256,
+        sha256_bytes,
+        sha256_text,
+    )
+    from app.telecom.train_onnx_model import build_augmented_dataset
+
+    gov_paths = get_dataset_governance_paths()
+    assert gov_paths["secondary_uci"].exists(), "Missing uci_sms_spam_secondary.json"
+
+    assessment = json.loads(gov_paths["source_assessment"].read_text(encoding="utf-8"))
+    assert sha256_bytes(gov_paths["secondary_uci"].read_bytes()) == assessment["secondary_transfer_benchmark_sha256"]
+
+    uci_bundle = json.loads(gov_paths["secondary_uci"].read_text(encoding="utf-8"))
+    manifest = uci_bundle["manifest"]
+    rows = uci_bundle["rows"]
+
+    assert manifest["benchmark_role"] == "secondary_legacy_sms_spam_transfer_benchmark"
+    assert manifest["is_primary_fraud_holdout"] is False
+    assert len(rows) == 5574
+    assert manifest["verified_counts"] == {
+        "total_records": 5574,
+        "ham_count": 4827,
+        "spam_count": 747,
+        "unique_normalized_records": 5159,
+        "unique_ham_count": 4517,
+        "unique_spam_count": 642,
+        "intra_corpus_normalized_duplicates": 415,
+        "conflicting_label_duplicates": 0,
+    }
+
+    expected_rows_sha = sha256_text(json.dumps(rows, sort_keys=True, ensure_ascii=False))
+    assert manifest["canonical_rows_sha256"] == expected_rows_sha
+
+    seen_ids: set[str] = set()
+    for idx, row in enumerate(rows, start=1):
+        rec_id = str(row["upstream_record_id"])
+        assert rec_id == f"uci_228_line_{idx}"
+        assert rec_id not in seen_ids
+        seen_ids.add(rec_id)
+        assert row["original_label"] in ("ham", "spam")
+        assert row["derived_fraud_label"] is None
+        assert row["provenance_class"] == "Secondary-Legacy-SMS-Spam"
+        assert row["raw_text_sha256"] == sha256_text(str(row["text"]))
+        assert row["normalized_sha256"] == normalized_sha256(str(row["text"]))
+
+    train_texts, _, _ = build_augmented_dataset()
+    dev_texts = [str(s["text"]) for s in get_held_out_samples_with_metadata()]
+    live_overlap = compute_overlap_audit(
+        rows,
+        train_texts=train_texts,
+        dev_val_texts=dev_texts,
+        near_threshold=0.45,
+    )
+    assert live_overlap["against_train"]["exact_text_matches"] == 0
+    assert live_overlap["against_train"]["normalized_sha256_matches"] == 0
+    assert live_overlap["against_train"]["near_duplicate_count"] == 0
+    assert live_overlap["against_dev_val"]["exact_text_matches"] == 0
+    assert live_overlap["against_dev_val"]["normalized_sha256_matches"] == 0
+    assert live_overlap["against_dev_val"]["near_duplicate_count"] == 0
+    assert live_overlap == manifest["overlap_audit"]
+
+
+def test_sf010_source_assessment_completeness_and_gate_integrity() -> None:
+    """Verifies candidate source assessment ledger and deterministic suitability gate logic."""
+    from app.telecom.dataset_quarantine import (
+        assess_holdout_suitability,
+        get_dataset_governance_paths,
+    )
+
+    gov_paths = get_dataset_governance_paths()
+    assessment = json.loads(gov_paths["source_assessment"].read_text(encoding="utf-8"))
+    candidates = assessment["candidates"]
+    by_id = {str(c["candidate_id"]): c for c in candidates}
+
+    expected_ids = {
+        "imc25_smishing_reports",
+        "uci_sms_spam_collection_v1",
+        "mendeley_f45bkkt8pr_v1",
+        "mendeley_vmg875v4xs_v1",
+        "smishtank_codaspy24",
+        "zenodo_15235123_multiclass_phishing",
+        "github_shaghayegh_combined_smishing",
+        "hf_gandharvbakshi_otp_phishing",
+    }
+    assert set(by_id.keys()) == expected_ids
+
+    for cid, cand in by_id.items():
+        assert str(cand["canonical_url"]).startswith("https://")
+        assert str(cand["retrieval_timestamp_utc"]).endswith("+00:00")
+        assert len(str(cand["license"])) > 0
+        assert len(cand["rejection_or_limitation_reasons"]) >= 1, f"Missing limitations for {cid}"
+
+    # Verify Mendeley f45bkkt8pr UCI-spam contamination evidence is explicitly documented
+    assert by_id["mendeley_f45bkkt8pr_v1"]["verified_counts"]["uci_exact_normalized_overlap_breakdown"][
+        "smishing_matching_uci_spam_RELABELED"
+    ] == 361
+    # Verify IMC25 positive-only & Presidio <URL> redaction audit counts
+    assert by_id["imc25_smishing_reports"]["verified_counts"]["english_records"] == 22078
+    assert by_id["imc25_smishing_reports"]["verified_counts"]["english_non_spam_smishing_total"] == 20691
+
+    re_summary = assess_holdout_suitability(assessment)
+    assert re_summary == assessment["gate_summary"]
+    assert re_summary["primary_holdout_ready"] is False
+    assert re_summary["eligible_primary_candidates"] == []
+    assert re_summary["secondary_benchmarks_retained"] == ["uci_sms_spam_collection_v1"]
+
+
+def test_sf010_ingestion_zero_model_ast_isolation() -> None:
+    """Enforces via AST parsing that quarantine ingestion never imports ML, ONNX, or heuristics."""
+    import ast
+
+    from app.telecom import dataset_quarantine
+
+    source_text = Path(dataset_quarantine.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source_text)
+    forbidden_prefixes = (
+        "onnxruntime",
+        "onnx",
+        "skl2onnx",
+        "sklearn",
+        "app.telecom.onnx_engine",
+        "app.telecom.evaluate_model",
+        "app.telecom.train_onnx_model",
+        "app.main",
+    )
+
+    imported_modules: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imported_modules.append(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_modules.append(node.module)
+
+    for mod in imported_modules:
+        assert not any(mod == p or mod.startswith(f"{p}.") for p in forbidden_prefixes), (
+            f"dataset_quarantine.py imported forbidden modeling/inference module '{mod}'"
+        )
+
+
+def test_sf010_statistical_wilson_base_rate_and_mirrored_docs() -> None:
+    """Verifies exact integer Wilson intervals, base-rate PPV shift, and byte-identical docs."""
+    from app.telecom.dataset_quarantine import (
+        adjust_precision_for_base_rate,
+        compute_exact_wilson_interval,
+        get_dataset_governance_paths,
+    )
+
+    lo_143, hi_143 = compute_exact_wilson_interval(143, 150)
+    assert abs(lo_143 - 0.906814) < 1e-6
+    assert abs(hi_143 - 0.977213) < 1e-6
+
+    lo_150, hi_150 = compute_exact_wilson_interval(150, 300)
+    assert abs(lo_150 - 0.44378) < 1e-6
+    assert abs(hi_150 - 0.55622) < 1e-6
+
+    assert compute_exact_wilson_interval(150, 150) == (0.97503, 1.0)
+    assert compute_exact_wilson_interval(0, 150) == (0.0, 0.02497)
+
+    with pytest.raises(ValueError, match="total must be > 0"):
+        compute_exact_wilson_interval(0, 0)
+    with pytest.raises(ValueError, match="must be in"):
+        compute_exact_wilson_interval(151, 150)
+    with pytest.raises(TypeError, match="exact integers"):
+        compute_exact_wilson_interval(10.5, 100)  # type: ignore[arg-type]
+
+    # Bayes PPV collapses when balanced 50% benchmark performance hits rare 1% live prevalence
+    assert adjust_precision_for_base_rate(0.95, 0.05, 0.50) == 0.95
+    assert adjust_precision_for_base_rate(0.95, 0.05, 0.01) == 0.161017
+
+    gov_paths = get_dataset_governance_paths()
+    root_bytes = gov_paths["governance_root"].read_bytes()
+    mirror_bytes = gov_paths["governance_mirror"].read_bytes()
+    assert root_bytes == mirror_bytes, "Mirrored provenance & governance docs must be byte-identical"
+
+    doc_text = root_bytes.decode("utf-8")
+    for required_section in (
+        "Class A — Train OOF CV",
+        "Class B — Dev/Val Benchmark",
+        "Class C — External Public Evaluation",
+        "Class D — Production Telemetry",
+        "UNAVAILABLE / BLOCKED",
+        "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT",
+        "uci_sms_spam_secondary.json",
+        "Strict Zero-Adaptation Protocol",
+    ):
+        assert required_section in doc_text, f"Governance doc missing '{required_section}'"
+    assert "±3.2%" not in doc_text and "3.2%" not in doc_text
+
+
+
 

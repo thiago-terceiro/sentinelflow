@@ -1,0 +1,456 @@
+{
+  "schema_version": "1.0.0",
+  "ticket_id": "SF-010",
+  "assessed_at_utc": "2026-11-10T22:58:48.966319+00:00",
+  "frozen_baseline_locks": {
+    "onnx_model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
+    "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
+    "dev_val_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03"
+  },
+  "primary_external_holdout_status": "UNAVAILABLE_BLOCKED",
+  "primary_external_holdout_artifact": null,
+  "sf_011_status": "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT",
+  "secondary_transfer_benchmark_artifact": "uci_sms_spam_secondary.json",
+  "secondary_transfer_benchmark_sha256": "f35b8ea2ea0738732299498111ee8e89eadd4a207eb53bcf9654d2526e53dce6",
+  "evidence_classes": {
+    "Class A": "Train OOF CV — 703 curated messages across 56 semantic families (SHA-256 5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699); verified from repository dataset_inventory.json.",
+    "Class B": "Dev/Val Benchmark — 400 messages (200 hard benign, 200 adversarial smishing; SHA-256 210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03); development-exposed, NOT an unseen external holdout.",
+    "Class C": "External Public Evaluation — UNAVAILABLE / BLOCKED for primary SMS fraud/smishing holdout. Secondary legacy generic spam transfer benchmark (UCI SMS Spam Collection v.1, 5,574 ham/spam messages) retained separately in uci_sms_spam_secondary.json and NEVER pooled with fraud metrics.",
+    "Class D": "Production Telemetry — FUTURE / UNIMPLEMENTED carrier/SMSC/optical-tap feed; zero real-world CDR-linked production samples exist in this repository."
+  },
+  "gate_summary": {
+    "primary_holdout_ready": false,
+    "eligible_primary_candidates": [],
+    "secondary_benchmarks_retained": [
+      "uci_sms_spam_collection_v1"
+    ],
+    "primary_holdout_status": "UNAVAILABLE_BLOCKED",
+    "sf_011_status": "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT",
+    "gate_failures_by_candidate": {
+      "imc25_smishing_reports": [
+        "two_class_benign_negative_balance",
+        "verbatim_or_unconfounded_feature_fidelity"
+      ],
+      "uci_sms_spam_collection_v1": [
+        "fraud_smishing_label_fidelity",
+        "verbatim_or_unconfounded_feature_fidelity"
+      ],
+      "mendeley_f45bkkt8pr_v1": [
+        "legal_and_license_clear",
+        "observed_external_provenance",
+        "fraud_smishing_label_fidelity",
+        "two_class_benign_negative_balance",
+        "verbatim_or_unconfounded_feature_fidelity"
+      ],
+      "mendeley_vmg875v4xs_v1": [
+        "observed_external_provenance",
+        "fraud_smishing_label_fidelity",
+        "two_class_benign_negative_balance",
+        "verbatim_or_unconfounded_feature_fidelity"
+      ],
+      "smishtank_codaspy24": [
+        "legal_and_license_clear",
+        "two_class_benign_negative_balance",
+        "verbatim_or_unconfounded_feature_fidelity"
+      ],
+      "zenodo_15235123_multiclass_phishing": [
+        "observed_external_provenance",
+        "fraud_smishing_label_fidelity",
+        "verbatim_or_unconfounded_feature_fidelity"
+      ],
+      "github_shaghayegh_combined_smishing": [
+        "legal_and_license_clear",
+        "observed_external_provenance",
+        "fraud_smishing_label_fidelity",
+        "two_class_benign_negative_balance",
+        "verbatim_or_unconfounded_feature_fidelity"
+      ],
+      "hf_gandharvbakshi_otp_phishing": [
+        "legal_and_license_clear",
+        "observed_external_provenance",
+        "fraud_smishing_label_fidelity",
+        "two_class_benign_negative_balance",
+        "verbatim_or_unconfounded_feature_fidelity"
+      ]
+    }
+  },
+  "candidates": [
+    {
+      "candidate_id": "imc25_smishing_reports",
+      "name": "Fishing for Smishing: Labeled Smishing Dataset (IMC '25)",
+      "stable_id": "github:reportsmishing/Smishing-Dataset-IMC25@a6175560b57387199871e51fbef6bc523d2516b4",
+      "canonical_url": "https://github.com/reportsmishing/Smishing-Dataset-IMC25",
+      "retrieval_url": "https://raw.githubusercontent.com/reportsmishing/Smishing-Dataset-IMC25/main/dataset/final_dataset_output.csv",
+      "paper_doi": "10.1145/3730567.3764431",
+      "publisher": "Agarwal, Papasavva, Suarez-Tangil & Vasek (ACM IMC 2025)",
+      "publication_date_or_version": "2025-09-12T15:53:16Z (commit a6175560b57387199871e51fbef6bc523d2516b4)",
+      "retrieval_timestamp_utc": "2026-11-10T22:55:01.867669+00:00",
+      "license": "CC BY 4.0 (verified LICENSE.txt and README.md)",
+      "license_caveats": "Requires attribution under CC BY 4.0; no publisher-signed checksum file provided.",
+      "checksum_provenance": "locally_computed_identity_fingerprint",
+      "raw_artifact_sha256": "1bbd1e9e82c3ea023112207b80da268a5c4a07d2353c2b0898360ab037fa9a64",
+      "file_format": "CSV (UTF-8, 12 columns, 9,462,365 bytes)",
+      "source_population": "Public user-submitted smishing reports mined from online reporting forums/social feeds (e.g. Reddit) globally",
+      "collection_method": "Programmatic scraping and OCR/text extraction of public smishing report posts with upstream NER PII redaction",
+      "geography_and_period": "Global (top non-empty English networks: IND=3,657, USA=1,492, GBR=798, AUS=447, CAN=180; reported period includes 2023+ campaigns)",
+      "original_label_taxonomy": {
+        "scam_type": "Categorical attack theme across banking, others, government, delivery, telecom, spam, wrong number, hey mum/dad",
+        "lure_principles": "Persuasion cue annotations"
+      },
+      "verified_counts": {
+        "total_multilingual_records": 33869,
+        "english_records": 22078,
+        "english_by_scam_type": {
+          "banking": 10495,
+          "others": 4586,
+          "government": 1922,
+          "delivery": 1676,
+          "telecom": 1630,
+          "spam": 1387,
+          "wrong_number": 304,
+          "hey_mum_dad": 77,
+          "empty": 1
+        },
+        "english_non_spam_smishing_total": 20691,
+        "english_non_spam_unique_normalized": 14362,
+        "english_non_spam_with_url_placeholder": 6030,
+        "english_non_spam_with_raw_http_url": 287,
+        "english_non_spam_without_any_presidio_tag": 2515
+      },
+      "record_id_scheme": "CSV 1-based row index (no explicit publisher UUID column)",
+      "overlap_audit_summary": {
+        "english_exact_matches_train": 0,
+        "english_normalized_matches_train": 0,
+        "english_word_3gram_near_ge_045_train": 0,
+        "english_exact_matches_dev_val": 0,
+        "english_normalized_matches_dev_val": 0,
+        "english_word_3gram_near_ge_045_dev_val": 0
+      },
+      "suitability_gates": {
+        "legal_and_license_clear": true,
+        "observed_external_provenance": true,
+        "fraud_smishing_label_fidelity": true,
+        "two_class_benign_negative_balance": false,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "rejected_as_standalone_primary_holdout_documented_positive_caveat",
+      "decision": "NOT INGESTED INTO PRIMARY HOLDOUT",
+      "rejection_or_limitation_reasons": [
+        "Positive-only dataset (0 genuine legitimate/benign SMS negatives): cannot measure FPR, Specificity, Precision, Tier-2 false blocks, or two-class ROC-AUC.",
+        "Pairing 2023+ Presidio-redacted IMC25 positives against 2002-2011 unredacted UCI ham negatives creates fatal domain, era, and placeholder-token confounding.",
+        "Heavy upstream NER redaction (<URL> in 6,030/14,362 unique non-spam English rows, <DATE_TIME>, <PHONE_NUMBER>, false <US_DRIVER_LICENSE> tags) strips raw URL domains and callback numbers inspected by SentinelPulse heuristics, breaking verbatim evaluation."
+      ]
+    },
+    {
+      "candidate_id": "uci_sms_spam_collection_v1",
+      "name": "UCI SMS Spam Collection v.1",
+      "stable_id": "uci:228/sms-spam-collection-v1",
+      "canonical_url": "https://archive.ics.uci.edu/dataset/228/sms+spam+collection",
+      "retrieval_url": "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip",
+      "paper_doi": "10.1145/2034691.2034742",
+      "publisher": "UCI ML Repository / Almeida, Gomez Hidalgo & Yamakami (ACM DocEng 2011)",
+      "publication_date_or_version": "2011 (corpus v.1)",
+      "retrieval_timestamp_utc": "2026-11-10T22:58:36.646993+00:00",
+      "license": "CC BY 4.0 (UCI Dataset #228 portal)",
+      "license_caveats": "Bundled readme Section 4 specifies copyright by Almeida & Gomez Hidalgo, citation request, no warranty, and user indemnity.",
+      "checksum_provenance": "locally_computed_identity_fingerprint",
+      "raw_artifact_sha256": "1587ea43e58e82b14ff1f5425c88e17f8496bfcdb67a583dbff9eefaf9963ce3",
+      "file_format": "ZIP containing TSV text file SMSSpamCollection (477,907 bytes) + readme",
+      "source_population": "Mixed public/research UK Grumbletext forum spam claims (425), Caroline Tagg PhD ham (450), NUS SMS Corpus student chat (3,375 ham), Gomez Hidalgo corpus (1,002 ham, 322 spam)",
+      "collection_method": "Manual extraction from public UK spam complaint forum merged with university/volunteer SMS collections",
+      "geography_and_period": "UK & Singapore (ca. 2002-2011)",
+      "original_label_taxonomy": {
+        "ham": "Legitimate conversational SMS (4,827 records)",
+        "spam": "Generic unsolicited commercial/prize/ringtone SMS spam (747 records)"
+      },
+      "verified_counts": {
+        "total_records": 5574,
+        "ham_count": 4827,
+        "spam_count": 747,
+        "unique_normalized_records": 5159,
+        "unique_ham_count": 4517,
+        "unique_spam_count": 642,
+        "intra_corpus_normalized_duplicates": 415,
+        "conflicting_label_duplicates": 0
+      },
+      "record_id_scheme": "1-based line number uci_228_line_<1..5574>",
+      "overlap_audit_summary": {
+        "exact_matches_train": 0,
+        "normalized_matches_train": 0,
+        "max_word_3gram_jaccard_train": 0.285714,
+        "exact_matches_dev_val": 0,
+        "normalized_matches_dev_val": 0,
+        "max_word_3gram_jaccard_dev_val": 0.136364
+      },
+      "suitability_gates": {
+        "legal_and_license_clear": true,
+        "observed_external_provenance": true,
+        "fraud_smishing_label_fidelity": false,
+        "two_class_benign_negative_balance": true,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "secondary_legacy_spam_transfer_benchmark",
+      "quarantined_artifact": "uci_sms_spam_secondary.json",
+      "quarantined_artifact_sha256": "f35b8ea2ea0738732299498111ee8e89eadd4a207eb53bcf9654d2526e53dce6",
+      "decision": "RETAINED STRICTLY AS SECONDARY LEGACY SPAM TRANSFER BENCHMARK (NO FRAUD RELABELING)",
+      "rejection_or_limitation_reasons": [
+        "Original labels represent legacy ham vs commercial spam, NOT financial fraud/smishing; relabeling spam->fraud or ham->benign is prohibited.",
+        "Contains 415 intra-corpus normalized duplicate rows (5,159 unique texts across 5,574 rows; 0 label conflicts).",
+        "2002-2011 domain/era mismatch vs modern A2P transactional banking, 2FA, Zelle/Venmo, and broken-phone WhatsApp smishing."
+      ]
+    },
+    {
+      "candidate_id": "mendeley_f45bkkt8pr_v1",
+      "name": "SMS Phishing Dataset for Machine Learning and Pattern Recognition",
+      "stable_id": "doi:10.17632/f45bkkt8pr.1",
+      "canonical_url": "https://data.mendeley.com/datasets/f45bkkt8pr",
+      "retrieval_url": "https://data.mendeley.com/public-files/datasets/f45bkkt8pr/files/edb361de-918d-469f-9106-e84823830665/file_downloaded",
+      "paper_doi": null,
+      "publisher": "Sandhya Mishra & Devpriya Soni (Mendeley Data)",
+      "publication_date_or_version": "2022-06-20T07:15:01.344Z (v1)",
+      "retrieval_timestamp_utc": "2026-11-10T22:50:20+00:00",
+      "license": "CC BY 4.0 (with third-party content rights notice)",
+      "license_caveats": "Mendeley CC BY 4.0 notice explicitly warns further permission may be required for third-party content; scrapes third-party Pinterest images.",
+      "checksum_provenance": "locally_computed_identity_fingerprint",
+      "raw_artifact_sha256": "9bbf3188fdad81495d8e82825648b9b63b53fc86841a3d26c02629990b233cc3",
+      "file_format": "ZIP containing Dataset_5971.csv (244,698 bytes zip)",
+      "source_population": "Hybrid blend of 2011 UCI SMS Spam Collection rows + OCR-converted Pinterest scam image screenshots",
+      "collection_method": "Exact copying of UCI ham/spam combined with Python OCR on web images",
+      "geography_and_period": "Mixed / Undocumented web images + 2002-2011 UCI base",
+      "original_label_taxonomy": {
+        "ham": "4,844 rows",
+        "Smishing/smishing": "638 rows (616 'Smishing' + 22 'smishing')",
+        "spam/Spam": "489 rows (466 'spam' + 23 'Spam')"
+      },
+      "verified_counts": {
+        "total_records": 5971,
+        "uci_exact_normalized_overlap_breakdown": {
+          "ham_matching_uci_ham": 4319,
+          "spam_matching_uci_spam": 345,
+          "smishing_matching_uci_spam_RELABELED": 361
+        }
+      },
+      "record_id_scheme": "None (unindexed CSV rows without original source IDs)",
+      "suitability_gates": {
+        "legal_and_license_clear": false,
+        "observed_external_provenance": false,
+        "fraud_smishing_label_fidelity": false,
+        "two_class_benign_negative_balance": false,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "rejected",
+      "decision": "REJECTED (SEVERE CONTAMINATION & UNVERIFIED PROVENANCE)",
+      "rejection_or_limitation_reasons": [
+        "Forensic audit verified 361 of 638 'Smishing' rows (56.6%) are exact copies of 2011 UCI 'spam' rows silently relabeled as Smishing.",
+        "4,319 of 4,844 'ham' rows are exact UCI 'ham' duplicates; remaining non-UCI smishing strings lack source URLs and OCR fidelity validation.",
+        "Third-party copyright notice for scraped Pinterest screenshots leaves redistribution unclear."
+      ]
+    },
+    {
+      "candidate_id": "mendeley_vmg875v4xs_v1",
+      "name": "A Balanced Dataset for Spam and Smishing Detection using Large Language Models (LLMs)",
+      "stable_id": "doi:10.17632/vmg875v4xs.1",
+      "canonical_url": "https://data.mendeley.com/datasets/vmg875v4xs",
+      "retrieval_url": "https://data.mendeley.com/public-api/datasets/vmg875v4xs",
+      "paper_doi": null,
+      "publisher": "Munoz & Islam (Mendeley Data)",
+      "publication_date_or_version": "2025-07-04T15:14:54.627Z (v1)",
+      "retrieval_timestamp_utc": "2026-11-10T22:51:10+00:00",
+      "license": "CC BY 4.0",
+      "license_caveats": "Metadata API inspected cleanly; full data zip not ingested because dataset is LLM-synthesized.",
+      "checksum_provenance": "not_ingested_synthetic_rejection",
+      "raw_artifact_sha256": null,
+      "file_format": "Tabular SMS dataset on Mendeley",
+      "source_population": "LLM-generated / balanced corpus (3,397 ham, 3,397 spam, 3,397 smishing)",
+      "collection_method": "Explicitly documented as created using a Large Language Model (LLM)",
+      "geography_and_period": "Synthetic (2025)",
+      "original_label_taxonomy": {
+        "ham": 3397,
+        "spam": 3397,
+        "smishing": 3397
+      },
+      "verified_counts": {
+        "declared_total": 10191
+      },
+      "record_id_scheme": "N/A",
+      "suitability_gates": {
+        "legal_and_license_clear": true,
+        "observed_external_provenance": false,
+        "fraud_smishing_label_fidelity": false,
+        "two_class_benign_negative_balance": false,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "rejected",
+      "decision": "REJECTED (SYNTHETIC LLM-GENERATED CORPUS)",
+      "rejection_or_limitation_reasons": [
+        "Not externally observed human/carrier SMS traffic: generated via LLM training/sampling and fails the observed-data provenance requirement."
+      ]
+    },
+    {
+      "candidate_id": "smishtank_codaspy24",
+      "name": "Smishing Dataset I: Phishing SMS Dataset from Smishtank.com",
+      "stable_id": "arxiv:2402.18430v1",
+      "canonical_url": "https://arxiv.org/abs/2402.18430",
+      "retrieval_url": "https://smishtank.com/dataset",
+      "paper_doi": "10.1145/3626232.3653282",
+      "publisher": "Daniel Timko & Muhammad Lutfor Rahman (CSU San Marcos / ACM CODASPY '24)",
+      "publication_date_or_version": "2024-02-28 (arXiv:2402.18430v1)",
+      "retrieval_timestamp_utc": "2026-11-10T22:52:01+00:00",
+      "license": "UNCLEAR / CC BY-NC-SA 4.0 on arXiv paper",
+      "license_caveats": "arXiv preprint specifies CC BY-NC-SA 4.0 (NonCommercial); direct dataset URL https://smishtank.com/dataset failed HTTP retrieval (unreachable) with no open dataset license verified.",
+      "checksum_provenance": "unavailable_inaccessible_endpoint",
+      "raw_artifact_sha256": null,
+      "file_format": "Reported 1,090-sample CSV in paper",
+      "source_population": "Crowdsourced user submissions to Smishtank.com",
+      "collection_method": "Screenshot/text public user reports",
+      "geography_and_period": "Primarily US/English community reports (ca. 2023-2024)",
+      "original_label_taxonomy": {
+        "smishing": "1,090 reported smishing messages (positive-only per paper abstract)"
+      },
+      "verified_counts": {
+        "paper_reported_smishing_samples": 1090,
+        "benign_samples": 0
+      },
+      "record_id_scheme": "Unknown (dataset endpoint inaccessible)",
+      "suitability_gates": {
+        "legal_and_license_clear": false,
+        "observed_external_provenance": true,
+        "fraud_smishing_label_fidelity": true,
+        "two_class_benign_negative_balance": false,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "rejected",
+      "decision": "REJECTED (INACCESSIBLE ENDPOINT, UNCLEAR/NC LICENSE, POSITIVE-ONLY)",
+      "rejection_or_limitation_reasons": [
+        "Direct source URL https://smishtank.com/dataset was unreachable during audit, preventing verified checksum/schema inspection; third-party student GitHub mirrors lack upstream license authorization.",
+        "Paper preprint carries CC BY-NC-SA 4.0 and positive-only corpus has 0 benign negatives."
+      ]
+    },
+    {
+      "candidate_id": "zenodo_15235123_multiclass_phishing",
+      "name": "Multiclass NLP Dataset for Phishing and Social Engineering Threat Detection",
+      "stable_id": "doi:10.5281/zenodo.15235123",
+      "canonical_url": "https://zenodo.org/records/15235123",
+      "retrieval_url": "https://zenodo.org/api/records/15235123/files/phishing_nlp_dataset.xlsx/content",
+      "paper_doi": "10.5281/zenodo.15235123",
+      "publisher": "Engineering Ingegneria Informatica Spa (Zenodo)",
+      "publication_date_or_version": "2025-04-17",
+      "retrieval_timestamp_utc": "2026-11-10T22:50:55+00:00",
+      "license": "CC BY 4.0",
+      "license_caveats": "Open CC BY 4.0 on Zenodo; anonymized without upstream source URLs.",
+      "checksum_provenance": "locally_computed_sha256_plus_zenodo_md5_7213a3ee515a713f4eee2a6948f1756e",
+      "raw_artifact_sha256": "651fb58e1a3ff7808aad12eb5a24a44dc0ba95a4f4da356640d17a830dd8bd32",
+      "file_format": "XLSX (51,291 bytes, 625 spreadsheet rows including header)",
+      "source_population": "Mixed email/SMS-like corpus dominated by multi-paragraph Nigerian 419/advance-fee emails",
+      "collection_method": "Undocumented upstream collection/anonymization",
+      "geography_and_period": "Undocumented (published Apr 2025)",
+      "original_label_taxonomy": {
+        "classes": [
+          "Phishing",
+          "Malware",
+          "Scareware",
+          "Baiting",
+          "Pretexting",
+          "NOT-Malicious"
+        ]
+      },
+      "verified_counts": {
+        "xlsx_rows_excl_header": 624
+      },
+      "record_id_scheme": "Spreadsheet row number (no upstream SMS ID)",
+      "suitability_gates": {
+        "legal_and_license_clear": true,
+        "observed_external_provenance": false,
+        "fraud_smishing_label_fidelity": false,
+        "two_class_benign_negative_balance": true,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "rejected",
+      "decision": "REJECTED (CHANNEL MISMATCH: EMAIL ESSAYS & UNDOCUMENTED PROVENANCE)",
+      "rejection_or_limitation_reasons": [
+        "Inspected spreadsheet rows contain multi-paragraph email bodies ('Power of Attorney... reply via fax... on his email') rather than real telecom SMS traffic.",
+        "Record metadata omits source channel, collection dates, and upstream origin."
+      ]
+    },
+    {
+      "candidate_id": "github_shaghayegh_combined_smishing",
+      "name": "Combined Labeled Smishing Dataset (shaghayegh-hp/Smishing_Dataset)",
+      "stable_id": "github:shaghayegh-hp/Smishing_Dataset",
+      "canonical_url": "https://github.com/shaghayegh-hp/Smishing_Dataset",
+      "retrieval_url": "https://api.github.com/repos/shaghayegh-hp/Smishing_Dataset",
+      "paper_doi": "10.1145/3734477.3736147",
+      "publisher": "Shaghayegh Hosseinpour (GitHub)",
+      "publication_date_or_version": "Unversioned main branch (8,749,929 bytes CSV)",
+      "retrieval_timestamp_utc": "2026-11-10T22:51:11+00:00",
+      "license": "NONE (no LICENSE file; README grants informal 'academic and research purposes' only)",
+      "license_caveats": "No valid OSI/Creative Commons redistribution license; merges 5 unattributed upstream datasets.",
+      "checksum_provenance": "not_ingested_license_and_label_rejection",
+      "raw_artifact_sha256": null,
+      "file_format": "CSV",
+      "source_population": "Ad-hoc merge of 5 unspecified public SMS datasets",
+      "collection_method": "README states 'Messages are relabeled based on the presence of frequent smishing-related keywords'",
+      "geography_and_period": "Unspecified",
+      "original_label_taxonomy": {
+        "spam label": "0/1",
+        "smishing label": "0/1 (keyword-relabeled)"
+      },
+      "verified_counts": {
+        "file_size_bytes": 8749929
+      },
+      "record_id_scheme": "None",
+      "suitability_gates": {
+        "legal_and_license_clear": false,
+        "observed_external_provenance": false,
+        "fraud_smishing_label_fidelity": false,
+        "two_class_benign_negative_balance": false,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "rejected",
+      "decision": "REJECTED (NO LICENSE & CIRCULAR KEYWORD-HEURISTIC RELABELING)",
+      "rejection_or_limitation_reasons": [
+        "Violates Phase 1 legal clarity (license: None on repository; mixes 5 upstream datasets without clearing third-party licenses).",
+        "Violates Phase 2 label integrity: relabels smishing heuristically from keyword presence rather than verified incident ground truth."
+      ]
+    },
+    {
+      "candidate_id": "hf_gandharvbakshi_otp_phishing",
+      "name": "SMS-dataset-OTP-OTP_INTENT_Phishing (HuggingFace)",
+      "stable_id": "hf:gandharvbakshi/SMS-dataset-OTP-OTP_INTENT_Phishing",
+      "canonical_url": "https://huggingface.co/datasets/gandharvbakshi/SMS-dataset-OTP-OTP_INTENT_Phishing",
+      "retrieval_url": "https://huggingface.co/datasets/gandharvbakshi/SMS-dataset-OTP-OTP_INTENT_Phishing/resolve/main/sample_10k.csv",
+      "paper_doi": null,
+      "publisher": "Gandharv Bakshi (Hugging Face Hub)",
+      "publication_date_or_version": "Unversioned Hub repo",
+      "retrieval_timestamp_utc": "2026-11-10T22:53:01+00:00",
+      "license": "CONFLICTING (YAML tag says 'mit', README restricts full dataset via gated access & private commercial licensing DM)",
+      "license_caveats": "Full file returns HTTP 401 Unauthorized; README states 'Synthetic + Labeled Indian SMS Dataset' and requests email/DM for commercial licensing.",
+      "checksum_provenance": "not_ingested_gated_and_synthetic",
+      "raw_artifact_sha256": null,
+      "file_format": "CSV (gated HTTP 401)",
+      "source_population": "Synthetic + LLM-classified Indian OTP/phishing texts",
+      "collection_method": "Includes 'classification_results_with_phishing_llm_balanced_with_sender.csv' (LLM synthetic/labeled)",
+      "geography_and_period": "Synthetic / India",
+      "original_label_taxonomy": {
+        "predicted_is_otp": "boolean",
+        "phishing_labeling": "unspecified LLM pipeline"
+      },
+      "verified_counts": {
+        "readme_claimed_rows": 73470
+      },
+      "record_id_scheme": "None",
+      "suitability_gates": {
+        "legal_and_license_clear": false,
+        "observed_external_provenance": false,
+        "fraud_smishing_label_fidelity": false,
+        "two_class_benign_negative_balance": false,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "rejected",
+      "decision": "REJECTED (SYNTHETIC ORIGIN & GATED HTTP 401 LICENSE CONFLICT)",
+      "rejection_or_limitation_reasons": [
+        "Explicitly identifies as 'Synthetic' and 'phishing_llm_balanced', failing observed external telemetry provenance.",
+        "Gated HTTP 401 download with contradictory MIT tag vs private commercial licensing requirement."
+      ]
+    }
+  ]
+}
