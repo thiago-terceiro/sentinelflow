@@ -59,6 +59,91 @@ def normalized_sha256(text: str) -> str:
     return sha256_text(normalize_sms_text(text))
 
 
+def normalize_line_endings_lf(raw_bytes: bytes) -> bytes:
+    """Explicitly converts Windows CRLF byte sequences (\\r\\n) to canonical POSIX LF (\\n)."""
+    return raw_bytes.replace(b"\r\n", b"\n")
+
+
+def serialize_canonical_json_lf_bytes(payload: Any) -> bytes:
+    """Serializes JSON deterministically using UTF-8 encoding and explicit LF (\\n) endings."""
+    text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    return normalize_line_endings_lf(text.encode("utf-8"))
+
+
+def compute_canonical_content_digest(uci_bundle: dict[str, Any]) -> str:
+    """Computes timestamp-independent SHA-256 over canonical UCI manifest + rows content.
+
+    Excludes volatile retrieval timestamps ('retrieval_timestamp_utc' and 'retrieval_metadata')
+    plus file-level container hashes so re-runs at any UTC time reproduce the same digest.
+    """
+    manifest = dict(uci_bundle.get("manifest", {}))
+    manifest.pop("retrieval_timestamp_utc", None)
+    manifest.pop("retrieval_metadata", None)
+    manifest.pop("canonical_content_sha256", None)
+    canonical_payload = {"manifest": manifest, "rows": uci_bundle.get("rows", [])}
+    canonical_bytes = json.dumps(
+        canonical_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return sha256_bytes(canonical_bytes)
+
+
+def verify_uci_artifact_integrity(
+    raw_bytes: bytes,
+    *,
+    expected_canonical_lf_sha256: str | None = None,
+) -> dict[str, Any]:
+    """Verifies UCI artifact integrity across raw disk bytes, LF-normalized bytes, and JSON content.
+
+    Separately reports raw working-tree digest vs. Git-canonical LF digest so Windows CRLF checkouts
+    never fail spuriously while keeping raw byte differences completely transparent.
+    """
+    raw_disk_sha256 = sha256_bytes(raw_bytes)
+    eol_style = "CRLF" if b"\r\n" in raw_bytes else "LF"
+    lf_bytes = normalize_line_endings_lf(raw_bytes)
+    lf_canonical_sha256 = sha256_bytes(lf_bytes)
+
+    bundle = json.loads(lf_bytes.decode("utf-8"))
+    manifest = bundle["manifest"]
+    rows = bundle["rows"]
+
+    actual_rows_sha256 = sha256_text(json.dumps(rows, sort_keys=True, ensure_ascii=False))
+    if actual_rows_sha256 != manifest["canonical_rows_sha256"]:
+        raise ValueError(
+            "canonical_rows_sha256 mismatch: "
+            f"{actual_rows_sha256} != {manifest['canonical_rows_sha256']}"
+        )
+
+    actual_content_sha256 = compute_canonical_content_digest(bundle)
+    stored_content_sha256 = manifest.get("canonical_content_sha256")
+    if stored_content_sha256 is not None and actual_content_sha256 != stored_content_sha256:
+        raise ValueError(
+            "canonical_content_sha256 mismatch: "
+            f"{actual_content_sha256} != {stored_content_sha256}"
+        )
+
+    if (
+        expected_canonical_lf_sha256 is not None
+        and lf_canonical_sha256 != expected_canonical_lf_sha256
+    ):
+        raise ValueError(
+            "canonical LF artifact SHA-256 mismatch: "
+            f"{lf_canonical_sha256} != {expected_canonical_lf_sha256}"
+        )
+
+    return {
+        "eol_style_on_disk": eol_style,
+        "raw_disk_sha256": raw_disk_sha256,
+        "lf_canonical_sha256": lf_canonical_sha256,
+        "raw_matches_canonical_lf": raw_disk_sha256 == lf_canonical_sha256,
+        "canonical_rows_sha256": actual_rows_sha256,
+        "canonical_content_sha256": actual_content_sha256,
+        "bundle": bundle,
+    }
+
+
 def word_shingles(text: str, k: int = 3) -> set[tuple[str, ...]]:
     """Builds lowercase alphanumeric word k-gram shingles for near-duplicate checks."""
     tokens = re.findall(r"[a-z0-9]+", text.lower())
@@ -134,6 +219,8 @@ def _scan_reference_corpus(
     """Audits exact, normalized, 3-gram shingle, and unigram Jaccard similarity vs reference."""
     exact_hits = 0
     norm_hits = 0
+    sh3_near_hits = 0
+    tok_near_hits = 0
     max_sh3 = 0.0
     max_tok = 0.0
     near_matches: list[dict[str, Any]] = []
@@ -156,6 +243,8 @@ def _scan_reference_corpus(
                 best_sh3 = sim
                 best_sh3_idx = idx
         max_sh3 = max(max_sh3, best_sh3)
+        if best_sh3 >= near_threshold:
+            sh3_near_hits += 1
 
         best_tok = 0.0
         best_tok_idx = -1
@@ -165,6 +254,8 @@ def _scan_reference_corpus(
                 best_tok = sim_t
                 best_tok_idx = idx
         max_tok = max(max_tok, best_tok)
+        if best_tok >= near_threshold:
+            tok_near_hits += 1
 
         if best_sh3 >= near_threshold or best_tok >= near_threshold:
             near_matches.append(
@@ -184,6 +275,8 @@ def _scan_reference_corpus(
         "max_word_3gram_jaccard": round(max_sh3, 6),
         "max_unigram_jaccard": round(max_tok, 6),
         "near_duplicate_threshold": near_threshold,
+        "word_3gram_near_duplicate_count": sh3_near_hits,
+        "unigram_near_duplicate_count": tok_near_hits,
         "near_duplicate_count": len(near_matches),
         "near_duplicate_examples": near_matches[:10],
     }
@@ -309,6 +402,16 @@ def parse_uci_sms_spam_collection(
         "publisher": "UCI Machine Learning Repository / Almeida, Gomez Hidalgo & Yamakami (2011)",
         "publication_date": "2011 (ACM DocEng'11); corpus v.1",
         "retrieval_timestamp_utc": retrieval_utc,
+        "retrieval_metadata": {
+            "retrieval_timestamp_utc": retrieval_utc,
+            "retrieval_url": (
+                "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip"
+            ),
+            "timestamp_note": (
+                "Volatile UTC retrieval timestamp recorded for audit provenance and excluded "
+                "from deterministic canonical_content_sha256 and canonical_rows_sha256."
+            ),
+        },
         "license": "CC BY 4.0 (declared on UCI Dataset #228 portal)",
         "license_caveats": (
             "Bundled readme Section 4 notes copyright held by Tiago Agostinho de Almeida and "
@@ -356,7 +459,9 @@ def parse_uci_sms_spam_collection(
         "transformation_policy": "verbatim_utf8_preserved",
         "overlap_audit": overlap_audit,
     }
-    return {"manifest": manifest, "rows": rows}
+    bundle: dict[str, Any] = {"manifest": manifest, "rows": rows}
+    manifest["canonical_content_sha256"] = compute_canonical_content_digest(bundle)
+    return bundle
 
 
 def assess_holdout_suitability(assessment: dict[str, Any]) -> dict[str, Any]:

@@ -10,7 +10,12 @@
     "retrieval_url": "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip",
     "publisher": "UCI Machine Learning Repository / Almeida, Gomez Hidalgo & Yamakami (2011)",
     "publication_date": "2011 (ACM DocEng'11); corpus v.1",
-    "retrieval_timestamp_utc": "2026-11-10T22:58:36.646993+00:00",
+    "retrieval_timestamp_utc": "2026-11-11T11:42:29.594906+00:00",
+    "retrieval_metadata": {
+      "retrieval_timestamp_utc": "2026-11-11T11:42:29.594906+00:00",
+      "retrieval_url": "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip",
+      "timestamp_note": "Volatile UTC retrieval timestamp recorded for audit provenance and excluded from deterministic canonical_content_sha256 and canonical_rows_sha256."
+    },
     "license": "CC BY 4.0 (declared on UCI Dataset #228 portal)",
     "license_caveats": "Bundled readme Section 4 notes copyright held by Tiago Agostinho de Almeida and Jose Maria Gomez Hidalgo with citation request, no warranty, and user indemnity.",
     "checksum_provenance": "locally_computed_identity_fingerprint (upstream UCI zip/readme do not ship SHA-256 manifests)",
@@ -48,6 +53,8 @@
         "max_word_3gram_jaccard": 0.285714,
         "max_unigram_jaccard": 0.444444,
         "near_duplicate_threshold": 0.45,
+        "word_3gram_near_duplicate_count": 0,
+        "unigram_near_duplicate_count": 0,
         "near_duplicate_count": 0,
         "near_duplicate_examples": []
       },
@@ -57,10 +64,13 @@
         "max_word_3gram_jaccard": 0.136364,
         "max_unigram_jaccard": 0.310345,
         "near_duplicate_threshold": 0.45,
+        "word_3gram_near_duplicate_count": 0,
+        "unigram_near_duplicate_count": 0,
         "near_duplicate_count": 0,
         "near_duplicate_examples": []
       }
-    }
+    },
+    "canonical_content_sha256": "793d53864389c7ef0b534c943a8baade86bf3c1d61a4f4ea7b2672fa63ce6249"
   },
   "rows": [
     {

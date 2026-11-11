@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0.0",
-  "ticket_id": "SF-010",
-  "assessed_at_utc": "2026-11-10T22:58:48.966319+00:00",
+  "schema_version": "1.1.0",
+  "ticket_id": "SF-010R",
+  "assessed_at_utc": "2026-11-11T11:42:29.594906+00:00",
   "frozen_baseline_locks": {
     "onnx_model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
     "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
@@ -11,12 +11,28 @@
   "primary_external_holdout_artifact": null,
   "sf_011_status": "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT",
   "secondary_transfer_benchmark_artifact": "uci_sms_spam_secondary.json",
-  "secondary_transfer_benchmark_sha256": "f35b8ea2ea0738732299498111ee8e89eadd4a207eb53bcf9654d2526e53dce6",
+  "secondary_transfer_benchmark_sha256": "169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7",
+  "secondary_transfer_benchmark_lf_sha256": "169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7",
+  "secondary_transfer_benchmark_content_sha256": "793d53864389c7ef0b534c943a8baade86bf3c1d61a4f4ea7b2672fa63ce6249",
+  "secondary_transfer_benchmark_canonical_rows_sha256": "0e643ea940d4c18069c6e5e040a3ac090828771fc00d847f97babf992f6d39a7",
+  "provenance_separation": {
+    "programmatically_computed_fields": [
+      "frozen_baseline_locks (verified against AST-extracted Train N=703, Dev/Val N=400, and disk ONNX bytes)",
+      "secondary_transfer_benchmark_sha256 / _lf_sha256 / _content_sha256 / _canonical_rows_sha256",
+      "candidates[uci_sms_spam_collection_v1].verified_counts & overlap_audit_summary",
+      "candidates[imc25_smishing_reports].verified_counts & overlap_audit_summary",
+      "gate_summary (computed by dataset_quarantine.assess_holdout_suitability)"
+    ],
+    "manual_candidate_adjudications": [
+      "Licensing, caveats, and qualitative domain/provenance gate decisions across all 8 candidates",
+      "External static inspection records preserved verbatim for non-ingested candidates (Mendeley f45bkkt8pr/vmg875v4xs, Smishtank, Zenodo 15235123, GitHub shaghayegh-hp, HuggingFace gandharvbakshi)"
+    ]
+  },
   "evidence_classes": {
-    "Class A": "Train OOF CV — 703 curated messages across 56 semantic families (SHA-256 5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699); verified from repository dataset_inventory.json.",
-    "Class B": "Dev/Val Benchmark — 400 messages (200 hard benign, 200 adversarial smishing; SHA-256 210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03); development-exposed, NOT an unseen external holdout.",
-    "Class C": "External Public Evaluation — UNAVAILABLE / BLOCKED for primary SMS fraud/smishing holdout. Secondary legacy generic spam transfer benchmark (UCI SMS Spam Collection v.1, 5,574 ham/spam messages) retained separately in uci_sms_spam_secondary.json and NEVER pooled with fraud metrics.",
-    "Class D": "Production Telemetry — FUTURE / UNIMPLEMENTED carrier/SMSC/optical-tap feed; zero real-world CDR-linked production samples exist in this repository."
+    "Class A": "Train OOF CV - 703 curated messages across 56 semantic families (SHA-256 5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699); verified from repository dataset_inventory.json.",
+    "Class B": "Dev/Val Benchmark - 400 messages (200 hard benign, 200 adversarial smishing; SHA-256 210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03); development-exposed, NOT an unseen external holdout.",
+    "Class C": "External Public Evaluation - UNAVAILABLE / BLOCKED for primary SMS fraud/smishing holdout. Secondary legacy generic spam transfer benchmark (UCI SMS Spam Collection v.1, 5,574 ham/spam messages) retained separately in uci_sms_spam_secondary.json and NEVER pooled with fraud metrics.",
+    "Class D": "Production Telemetry - FUTURE / UNIMPLEMENTED carrier/SMSC/optical-tap feed; zero real-world CDR-linked production samples exist in this repository."
   },
   "gate_summary": {
     "primary_holdout_ready": false,
@@ -80,52 +96,21 @@
       "name": "Fishing for Smishing: Labeled Smishing Dataset (IMC '25)",
       "stable_id": "github:reportsmishing/Smishing-Dataset-IMC25@a6175560b57387199871e51fbef6bc523d2516b4",
       "canonical_url": "https://github.com/reportsmishing/Smishing-Dataset-IMC25",
-      "retrieval_url": "https://raw.githubusercontent.com/reportsmishing/Smishing-Dataset-IMC25/main/dataset/final_dataset_output.csv",
+      "retrieval_url": "https://raw.githubusercontent.com/reportsmishing/Smishing-Dataset-IMC25/a6175560b57387199871e51fbef6bc523d2516b4/dataset/final_dataset_output.csv",
       "paper_doi": "10.1145/3730567.3764431",
       "publisher": "Agarwal, Papasavva, Suarez-Tangil & Vasek (ACM IMC 2025)",
       "publication_date_or_version": "2025-09-12T15:53:16Z (commit a6175560b57387199871e51fbef6bc523d2516b4)",
-      "retrieval_timestamp_utc": "2026-11-10T22:55:01.867669+00:00",
       "license": "CC BY 4.0 (verified LICENSE.txt and README.md)",
       "license_caveats": "Requires attribution under CC BY 4.0; no publisher-signed checksum file provided.",
       "checksum_provenance": "locally_computed_identity_fingerprint",
-      "raw_artifact_sha256": "1bbd1e9e82c3ea023112207b80da268a5c4a07d2353c2b0898360ab037fa9a64",
-      "file_format": "CSV (UTF-8, 12 columns, 9,462,365 bytes)",
       "source_population": "Public user-submitted smishing reports mined from online reporting forums/social feeds (e.g. Reddit) globally",
       "collection_method": "Programmatic scraping and OCR/text extraction of public smishing report posts with upstream NER PII redaction",
       "geography_and_period": "Global (top non-empty English networks: IND=3,657, USA=1,492, GBR=798, AUS=447, CAN=180; reported period includes 2023+ campaigns)",
       "original_label_taxonomy": {
-        "scam_type": "Categorical attack theme across banking, others, government, delivery, telecom, spam, wrong number, hey mum/dad",
+        "scam_type": "Categorical attack theme across banking, others, government, delivery, telecom, spam, wrong number, hey mum/dad (plus 1 unlabeled non-spam English row)",
         "lure_principles": "Persuasion cue annotations"
       },
-      "verified_counts": {
-        "total_multilingual_records": 33869,
-        "english_records": 22078,
-        "english_by_scam_type": {
-          "banking": 10495,
-          "others": 4586,
-          "government": 1922,
-          "delivery": 1676,
-          "telecom": 1630,
-          "spam": 1387,
-          "wrong_number": 304,
-          "hey_mum_dad": 77,
-          "empty": 1
-        },
-        "english_non_spam_smishing_total": 20691,
-        "english_non_spam_unique_normalized": 14362,
-        "english_non_spam_with_url_placeholder": 6030,
-        "english_non_spam_with_raw_http_url": 287,
-        "english_non_spam_without_any_presidio_tag": 2515
-      },
       "record_id_scheme": "CSV 1-based row index (no explicit publisher UUID column)",
-      "overlap_audit_summary": {
-        "english_exact_matches_train": 0,
-        "english_normalized_matches_train": 0,
-        "english_word_3gram_near_ge_045_train": 0,
-        "english_exact_matches_dev_val": 0,
-        "english_normalized_matches_dev_val": 0,
-        "english_word_3gram_near_ge_045_dev_val": 0
-      },
       "suitability_gates": {
         "legal_and_license_clear": true,
         "observed_external_provenance": true,
@@ -138,8 +123,54 @@
       "rejection_or_limitation_reasons": [
         "Positive-only dataset (0 genuine legitimate/benign SMS negatives): cannot measure FPR, Specificity, Precision, Tier-2 false blocks, or two-class ROC-AUC.",
         "Pairing 2023+ Presidio-redacted IMC25 positives against 2002-2011 unredacted UCI ham negatives creates fatal domain, era, and placeholder-token confounding.",
-        "Heavy upstream NER redaction (<URL> in 6,030/14,362 unique non-spam English rows, <DATE_TIME>, <PHONE_NUMBER>, false <US_DRIVER_LICENSE> tags) strips raw URL domains and callback numbers inspected by SentinelPulse heuristics, breaking verbatim evaluation."
-      ]
+        "Heavy upstream NER redaction (<URL> in 6,030/14,363 unique non-spam English rows, <DATE_TIME>, <PHONE_NUMBER>, false <US_DRIVER_LICENSE> tags) strips raw URL domains and callback numbers inspected by SentinelPulse heuristics, breaking verbatim evaluation."
+      ],
+      "retrieval_timestamp_utc": "2026-11-11T11:42:29.594906+00:00",
+      "raw_artifact_sha256": "1bbd1e9e82c3ea023112207b80da268a5c4a07d2353c2b0898360ab037fa9a64",
+      "file_format": "CSV (UTF-8, 12 columns, 9,462,365 bytes)",
+      "verified_counts": {
+        "total_multilingual_records": 33869,
+        "english_records": 22078,
+        "english_by_scam_type": {
+          "banking": 10495,
+          "others": 4586,
+          "government": 1922,
+          "delivery": 1676,
+          "telecom": 1630,
+          "spam": 1387,
+          "wrong number": 304,
+          "hey mum/dad": 77,
+          "empty": 1
+        },
+        "non_spam_inclusion_rule": "language == 'English' and scam_type != 'spam' (explicitly includes 1 non-spam record with empty scam_type at CSV data row 33411 which retains lure_principles='distraction,time/urgency').",
+        "english_non_spam_smishing_total": 20691,
+        "english_non_spam_unique_normalized": 14363,
+        "english_non_spam_empty_scam_type_count": 1,
+        "english_non_spam_empty_scam_type_csv_rows": [
+          33411
+        ],
+        "english_named_non_spam_smishing_total": 20690,
+        "english_named_non_spam_unique_normalized": 14362,
+        "english_non_spam_with_url_placeholder": 6030,
+        "english_non_spam_with_raw_http_url": 287,
+        "english_non_spam_without_any_presidio_tag": 2515,
+        "english_non_spam_total_rows_with_url_placeholder": 8851,
+        "english_non_spam_total_rows_with_raw_http_url": 352,
+        "english_non_spam_total_rows_without_any_presidio_tag": 3916
+      },
+      "overlap_audit_summary": {
+        "english_exact_matches_train": 0,
+        "english_normalized_matches_train": 0,
+        "english_max_word_3gram_jaccard_train": 0.24,
+        "english_word_3gram_near_ge_045_train": 0,
+        "english_unigram_near_ge_045_train": 0,
+        "english_exact_matches_dev_val": 0,
+        "english_normalized_matches_dev_val": 0,
+        "english_max_word_3gram_jaccard_dev_val": 0.181818,
+        "english_word_3gram_near_ge_045_dev_val": 0,
+        "english_max_unigram_jaccard_dev_val": 0.5,
+        "english_unigram_near_ge_045_dev_val": 1
+      }
     },
     {
       "candidate_id": "uci_sms_spam_collection_v1",
@@ -150,11 +181,9 @@
       "paper_doi": "10.1145/2034691.2034742",
       "publisher": "UCI ML Repository / Almeida, Gomez Hidalgo & Yamakami (ACM DocEng 2011)",
       "publication_date_or_version": "2011 (corpus v.1)",
-      "retrieval_timestamp_utc": "2026-11-10T22:58:36.646993+00:00",
       "license": "CC BY 4.0 (UCI Dataset #228 portal)",
       "license_caveats": "Bundled readme Section 4 specifies copyright by Almeida & Gomez Hidalgo, citation request, no warranty, and user indemnity.",
       "checksum_provenance": "locally_computed_identity_fingerprint",
-      "raw_artifact_sha256": "1587ea43e58e82b14ff1f5425c88e17f8496bfcdb67a583dbff9eefaf9963ce3",
       "file_format": "ZIP containing TSV text file SMSSpamCollection (477,907 bytes) + readme",
       "source_population": "Mixed public/research UK Grumbletext forum spam claims (425), Caroline Tagg PhD ham (450), NUS SMS Corpus student chat (3,375 ham), Gomez Hidalgo corpus (1,002 ham, 322 spam)",
       "collection_method": "Manual extraction from public UK spam complaint forum merged with university/volunteer SMS collections",
@@ -163,6 +192,24 @@
         "ham": "Legitimate conversational SMS (4,827 records)",
         "spam": "Generic unsolicited commercial/prize/ringtone SMS spam (747 records)"
       },
+      "record_id_scheme": "1-based line number uci_228_line_<1..5574>",
+      "suitability_gates": {
+        "legal_and_license_clear": true,
+        "observed_external_provenance": true,
+        "fraud_smishing_label_fidelity": false,
+        "two_class_benign_negative_balance": true,
+        "verbatim_or_unconfounded_feature_fidelity": false
+      },
+      "retained_role": "secondary_legacy_spam_transfer_benchmark",
+      "quarantined_artifact": "uci_sms_spam_secondary.json",
+      "decision": "RETAINED STRICTLY AS SECONDARY LEGACY SPAM TRANSFER BENCHMARK (NO FRAUD RELABELING)",
+      "rejection_or_limitation_reasons": [
+        "Original labels represent legacy ham vs commercial spam, NOT financial fraud/smishing; relabeling spam->fraud or ham->benign is prohibited.",
+        "Contains 415 intra-corpus normalized duplicate rows (5,159 unique texts across 5,574 rows; 0 label conflicts).",
+        "2002-2011 domain/era mismatch vs modern A2P transactional banking, 2FA, Zelle/Venmo, and broken-phone WhatsApp smishing."
+      ],
+      "retrieval_timestamp_utc": "2026-11-11T11:42:29.594906+00:00",
+      "raw_artifact_sha256": "1587ea43e58e82b14ff1f5425c88e17f8496bfcdb67a583dbff9eefaf9963ce3",
       "verified_counts": {
         "total_records": 5574,
         "ham_count": 4827,
@@ -173,7 +220,6 @@
         "intra_corpus_normalized_duplicates": 415,
         "conflicting_label_duplicates": 0
       },
-      "record_id_scheme": "1-based line number uci_228_line_<1..5574>",
       "overlap_audit_summary": {
         "exact_matches_train": 0,
         "normalized_matches_train": 0,
@@ -182,22 +228,9 @@
         "normalized_matches_dev_val": 0,
         "max_word_3gram_jaccard_dev_val": 0.136364
       },
-      "suitability_gates": {
-        "legal_and_license_clear": true,
-        "observed_external_provenance": true,
-        "fraud_smishing_label_fidelity": false,
-        "two_class_benign_negative_balance": true,
-        "verbatim_or_unconfounded_feature_fidelity": false
-      },
-      "retained_role": "secondary_legacy_spam_transfer_benchmark",
-      "quarantined_artifact": "uci_sms_spam_secondary.json",
-      "quarantined_artifact_sha256": "f35b8ea2ea0738732299498111ee8e89eadd4a207eb53bcf9654d2526e53dce6",
-      "decision": "RETAINED STRICTLY AS SECONDARY LEGACY SPAM TRANSFER BENCHMARK (NO FRAUD RELABELING)",
-      "rejection_or_limitation_reasons": [
-        "Original labels represent legacy ham vs commercial spam, NOT financial fraud/smishing; relabeling spam->fraud or ham->benign is prohibited.",
-        "Contains 415 intra-corpus normalized duplicate rows (5,159 unique texts across 5,574 rows; 0 label conflicts).",
-        "2002-2011 domain/era mismatch vs modern A2P transactional banking, 2FA, Zelle/Venmo, and broken-phone WhatsApp smishing."
-      ]
+      "quarantined_artifact_sha256": "169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7",
+      "quarantined_artifact_canonical_content_sha256": "793d53864389c7ef0b534c943a8baade86bf3c1d61a4f4ea7b2672fa63ce6249",
+      "quarantined_artifact_canonical_rows_sha256": "0e643ea940d4c18069c6e5e040a3ac090828771fc00d847f97babf992f6d39a7"
     },
     {
       "candidate_id": "mendeley_f45bkkt8pr_v1",

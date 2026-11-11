@@ -1,0 +1,4 @@
+# Enforce canonical LF line endings across Windows and POSIX for dataset & governance artifacts
+*.json text eol=lf
+docs/dataset_provenance_and_governance.md text eol=lf
+sentinelflow/docs/dataset_provenance_and_governance.md text eol=lf

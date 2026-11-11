@@ -1037,25 +1037,77 @@ def test_sf010_frozen_baseline_artifacts_and_blocked_holdout_status() -> None:
 
 
 def test_sf010_uci_secondary_quarantine_provenance_and_zero_relabeling() -> None:
-    """Verifies UCI secondary spam transfer benchmark hash locks, counts, labels, and zero overlap."""
+    """Verifies UCI secondary spam transfer benchmark LF/CRLF integrity, counts, and overlap."""
+    import copy
+
     from app.telecom.dataset_quarantine import (
+        compute_canonical_content_digest,
         compute_overlap_audit,
         get_dataset_governance_paths,
         normalized_sha256,
-        sha256_bytes,
         sha256_text,
+        verify_uci_artifact_integrity,
     )
+    from app.telecom.evaluate_model import get_held_out_samples_with_metadata
     from app.telecom.train_onnx_model import build_augmented_dataset
 
     gov_paths = get_dataset_governance_paths()
     assert gov_paths["secondary_uci"].exists(), "Missing uci_sms_spam_secondary.json"
 
-    assessment = json.loads(gov_paths["source_assessment"].read_text(encoding="utf-8"))
-    assert sha256_bytes(gov_paths["secondary_uci"].read_bytes()) == assessment["secondary_transfer_benchmark_sha256"]
+    assessment_raw = gov_paths["source_assessment"].read_bytes()
+    assert b"\r\n" not in assessment_raw, "external_source_assessment.json must use LF endings"
+    assessment = json.loads(assessment_raw.decode("utf-8"))
 
-    uci_bundle = json.loads(gov_paths["secondary_uci"].read_text(encoding="utf-8"))
+    raw_bytes = gov_paths["secondary_uci"].read_bytes()
+    assert b"\r\n" not in raw_bytes, "uci_sms_spam_secondary.json must use LF endings on disk"
+
+    integrity = verify_uci_artifact_integrity(
+        raw_bytes,
+        expected_canonical_lf_sha256=assessment["secondary_transfer_benchmark_lf_sha256"],
+    )
+    assert integrity["eol_style_on_disk"] == "LF"
+    assert integrity["raw_matches_canonical_lf"] is True
+    assert integrity["lf_canonical_sha256"] == assessment["secondary_transfer_benchmark_sha256"]
+    assert integrity["canonical_content_sha256"] == assessment[
+        "secondary_transfer_benchmark_content_sha256"
+    ]
+    assert integrity["canonical_rows_sha256"] == assessment[
+        "secondary_transfer_benchmark_canonical_rows_sha256"
+    ]
+
+    # Simulated Windows CRLF bytes must transparently differ in raw digest while preserving LF & content digests
+    crlf_bytes = raw_bytes.replace(b"\n", b"\r\n")
+    crlf_integrity = verify_uci_artifact_integrity(
+        crlf_bytes,
+        expected_canonical_lf_sha256=assessment["secondary_transfer_benchmark_lf_sha256"],
+    )
+    assert crlf_integrity["eol_style_on_disk"] == "CRLF"
+    assert crlf_integrity["raw_matches_canonical_lf"] is False
+    assert crlf_integrity["raw_disk_sha256"] != crlf_integrity["lf_canonical_sha256"]
+    assert crlf_integrity["lf_canonical_sha256"] == integrity["lf_canonical_sha256"]
+    assert crlf_integrity["canonical_rows_sha256"] == integrity["canonical_rows_sha256"]
+    assert crlf_integrity["canonical_content_sha256"] == integrity["canonical_content_sha256"]
+
+    uci_bundle = integrity["bundle"]
     manifest = uci_bundle["manifest"]
     rows = uci_bundle["rows"]
+
+    # Content digest must remain invariant when volatile UTC retrieval timestamps change
+    mutated_bundle = copy.deepcopy(uci_bundle)
+    mutated_bundle["manifest"]["retrieval_timestamp_utc"] = "2099-12-31T23:59:59+00:00"
+    mutated_bundle["manifest"]["retrieval_metadata"]["retrieval_timestamp_utc"] = (
+        "2099-12-31T23:59:59+00:00"
+    )
+    assert compute_canonical_content_digest(mutated_bundle) == manifest["canonical_content_sha256"]
+
+    with pytest.raises(ValueError, match="canonical LF artifact SHA-256 mismatch"):
+        verify_uci_artifact_integrity(raw_bytes, expected_canonical_lf_sha256="0" * 64)
+
+    tampered_bundle = copy.deepcopy(uci_bundle)
+    tampered_bundle["rows"][0]["text"] = "tampered payload"
+    tampered_bytes = json.dumps(tampered_bundle).encode("utf-8")
+    with pytest.raises(ValueError, match="canonical_rows_sha256 mismatch"):
+        verify_uci_artifact_integrity(tampered_bytes)
 
     assert manifest["benchmark_role"] == "secondary_legacy_sms_spam_transfer_benchmark"
     assert manifest["is_primary_fraud_holdout"] is False
@@ -1104,7 +1156,7 @@ def test_sf010_uci_secondary_quarantine_provenance_and_zero_relabeling() -> None
 
 
 def test_sf010_source_assessment_completeness_and_gate_integrity() -> None:
-    """Verifies candidate source assessment ledger and deterministic suitability gate logic."""
+    """Verifies candidate source assessment ledger, pinned IMC25 URL, resolved counts, and gates."""
     from app.telecom.dataset_quarantine import (
         assess_holdout_suitability,
         get_dataset_governance_paths,
@@ -1126,6 +1178,8 @@ def test_sf010_source_assessment_completeness_and_gate_integrity() -> None:
         "hf_gandharvbakshi_otp_phishing",
     }
     assert set(by_id.keys()) == expected_ids
+    assert "programmatically_computed_fields" in assessment["provenance_separation"]
+    assert "manual_candidate_adjudications" in assessment["provenance_separation"]
 
     for cid, cand in by_id.items():
         assert str(cand["canonical_url"]).startswith("https://")
@@ -1137,9 +1191,21 @@ def test_sf010_source_assessment_completeness_and_gate_integrity() -> None:
     assert by_id["mendeley_f45bkkt8pr_v1"]["verified_counts"]["uci_exact_normalized_overlap_breakdown"][
         "smishing_matching_uci_spam_RELABELED"
     ] == 361
-    # Verify IMC25 positive-only & Presidio <URL> redaction audit counts
-    assert by_id["imc25_smishing_reports"]["verified_counts"]["english_records"] == 22078
-    assert by_id["imc25_smishing_reports"]["verified_counts"]["english_non_spam_smishing_total"] == 20691
+
+    # Verify IMC25 pinned immutable commit URL and reconciled empty-category counts
+    imc25 = by_id["imc25_smishing_reports"]
+    assert "a6175560b57387199871e51fbef6bc523d2516b4" in str(imc25["retrieval_url"])
+    assert "/main/" not in str(imc25["retrieval_url"])
+    assert imc25["verified_counts"]["english_records"] == 22078
+    assert imc25["verified_counts"]["english_non_spam_smishing_total"] == 20691
+    assert imc25["verified_counts"]["english_non_spam_unique_normalized"] == 14363
+    assert imc25["verified_counts"]["english_non_spam_empty_scam_type_count"] == 1
+    assert imc25["verified_counts"]["english_non_spam_empty_scam_type_csv_rows"] == [33411]
+    assert imc25["verified_counts"]["english_named_non_spam_smishing_total"] == 20690
+    assert imc25["verified_counts"]["english_named_non_spam_unique_normalized"] == 14362
+    assert imc25["verified_counts"]["english_non_spam_with_url_placeholder"] == 6030
+    assert imc25["overlap_audit_summary"]["english_word_3gram_near_ge_045_train"] == 0
+    assert imc25["overlap_audit_summary"]["english_word_3gram_near_ge_045_dev_val"] == 0
 
     re_summary = assess_holdout_suitability(assessment)
     assert re_summary == assessment["gate_summary"]
@@ -1217,6 +1283,7 @@ def test_sf010_statistical_wilson_base_rate_and_mirrored_docs() -> None:
     assert root_bytes == mirror_bytes, "Mirrored provenance & governance docs must be byte-identical"
 
     doc_text = root_bytes.decode("utf-8")
+    assert b"\r\n" not in root_bytes, "Mirrored governance markdown must use canonical LF endings"
     for required_section in (
         "Class A — Train OOF CV",
         "Class B — Dev/Val Benchmark",
@@ -1229,6 +1296,145 @@ def test_sf010_statistical_wilson_base_rate_and_mirrored_docs() -> None:
     ):
         assert required_section in doc_text, f"Governance doc missing '{required_section}'"
     assert "±3.2%" not in doc_text and "3.2%" not in doc_text
+
+
+def test_sf010r_builder_isolation_ast_corpus_and_hermetic_reconstruction(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verifies committed builder isolation, AST corpus verification, guards, and offline build."""
+    import ast
+    import zipfile
+
+    from app.telecom import build_quarantine_artifacts as builder
+    from app.telecom.dataset_quarantine import (
+        FROZEN_DEV_VAL_DATASET_SHA256,
+        FROZEN_TRAINING_DATASET_SHA256,
+        get_dataset_governance_paths,
+        sha256_bytes,
+    )
+
+    # 1. Builder must NEVER import ML/ONNX/training/inference modules or invoke exec/eval
+    builder_src = Path(builder.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(builder_src)
+    forbidden_prefixes = (
+        "onnxruntime",
+        "onnx",
+        "skl2onnx",
+        "sklearn",
+        "numpy",
+        "app.telecom.onnx_engine",
+        "app.telecom.evaluate_model",
+        "app.telecom.train_onnx_model",
+        "app.main",
+    )
+    imported_modules: list[str] = []
+    called_names: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported_modules.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_modules.append(node.module)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            called_names.append(node.func.id)
+
+    for mod in imported_modules:
+        assert not any(mod == p or mod.startswith(f"{p}.") for p in forbidden_prefixes), (
+            f"build_quarantine_artifacts.py imported forbidden module '{mod}'"
+        )
+    assert "exec" not in called_names and "eval" not in called_names
+
+    # 2. Pure-AST corpus extraction must reproduce exact frozen baseline hashes without imports
+    corpora = builder.extract_frozen_corpora()
+    assert len(corpora["train_texts"]) == 703
+    assert corpora["train_sha256"] == FROZEN_TRAINING_DATASET_SHA256
+    assert len(corpora["dev_val_texts"]) == 400
+    assert corpora["dev_val_sha256"] == FROZEN_DEV_VAL_DATASET_SHA256
+
+    # 3. Offline repository verification passes against committed LF files & CRLF simulation
+    offline_report = builder.verify_repository_reproducibility(offline=True)
+    assert offline_report["uci_disk_eol"] == "LF"
+    assert offline_report["frozen_train_sha256"] == FROZEN_TRAINING_DATASET_SHA256
+    assert offline_report["frozen_dev_val_sha256"] == FROZEN_DEV_VAL_DATASET_SHA256
+
+    # 4. Canonical overwrite guard refuses writes to datasets/ without --write-canonical
+    gov_paths = get_dataset_governance_paths()
+    with pytest.raises(ValueError, match="--write-canonical"):
+        builder.write_artifacts_to_directory(
+            gov_paths["datasets_dir"],
+            {"uci_lf_bytes": b"{}\n", "assessment_lf_bytes": b"{}\n"},
+            write_canonical=False,
+        )
+
+    # 5. Zip member allowlist and checksum verification reject tampered archives
+    bad_zip = tmp_path / "unexpected.zip"
+    with zipfile.ZipFile(bad_zip, "w") as zf:
+        zf.writestr("../evil.txt", "bad")
+    monkeypatch.setattr(builder, "UCI_EXPECTED_ZIP_SHA256", sha256_bytes(bad_zip.read_bytes()))
+    with pytest.raises(ValueError, match="Unexpected UCI ZIP members"):
+        builder.extract_verified_uci_members(bad_zip.read_bytes())
+
+    # 6. Full hermetic offline reconstruction into tmp_path with pinned synthetic fixtures
+    uci_tsv = b"ham\tHey are we still meeting at 6pm?\nspam\tWIN FREE RINGTONES text 87121 now\n"
+    readme_bytes = b"UCI SMS Spam Collection test readme\n"
+    uci_zip = tmp_path / "uci.zip"
+    with zipfile.ZipFile(uci_zip, "w") as zf:
+        zf.writestr("SMSSpamCollection", uci_tsv)
+        zf.writestr("readme", readme_bytes)
+
+    imc_csv_bytes = (
+        b"time,sender_id,telephone_number_type,original_network_name,original_network_country,"
+        b"text,translation,language,url_shortener,named_entity,scam_type,lure_principles\n"
+        b"2024-01-01,sms,short,,GBR,Bank alert: verify at <URL>,,English,,,banking,urgency\n"
+        b"2024-01-02,sms,short,,GBR,Promo spam text,,English,,,spam,greed\n"
+        b"2024-01-03,sms,short,,GBR,NHS checkup <DATE_TIME>,,English,,,,distraction\n"
+    )
+    imc_csv = tmp_path / "imc25.csv"
+    imc_csv.write_bytes(imc_csv_bytes)
+
+    monkeypatch.setattr(builder, "UCI_EXPECTED_ZIP_SHA256", sha256_bytes(uci_zip.read_bytes()))
+    monkeypatch.setattr(
+        builder,
+        "UCI_EXPECTED_MEMBER_SHA256",
+        {
+            "SMSSpamCollection": sha256_bytes(uci_tsv),
+            "readme": sha256_bytes(readme_bytes),
+        },
+    )
+    monkeypatch.setattr(builder, "IMC25_EXPECTED_CSV_SHA256", sha256_bytes(imc_csv_bytes))
+
+    built_t1 = builder.build_artifacts_payload(
+        uci_zip_path=uci_zip,
+        imc25_csv_path=imc_csv,
+        retrieval_timestamp_utc="2026-11-11T10:00:00+00:00",
+    )
+    built_t2 = builder.build_artifacts_payload(
+        uci_zip_path=uci_zip,
+        imc25_csv_path=imc_csv,
+        retrieval_timestamp_utc="2099-01-01T00:00:00+00:00",
+    )
+    out_dir = tmp_path / "out"
+    written = builder.write_artifacts_to_directory(out_dir, built_t1, write_canonical=False)
+
+    assert b"\r\n" not in written["uci_path"].read_bytes()
+    assert b"\r\n" not in written["assessment_path"].read_bytes()
+    assert (
+        built_t1["uci_bundle"]["manifest"]["canonical_content_sha256"]
+        == built_t2["uci_bundle"]["manifest"]["canonical_content_sha256"]
+    )
+    assert (
+        built_t1["uci_bundle"]["manifest"]["canonical_rows_sha256"]
+        == built_t2["uci_bundle"]["manifest"]["canonical_rows_sha256"]
+    )
+    imc_counts = next(
+        c["verified_counts"]
+        for c in built_t1["assessment"]["candidates"]
+        if c["candidate_id"] == "imc25_smishing_reports"
+    )
+    assert imc_counts["english_non_spam_smishing_total"] == 2
+    assert imc_counts["english_non_spam_empty_scam_type_count"] == 1
+    assert imc_counts["english_named_non_spam_smishing_total"] == 1
+
 
 
 
