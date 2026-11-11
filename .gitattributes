@@ -1,5 +1,8 @@
-# Enforce canonical LF line endings across Windows and POSIX for SF-010R dataset & governance artifacts
+# Enforce canonical LF line endings across Windows and POSIX for SF-010R & SF-011 dataset & governance artifacts
 sentinelflow/backend/app/telecom/datasets/uci_sms_spam_secondary.json text eol=lf
 sentinelflow/backend/app/telecom/datasets/external_source_assessment.json text eol=lf
+sentinelflow/backend/app/telecom/datasets/sf011_acquisition_routes.json text eol=lf
 docs/dataset_provenance_and_governance.md text eol=lf
 sentinelflow/docs/dataset_provenance_and_governance.md text eol=lf
+docs/sf011_class_c_acquisition_and_qualification.md text eol=lf
+sentinelflow/docs/sf011_class_c_acquisition_and_qualification.md text eol=lf

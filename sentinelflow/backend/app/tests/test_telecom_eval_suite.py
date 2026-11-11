@@ -1478,3 +1478,150 @@ def test_sf010r_builder_isolation_ast_corpus_and_hermetic_reconstruction(
     assert imc_counts["english_non_spam_smishing_total"] == 2
     assert imc_counts["english_non_spam_empty_scam_type_count"] == 1
     assert imc_counts["english_named_non_spam_smishing_total"] == 1
+
+
+def test_sf011_acquisition_ledger_gates_sample_size_and_mirrored_docs() -> None:
+    """Verifies SF-011 Class C acquisition ledger, 7-gate logic, Wilson/PPV math, and zero-PII."""
+    import ast
+    import copy
+    import json
+    import re
+
+    from app.telecom import dataset_quarantine as dq
+    from app.telecom.dataset_quarantine import (
+        CLASS_C_QUALIFICATION_GATES,
+        FROZEN_DEV_VAL_DATASET_SHA256,
+        FROZEN_ONNX_MODEL_SHA256,
+        FROZEN_TRAINING_DATASET_SHA256,
+        adjust_precision_for_base_rate,
+        compute_exact_wilson_interval,
+        evaluate_class_c_qualification_routes,
+        get_dataset_governance_paths,
+    )
+
+    gov_paths = get_dataset_governance_paths()
+
+    # 1. Primary Class C holdout artifact must remain absent (UNAVAILABLE / BLOCKED)
+    assert not gov_paths["primary_holdout"].exists(), (
+        "quarantined_test_holdout.json must NOT exist while Class C holdout is blocked"
+    )
+
+    # 2. SF-011 JSON ledger and mirrored docs must exist, use strict LF endings, and match bytes
+    routes_raw = gov_paths["sf011_routes"].read_bytes()
+    doc_root_raw = gov_paths["sf011_doc_root"].read_bytes()
+    doc_mirror_raw = gov_paths["sf011_doc_mirror"].read_bytes()
+    assert b"\r\n" not in routes_raw, "sf011_acquisition_routes.json must use LF endings"
+    assert b"\r\n" not in doc_root_raw, "sf011_class_c_acquisition_and_qualification.md must be LF"
+    assert doc_root_raw == doc_mirror_raw, "Mirrored SF-011 docs must stay byte-identical"
+
+    ledger = json.loads(routes_raw.decode("utf-8"))
+    assert ledger["ticket_id"] == "SF-011"
+
+    refs = ledger["sf010_and_sf010r_baseline_references"]
+    assert refs["frozen_onnx_model_sha256"] == FROZEN_ONNX_MODEL_SHA256
+    assert refs["frozen_training_dataset_sha256"] == FROZEN_TRAINING_DATASET_SHA256
+    assert refs["frozen_dev_val_dataset_sha256"] == FROZEN_DEV_VAL_DATASET_SHA256
+    assert refs["primary_holdout_artifact_created"] is False
+    assert refs["sf_011_holdout_status"] == "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT"
+
+    # 3. 7-gate definition and deterministic gate evaluation across >=10 routes and all categories
+    mandatory_gate_ids = tuple(
+        g["gate_id"] for g in ledger["class_c_qualification_gate"]["mandatory_gates"]
+    )
+    assert mandatory_gate_ids == CLASS_C_QUALIFICATION_GATES
+    assert len(CLASS_C_QUALIFICATION_GATES) == 7
+
+    evaluated = evaluate_class_c_qualification_routes(ledger)
+    assert evaluated == ledger["gate_evaluation"]
+    assert evaluated["total_routes_assessed"] >= 10
+    assert evaluated["qualified_class_c_routes"] == []
+    assert evaluated["class_c_holdout_ready"] is False
+    assert evaluated["primary_holdout_status"] == "UNAVAILABLE_BLOCKED"
+
+    categories = {route["category"] for route in ledger["routes_investigated"]}
+    assert "published_research_dataset" in categories
+    assert "academic_mno_collaboration_route" in categories
+    assert "consumer_protection_and_regulatory_bodies" in categories
+    assert "telecom_antifraud_consortia_and_carrier_enclave" in categories
+
+    # Pure unit test of positive/negative gate boundary in memory
+    synthetic_ledger = copy.deepcopy(ledger)
+    synthetic_ledger["routes_investigated"].append(
+        {
+            "route_id": "synthetic_valid_enclave_mock",
+            "qualification_status": "QUALIFIED",
+            "class_c_gates": {gate: True for gate in CLASS_C_QUALIFICATION_GATES},
+        }
+    )
+    synthetic_ledger["routes_investigated"].append(
+        {
+            "route_id": "synthetic_incomplete_gate_mock",
+            "qualification_status": "QUALIFIED",
+            "class_c_gates": {
+                gate: (gate != "independence") for gate in CLASS_C_QUALIFICATION_GATES
+            },
+        }
+    )
+    mock_eval = evaluate_class_c_qualification_routes(synthetic_ledger)
+    assert mock_eval["qualified_class_c_routes"] == ["synthetic_valid_enclave_mock"]
+    assert "synthetic_incomplete_gate_mock" in mock_eval["failing_gates_by_route"]
+    assert mock_eval["failing_gates_by_route"]["synthetic_incomplete_gate_mock"] == ["independence"]
+    assert mock_eval["class_c_holdout_ready"] is True
+    assert mock_eval["primary_holdout_status"] == "READY_FOR_CONTROLLED_QUARANTINE"
+
+    # 4. Exact numerical verification of Wilson 95% CI table and Bayes PPV sensitivity table
+    stats_fw = ledger["sample_size_and_ci_framework"]
+    for row in stats_fw["wilson_95_ci_reference_table"]:
+        k = row["successes_k"]
+        n = row["denominator_n"]
+        lo, hi = compute_exact_wilson_interval(k, n)
+        assert row["point_estimate"] == round(k / n, 6)
+        assert row["wilson_95_ci"] == [lo, hi]
+        assert row["ci_width"] == round(hi - lo, 6)
+
+    for row in stats_fw["bayes_operational_ppv_sensitivity"]:
+        expected_ppv = adjust_precision_for_base_rate(
+            recall=row["tpr"],
+            fpr=row["fpr"],
+            prevalence=row["prevalence_pi"],
+        )
+        assert row["implied_ppv"] == expected_ppv
+
+    # 5. Zero-PII verification across JSON ledger and Markdown report (no phone/PAN/SSN/personal email)
+    allowed_emails = {"membership@apwg.org"}
+    for artifact_text in (routes_raw.decode("utf-8"), doc_root_raw.decode("utf-8")):
+        assert not re.search(r"\b\d{3}-\d{2}-\d{4}\b", artifact_text), "Unexpected SSN pattern"
+        assert not re.search(r"(?<![0-9a-fA-F])\b\d{16}\b(?![0-9a-fA-F])", artifact_text), (
+            "Unexpected 16-digit PAN pattern"
+        )
+        assert not re.search(
+            r"(?<![0-9a-fA-F-])(?:\+?1[-.\s])?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b",
+            artifact_text,
+        ), "Unexpected phone number pattern"
+        emails = set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", artifact_text))
+        assert emails.issubset(allowed_emails), f"Unexpected personal/unvetted emails: {emails}"
+
+    # 6. AST isolation check on dataset_quarantine.py
+    dq_tree = ast.parse(Path(dq.__file__).read_text(encoding="utf-8"))
+    forbidden_prefixes = (
+        "onnxruntime",
+        "onnx",
+        "skl2onnx",
+        "sklearn",
+        "numpy",
+        "app.telecom.onnx_engine",
+        "app.telecom.evaluate_model",
+        "app.telecom.train_onnx_model",
+        "app.main",
+    )
+    for node in ast.walk(dq_tree):
+        if isinstance(node, ast.Import):
+            mods = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            mods = [node.module]
+        else:
+            mods = []
+        for mod in mods:
+            assert not any(mod == p or mod.startswith(f"{p}.") for p in forbidden_prefixes), (
+                f"dataset_quarantine.py imported forbidden module '{mod}'"
+            )

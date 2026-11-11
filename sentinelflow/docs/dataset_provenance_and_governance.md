@@ -118,6 +118,7 @@ Message-level Wilson CIs strictly assume independent, identically distributed Be
    - No heuristic regex edits, weight shifts, Platt parameter tuning, or threshold shifts (`0.40` / `0.75`).
    - Any post-holdout fix invalidates that holdout permanently and requires procuring a newly sealed, disjoint holdout before re-claiming unseen-holdout generalization.
 3. **What Unblocks `SF-011`:** Acquiring either (a) de-identified, CDR-verified two-class carrier telemetry (`Class D` raw/minimal-redacted legitimate transactional SMS + confirmed smishing under compatible non-confounding formatting), or (b) a vetted open-licensed verbatim English two-class corpus containing verified fraud/smishing and matched benign transactional controls passing all five gates in `external_source_assessment.json`. Until then, **`SF-011` remains `BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT`**.
+4. **`SF-011` Acquisition & Class C Qualification Audit Ledger:** See [`sf011_class_c_acquisition_and_qualification.md`](./sf011_class_c_acquisition_and_qualification.md) and [`sf011_acquisition_routes.json`](../sentinelflow/backend/app/telecom/datasets/sf011_acquisition_routes.json) (`canonical LF sha256 = 8150a2125b66c99cb10d3199a0026fae711a202dd5511a4d5572d63d466caebc`), documenting 12 additional investigated routes, the 7-gate qualification evaluator, and statistical Wilson CI / operational PPV minimums confirming `UNAVAILABLE_BLOCKED`.
 
 ---
 

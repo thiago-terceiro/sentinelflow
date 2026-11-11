@@ -36,6 +36,13 @@ def get_dataset_governance_paths(telecom_dir: Path | None = None) -> dict[str, P
         "source_assessment": datasets_dir / "external_source_assessment.json",
         "governance_root": workspace_root / "docs" / "dataset_provenance_and_governance.md",
         "governance_mirror": project_root / "docs" / "dataset_provenance_and_governance.md",
+        "sf011_routes": datasets_dir / "sf011_acquisition_routes.json",
+        "sf011_doc_root": workspace_root
+        / "docs"
+        / "sf011_class_c_acquisition_and_qualification.md",
+        "sf011_doc_mirror": project_root
+        / "docs"
+        / "sf011_class_c_acquisition_and_qualification.md",
     }
 
 
@@ -501,4 +508,42 @@ def assess_holdout_suitability(assessment: dict[str, Any]) -> dict[str, Any]:
             "UNBLOCKED" if eligible_primary else "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT"
         ),
         "gate_failures_by_candidate": gate_failures,
+    }
+
+
+CLASS_C_QUALIFICATION_GATES: tuple[str, ...] = (
+    "authenticity_and_relevance",
+    "two_class_coverage",
+    "label_quality",
+    "provenance_and_lawful_access",
+    "evaluation_suitability",
+    "independence",
+    "frozen_evaluation_feasibility",
+)
+
+
+def evaluate_class_c_qualification_routes(ledger: dict[str, Any]) -> dict[str, Any]:
+    """Evaluates SF-011 acquisition routes strictly against the 7 mandatory Class C gates."""
+    routes: list[dict[str, Any]] = list(ledger.get("routes_investigated", []))
+    qualified_routes: list[str] = []
+    failing_gates_by_route: dict[str, list[str]] = {}
+
+    for route in routes:
+        rid = str(route["route_id"])
+        gates: dict[str, Any] = route.get("class_c_gates", {})
+        status = str(route.get("qualification_status", "NOT_QUALIFIED"))
+        failed = [g for g in CLASS_C_QUALIFICATION_GATES if not bool(gates.get(g, False))]
+        if not failed and status == "QUALIFIED":
+            qualified_routes.append(rid)
+        else:
+            failing_gates_by_route[rid] = failed
+
+    return {
+        "total_routes_assessed": len(routes),
+        "qualified_class_c_routes": qualified_routes,
+        "class_c_holdout_ready": len(qualified_routes) > 0,
+        "primary_holdout_status": (
+            "READY_FOR_CONTROLLED_QUARANTINE" if qualified_routes else "UNAVAILABLE_BLOCKED"
+        ),
+        "failing_gates_by_route": failing_gates_by_route,
     }

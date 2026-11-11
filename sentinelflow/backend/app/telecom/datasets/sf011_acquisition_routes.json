@@ -1,0 +1,823 @@
+{
+  "schema_version": "1.0.0",
+  "ticket_id": "SF-011",
+  "assessed_at_utc": "2026-11-11T15:45:57.832715+00:00",
+  "sf010_and_sf010r_baseline_references": {
+    "frozen_onnx_model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
+    "frozen_training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
+    "frozen_dev_val_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
+    "uci_secondary_lf_sha256": "169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7",
+    "sf010_assessment_lf_sha256": "72fa9ff4a519b75204272ba05d3138f6d0a3b8379b1d0fec493a8d72578f6eb9",
+    "primary_holdout_artifact_created": false,
+    "sf_011_holdout_status": "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT"
+  },
+  "class_c_qualification_gate": {
+    "mandatory_gates": [
+      {
+        "gate_id": "authenticity_and_relevance",
+        "requirement": "Real observed SMS messages relevant to contemporary financial fraud/smishing and modern transactional A2P/P2P traffic."
+      },
+      {
+        "gate_id": "two_class_coverage",
+        "requirement": "Both confirmed fraud/smishing (n_+) and legitimate/benign (n_-) controls from a compatible, contemporaneous sampling frame."
+      },
+      {
+        "gate_id": "label_quality",
+        "requirement": "Documented human/incident labeling rubric, adjudication protocol, inter-rater agreement or dispute resolution, and disclosed label uncertainty."
+      },
+      {
+        "gate_id": "provenance_and_lawful_access",
+        "requirement": "Verifiable source identity, collection timeframe/geography, lawful consent/DUA/IRB basis, and explicit license permitting evaluation."
+      },
+      {
+        "gate_id": "evaluation_suitability",
+        "requirement": "Intact structural signals (unredacted URL hosts/TLDs, callback lures, formatting) without cross-class redaction/era shortcuts."
+      },
+      {
+        "gate_id": "independence",
+        "requirement": "Verified zero/quantified exact, normalized, word 3-gram, and semantic-family overlap against Train (N=703) and Dev/Val (N=400)."
+      },
+      {
+        "gate_id": "frozen_evaluation_feasibility",
+        "requirement": "Pre-registered AST-isolated quarantine with cryptographic source/artifact hashes, one-shot execution, and zero post-eval adaptation."
+      }
+    ],
+    "strict_prohibitions": [
+      "No UCI + positive-only dataset stitching across eras/redaction pipelines.",
+      "No synthetic benign message balancing paired with real smishing reports.",
+      "No heuristic- or model-inferred ground truth on unlabeled SMS dumps.",
+      "No release or inspection of raw end-user PII in commits or reports."
+    ]
+  },
+  "sample_size_and_ci_framework": {
+    "no_universal_n_rationale": "No single universal sample size N is statistically defensible because Sensitivity/Recall uses fraud denominator n_+, Specificity/FPR uses benign denominator n_-, CI width depends on event rate p_hat (narrow near 0.95/0.01 vs widest at 0.50), cluster-correlated campaigns inflate variance by DEFF = 1 + (m - 1)*rho, and low live carrier prevalence pi amplifies small FPR errors into severe PPV degradation.",
+    "wilson_95_ci_reference_table": [
+      {
+        "scenario": "Modest Recall pilot (p_hat ~ 0.95)",
+        "metric_role": "Recall / TPR (n_+)",
+        "successes_k": 143,
+        "denominator_n": 150,
+        "point_estimate": 0.953333,
+        "wilson_95_ci": [
+          0.906814,
+          0.977213
+        ],
+        "ci_width": 0.070399
+      },
+      {
+        "scenario": "Target Recall baseline (p_hat = 0.95)",
+        "metric_role": "Recall / TPR (n_+)",
+        "successes_k": 285,
+        "denominator_n": 300,
+        "point_estimate": 0.95,
+        "wilson_95_ci": [
+          0.919153,
+          0.969468
+        ],
+        "ci_width": 0.050315
+      },
+      {
+        "scenario": "Tighter Recall CI (<4% width)",
+        "metric_role": "Recall / TPR (n_+)",
+        "successes_k": 475,
+        "denominator_n": 500,
+        "point_estimate": 0.95,
+        "wilson_95_ci": [
+          0.927232,
+          0.965906
+        ],
+        "ci_width": 0.038674
+      },
+      {
+        "scenario": "Undersized benign control (0 FP)",
+        "metric_role": "FPR upper bound (n_-)",
+        "successes_k": 0,
+        "denominator_n": 150,
+        "point_estimate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.02497
+        ],
+        "ci_width": 0.02497
+      },
+      {
+        "scenario": "Insufficient benign control (0 FP)",
+        "metric_role": "FPR upper bound (n_-)",
+        "successes_k": 0,
+        "denominator_n": 300,
+        "point_estimate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.012643
+        ],
+        "ci_width": 0.012643
+      },
+      {
+        "scenario": "Minimum exploratory benign control (0 FP)",
+        "metric_role": "FPR upper bound (n_-)",
+        "successes_k": 0,
+        "denominator_n": 500,
+        "point_estimate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.007624
+        ],
+        "ci_width": 0.007624
+      },
+      {
+        "scenario": "Recommended Class C benign floor (0 FP)",
+        "metric_role": "FPR upper bound (n_-)",
+        "successes_k": 0,
+        "denominator_n": 1000,
+        "point_estimate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.003827
+        ],
+        "ci_width": 0.003827
+      },
+      {
+        "scenario": "Target high-specificity benign control (0 FP)",
+        "metric_role": "FPR upper bound (n_-)",
+        "successes_k": 0,
+        "denominator_n": 2000,
+        "point_estimate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.001917
+        ],
+        "ci_width": 0.001917
+      },
+      {
+        "scenario": "0.5% FPR precision at n_-=1,000",
+        "metric_role": "FPR (n_-)",
+        "successes_k": 5,
+        "denominator_n": 1000,
+        "point_estimate": 0.005,
+        "wilson_95_ci": [
+          0.002138,
+          0.011651
+        ],
+        "ci_width": 0.009513
+      },
+      {
+        "scenario": "1.0% FPR precision at n_-=1,000",
+        "metric_role": "FPR (n_-)",
+        "successes_k": 10,
+        "denominator_n": 1000,
+        "point_estimate": 0.01,
+        "wilson_95_ci": [
+          0.005441,
+          0.018309
+        ],
+        "ci_width": 0.012868
+      },
+      {
+        "scenario": "0.5% FPR precision at n_-=2,000",
+        "metric_role": "FPR (n_-)",
+        "successes_k": 10,
+        "denominator_n": 2000,
+        "point_estimate": 0.005,
+        "wilson_95_ci": [
+          0.002718,
+          0.00918
+        ],
+        "ci_width": 0.006462
+      }
+    ],
+    "bayes_operational_ppv_sensitivity": [
+      {
+        "tpr": 0.95,
+        "fpr": 0.05,
+        "prevalence_pi": 0.5,
+        "implied_ppv": 0.95
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.05,
+        "prevalence_pi": 0.05,
+        "implied_ppv": 0.5
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.05,
+        "prevalence_pi": 0.01,
+        "implied_ppv": 0.161017
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.05,
+        "prevalence_pi": 0.002,
+        "implied_ppv": 0.03668
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.01,
+        "prevalence_pi": 0.5,
+        "implied_ppv": 0.989583
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.01,
+        "prevalence_pi": 0.05,
+        "implied_ppv": 0.833333
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.01,
+        "prevalence_pi": 0.01,
+        "implied_ppv": 0.489691
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.01,
+        "prevalence_pi": 0.002,
+        "implied_ppv": 0.159933
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.002,
+        "prevalence_pi": 0.5,
+        "implied_ppv": 0.997899
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.002,
+        "prevalence_pi": 0.05,
+        "implied_ppv": 0.961538
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.002,
+        "prevalence_pi": 0.01,
+        "implied_ppv": 0.827526
+      },
+      {
+        "tpr": 0.95,
+        "fpr": 0.002,
+        "prevalence_pi": 0.002,
+        "implied_ppv": 0.48768
+      }
+    ],
+    "recommended_effective_sample_minimums": {
+      "independent_equivalent_positives_n_plus": ">= 300-500 distinct campaign-stratified smishing messages (adjust raw count upward by cluster design effect DEFF)",
+      "independent_equivalent_benign_n_minus": ">= 1,000-2,000 contemporaneous benign A2P/P2P controls (bank alerts, OTP/2FA, carrier notices, delivery, conversational) to bound rare false-block upper CI below 0.4% and protect PPV at pi <= 1%"
+    }
+  },
+  "routes_investigated": [
+    {
+      "route_id": "wspr_ncsu_sms_phishing_sp24",
+      "category": "published_research_dataset",
+      "name": "NCSU WSPR SMS Phishing Dataset (IEEE S&P '24)",
+      "owner_or_provider": "Wolfpack Security and Privacy Research (WSPR) Lab, NC State University + PayPal co-authors",
+      "canonical_url": "https://github.com/wspr-ncsu/sms-phishing",
+      "paper_reference": "Nahapetyan et al., 'On SMS Phishing Tactics and Infrastructure', IEEE S&P 2024",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "OPEN_GITHUB_PUBLIC_DOWNLOAD",
+      "message_origin": "real_observed_public_sms_gateways",
+      "population_and_sampling": "English & international messages scraped from public receive-SMS gateways flagged by VirusTotal (>=3 vendors), APWG, or Google Safe Browsing (~200M raw pool filtered to 68,029 flagged messages across 35,128 campaigns).",
+      "geography_and_timeframe": "Global / primarily US & Western gateway numbers (2022-05-01 to 2023-06-01 UTC)",
+      "language_scope": "Mixed international (`32,628 / 68,029` strict-ASCII rows)",
+      "positive_count": 68029,
+      "benign_count": 0,
+      "unique_normalized_count": 28749,
+      "label_methodology_and_uncertainty": "Automated URL-intelligence labeling (>=3 VirusTotal AV detections, APWG, or Google Safe Browsing). Non-flagged gateway texts discarded because low vendor hits cannot certify benign ground truth; excludes zero-link smishing/vishing/OTP-only lures.",
+      "license_terms_and_privacy": "MIT License (`LICENSE` verified in repo); collected from public free receive-SMS gateway webpages (`sha256` `phishing_messages.csv` = d125c394af792faeb2b71b3f7100cad3b4cece02aff78cb4ec1fb9e7db90f230, `12,762,328` bytes).",
+      "content_integrity_and_redaction": "Unredacted URLs preserved (`13,088` `https?://` matches; `0` Presidio `<URL>` tags), but biased toward public disposable-number OTP/test traffic and URL-bearing lures only.",
+      "overlap_vs_sentinelflow": {
+        "scope": "28,749 unique normalized messages",
+        "exact_train": 0,
+        "normalized_train": 0,
+        "word_3gram_near_ge_045_train": 0,
+        "exact_dev_val": 0,
+        "normalized_dev_val": 0,
+        "word_3gram_near_ge_045_dev_val": 0
+      },
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": true,
+        "provenance_and_lawful_access": true,
+        "evaluation_suitability": false,
+        "independence": true,
+        "frozen_evaluation_feasibility": true
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "Positive-only dataset (0 benign negatives): cannot estimate FPR, Specificity, or Tier-2 false blocks.",
+        "Public disposable SMS-gateway sampling bias & URL-feed labeling exclude non-URL callback/conversational smishing."
+      ],
+      "next_actionable_step": "Retain strictly as candidate future unredacted URL-smishing stress corpus if ever evaluated separately; do not use as Class C holdout or pair with unrelated negatives."
+    },
+    {
+      "route_id": "spstudy_super_sms_ieeeaccess24",
+      "category": "published_research_dataset",
+      "name": "Super SMS Dataset (smspamresearch/spstudy, IEEE Access '24)",
+      "owner_or_provider": "Salman, Ikram & Kaafar (Macquarie University)",
+      "canonical_url": "https://github.com/smspamresearch/spstudy",
+      "paper_reference": "Salman et al., IEEE Access 2024 (document/10431737; preprint arXiv:2210.10451)",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "OPEN_GITHUB_PUBLIC_DOWNLOAD",
+      "message_origin": "multi_source_historical_merge_and_ocr",
+      "population_and_sampling": "Consolidated 2012-2024 CSV merging UCI SMS Spam Collection, NUS SMS Corpus, SpamHunter Twitter OCR, ScamWatch, UK Action Fraud, and public repositories.",
+      "geography_and_timeframe": "Mixed Singapore (2013-2015 NUS), UK (2002-2011 UCI), global Twitter/scam feeds (2012-2024)",
+      "language_scope": "English-filtered via langdetect / Googletrans (`super_sms_dataset.csv`)",
+      "positive_count": 26178,
+      "benign_count": 40830,
+      "unique_normalized_count": 66913,
+      "label_methodology_and_uncertainty": "Inherited binary labels (`0`: 40,830; `1`: 26,178; `''`: 2). Direct audit found `34,786` label-0 rows come from NUS SMS Corpus + `3,748` from UCI `ham` (= `94.4%` pre-2015 student P2P chat) plus 1 UCI `spam` row mislabeled as `0`.",
+      "license_terms_and_privacy": "NO repository LICENSE file (`license: None` on GitHub); mixes third-party scraped/user corpora (`super_sms_dataset.csv` `sha256` = ba825b468b59fb229cc56c15a6c2d14d593a88051d54ea2f402166bf2ab894d3).",
+      "content_integrity_and_redaction": "Severe domain/era confounding: only `4 / 40,830` (`0.0098%`) label-0 messages contain `https?://` vs. `5,231 / 26,178` (`19.98%`) label-1 messages, and `2,343` `<...>` NUS placeholders occur almost exclusively in label `0`.",
+      "overlap_vs_sentinelflow": {
+        "exact_train": 0,
+        "normalized_train": 0,
+        "exact_dev_val": 0,
+        "normalized_dev_val": 0,
+        "uci_normalized_overlaps": 4164,
+        "nus_normalized_overlaps": 34822
+      },
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": true,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "No OSI/Creative Commons redistribution license on repository (`license: None`).",
+        "94.4% of 'benign' negatives originate from 2002-2015 student P2P chat (NUS + UCI) with near-zero URLs (4/40,830), creating extreme shortcut confounding against URL-bearing scams (5,231/26,178)."
+      ],
+      "next_actionable_step": "Do not ingest; reject permanently as primary Class C holdout."
+    },
+    {
+      "route_id": "spamhunter_usenix22",
+      "category": "published_research_dataset",
+      "name": "SpamHunter Twitter-Guided SMS Spam Dataset (USENIX Security '22)",
+      "owner_or_provider": "Tang et al. (`opmusic/SpamHunter_dataset`)",
+      "canonical_url": "https://github.com/opmusic/SpamHunter_dataset",
+      "paper_reference": "Tang et al., 'Clues in Tweets: Twitter-Guided Discovery and Analysis of SMS Spam', USENIX Security 2022",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "OPEN_GITHUB_PUBLIC_DOWNLOAD",
+      "message_origin": "real_observed_social_screenshot_ocr",
+      "population_and_sampling": "SMS screenshots mined from Twitter/X posts (2018-2022) via OCR plus labeled subset `train/tweet_spam_labeelled.csv`.",
+      "geography_and_timeframe": "Global multilingual / skewed Chinese+English (2018-2022)",
+      "language_scope": "Multilingual + translated (`SMS Translation` column in `tweet_spam_labeelled.csv`)",
+      "positive_count": 947,
+      "benign_count": 0,
+      "unique_normalized_count": null,
+      "label_methodology_and_uncertainty": "Labeled sample (`947` rows: `Fraud=587`, `Ads=360`) relies on machine/author translation and OCR from screenshots; `0` benign negatives.",
+      "license_terms_and_privacy": "NO repository license (`license: None` on GitHub).",
+      "content_integrity_and_redaction": "README explicitly documents 'spam sms texts with numbers removed', plus OCR transcription noise and non-verbatim English translations.",
+      "overlap_vs_sentinelflow": null,
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": true,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "No repository license (`license: None`), positive-only (0 benign negatives), phone-number redaction, and OCR/translation artifacts."
+      ],
+      "next_actionable_step": "Do not ingest."
+    },
+    {
+      "route_id": "exais_sms_nigerian_cpe22",
+      "category": "published_research_dataset",
+      "name": "ExAIS_SMS Indigenous SMS Corpus (Abayomi-Alli et al., 2022)",
+      "owner_or_provider": "Abayomi-Alli, Misra & Abayomi-Alli (FUNAAB Nigeria)",
+      "canonical_url": "https://github.com/AbayomiAlli/SMS-Spam-Dataset",
+      "paper_reference": "DOI: 10.1002/cpe.6989 (Concurrency and Computation: Practice and Experience, 2022)",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "OPEN_GITHUB_PUBLIC_DOWNLOAD",
+      "message_origin": "real_observed_consented_volunteer_sms",
+      "population_and_sampling": "20 university community participants (students, faculty, staff aged 20-50) donating mobile inbox SMS.",
+      "geography_and_timeframe": "Nigeria (primarily 2013-2016: 3,994 rows from 2014)",
+      "language_scope": "Nigerian / African English + local abbreviations",
+      "positive_count": 2350,
+      "benign_count": 2890,
+      "unique_normalized_count": 3399,
+      "label_methodology_and_uncertainty": "Generic `SPAM` (`2,350`) vs `HAM` (`2,890`) inbox labeling; includes regional telecom promotional spam rather than modern US/global bank smishing (`15` exact normalized overlaps with UCI #228; `0` with Train/DevVal).",
+      "license_terms_and_privacy": "NO license file on canonical GitHub repo (`license: None`; downstream Kaggle mirrors assert Apache 2.0 without upstream authorization).",
+      "content_integrity_and_redaction": "Manual PII masking (`***`/`xxx` present in `360 / 5,240` rows); only `63` messages contain `http(s)://` URLs.",
+      "overlap_vs_sentinelflow": {
+        "normalized_train": 0,
+        "normalized_dev_val": 0,
+        "normalized_uci": 15
+      },
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": true,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "Canonical GitHub repository lacks an explicit open-source/Creative Commons license.",
+        "2013-2016 regional `SPAM`/`HAM` labels plus manual `***`/`xxx` account/phone masking fail modern fraud label & unredacted signal requirements."
+      ],
+      "next_actionable_step": "Do not ingest."
+    },
+    {
+      "route_id": "mendeley_znsk27yk3h_v2",
+      "category": "published_research_dataset",
+      "name": "Financial Scams Detection Dataset (Mendeley znsk27yk3h.2, 2025)",
+      "owner_or_provider": "Al Rafi Ahmed & Gazi Faizul Islam (Mendeley Data)",
+      "canonical_url": "https://data.mendeley.com/datasets/znsk27yk3h",
+      "paper_reference": "DOI: 10.17632/znsk27yk3h.2 (published 2025-10-22 UTC)",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "OPEN_MENDELEY_PUBLIC_DOWNLOAD",
+      "message_origin": "mixed_observed_sms_chat_email_handwritten_forms",
+      "population_and_sampling": "University students & public submissions collected via Google Forms, handwritten submissions, mobile SMS, chat apps, and emails.",
+      "geography_and_timeframe": "Bangladesh / bilingual Bangla-English (2025)",
+      "language_scope": "Bilingual Bangla & English (`119 / 523` rows contain non-ASCII characters; ~404 ASCII rows)",
+      "positive_count": 310,
+      "benign_count": 213,
+      "unique_normalized_count": 520,
+      "label_methodology_and_uncertainty": "Author-labeled `scam` (`310`) vs `ham` (`213`); mixed modality (`SMS`, `chat`, `email`, handwritten forms) and unverified collection/adjudication rubric (`2` rows match UCI).",
+      "license_terms_and_privacy": "Mendeley API returns `data_licence: None` / `license: None` on v2 despite CC BY 4.0 claims in search summaries (`sha256` = 58ec802e4de8768643e3be0badbaedb3ae5017a273e8f3898e72f6a29cbc96ad, `47,442` bytes).",
+      "content_integrity_and_redaction": "Description states personal names, phone numbers, account numbers, and emails were removed/anonymized.",
+      "overlap_vs_sentinelflow": {
+        "normalized_train": 0,
+        "normalized_dev_val": 0,
+        "normalized_uci": 2
+      },
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": true,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "Mixed channels (Google Forms, handwritten entries, chat, email, SMS) prevent pure SMS channel evaluation.",
+        "API metadata omits explicit license (`None`), anonymizes contact/URL/phone entities, and provides only ~404 ASCII rows total."
+      ],
+      "next_actionable_step": "Do not ingest."
+    },
+    {
+      "route_id": "kaggle_dshah1612_sms_data",
+      "category": "public_repository_unlabeled_benign_candidate",
+      "name": "Kaggle SMS-Data (Financial Health Information Extraction Dataset)",
+      "owner_or_provider": "Dhwanil Shah (Kaggle)",
+      "canonical_url": "https://www.kaggle.com/datasets/dshah1612/sms-data",
+      "paper_reference": "None (community Kaggle upload; zip sha256 = fc653d24c43f6ec6d63670172c1b36b37b9b75064e0bf555448e17140872cf02)",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "OPEN_KAGGLE_PUBLIC_DOWNLOAD",
+      "message_origin": "real_observed_mobile_inbox_sync_unverified_consent",
+      "population_and_sampling": "100,243 raw mobile SMS logs synced across `93` distinct user IDs/masked `phoneNumber` accounts (`8,929` `senderAddress` IDs), nominally 'riders' for loan/financial underwriting.",
+      "geography_and_timeframe": "India / South Asia + English financial alerts (`87,188` ASCII rows; `May` timestamps without year)",
+      "language_scope": "Predominantly English transactional/promotional SMS (`87,188 / 100,243` ASCII)",
+      "positive_count": 0,
+      "benign_count": 0,
+      "unique_normalized_count": 59150,
+      "label_methodology_and_uncertainty": "ZERO ground-truth labels (`columns: ['phoneNumber', 'id', 'updateAt', 'senderAddress', 'text']`). Unfiltered mobile inboxes mix bank alerts, marketing promo spam, OTPs, and unflagged scams (`68` rows match UCI SMS Spam normalized hashes!).",
+      "license_terms_and_privacy": "Tagged `CC0: Public Domain` on Kaggle, but contains no ethics approval, IRB record, or verifiable end-user consent documentation permitting third-party secondary benchmarking (`8,945` rows contain `****`/`XXXX` masking).",
+      "content_integrity_and_redaction": "`28,560` raw `https?://` URLs preserved alongside partial `*`/`X` masking on account/OTP digits (`8,945` rows). Inferring benign vs. fraud via heuristics or rules is strictly prohibited.",
+      "overlap_vs_sentinelflow": {
+        "normalized_train": 0,
+        "normalized_dev_val": 0,
+        "normalized_uci": 68
+      },
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": true,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "Unlabeled raw mobile inbox dump (0 verified benign or fraud labels; contains mixed promo spam including 68 UCI overlaps).",
+        "No documented end-user informed consent, IRB approval, or collection protocol validating lawful redistribution despite CC0 tag."
+      ],
+      "next_actionable_step": "Do not ingest or pseudo-label via rules/models."
+    },
+    {
+      "route_id": "hf_electricsheepafrica_africa_smishing",
+      "category": "public_repository_synthetic_check",
+      "name": "Electric Sheep Africa Smishing / SMS Phishing (Hugging Face)",
+      "owner_or_provider": "electricsheepafrica (Hugging Face Hub)",
+      "canonical_url": "https://huggingface.co/datasets/electricsheepafrica/africa-smishing-sms-phishing",
+      "paper_reference": "Hugging Face metadata inventory",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "OPEN_HUGGINGFACE_API",
+      "message_origin": "synthetic_generated",
+      "population_and_sampling": "10,000 tabular rows; direct `datasets-server` inspection confirmed `is_synthetic = 1` on `94 / 100` first-100 rows alongside `license: other`.",
+      "geography_and_timeframe": "Synthetic Africa regional risk framing (2025)",
+      "language_scope": "English + multi-language tags",
+      "positive_count": 0,
+      "benign_count": 0,
+      "unique_normalized_count": null,
+      "label_methodology_and_uncertainty": "Synthetic text + fabricated victim demographics synthesized against summary reports.",
+      "license_terms_and_privacy": "`license: other` (ambiguous).",
+      "content_integrity_and_redaction": "Disqualified on synthetic origin.",
+      "overlap_vs_sentinelflow": null,
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": false,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "Synthetic dataset (`is_synthetic=1`); prohibited as Class C observation."
+      ],
+      "next_actionable_step": "Rejected."
+    },
+    {
+      "route_id": "zenodo_24133847_phishvn",
+      "category": "public_repository_new_release_check",
+      "name": "PhishVN Paraphrase-Evasion Corpus (Zenodo 10.5281/zenodo.24133847)",
+      "owner_or_provider": "Zenodo Record 24133847",
+      "canonical_url": "https://doi.org/10.5281/zenodo.24133847",
+      "paper_reference": "PhishVN content study (published 2026-11-11)",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "OPEN_ZENODO_METADATA_VERIFIED",
+      "message_origin": "simulated_vietnamese_sms_and_email",
+      "population_and_sampling": "Simulated Vietnamese SMS and e-mail corpus (`193` phishing lures, `143` benign service notifications).",
+      "geography_and_timeframe": "Vietnam (2026)",
+      "language_scope": "Vietnamese (non-English)",
+      "positive_count": 193,
+      "benign_count": 143,
+      "unique_normalized_count": null,
+      "label_methodology_and_uncertainty": "Author-written simulated corpus across 7 scenarios; mixes SMS and email.",
+      "license_terms_and_privacy": "CC BY 4.0",
+      "content_integrity_and_redaction": "Non-English simulated data + email/SMS channel mix.",
+      "overlap_vs_sentinelflow": null,
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": true,
+        "evaluation_suitability": false,
+        "independence": true,
+        "frozen_evaluation_feasibility": true
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "Simulated non-observed data in Vietnamese mixing SMS and email."
+      ],
+      "next_actionable_step": "Rejected."
+    },
+    {
+      "route_id": "mno_7726_ucl_imdea_collaboration",
+      "category": "academic_mno_collaboration_route",
+      "name": "MNO 7726 User-Reported SMS Corpus & IMC '25 Team (arXiv:2508.05276)",
+      "owner_or_provider": "Agarwal, Suarez-Tangil & Vasek (UCL / IMDEA Software) with collaborating Mobile Network Operator",
+      "canonical_url": "https://arxiv.org/abs/2508.05276",
+      "paper_reference": "'An Overview of 7726 User Reports: Uncovering SMS Scams and Scammer Strategies' (arXiv:2508.05276v2, Nov 2025)",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "GATED_MNO_DUA_AND_ETHICS_APPROVAL_REQUIRED",
+      "message_origin": "real_observed_carrier_7726_user_reports",
+      "population_and_sampling": "1.35M consumer 7726 spam/scam forwards received by a major MNO over 4 months (`89.16%` SMS; `35.12%` generic spam vs `40.27%` scams across 12 categories with Cohen kappa 0.71-0.84). No public data URL is released.",
+      "geography_and_timeframe": "Major MNO consumer subscriber traffic (2024-2025)",
+      "language_scope": "Predominantly English consumer reports",
+      "positive_count": 0,
+      "benign_count": 0,
+      "unique_normalized_count": null,
+      "label_methodology_and_uncertainty": "High-quality spam vs. scam taxonomy with documented IRR (kappa 0.71-0.84), but user-reported 7726 submissions contain almost exclusively suspicious/unwanted traffic — no routine benign A2P/P2P negative control slice is published.",
+      "license_terms_and_privacy": "Strictly governed by collaborating MNO 7726 service terms, departmental ethics approval, and MNO PII redaction agreement (MNO strips reporter identity & replaces full URLs with domains where PII may appear).",
+      "content_integrity_and_redaction": "URL query/path PII scrubbed to domain-level by MNO; still lacks unflagged benign negatives (`n_-`) unless the MNO pairs stratified random benign traffic inside an enclave.",
+      "overlap_vs_sentinelflow": null,
+      "class_c_gates": {
+        "authenticity_and_relevance": true,
+        "two_class_coverage": false,
+        "label_quality": true,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": false,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "REQUIRES_DUA_AND_BENIGN_PAIRING",
+      "rejection_or_blocker_reasons": [
+        "Private MNO data under DUA/ethics restrictions (not publicly accessible without formal MNO agreement).",
+        "User-reported 7726 corpus excludes legitimate non-reported SMS negatives (`n_- = 0`) and truncates PII-bearing URLs to domains."
+      ],
+      "next_actionable_step": "Requires institutional IRB + MNO Data Use Agreement explicitly pairing 7726-confirmed scams with contemporaneously sampled benign A2P/P2P traffic inside an enclave."
+    },
+    {
+      "route_id": "smishtank_codaspy24_author_route",
+      "category": "academic_author_outreach_reassessment",
+      "name": "SmishTank Academic Author Collaboration (arXiv:2402.18430 / CODASPY '24)",
+      "owner_or_provider": "Timko & Rahman (California State University San Marcos)",
+      "canonical_url": "https://arxiv.org/abs/2402.18430",
+      "paper_reference": "'Smishing Dataset I: Phishing SMS Dataset from Smishtank.com', ACM CODASPY 2024",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "ENDPOINT_404_DIRECT_AUTHOR_CONTACT_NEEDED",
+      "message_origin": "real_observed_crowdsourced_reports",
+      "population_and_sampling": "Re-probe verified `https://smishtank.com/` returns HTTP 200 (886 bytes), while `https://smishtank.com/dataset` returns HTTP 404 (no public static download).",
+      "geography_and_timeframe": "US/English crowdsourced reports (2023-2024, ~1,090 smishing samples)",
+      "language_scope": "English",
+      "positive_count": 1090,
+      "benign_count": 0,
+      "unique_normalized_count": null,
+      "label_methodology_and_uncertainty": "Community-submitted smishing reports with VirusTotal/WHOIS enrichment; positive-only (`0` benign negatives).",
+      "license_terms_and_privacy": "Preprint carries CC BY-NC-SA 4.0 (NonCommercial); commercial/open evaluation permissions require explicit author DUA.",
+      "content_integrity_and_redaction": "Reported as containing raw body/URL/brand attributes, though static dataset endpoint is unavailable (`404`).",
+      "overlap_vs_sentinelflow": null,
+      "class_c_gates": {
+        "authenticity_and_relevance": true,
+        "two_class_coverage": false,
+        "label_quality": true,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": false,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "Public dataset endpoint returns HTTP 404; CC BY-NC-SA 4.0 preprint is non-commercial and requires direct CSUSM author agreement.",
+        "Positive-only (~1,090 smishing, 0 benign negatives): cannot qualify alone as a two-class Class C holdout."
+      ],
+      "next_actionable_step": "Secondary positive-only option via CSUSM author DUA only if paired non-confoundingly — cannot unblock Class C alone."
+    },
+    {
+      "route_id": "regulatory_fcc_ftc_cfpb_channels",
+      "category": "consumer_protection_and_regulatory_bodies",
+      "name": "US Regulatory Channels (FCC CGB Open Data, FTC Consumer Sentinel, CFPB API)",
+      "owner_or_provider": "US FCC, US FTC, US CFPB",
+      "canonical_url": "https://opendata.fcc.gov/api/views/3xyp-aqkj.json",
+      "paper_reference": "Live Socrata schema `3xyp-aqkj`, FTC `consumersentinel.gov`, CFPB v1 Complaint Search API",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "PUBLIC_METADATA_ONLY_OR_LAW_ENFORCEMENT_RESTRICTED",
+      "message_origin": "consumer_complaint_metadata_not_raw_sms_payloads",
+      "population_and_sampling": "FCC public export has 17 metadata columns (`Ticket ID`, `Method`, `Issue`, `Caller ID Number`, etc.) with 0 SMS body columns. FTC Consumer Sentinel is strictly restricted to sworn law-enforcement agencies (FOIA exempts PII/investigatory records). CFPB API stores consumer dispute essays redacted with `XXXX` tokens rather than raw SMS text.",
+      "geography_and_timeframe": "United States (2014-present)",
+      "language_scope": "English",
+      "positive_count": 0,
+      "benign_count": 0,
+      "unique_normalized_count": null,
+      "label_methodology_and_uncertainty": "Self-reported unverified consumer allegations without benign SMS controls.",
+      "license_terms_and_privacy": "USGOV_WORKS public domain (FCC/CFPB public fields); raw consumer complaints with PII are FOIA-protected / law-enforcement only (FTC Sentinel).",
+      "content_integrity_and_redaction": "FCC open feed has zero SMS message bodies; CFPB narratives contain prose essays with `XXXX` redactions.",
+      "overlap_vs_sentinelflow": null,
+      "class_c_gates": {
+        "authenticity_and_relevance": false,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": false,
+        "frozen_evaluation_feasibility": false
+      },
+      "qualification_status": "NOT_QUALIFIED",
+      "rejection_or_blocker_reasons": [
+        "No verbatim SMS bodies exposed (FCC open schema omits text; CFPB stores redacted prose essays; FTC Consumer Sentinel excludes non-law-enforcement researchers).",
+        "Zero benign negative SMS control stream."
+      ],
+      "next_actionable_step": "Do not pursue US public regulator dumps for SMS text evaluation."
+    },
+    {
+      "route_id": "consortia_apwg_m3aawg_gsma_mno_enclave",
+      "category": "telecom_antifraud_consortia_and_carrier_enclave",
+      "name": "Industry Consortia & Privacy-Preserving Carrier/CPaaS Telemetry Enclave (APWG eCX, M3AAWG, GSMA Foundry / Direct MNO Partner)",
+      "owner_or_provider": "APWG (eCX Research Grant), M3AAWG (Academic Membership), GSMA Foundry, Direct Carrier / CPaaS Partner",
+      "canonical_url": "https://apwg.org/",
+      "paper_reference": "APWG Cybercrime Researcher Data Grant (`membership@apwg.org`), M3AAWG Institutional Membership, GSMA Foundry & Direct MNO Enclave Protocol",
+      "retrieval_or_audit_utc": "2026-11-11T15:45:57.832715+00:00",
+      "access_status": "GATED_PARTNERSHIP_MEMBERSHIP_DUA_AND_ENCLAVE_REQUIRED",
+      "message_origin": "real_observed_production_carrier_or_threat_intel",
+      "population_and_sampling": "Structured access path: APWG eCX provides lab-grade phishing URL/threat APIs under proposal review; M3AAWG/GSMA Foundry connect messaging operators via sponsored membership/DUA; a direct Carrier or CPaaS shadow enclave can sample contemporaneous legitimate transactional A2P/P2P SMS (`n_-`) alongside adjudicated fraud/7726-confirmed smishing (`n_+`).",
+      "geography_and_timeframe": "US / Global Tier-1 Carrier & CPaaS A2P/P2P traffic (current / prospective)",
+      "language_scope": "English transactional & peer SMS",
+      "positive_count": 0,
+      "benign_count": 0,
+      "unique_normalized_count": null,
+      "label_methodology_and_uncertainty": "Requires pre-registered adjudication protocol combining human abuse-ops verdicts, confirmed CDR/complaint dispositions, and random benign sampling across transactional categories (bank alerts, OTP/2FA, delivery, retail, P2P) with cluster IDs.",
+      "license_terms_and_privacy": "Requires formal DUA, GDPR/CCPA/ECPA privacy review, ethics sign-off, and preferably in-enclave zero-export execution over frozen ONNX model hashes.",
+      "content_integrity_and_redaction": "Only enclave deployment or reversible tokenized host-preserving evaluation can keep URLs, sender IDs, and formatting cues unconfounded without exposing raw end-user PII outside operator custody.",
+      "overlap_vs_sentinelflow": null,
+      "class_c_gates": {
+        "authenticity_and_relevance": true,
+        "two_class_coverage": false,
+        "label_quality": false,
+        "provenance_and_lawful_access": false,
+        "evaluation_suitability": false,
+        "independence": false,
+        "frozen_evaluation_feasibility": true
+      },
+      "qualification_status": "REQUIRES_PARTNERSHIP_DUA_AND_ETHICS_APPROVAL",
+      "rejection_or_blocker_reasons": [
+        "No active DUA, institutional membership sponsor, or live carrier/CPaaS enclave currently exists in this repository.",
+        "APWG eCX primarily covers URLs/phishing feeds and GSMA Scam Signal exchanges network session signals rather than raw SMS text bodies."
+      ],
+      "next_actionable_step": "Primary viable path to unblock Class C / Class D: secure a signed MNO/CPaaS/fintech DUA + privacy-preserving evaluation enclave sampling both stratified benign transactional SMS (n_- >= 1,000 i.i.d.-eq) and adjudicated smishing (n_+ >= 300-500 i.i.d.-eq) for a single-shot run against frozen ONNX SHA-256 d330466e..."
+    }
+  ],
+  "gate_evaluation": {
+    "total_routes_assessed": 12,
+    "qualified_class_c_routes": [],
+    "class_c_holdout_ready": false,
+    "primary_holdout_status": "UNAVAILABLE_BLOCKED",
+    "failing_gates_by_route": {
+      "wspr_ncsu_sms_phishing_sp24": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "evaluation_suitability"
+      ],
+      "spstudy_super_sms_ieeeaccess24": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "label_quality",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "frozen_evaluation_feasibility"
+      ],
+      "spamhunter_usenix22": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "label_quality",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "frozen_evaluation_feasibility"
+      ],
+      "exais_sms_nigerian_cpe22": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "label_quality",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "frozen_evaluation_feasibility"
+      ],
+      "mendeley_znsk27yk3h_v2": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "label_quality",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "frozen_evaluation_feasibility"
+      ],
+      "kaggle_dshah1612_sms_data": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "label_quality",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "frozen_evaluation_feasibility"
+      ],
+      "hf_electricsheepafrica_africa_smishing": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "label_quality",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "independence",
+        "frozen_evaluation_feasibility"
+      ],
+      "zenodo_24133847_phishvn": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "label_quality",
+        "evaluation_suitability"
+      ],
+      "mno_7726_ucl_imdea_collaboration": [
+        "two_class_coverage",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "independence",
+        "frozen_evaluation_feasibility"
+      ],
+      "smishtank_codaspy24_author_route": [
+        "two_class_coverage",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "independence",
+        "frozen_evaluation_feasibility"
+      ],
+      "regulatory_fcc_ftc_cfpb_channels": [
+        "authenticity_and_relevance",
+        "two_class_coverage",
+        "label_quality",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "independence",
+        "frozen_evaluation_feasibility"
+      ],
+      "consortia_apwg_m3aawg_gsma_mno_enclave": [
+        "two_class_coverage",
+        "label_quality",
+        "provenance_and_lawful_access",
+        "evaluation_suitability",
+        "independence"
+      ]
+    }
+  }
+}
