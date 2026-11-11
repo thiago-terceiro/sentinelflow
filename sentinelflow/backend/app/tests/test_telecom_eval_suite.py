@@ -1810,7 +1810,9 @@ def test_sf012r_grouped_uncertainty_ppv_scenarios_cost_sensitivity_and_language_
         analysis["provisional_threshold_status"]["provisional_candidates"][0]["classification"]
         == "unvalidated_provisional_candidate_for_future_external_eval"
     )
-    assert len(analysis["evidence_interpretation_boundaries"]) == 6
+    assert len(analysis["evidence_interpretation_boundaries"]) == 7
+    assert len(analysis["inference_boundary_tiers"]) == 3
+    assert analysis["provenance_and_sampling_audit"]["iid_population_draw_assumption_met"] is False
 
     # 2. Full reconciliation of SF-012 OOF sweep & group FP counts against oof_predictions.json
     for cohort_key, score_field in (
@@ -1994,13 +1996,21 @@ def test_sf012r_grouped_uncertainty_ppv_scenarios_cost_sensitivity_and_language_
             "empirically validated optimum",
             "are measured operational costs",
             "mean zero underlying fpr",
+            "assuming semantic families are i.i.d. draws",
+            "from the population of benign template families",
         ):
             assert forbidden not in text_blob, f"Forbidden overclaim {forbidden!r} found"
 
     assert "not measured operational costs" in report_text.lower()
     assert "not measured operational costs" in sys_text.lower()
-    assert "not independent threshold selection validation" in report_text.lower()
-    assert "not independent threshold selection validation" in sys_text.lower()
+    assert (
+        "not independent threshold validation" in report_text.lower()
+        or "not independent threshold selection validation" in report_text.lower()
+    )
+    assert (
+        "not independent threshold validation" in sys_text.lower()
+        or "not independent threshold selection validation" in sys_text.lower()
+    )
     assert "28.92%" in report_text
     assert "unvalidated exploratory/provisional candidate" in report_text.lower()
     assert "unvalidated provisional candidate" in sys_text.lower()
@@ -2018,3 +2028,60 @@ def test_sf012r_grouped_uncertainty_ppv_scenarios_cost_sensitivity_and_language_
         0.9,
         0.95,
     ]
+
+
+def test_sf012r1_sampling_audit_bootstrap_stability_and_72_ratio_cost_grid() -> None:
+    """Verifies SF-012R.1 conditional inference limits, B=10000 stability, and 72-ratio cost grid."""
+    from app.telecom.evaluate_model import (
+        DEFAULT_BOOTSTRAP_REPLICATES,
+        get_canonical_artifact_paths,
+    )
+
+    canonical = get_canonical_artifact_paths()
+    metrics = json.loads(canonical["metrics"].read_text(encoding="utf-8"))
+    analysis = metrics["threshold_and_base_rate_analysis"]
+    oof_comp = analysis["oof_composite"]
+
+    # 1. Non-i.i.d. curated corpus structure and skewed cluster sizes
+    gs = oof_comp["group_structure"]
+    assert gs["iid_population_draw_assumption_met"] is False
+    assert gs["benign_groups"]["max_min_ratio"] == 26.5
+    assert gs["fraud_groups"]["max_min_ratio"] == 17.5
+    assert gs["fraud_groups"]["top_3_share"] > 0.59
+
+    # 2. Conditional bootstrap classification, B=10000 replicates, and conditional 0/37 reference
+    row_75 = next(r for r in oof_comp["thresholds"] if r["threshold"] == 0.75)
+    gu_75 = row_75["grouped_uncertainty"]
+    assert gu_75["n_replicates"] == DEFAULT_BOOTSTRAP_REPLICATES == 10_000
+    assert gu_75["interval_classification"] == (
+        "conditional_cluster_bootstrap_sensitivity_estimate_not_unconditional_population_ci"
+    )
+    row_85 = next(r for r in oof_comp["thresholds"] if r["threshold"] == 0.85)
+    zb_85 = row_85["grouped_uncertainty"]["group_level_zero_event_bound"]
+    assert zb_85["bound_classification"] == (
+        "conditional_mathematical_reference_not_population_binomial_bound"
+    )
+    assert zb_85["macro_granularity_reference"]["collapsed_benign_groups"] == 35
+    assert zb_85["macro_granularity_reference"]["one_sided_95_clopper_pearson_upper"] == round(
+        1.0 - 0.05 ** (1.0 / 35), 6
+    )
+
+    # 3. Bootstrap seed & replicate stability diagnostic verifies jitter reduction at B=10000
+    stab = oof_comp["bootstrap_stability_diagnostic"]
+    assert stab["seeds_tested"] == [42, 0, 7, 99, 2026]
+    assert stab["replicates_compared"] == [1000, 10_000]
+    row_stab_80 = next(r for r in stab["thresholds"] if r["threshold"] == 0.8)
+    assert (
+        row_stab_80["b_10000"]["tpr_low_across_seeds"]["spread"]
+        < row_stab_80["b_1000"]["tpr_low_across_seeds"]["spread"]
+    )
+
+    # 4. Expanded 12 named scenarios + 72-pair orthogonal cost grid + zero-FPR artifact shift
+    cost_sens = oof_comp["cost_sensitivity"]
+    assert len(cost_sens["scenarios"]) == 12
+    grid = cost_sens["principled_ratio_grid_coverage"]
+    assert grid["total_ratio_pairs_per_prevalence"] == 72
+    assert grid["total_evaluated_cells"] == 576
+    assert len(grid["by_prevalence"]["0.005"]["distinct_winning_single_thresholds"]) > 1
+    assert len(grid["by_prevalence"]["0.01"]["distinct_winning_single_thresholds"]) > 1
+    assert cost_sens["zero_fpr_artifact_sensitivity"]["ranking_flips_under_non_zero_fpr"] is True
