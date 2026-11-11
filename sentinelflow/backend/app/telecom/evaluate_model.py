@@ -2131,6 +2131,412 @@ def compute_calibration_diagnostics(
     }
 
 
+_PERTURBATION_CYRILLIC_MAP = str.maketrans(
+    {
+        "a": "\u0430",
+        "e": "\u0435",
+        "o": "\u043e",
+        "p": "\u0440",
+        "c": "\u0441",
+        "A": "\u0410",
+        "E": "\u0415",
+        "O": "\u041e",
+        "P": "\u0420",
+        "C": "\u0421",
+    }
+)
+_PERTURBATION_LEET_MAP = str.maketrans(
+    {
+        "a": "4",
+        "e": "3",
+        "i": "1",
+        "o": "0",
+        "s": "5",
+        "A": "4",
+        "E": "3",
+        "I": "1",
+        "O": "0",
+        "S": "5",
+    }
+)
+_PERTURBATION_SPLIT_TOKENS: frozenset[str] = frozenset(
+    {
+        "urgent",
+        "verify",
+        "warrant",
+        "arrest",
+        "customs",
+        "invoice",
+        "refund",
+        "reviewing",
+        "telegram",
+        "transfer",
+        "unpaid",
+    }
+)
+_PERTURBATION_ZWSP_RE = re.compile(
+    r"\b(urgent|verify|security|suspended|warrant|arrest|delinquent|customs|"
+    r"unpaid|invoice|refund|debited|deactivation|transfer|broken|phone|telegram|reviewing)\b",
+    re.IGNORECASE,
+)
+_PERTURBATION_CANONICAL_SMISHING: tuple[str, ...] = (
+    "Chase Bank urgent alert: unauthorized sign-in detected, account suspended. Verify identity now at http://bit.ly/chase-auth-check",
+    "USPS notice: parcel #44910 held due to incomplete address and $2.15 unpaid customs fee. Pay via http://tinyurl.com/usps-fee-2026",
+    "Wells Fargo fraud alert: unusual $940 wire charge flagged. Unlock card immediately: http://wells-verify-security.xyz/login",
+    "IRS final notice: arrest warrant issued for $3,850 delinquent tax debt. Call 1-800-555-0194 immediately to avoid arrest.",
+    "Netflix billing alert: subscription invoice unpaid and account disabled. Update card details: http://netflix-renew-billing.top/pay",
+    "SunPass toll notice: unpaid toll invoice of $14.80 past due and late fees apply. Pay online: http://sunpass-toll-invoice.cc/pay",
+    "Geek Squad notice: auto-renewal charge of $389.00 debited from account. Call billing desk 1-888-555-0177 for refund.",
+    "Hey mum, broke my phone and lost my SIM card, using temporary number. Transfer $360 via Zelle for urgent bill right now.",
+    "Carrier KYC alert: eSIM transfer pending and SIM card deactivation in 24h. Update KYC now: http://carrier-kyc-update.club/verify",
+    "Hiring alert: work from home reviewing mobile apps and earn $450/day via instant payout. Message manager on Telegram @hrdesk88.",
+)
+_PERTURBATION_UNSEEN_BRAND_SMISHING: tuple[str, ...] = (
+    "Pinnacle Valley Credit Union urgent alert: unauthorized sign-in detected, account suspended. Verify identity now at http://bit.ly/pvcu-auth-check",
+    "Ontrac Regional Logistics notice: parcel #44910 held due to incomplete address and $2.15 unpaid customs fee. Pay via http://tinyurl.com/ontrac-fee-2026",
+    "Cascadia Mutual Bank fraud alert: unusual $940 wire charge flagged. Unlock card immediately: http://cascadia-verify-security.xyz/login",
+    "Cascade Revenue Agency final notice: arrest warrant issued for $3,850 delinquent tax debt. Call 1-800-555-0194 immediately to avoid arrest.",
+    "StreamBox Plus billing alert: subscription invoice unpaid and account disabled. Update card details: http://streambox-renew-billing.top/pay",
+    "Pacific ExpressWay toll notice: unpaid toll invoice of $14.80 past due and late fees apply. Pay online: http://pacific-toll-invoice.cc/pay",
+    "ShieldTech Care notice: auto-renewal charge of $389.00 debited from account. Call billing desk 1-888-555-0177 for refund.",
+    "Hey mum, broke my phone and lost my SIM card, using temporary number. Transfer $360 via bank transfer for urgent bill right now.",
+    "Redwood Wireless KYC alert: eSIM transfer pending and SIM card deactivation in 24h. Update KYC now: http://redwood-kyc-update.club/verify",
+    "TalentBridge alert: work from home reviewing mobile apps and earn $450/day via instant payout. Message manager on Telegram @hrdesk88.",
+)
+_PERTURBATION_URL_ROTATED_SMISHING: tuple[str, ...] = (
+    "Chase Bank urgent alert: unauthorized sign-in detected, account suspended. Verify identity now at https://portal-security-review.example.org/session/91",
+    "USPS notice: parcel #44910 held due to incomplete address and $2.15 unpaid customs fee. Pay via https://redelivery-status-hub.example.net/parcel/44910",
+    "Wells Fargo fraud alert: unusual $940 wire charge flagged. Unlock card immediately: https://cardholder-portal.example.org/resolve/88",
+    "IRS final notice: arrest warrant issued for $3,850 delinquent tax debt. Review notice online at https://tax-settlement-desk.example.org/case/3850",
+    "Netflix billing alert: subscription invoice unpaid and account disabled. Update card details: https://billing-support-desk.example.com/renew/44",
+    "SunPass toll notice: unpaid toll invoice of $14.80 past due and late fees apply. Pay online: https://toll-billing-hub.example.net/invoice/1480",
+    "Geek Squad notice: auto-renewal charge of $389.00 debited from account. Submit refund ticket at https://support-refund-portal.example.org/ticket/389",
+    "Hey mum, broke my phone and lost my SIM card, using temporary number. Open https://family-relay-portal.example.org/help to cover urgent bill right now.",
+    "Carrier KYC alert: eSIM transfer pending and SIM card deactivation in 24h. Update KYC now: https://subscriber-kyc-portal.example.net/verify/24",
+    "Hiring alert: work from home reviewing mobile apps and earn $450/day via instant payout. Apply at https://remote-reviewer-jobs.example.com/apply",
+)
+_PERTURBATION_BENIGN_CONTRASTIVE: tuple[str, ...] = (
+    "USPS Tracking: Your package #88412 was delivered to your front porch at 2:15 PM today.",
+    "Pinnacle Valley Credit Union: Your checking account statement for October 2026 is ready in the mobile app.",
+    "Security Code: Your one-time 6-digit login code is 719402. Do not share this code with anyone.",
+    "Tax Prep Reminder: Please upload your W-2 and IRS Form 1099 to your CPA portal before Friday.",
+    "Courthouse Clerk Notice: Jury duty reporting for Tuesday has been moved to Room 3B; no fee required.",
+    "Auto-Renewal Notice: Your annual cloud backup receipt for $29.00 was emailed to your address on file.",
+    "Phone Repair Desk: Your cracked phone display is repaired and ready for pickup at our Main St counter.",
+    "Chase Card Alert: Direct deposit of $2,150.00 posted to your account ending in 4910 this morning.",
+    "Ontrac Regional Logistics: Shipment #51092 cleared local depot and is scheduled for Thursday delivery.",
+    "Compliance Notice: City utility tax credit approved; see updated account statement at municipalportal.gov.",
+)
+
+
+def _apply_cyrillic_homoglyph_perturbation(text: str) -> str:
+    """Replaces ASCII letters in alphabetic lure/brand tokens (>=3 chars) with Cyrillic homoglyphs."""
+    return re.sub(
+        r"\b[A-Za-z]{3,}\b",
+        lambda m: (
+            m.group(0)
+            if m.group(0).lower() in ("http", "https")
+            else m.group(0).translate(_PERTURBATION_CYRILLIC_MAP)
+        ),
+        text,
+    )
+
+
+def _apply_leetspeak_split_perturbation(text: str) -> str:
+    """Applies dot-splitting to action keywords and leetspeak digits to remaining >=5-char words."""
+
+    def _replace(match: re.Match[str]) -> str:
+        tok = match.group(0)
+        low = tok.lower()
+        if low in ("http", "https"):
+            return tok
+        if low in _PERTURBATION_SPLIT_TOKENS:
+            return ".".join(tok)
+        if len(tok) >= 5:
+            return tok.translate(_PERTURBATION_LEET_MAP)
+        return tok
+
+    return re.sub(r"\b[A-Za-z]{4,}\b", _replace, text)
+
+
+def _apply_whitespace_control_perturbation(text: str, index: int) -> str:
+    """Injects zero-width spaces into trigger tokens plus irregular whitespace and casing."""
+    injected = _PERTURBATION_ZWSP_RE.sub(
+        lambda m: f"{m.group(0)[:2]}\u200b{m.group(0)[2:]}",
+        text,
+    )
+    if index % 2 == 0:
+        return "  " + injected.upper().replace(" ", "   ")
+    mixed = "".join(ch.upper() if i % 2 == 0 else ch.lower() for i, ch in enumerate(injected))
+    return f"\n\t{mixed} \n"
+
+
+def _build_perturbation_families() -> list[dict[str, Any]]:
+    """Constructs the baseline positive cohort plus 6 controlled adversarial perturbation families."""
+    cyrillic_texts = tuple(
+        _apply_cyrillic_homoglyph_perturbation(t) for t in _PERTURBATION_CANONICAL_SMISHING
+    )
+    leet_texts = tuple(
+        _apply_leetspeak_split_perturbation(t) for t in _PERTURBATION_CANONICAL_SMISHING
+    )
+    ws_texts = tuple(
+        _apply_whitespace_control_perturbation(t, idx)
+        for idx, t in enumerate(_PERTURBATION_CANONICAL_SMISHING)
+    )
+    return [
+        {
+            "family_id": "baseline_unperturbed",
+            "family_name": "Canonical Smishing Baseline (Unperturbed)",
+            "expected_label": 1,
+            "is_positive_cohort": True,
+            "texts": _PERTURBATION_CANONICAL_SMISHING,
+            "perturbation_mechanism": "Unmodified canonical multi-archetype smishing templates.",
+        },
+        {
+            "family_id": "unseen_institution_substitution",
+            "family_name": "1. Unseen Institution & Brand Substitution",
+            "expected_label": 1,
+            "is_positive_cohort": True,
+            "texts": _PERTURBATION_UNSEEN_BRAND_SMISHING,
+            "perturbation_mechanism": (
+                "Swaps known banks/couriers/services for unseen regional names such as "
+                "'Pinnacle Valley Credit Union' and 'Ontrac Regional Logistics'."
+            ),
+        },
+        {
+            "family_id": "url_domain_shortener_rotation",
+            "family_name": "2. URL Domain & Shortener Rotation",
+            "expected_label": 1,
+            "is_positive_cohort": True,
+            "texts": _PERTURBATION_URL_ROTATED_SMISHING,
+            "perturbation_mechanism": (
+                "Rotates high-risk shortlinks/TLDs (.xyz, .top, .cc, .club) to neutral "
+                ".example.org/.example.net/.example.com paths."
+            ),
+        },
+        {
+            "family_id": "cyrillic_homoglyph_substitution",
+            "family_name": "3. Cyrillic Homoglyph Substitution",
+            "expected_label": 1,
+            "is_positive_cohort": True,
+            "texts": cyrillic_texts,
+            "perturbation_mechanism": (
+                "Substitutes Latin a/e/o/p/c with visually indistinguishable Cyrillic codepoints "
+                "inside alphabetic brand and fraud-signal tokens."
+            ),
+        },
+        {
+            "family_id": "leetspeak_and_punctuation_splitting",
+            "family_name": "4. Leetspeak & Intra-Word Punctuation Splitting",
+            "expected_label": 1,
+            "is_positive_cohort": True,
+            "texts": leet_texts,
+            "perturbation_mechanism": (
+                "Applies intra-word dot splitting (e.g. u.r.g.e.n.t, v.e.r.i.f.y, w.a.r.r.a.n.t) "
+                "and ASCII leetspeak digits (4/3/1/0/5) across longer content words."
+            ),
+        },
+        {
+            "family_id": "whitespace_casing_and_control_injection",
+            "family_name": "5. Whitespace, Casing & Control-Char Injection",
+            "expected_label": 1,
+            "is_positive_cohort": True,
+            "texts": ws_texts,
+            "perturbation_mechanism": (
+                "Injects zero-width U+200B format characters inside trigger tokens alongside "
+                "ALL-CAPS/alternating casing, triple spaces, tabs, and newlines."
+            ),
+        },
+        {
+            "family_id": "benign_near_miss_contrastive_controls",
+            "family_name": "6. Benign Near-Miss Contrastive Controls",
+            "expected_label": 0,
+            "is_positive_cohort": False,
+            "texts": _PERTURBATION_BENIGN_CONTRASTIVE,
+            "perturbation_mechanism": (
+                "Clean benign messages containing high-overlap nouns (IRS Form 1099, courthouse, "
+                "USPS delivery, OTP code, phone repair, auto-renewal) with zero phishing lure."
+            ),
+        },
+    ]
+
+
+def _score_perturbation_family(
+    spec: dict[str, Any],
+    probs: Sequence[float],
+    baseline_means: tuple[float, float, float] | None,
+) -> dict[str, Any]:
+    """Computes ML-only, heuristics-only, and composite ablation metrics for one cohort."""
+    texts: Sequence[str] = spec["texts"]
+    n = len(texts)
+    is_pos = bool(spec["is_positive_cohort"])
+    heur_scores: list[float] = []
+    comp_scores: list[float] = []
+    rule_counts: dict[str, int] = {}
+
+    for text, p in zip(texts, probs, strict=True):
+        h, signals = evaluate_heuristics(text)
+        heur_scores.append(h)
+        comp_scores.append(
+            compute_composite_score(heuristic_score=h, onnx_probability=p, velocity_score=0.0)
+        )
+        for sig in signals:
+            rule_counts[sig] = rule_counts.get(sig, 0) + 1
+
+    ml40_rate = round(sum(1 for p in probs if p >= 0.40) / n, 4)
+    ml50_rate = round(sum(1 for p in probs if p >= 0.50) / n, 4)
+    h40_rate = round(sum(1 for h in heur_scores if h >= 0.40) / n, 4)
+    h50_rate = round(sum(1 for h in heur_scores if h >= 0.50) / n, 4)
+    t1_rate = round(sum(1 for s in comp_scores if s >= 0.40) / n, 4)
+    t2_rate = round(sum(1 for s in comp_scores if s >= 0.75) / n, 4)
+
+    mean_p = round(float(np.mean(probs)), 4)
+    mean_h = round(float(np.mean(heur_scores)), 4)
+    mean_s = round(float(np.mean(comp_scores)), 4)
+
+    out: dict[str, Any] = {
+        "family_id": spec["family_id"],
+        "family_name": spec["family_name"],
+        "expected_label": spec["expected_label"],
+        "is_positive_cohort": is_pos,
+        "sample_count": n,
+        "perturbation_mechanism": spec["perturbation_mechanism"],
+        "ml_only_p40_rate": ml40_rate,
+        "ml_only_p50_rate": ml50_rate,
+        "heuristics_only_h40_rate": h40_rate,
+        "heuristics_only_h50_rate": h50_rate,
+        "composite_tier1_rate": t1_rate,
+        "composite_tier2_rate": t2_rate,
+        "ml_only_p40_recall": ml40_rate if is_pos else None,
+        "ml_only_recall": ml50_rate if is_pos else None,
+        "heuristics_only_h40_recall": h40_rate if is_pos else None,
+        "heuristics_only_recall": h50_rate if is_pos else None,
+        "composite_tier1_recall": t1_rate if is_pos else None,
+        "composite_tier2_recall": t2_rate if is_pos else None,
+        "ml_only_p40_fpr": ml40_rate if not is_pos else None,
+        "ml_only_fpr": ml50_rate if not is_pos else None,
+        "heuristics_only_h40_fpr": h40_rate if not is_pos else None,
+        "heuristics_only_fpr": h50_rate if not is_pos else None,
+        "composite_tier1_fpr": t1_rate if not is_pos else None,
+        "composite_tier2_fpr": t2_rate if not is_pos else None,
+        "mean_p": mean_p,
+        "mean_h": mean_h,
+        "mean_s": mean_s,
+        "triggered_rule_counts": dict(sorted(rule_counts.items())),
+    }
+    if baseline_means is not None and is_pos:
+        out["delta_vs_baseline"] = {
+            "mean_p": round(mean_p - baseline_means[0], 4),
+            "mean_h": round(mean_h - baseline_means[1], 4),
+            "mean_s": round(mean_s - baseline_means[2], 4),
+        }
+    return out
+
+
+def evaluate_perturbation_robustness(
+    *,
+    model_path: str | Path | None = None,
+    predict_proba_fn: Callable[[Sequence[str]], Sequence[float]] | None = None,
+) -> dict[str, Any]:
+    """Runs the SF-013 6-family controlled perturbation & ML-vs-heuristics ablation suite."""
+    from app.telecom.train_onnx_model import build_augmented_dataset
+
+    specs = _build_perturbation_families()
+    all_texts = [t for spec in specs for t in spec["texts"]]
+
+    def _norm_sha(val: str) -> str:
+        return hashlib.sha256(re.sub(r"\s+", " ", val.strip().lower()).encode("utf-8")).hexdigest()
+
+    train_texts, _, _ = build_augmented_dataset()
+    dev_texts, _ = get_held_out_evaluation_set()
+    known_hashes = {_norm_sha(t) for t in train_texts} | {_norm_sha(t) for t in dev_texts}
+    leakage_count = sum(1 for t in all_texts if _norm_sha(t) in known_hashes)
+
+    resolved_model_path = (
+        Path(model_path)
+        if model_path is not None
+        else Path(__file__).resolve().parent / "models" / "sms_fraud_model.onnx"
+    )
+    model_sha256 = (
+        hashlib.sha256(resolved_model_path.read_bytes()).hexdigest()
+        if resolved_model_path.exists()
+        else None
+    )
+
+    if predict_proba_fn is None:
+        import onnxruntime as ort
+
+        if not resolved_model_path.exists():
+            raise FileNotFoundError(f"ONNX model file not found at {resolved_model_path}")
+        session = ort.InferenceSession(str(resolved_model_path), providers=["CPUExecutionProvider"])
+        in_name = session.get_inputs()[0].name
+        input_tensor = np.array([[t] for t in all_texts], dtype=object)
+        raw_outputs = session.run(None, {in_name: input_tensor})
+        all_probs = [float(pm.get(1, 0.0)) for pm in raw_outputs[1]]
+    else:
+        all_probs = [float(p) for p in predict_proba_fn(all_texts)]
+
+    families_out: list[dict[str, Any]] = []
+    offset = 0
+    baseline_means: tuple[float, float, float] | None = None
+    for spec in specs:
+        cnt = len(spec["texts"])
+        probs_slice = all_probs[offset : offset + cnt]
+        offset += cnt
+        row = _score_perturbation_family(spec, probs_slice, baseline_means)
+        if spec["family_id"] == "baseline_unperturbed":
+            baseline_means = (float(row["mean_p"]), float(row["mean_h"]), float(row["mean_s"]))
+        families_out.append(row)
+
+    by_id = {f["family_id"]: f for f in families_out}
+    cyr = by_id["cyrillic_homoglyph_substitution"]
+    leet = by_id["leetspeak_and_punctuation_splitting"]
+    ws = by_id["whitespace_casing_and_control_injection"]
+    benign = by_id["benign_near_miss_contrastive_controls"]
+
+    return {
+        "suite_classification": "controlled_synthetic_perturbation_diagnostic_not_external_validation",
+        "external_validation_status": "UNAVAILABLE_BLOCKED",
+        "model_sha256": model_sha256,
+        "positive_archetype_count": len(_PERTURBATION_CANONICAL_SMISHING),
+        "benign_contrastive_count": len(_PERTURBATION_BENIGN_CONTRASTIVE),
+        "total_evaluated_prompts": len(all_texts),
+        "zero_leakage_verified_against_train_and_dev_val": leakage_count == 0,
+        "train_and_dev_val_overlap_count": leakage_count,
+        "homoglyph_rule_present_in_frozen_engine": False,
+        "thresholds": {
+            "ml_only": [0.40, 0.50],
+            "heuristics_only": [0.40, 0.50],
+            "composite": [0.40, 0.75],
+        },
+        "families": families_out,
+        "key_architectural_findings": {
+            "tfidf_vulnerability_mechanism": (
+                "The frozen ONNX TfidfVectorizer uses word regex token_pattern='\\\\b[a-zA-Z0-9_]+\\\\b'; "
+                "substituting non-ASCII Cyrillic codepoints or inserting intra-word dots/digits/zero-width "
+                "characters pushes fraud signals out of vocabulary and breaks bigrams "
+                f"(mean P drops from {by_id['baseline_unperturbed']['mean_p']:.4f} to {cyr['mean_p']:.4f} "
+                f"on Cyrillic homoglyphs and {leet['mean_p']:.4f} on leetspeak/splitting)."
+            ),
+            "heuristic_normalization_scope_and_gap": (
+                "normalize_heuristic_text() strips invisible zero-width formatting characters (U+200B..U+200F, "
+                "U+FEFF, U+00AD) and applies NFKC decomposition, preserving heuristics recall under "
+                f"whitespace/control injection (H>=0.50 recall={ws['heuristics_only_recall']:.2f}, minor drop in "
+                "mean H from multi-space breaking single-space 'sim card'). However, the frozen heuristic engine "
+                "has NO RULE:HOMOGLYPH_OBFUSCATION or Cyrillic confusable mapping, so Cyrillic homoglyphs collapse "
+                f"heuristics recall to {cyr['heuristics_only_recall']:.2f} and Composite Tier-2 to "
+                f"{cyr['composite_tier2_recall']:.2f}."
+            ),
+            "benign_contrastive_precision_role": (
+                f"On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags "
+                f"{benign['ml_only_fpr'] * 100:.1f}% into Tier-1 review while heuristics trigger "
+                f"{benign['heuristics_only_fpr'] * 100:.1f}% FPR and Composite Tier-2 blocks "
+                f"{benign['composite_tier2_fpr'] * 100:.1f}%."
+            ),
+        },
+    }
+
+
 def compute_evaluation_metrics(
     y_true: list[int] | np.ndarray,
     y_prob: list[float] | np.ndarray,
@@ -2540,6 +2946,16 @@ def _run_evaluation_snapshot(
         samples=samples,
         threshold_oof_rows=oof_rows_for_sweep,
     )
+    metrics["perturbation_robustness"] = evaluate_perturbation_robustness(
+        model_path=model_path,
+        predict_proba_fn=lambda batch_texts: [
+            float(pm.get(1, 0.0))
+            for pm in session.run(
+                None,
+                {input_name: np.array([[t] for t in batch_texts], dtype=object)},
+            )[1]
+        ],
+    )
     model_bytes = model_path.read_bytes()
     model_sha256 = hashlib.sha256(model_bytes).hexdigest()
     eval_dataset_sha256 = hashlib.sha256(
@@ -2632,6 +3048,8 @@ def build_merged_metadata(
         metadata["oof_cross_validation"] = metrics["oof_cross_validation"]
     if "threshold_and_base_rate_analysis" in metrics:
         metadata["threshold_and_base_rate_analysis"] = metrics["threshold_and_base_rate_analysis"]
+    if "perturbation_robustness" in metrics:
+        metadata["perturbation_robustness"] = metrics["perturbation_robustness"]
     metadata["evaluation_timestamp"] = metrics["evaluation_timestamp"]
     metadata["software_versions"] = metrics["software_versions"]
     metadata["dev_benchmark_metrics"] = metrics
@@ -3151,6 +3569,46 @@ def _format_threshold_and_base_rate_markdown(analysis: dict[str, Any]) -> list[s
     return rows
 
 
+def _format_perturbation_ablation_markdown(perturbation: dict[str, Any]) -> list[str]:
+    """Formats Section 11 (SF-013 Controlled Adversarial Perturbation & Component Ablation Matrix)."""
+    findings = perturbation.get("key_architectural_findings", {})
+    rows = [
+        "## 11. Adversarial Perturbation & Component Ablation Matrix (`SF-013`)",
+        "",
+        (
+            f"> **Diagnostic Scope (`{perturbation.get('external_validation_status', 'UNAVAILABLE_BLOCKED')}`):** "
+            "Evaluates frozen `ML-only`, `Heuristics-only`, and `Composite` scoring across 10 canonical "
+            "smishing archetypes under 5 controlled obfuscation/shift perturbations plus 10 benign near-miss "
+            "contrastive controls (`0` SHA-256 overlap with Train/DevVal). This is a controlled synthetic "
+            "diagnostic suite—not an external real-world Class C carrier evaluation."
+        ),
+        "",
+        "| Cohort / Perturbation Family | Class / Metric | Samples | ML ($P \\ge 0.40$) | ML ($P \\ge 0.50$) | Heuristics ($H \\ge 0.40$ / $0.50$) | Composite Tier 1 ($S \\ge 0.40$) | Composite Tier 2 ($S \\ge 0.75$) | Mean $(P, H, S)$ |",
+        "|---|---|---:|:---:|:---:|:---:|:---:|:---:|:---:|",
+    ]
+    for fam in perturbation.get("families", []):
+        metric_kind = "FRAUD (Recall)" if fam.get("is_positive_cohort") else "BENIGN (FPR)"
+        rows.append(
+            f"| {fam['family_name']} | {metric_kind} | {fam['sample_count']} | "
+            f"{float(fam['ml_only_p40_rate']) * 100:.1f}% | {float(fam['ml_only_p50_rate']) * 100:.1f}% | "
+            f"{float(fam['heuristics_only_h40_rate']) * 100:.1f}% / {float(fam['heuristics_only_h50_rate']) * 100:.1f}% | "
+            f"{float(fam['composite_tier1_rate']) * 100:.1f}% | {float(fam['composite_tier2_rate']) * 100:.1f}% | "
+            f"`{float(fam['mean_p']):.4f} / {float(fam['mean_h']):.4f} / {float(fam['mean_s']):.4f}` |"
+        )
+    rows.extend(
+        [
+            "",
+            "### Diagnostic Ablation Takeaways (Where TF-IDF & Heuristics Hold vs. Degrade)",
+            "",
+            f"- **Word-Level TF-IDF Generalization vs. Token-Splitting Degradation:** {findings.get('tfidf_vulnerability_mechanism', '')}",
+            f"- **Heuristic Normalization Defense-in-Depth & Residual Homoglyph Gap:** {findings.get('heuristic_normalization_scope_and_gap', '')}",
+            f"- **Contrastive Benign Control Precision:** {findings.get('benign_contrastive_precision_role', '')}",
+            "",
+        ]
+    )
+    return rows
+
+
 def generate_markdown_report(metrics: dict[str, Any]) -> str:
     """Generates an exhaustive human-readable Markdown evaluation report."""
     t1 = metrics["tier1_escalation"]
@@ -3312,6 +3770,9 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
     threshold_section = metrics.get("threshold_and_base_rate_analysis")
     if isinstance(threshold_section, dict) and "dev_val_composite" in threshold_section:
         lines.extend(_format_threshold_and_base_rate_markdown(threshold_section))
+    perturbation_section = metrics.get("perturbation_robustness")
+    if isinstance(perturbation_section, dict) and perturbation_section.get("families"):
+        lines.extend(_format_perturbation_ablation_markdown(perturbation_section))
 
     return "\n".join(lines)
 

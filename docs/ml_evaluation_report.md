@@ -9,7 +9,7 @@
 - **Evaluation Dataset SHA-256:** `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03`
 - **Canonical 400-Row Predictions Artifact:** `benchmark_predictions_400.json`
 - **Canonical 400-Row Predictions SHA-256:** `66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e`
-- **Timestamp:** `2026-11-11T20:49:09.248218+00:00`
+- **Timestamp:** `2026-11-11T23:50:09.080495+00:00`
 - **Evaluator Engine:** `ONNXRuntime-CPU (AVX-512)`
 - **Software Versions:** `onnxruntime=1.31.0`, `numpy=2.5.4`, `scikit-learn=1.9.1`
 - **Dataset Size:** 400 samples (200 Benign, 200 Fraud)
@@ -329,3 +329,23 @@ S_{\text{content}} + V \cdot (1 - S_{\text{content}}) & \text{otherwise \quad (P
 | `tail_stress_0_5pct` (`0.5000%`) | `0.85` | 270.31 | `(0.85, 0.85)` | 270.31 |
 | `row_wilson_upper_0_7025pct` (`0.7025%`) | `0.85` | 371.06 | `(0.85, 0.85)` | 371.06 |
 | `plausible_2_0pct_below_family_bound` (`2.0000%`) | `0.80` | 385.21 | `(0.75, 0.80)` | 396.39 |
+
+## 11. Adversarial Perturbation & Component Ablation Matrix (`SF-013`)
+
+> **Diagnostic Scope (`UNAVAILABLE_BLOCKED`):** Evaluates frozen `ML-only`, `Heuristics-only`, and `Composite` scoring across 10 canonical smishing archetypes under 5 controlled obfuscation/shift perturbations plus 10 benign near-miss contrastive controls (`0` SHA-256 overlap with Train/DevVal). This is a controlled synthetic diagnostic suite—not an external real-world Class C carrier evaluation.
+
+| Cohort / Perturbation Family | Class / Metric | Samples | ML ($P \ge 0.40$) | ML ($P \ge 0.50$) | Heuristics ($H \ge 0.40$ / $0.50$) | Composite Tier 1 ($S \ge 0.40$) | Composite Tier 2 ($S \ge 0.75$) | Mean $(P, H, S)$ |
+|---|---|---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Canonical Smishing Baseline (Unperturbed) | FRAUD (Recall) | 10 | 100.0% | 90.0% | 100.0% / 100.0% | 100.0% | 90.0% | `0.8110 / 0.7720 / 0.9284` |
+| 1. Unseen Institution & Brand Substitution | FRAUD (Recall) | 10 | 100.0% | 90.0% | 100.0% / 100.0% | 100.0% | 90.0% | `0.8104 / 0.7720 / 0.9253` |
+| 2. URL Domain & Shortener Rotation | FRAUD (Recall) | 10 | 90.0% | 90.0% | 80.0% / 80.0% | 100.0% | 90.0% | `0.7461 / 0.7110 / 0.9293` |
+| 3. Cyrillic Homoglyph Substitution | FRAUD (Recall) | 10 | 80.0% | 70.0% | 0.0% / 0.0% | 80.0% | 10.0% | `0.5271 / 0.1000 / 0.5415` |
+| 4. Leetspeak & Intra-Word Punctuation Splitting | FRAUD (Recall) | 10 | 100.0% | 100.0% | 60.0% / 60.0% | 100.0% | 70.0% | `0.7282 / 0.4630 / 0.7791` |
+| 5. Whitespace, Casing & Control-Char Injection | FRAUD (Recall) | 10 | 100.0% | 100.0% | 100.0% / 100.0% | 100.0% | 90.0% | `0.8082 / 0.7670 / 0.9208` |
+| 6. Benign Near-Miss Contrastive Controls | BENIGN (FPR) | 10 | 20.0% | 20.0% | 0.0% / 0.0% | 20.0% | 0.0% | `0.1373 / 0.0400 / 0.1373` |
+
+### Diagnostic Ablation Takeaways (Where TF-IDF & Heuristics Hold vs. Degrade)
+
+- **Word-Level TF-IDF Generalization vs. Token-Splitting Degradation:** The frozen ONNX TfidfVectorizer uses word regex token_pattern='\\b[a-zA-Z0-9_]+\\b'; substituting non-ASCII Cyrillic codepoints or inserting intra-word dots/digits/zero-width characters pushes fraud signals out of vocabulary and breaks bigrams (mean P drops from 0.8110 to 0.5271 on Cyrillic homoglyphs and 0.7282 on leetspeak/splitting).
+- **Heuristic Normalization Defense-in-Depth & Residual Homoglyph Gap:** normalize_heuristic_text() strips invisible zero-width formatting characters (U+200B..U+200F, U+FEFF, U+00AD) and applies NFKC decomposition, preserving heuristics recall under whitespace/control injection (H>=0.50 recall=1.00, minor drop in mean H from multi-space breaking single-space 'sim card'). However, the frozen heuristic engine has NO RULE:HOMOGLYPH_OBFUSCATION or Cyrillic confusable mapping, so Cyrillic homoglyphs collapse heuristics recall to 0.00 and Composite Tier-2 to 0.10.
+- **Contrastive Benign Control Precision:** On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%.

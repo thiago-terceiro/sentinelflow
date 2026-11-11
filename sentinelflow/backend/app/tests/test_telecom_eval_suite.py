@@ -2085,3 +2085,93 @@ def test_sf012r1_sampling_audit_bootstrap_stability_and_72_ratio_cost_grid() -> 
     assert len(grid["by_prevalence"]["0.005"]["distinct_winning_single_thresholds"]) > 1
     assert len(grid["by_prevalence"]["0.01"]["distinct_winning_single_thresholds"]) > 1
     assert cost_sens["zero_fpr_artifact_sensitivity"]["ranking_flips_under_non_zero_fpr"] is True
+
+
+def test_adversarial_perturbation_ablation_matrix() -> None:
+    """Verifies SF-013 controlled 6-family adversarial perturbation suite & component ablation."""
+    from app.telecom.dataset_quarantine import FROZEN_ONNX_MODEL_SHA256
+    from app.telecom.evaluate_model import (
+        evaluate_perturbation_robustness,
+        get_canonical_artifact_paths,
+    )
+
+    live_first = evaluate_perturbation_robustness()
+    live_second = evaluate_perturbation_robustness()
+    assert live_first == live_second
+
+    canonical = get_canonical_artifact_paths()
+    assert hashlib.sha256(canonical["model"].read_bytes()).hexdigest() == FROZEN_ONNX_MODEL_SHA256
+
+    metrics = json.loads(canonical["metrics"].read_text(encoding="utf-8"))
+    metadata = json.loads(canonical["metadata"].read_text(encoding="utf-8"))
+    assert "perturbation_robustness" in metrics
+    assert metrics["perturbation_robustness"] == metadata["perturbation_robustness"]
+    assert metrics["perturbation_robustness"] == live_first
+
+    pr = metrics["perturbation_robustness"]
+    assert pr["external_validation_status"] == "UNAVAILABLE_BLOCKED"
+    assert pr["zero_leakage_verified_against_train_and_dev_val"] is True
+    assert pr["train_and_dev_val_overlap_count"] == 0
+    assert pr["homoglyph_rule_present_in_frozen_engine"] is False
+
+    expected_family_ids = [
+        "baseline_unperturbed",
+        "unseen_institution_substitution",
+        "url_domain_shortener_rotation",
+        "cyrillic_homoglyph_substitution",
+        "leetspeak_and_punctuation_splitting",
+        "whitespace_casing_and_control_injection",
+        "benign_near_miss_contrastive_controls",
+    ]
+    families = pr["families"]
+    assert [f["family_id"] for f in families] == expected_family_ids
+
+    by_id = {f["family_id"]: f for f in families}
+    required_rate_fields = (
+        "ml_only_p40_rate",
+        "ml_only_p50_rate",
+        "heuristics_only_h40_rate",
+        "heuristics_only_h50_rate",
+        "composite_tier1_rate",
+        "composite_tier2_rate",
+        "mean_p",
+        "mean_h",
+        "mean_s",
+    )
+    for fid, row in by_id.items():
+        for field in required_rate_fields:
+            assert 0.0 <= float(row[field]) <= 1.0, f"{fid}.{field} out of bounds"
+        if row["is_positive_cohort"]:
+            assert row["ml_only_recall"] is not None
+            assert row["heuristics_only_recall"] is not None
+            assert row["composite_tier1_recall"] is not None
+            assert row["composite_tier2_recall"] is not None
+            assert row["ml_only_fpr"] is None
+        else:
+            assert row["ml_only_fpr"] is not None
+            assert row["heuristics_only_fpr"] is not None
+            assert row["composite_tier1_fpr"] is not None
+            assert row["composite_tier2_fpr"] is not None
+            assert row["ml_only_recall"] is None
+
+    base = by_id["baseline_unperturbed"]
+    cyr = by_id["cyrillic_homoglyph_substitution"]
+    leet = by_id["leetspeak_and_punctuation_splitting"]
+    ws = by_id["whitespace_casing_and_control_injection"]
+    benign = by_id["benign_near_miss_contrastive_controls"]
+
+    assert cyr["mean_p"] < base["mean_p"]
+    assert leet["mean_p"] < base["mean_p"]
+    assert cyr["heuristics_only_recall"] < base["heuristics_only_recall"]
+    assert ws["heuristics_only_recall"] == 1.0
+    assert benign["heuristics_only_fpr"] == 0.0
+    assert benign["composite_tier2_fpr"] == 0.0
+    assert "RULE:HOMOGLYPH_OBFUSCATION" not in cyr["triggered_rule_counts"]
+
+    report_root = canonical["report_root"].read_text(encoding="utf-8")
+    report_mirror = canonical["report_mirror"].read_text(encoding="utf-8")
+    assert report_root == report_mirror
+    assert "Adversarial Perturbation & Component Ablation Matrix" in report_root
+    assert "1. Unseen Institution & Brand Substitution" in report_root
+    assert "6. Benign Near-Miss Contrastive Controls" in report_root
+    assert "TfidfVectorizer" in report_root
