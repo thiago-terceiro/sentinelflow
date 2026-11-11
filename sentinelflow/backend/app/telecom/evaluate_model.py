@@ -57,6 +57,22 @@ TIER_TRANSITION_KEYS: tuple[str, ...] = (
     "BLOCK->FLAG",
     "BLOCK->ALLOW",
 )
+DEFAULT_SWEEP_THRESHOLDS: tuple[float, ...] = (
+    0.30,
+    0.40,
+    0.50,
+    0.60,
+    0.70,
+    0.75,
+    0.80,
+    0.85,
+    0.90,
+    0.95,
+)
+DEFAULT_PREVALENCE_RATES: tuple[float, ...] = (0.005, 0.01, 0.05, 0.50)
+COST_FN_ESCAPE: float = 10.0
+COST_FP_TIER1_FLAG: float = 1.0
+COST_FP_TIER2_BLOCK: float = 50.0
 
 
 def get_canonical_artifact_paths(telecom_dir: Path | None = None) -> dict[str, Path]:
@@ -87,11 +103,35 @@ def _hash_text(text: str) -> str:
 # 200 distinct held-out hard benign transactional & conversational messages
 _BENIGN_BANK_ALERTS: list[str] = [
     f"{b} Fraud Alert: Did you attempt ${35 + i * 12}.50 at Chevron? Reply YES or NO. Msg&data rates apply."
-    for i, b in enumerate([
-        "Chase", "Wells Fargo", "Citi", "BofA", "Capital One", "PNC", "TD Bank", "Discover", "US Bank", "Fidelity",
-        "Chase", "Wells Fargo", "Citi", "BofA", "Capital One", "PNC", "TD Bank", "Discover", "US Bank", "Fidelity",
-        "Chase", "Wells Fargo", "Citi", "BofA", "Capital One"
-    ])
+    for i, b in enumerate(
+        [
+            "Chase",
+            "Wells Fargo",
+            "Citi",
+            "BofA",
+            "Capital One",
+            "PNC",
+            "TD Bank",
+            "Discover",
+            "US Bank",
+            "Fidelity",
+            "Chase",
+            "Wells Fargo",
+            "Citi",
+            "BofA",
+            "Capital One",
+            "PNC",
+            "TD Bank",
+            "Discover",
+            "US Bank",
+            "Fidelity",
+            "Chase",
+            "Wells Fargo",
+            "Citi",
+            "BofA",
+            "Capital One",
+        ]
+    )
 ]
 
 _BENIGN_CARRIER_NOTICES: list[str] = [
@@ -119,7 +159,7 @@ _BENIGN_CARRIER_NOTICES: list[str] = [
     "Verizon: Family locator notification: Sarah arrived at West High School.",
     "T-Mobile: Free Tuesday perks are available today in the T-Life application.",
     "AT&T: Your paperless billing discount of $10 has been applied to this invoice.",
-    "Xfinity Mobile: Data saver mode is currently active on line ending in 4102."
+    "Xfinity Mobile: Data saver mode is currently active on line ending in 4102.",
 ]
 
 _BENIGN_HEALTH_NOTICES: list[str] = [
@@ -147,7 +187,7 @@ _BENIGN_HEALTH_NOTICES: list[str] = [
     "Allergy Clinic: Allergy immunotherapy shot reminder for Thursday afternoon.",
     "Radiology Center: Preparation guidelines for pelvic ultrasound: drink 32oz water 1h prior.",
     "Cardiology Specialists: Holter monitor return scheduled for Friday by noon.",
-    "Community Health: Free influenza vaccine clinic open Saturday from 9 AM to 1 PM at civic center."
+    "Community Health: Free influenza vaccine clinic open Saturday from 9 AM to 1 PM at civic center.",
 ]
 
 _BENIGN_SECURITY_2FA: list[str] = [
@@ -175,7 +215,7 @@ _BENIGN_SECURITY_2FA: list[str] = [
     "Venmo: One-time code 592019. Venmo employees will never ask for this code.",
     "Cash App code: 928-103 to complete phone verification.",
     "Intuit TurboTax: Security verification code 829103 to file tax return.",
-    "Robinhood: Verification code 391029 for instant deposit authorization."
+    "Robinhood: Verification code 391029 for instant deposit authorization.",
 ]
 
 _BENIGN_DELIVERY_TRACKING: list[str] = [
@@ -203,7 +243,7 @@ _BENIGN_DELIVERY_TRACKING: list[str] = [
     "Amazon Locker: Delivery placed in locker 'Birch' at 7-Eleven. Pickup code: 492018.",
     "DHL eCommerce: Package tendered to local postal carrier for final mile delivery.",
     "Roadie: Driver assigned for local furniture delivery from Home Depot.",
-    "USPS: Delivery attempt made, notice left on door. Pickup at local post office."
+    "USPS: Delivery attempt made, notice left on door. Pickup at local post office.",
 ]
 
 _BENIGN_RETAIL_RECEIPTS: list[str] = [
@@ -231,7 +271,7 @@ _BENIGN_RETAIL_RECEIPTS: list[str] = [
     "Lululemon: Your return was processed and $98.00 was refunded to original card.",
     "Gap: Rewards balance: 1,200 points. Redeem $12 off in store or online.",
     "Old Navy: E-receipt for in-store transaction #492018 totaling $34.50.",
-    "Barnes & Noble: Member appreciation sale starts Friday. Show your membership card."
+    "Barnes & Noble: Member appreciation sale starts Friday. Show your membership card.",
 ]
 
 _BENIGN_CRYPTO_CONFIRMATIONS: list[str] = [
@@ -259,7 +299,7 @@ _BENIGN_CRYPTO_CONFIRMATIONS: list[str] = [
     "Kraken: Account Tier 3 intermediate verification approved. Higher withdrawal limits active.",
     "Gemini: ActiveTrader fee discount tier updated to Maker 0.10% / Taker 0.20%.",
     "Coinbase: Price alert: Bitcoin crossed above $68,000.00 USD.",
-    "Binance.US: USD ACH withdrawal of $1,200.00 initiated to Chase checking *8921."
+    "Binance.US: USD ACH withdrawal of $1,200.00 initiated to Chase checking *8921.",
 ]
 
 _BENIGN_CONVERSATIONAL_SENSITIVE: list[str] = [
@@ -287,62 +327,100 @@ _BENIGN_CONVERSATIONAL_SENSITIVE: list[str] = [
     "I'm at the car dealership getting the oil changed, should take about an hour.",
     "Let me know when you arrive at the train station and I'll pull up to the curb.",
     "The kids finished their homework early so we are heading to the playground.",
-    "Can you email me the updated budget spreadsheet before the 3 PM team sync?"
+    "Can you email me the updated budget spreadsheet before the 3 PM team sync?",
 ]
 
 EVAL_HELD_OUT_BENIGN: list[str] = (
-    _BENIGN_BANK_ALERTS +              # 25
-    _BENIGN_CARRIER_NOTICES +          # 25
-    _BENIGN_HEALTH_NOTICES +           # 25
-    _BENIGN_SECURITY_2FA +             # 25
-    _BENIGN_DELIVERY_TRACKING +        # 25
-    _BENIGN_RETAIL_RECEIPTS +          # 25
-    _BENIGN_CRYPTO_CONFIRMATIONS +     # 25
-    _BENIGN_CONVERSATIONAL_SENSITIVE   # 25
+    _BENIGN_BANK_ALERTS  # 25
+    + _BENIGN_CARRIER_NOTICES  # 25
+    + _BENIGN_HEALTH_NOTICES  # 25
+    + _BENIGN_SECURITY_2FA  # 25
+    + _BENIGN_DELIVERY_TRACKING  # 25
+    + _BENIGN_RETAIL_RECEIPTS  # 25
+    + _BENIGN_CRYPTO_CONFIRMATIONS  # 25
+    + _BENIGN_CONVERSATIONAL_SENSITIVE  # 25
 )
 
 # 200 distinct held-out subtle/obfuscated smishing messages
 _SMISH_BANK_PANIC: list[str] = [
     f"URGENT: {b} security notice: Debit card blocked after suspicious wire transfer of ${600 + i * 25}. Restore card access: http://{b.lower().replace(' ', '')}-{d}/auth"
-    for i, (b, d) in enumerate(zip(
-        [
-            "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One", "PNC Bank", "TD Bank", "SunTrust", "Citizens", "Regions",
-            "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One", "PNC Bank", "TD Bank", "SunTrust", "Citizens", "Regions",
-            "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One", "PNC Bank", "TD Bank", "SunTrust", "Citizens", "Regions"
-        ],
-        [
-            "verify-sec.info", "unlock-card.top", "dispute-online.xyz", "auth-portal.cc", "fraud-dispute.biz", "account-alert.net"
-        ] * 5,
-        strict=True,
-    ))
+    for i, (b, d) in enumerate(
+        zip(
+            [
+                "Chase",
+                "Wells Fargo",
+                "Bank of America",
+                "Citibank",
+                "Capital One",
+                "PNC Bank",
+                "TD Bank",
+                "SunTrust",
+                "Citizens",
+                "Regions",
+                "Chase",
+                "Wells Fargo",
+                "Bank of America",
+                "Citibank",
+                "Capital One",
+                "PNC Bank",
+                "TD Bank",
+                "SunTrust",
+                "Citizens",
+                "Regions",
+                "Chase",
+                "Wells Fargo",
+                "Bank of America",
+                "Citibank",
+                "Capital One",
+                "PNC Bank",
+                "TD Bank",
+                "SunTrust",
+                "Citizens",
+                "Regions",
+            ],
+            [
+                "verify-sec.info",
+                "unlock-card.top",
+                "dispute-online.xyz",
+                "auth-portal.cc",
+                "fraud-dispute.biz",
+                "account-alert.net",
+            ]
+            * 5,
+            strict=True,
+        )
+    )
 ]
 
 _SMISH_DELIVERY_FEES: list[str] = [
     f"{c} Alert: Parcel #{948200 + i * 19} could not be delivered due to unpaid duty fee of $1.85. Settle charge: http://{c.lower().replace(' ', '')}-{d}"
-    for i, (c, d) in enumerate(zip(
-        ["USPS", "DHL Express", "FedEx", "UPS"] * 8,
-        [
-            "customs-parcel.top",
-            "redelivery-fee.xyz",
-            "postal-track.info",
-            "duty-clearance.cc",
-            "dispatch-held.club",
-        ] * 6,
-        strict=False,
-    ))
+    for i, (c, d) in enumerate(
+        zip(
+            ["USPS", "DHL Express", "FedEx", "UPS"] * 8,
+            [
+                "customs-parcel.top",
+                "redelivery-fee.xyz",
+                "postal-track.info",
+                "duty-clearance.cc",
+                "dispatch-held.club",
+            ]
+            * 6,
+            strict=False,
+        )
+    )
 ][:30]
 
 _SMISH_LEGAL_EXTORTION: list[str] = [
     (
         f"IRS FINAL NOTICE: Delinquent tax balance detected for case #{49200 + i * 23}. Arrest warrant pending. Call 1-800-555-01{10 + (i % 80):02d}."
-        if i % 5 == 0 else
-        f"State Court Notice: Summons issued for failure to appear for citation #{49200 + i * 23}. Settle fine online: http://court-settle.info/{49200 + i * 23}"
-        if i % 5 == 1 else
-        f"SunPass Toll Violation: Overdue toll road invoice #{49200 + i * 23} of $14.50. Pay balance immediately: http://sunpass-billing.top/{49200 + i * 23}"
-        if i % 5 == 2 else
-        f"EZPass Alert: Unpaid toll violation #{49200 + i * 23}. Avoid driver license suspension: http://ezpass-toll-resolve.biz/{49200 + i * 23}"
-        if i % 5 == 3 else
-        f"URGENT Legal Warning: Process server dispatched for lawsuit case #{49200 + i * 23}. Call 888-555-01{20 + (i % 70):02d} to settle."
+        if i % 5 == 0
+        else f"State Court Notice: Summons issued for failure to appear for citation #{49200 + i * 23}. Settle fine online: http://court-settle.info/{49200 + i * 23}"
+        if i % 5 == 1
+        else f"SunPass Toll Violation: Overdue toll road invoice #{49200 + i * 23} of $14.50. Pay balance immediately: http://sunpass-billing.top/{49200 + i * 23}"
+        if i % 5 == 2
+        else f"EZPass Alert: Unpaid toll violation #{49200 + i * 23}. Avoid driver license suspension: http://ezpass-toll-resolve.biz/{49200 + i * 23}"
+        if i % 5 == 3
+        else f"URGENT Legal Warning: Process server dispatched for lawsuit case #{49200 + i * 23}. Call 888-555-01{20 + (i % 70):02d} to settle."
     )
     for i in range(30)
 ]
@@ -350,16 +428,27 @@ _SMISH_LEGAL_EXTORTION: list[str] = [
 _SMISH_CRYPTO_LURES: list[str] = [
     (
         f"Coinbase Security: Withdrawal of {0.5 + i * 0.15:.2f} ETH from IP 194.26.{20 + i}.{1 + (i % 250)}. If unauthorized, freeze immediately: http://coinbase-freeze-{d}/{i}"
-        if i % 5 == 0 else
-        f"Metamask Alert: Your secret recovery seed phrase backup #{4000 + i} has expired. Re-authenticate wallet: http://metamask-auth-{d}/{i}"
-        if i % 5 == 1 else
-        f"VIP Crypto Signals #{i + 1}: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_{i:02d}"
-        if i % 5 == 2 else
-        f"Cash App Giveaway: You were chosen for the ${750 + i * 10} cash drop! Claim now: http://cashapp-free-{d}/{i}"
-        if i % 5 == 3 else
-        f"Binance Airdrop: {500 + i * 25} USDT deposited to your account! Claim before midnight: http://binance-airdrop-{d}/{i}"
+        if i % 5 == 0
+        else f"Metamask Alert: Your secret recovery seed phrase backup #{4000 + i} has expired. Re-authenticate wallet: http://metamask-auth-{d}/{i}"
+        if i % 5 == 1
+        else f"VIP Crypto Signals #{i + 1}: Guaranteed 300% daily returns! Join private VIP Telegram: https://t.me/crypto_vip_{i:02d}"
+        if i % 5 == 2
+        else f"Cash App Giveaway: You were chosen for the ${750 + i * 10} cash drop! Claim now: http://cashapp-free-{d}/{i}"
+        if i % 5 == 3
+        else f"Binance Airdrop: {500 + i * 25} USDT deposited to your account! Claim before midnight: http://binance-airdrop-{d}/{i}"
     )
-    for i, d in enumerate((["claim-crypto.cc", "seed-verify.io", "airdrop-drop.xyz", "wallet-protect.me", "telegram-signals.club"] * 5)[:25])
+    for i, d in enumerate(
+        (
+            [
+                "claim-crypto.cc",
+                "seed-verify.io",
+                "airdrop-drop.xyz",
+                "wallet-protect.me",
+                "telegram-signals.club",
+            ]
+            * 5
+        )[:25]
+    )
 ]
 
 _SMISH_BROKEN_PHONE: list[str] = [
@@ -370,14 +459,14 @@ _SMISH_BROKEN_PHONE: list[str] = [
 _SMISH_DOC_INVOICE: list[str] = [
     (
         f"DocuSign: Sarah Jenkins shared 'Mutual NDA & Consulting Agreement #{5000 + i}' for your signature. Review: http://docusign-viewer-docs.net/sign/{i}"
-        if i % 5 == 0 else
-        f"QuickBooks: Invoice #INV-2026-{800 + i} from Alpha Tech is past due ($840.00). Settle invoice: http://qb-invoicing-portal.com/pay/{i}"
-        if i % 5 == 1 else
-        f"Zoom meeting invite: 'Mandatory Corporate Policy Review'. Join video call: http://zoom-meeting-room-{i}.cc"
-        if i % 5 == 2 else
-        f"Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/{i}"
-        if i % 5 == 3 else
-        f"Adobe Sign: Document 'Employment_Contract_2026.pdf' requires signature. Sign: http://adobe-sign-review.top/{i}"
+        if i % 5 == 0
+        else f"QuickBooks: Invoice #INV-2026-{800 + i} from Alpha Tech is past due ($840.00). Settle invoice: http://qb-invoicing-portal.com/pay/{i}"
+        if i % 5 == 1
+        else f"Zoom meeting invite: 'Mandatory Corporate Policy Review'. Join video call: http://zoom-meeting-room-{i}.cc"
+        if i % 5 == 2
+        else f"Google Drive: HR shared 'Q4_Compensation_Review.xlsx' with you. View sheet: http://drive-share-docs.info/doc/{i}"
+        if i % 5 == 3
+        else f"Adobe Sign: Document 'Employment_Contract_2026.pdf' requires signature. Sign: http://adobe-sign-review.top/{i}"
     )
     for i in range(25)
 ]
@@ -385,14 +474,14 @@ _SMISH_DOC_INVOICE: list[str] = [
 _SMISH_HOMOGLYPH: list[str] = [
     (
         f"P4yP4l Security: Unusual debit of $450.00 to CryptoCorp. Cancel transaction: http://p4ypal-dispute-center.com/{i}"
-        if i % 5 == 0 else
-        f"N3tfl1x: We could not process your recurring membership fee. Update payment: http://netfl1x-renew-account.xyz/{i}"
-        if i % 5 == 1 else
-        f"DHL-tr4ck: Unpaid import customs fee for parcel #89201. Settle fee: http://dhl-tr4ck-parcels.top/{i}"
-        if i % 5 == 2 else
-        f"Ch4se Bank: Suspicious sign-in from iPhone in Amsterdam. Disavow: http://ch4se-online-safety.net/{i}"
-        if i % 5 == 3 else
-        f"Amaz0n: Your Prime order was placed on hold due to billing error. Update card: http://amaz0n-orders-review.com/{i}"
+        if i % 5 == 0
+        else f"N3tfl1x: We could not process your recurring membership fee. Update payment: http://netfl1x-renew-account.xyz/{i}"
+        if i % 5 == 1
+        else f"DHL-tr4ck: Unpaid import customs fee for parcel #89201. Settle fee: http://dhl-tr4ck-parcels.top/{i}"
+        if i % 5 == 2
+        else f"Ch4se Bank: Suspicious sign-in from iPhone in Amsterdam. Disavow: http://ch4se-online-safety.net/{i}"
+        if i % 5 == 3
+        else f"Amaz0n: Your Prime order was placed on hold due to billing error. Update card: http://amaz0n-orders-review.com/{i}"
     )
     for i in range(20)
 ]
@@ -400,12 +489,12 @@ _SMISH_HOMOGLYPH: list[str] = [
 _SMISH_CALLBACK_SCAMS: list[str] = [
     (
         f"GeekSquad Invoice: $499.00 was auto-debited for 3-Year Total Tech Support. If you did not authorize this charge, call our billing desk immediately at 1-888-555-01{10 + i:02d}."
-        if i % 4 == 0 else
-        f"Norton LifeLock: Annual identity protection subscription renewed for $349.99. Call toll-free 1-800-555-01{20 + i:02d} within 24 hours to dispute."
-        if i % 4 == 1 else
-        f"PayPal Customer Care: Did you transfer $750.00 to Coinbase Inc? If you did not make this transaction, call 1-877-555-01{30 + i:02d} right now to freeze transfer."
-        if i % 4 == 2 else
-        f"Amazon Fraud Alert: iPhone 16 Pro Max ($1,299.00) ordered on your account. To cancel, call fraud department at 888-555-01{40 + i:02d}."
+        if i % 4 == 0
+        else f"Norton LifeLock: Annual identity protection subscription renewed for $349.99. Call toll-free 1-800-555-01{20 + i:02d} within 24 hours to dispute."
+        if i % 4 == 1
+        else f"PayPal Customer Care: Did you transfer $750.00 to Coinbase Inc? If you did not make this transaction, call 1-877-555-01{30 + i:02d} right now to freeze transfer."
+        if i % 4 == 2
+        else f"Amazon Fraud Alert: iPhone 16 Pro Max ($1,299.00) ordered on your account. To cancel, call fraud department at 888-555-01{40 + i:02d}."
     )
     for i in range(15)
 ]
@@ -438,22 +527,26 @@ def get_held_out_samples_with_metadata() -> list[dict[str, Any]]:
     samples: list[dict[str, Any]] = []
     for cat_id, cat_name, texts in CATEGORIZED_HELD_OUT_BENIGN:
         for t in texts:
-            samples.append({
-                "text": t,
-                "label": 0,
-                "category_id": cat_id,
-                "category_name": cat_name,
-                "is_fraud": False,
-            })
+            samples.append(
+                {
+                    "text": t,
+                    "label": 0,
+                    "category_id": cat_id,
+                    "category_name": cat_name,
+                    "is_fraud": False,
+                }
+            )
     for cat_id, cat_name, texts in CATEGORIZED_HELD_OUT_SMISHING:
         for t in texts:
-            samples.append({
-                "text": t,
-                "label": 1,
-                "category_id": cat_id,
-                "category_name": cat_name,
-                "is_fraud": True,
-            })
+            samples.append(
+                {
+                    "text": t,
+                    "label": 1,
+                    "category_id": cat_id,
+                    "category_name": cat_name,
+                    "is_fraud": True,
+                }
+            )
     return samples
 
 
@@ -553,23 +646,25 @@ def compute_category_metrics(
 
         # For fraud: Tier 1 recall = flagged / cnt, Tier 2 recall = blocked / cnt
         # For benign: Tier 1 FPR = flagged / cnt, Tier 2 FPR = blocked / cnt
-        results.append({
-            "category_id": cat["category_id"],
-            "category_name": cat["category_name"],
-            "label": label,
-            "sample_count": cnt,
-            "ml_p50_flagged_count": ml_p50,
-            "ml_p50_rate": round(ml_p50 / cnt, 4) if cnt > 0 else 0.0,
-            "heuristic_h50_flagged_count": heur_h50,
-            "heuristic_h50_rate": round(heur_h50 / cnt, 4) if cnt > 0 else 0.0,
-            "tier1_flagged_count": flagged,
-            "tier2_blocked_count": blocked,
-            "tier1_rate": round(flagged / cnt, 4) if cnt > 0 else 0.0,
-            "tier2_rate": round(blocked / cnt, 4) if cnt > 0 else 0.0,
-            "mean_onnx_probability": round(mean_p, 4),
-            "mean_heuristic_score": round(mean_h, 4),
-            "mean_composite_score": round(mean_s, 4),
-        })
+        results.append(
+            {
+                "category_id": cat["category_id"],
+                "category_name": cat["category_name"],
+                "label": label,
+                "sample_count": cnt,
+                "ml_p50_flagged_count": ml_p50,
+                "ml_p50_rate": round(ml_p50 / cnt, 4) if cnt > 0 else 0.0,
+                "heuristic_h50_flagged_count": heur_h50,
+                "heuristic_h50_rate": round(heur_h50 / cnt, 4) if cnt > 0 else 0.0,
+                "tier1_flagged_count": flagged,
+                "tier2_blocked_count": blocked,
+                "tier1_rate": round(flagged / cnt, 4) if cnt > 0 else 0.0,
+                "tier2_rate": round(blocked / cnt, 4) if cnt > 0 else 0.0,
+                "mean_onnx_probability": round(mean_p, 4),
+                "mean_heuristic_score": round(mean_h, 4),
+                "mean_composite_score": round(mean_s, 4),
+            }
+        )
 
     return {"categories": results, "total_categories": len(results)}
 
@@ -743,6 +838,234 @@ def _safe_wilson_ci(
     return [low, high]
 
 
+def compute_base_rate_ppv(tpr: float, fpr: float, prevalence: float) -> float:
+    """Computes Bayes-adjusted precision PPV(pi) safely without zero-division errors."""
+    if not 0.0 <= tpr <= 1.0 or not 0.0 <= fpr <= 1.0 or not 0.0 <= prevalence <= 1.0:
+        raise ValueError("tpr, fpr, and prevalence must lie within [0.0, 1.0]")
+    tp_mass = float(tpr) * float(prevalence)
+    fp_mass = float(fpr) * (1.0 - float(prevalence))
+    denom = tp_mass + fp_mass
+    if denom <= 0.0:
+        return 0.0
+    return round(tp_mass / denom, 6)
+
+
+def compute_expected_cost_per_1000(
+    fnr: float,
+    fpr: float,
+    prevalence: float,
+    *,
+    cost_fn: float = COST_FN_ESCAPE,
+    cost_fp: float,
+) -> float:
+    """Computes normalized operational cost per 1,000 messages under a single cutoff."""
+    if not 0.0 <= fnr <= 1.0 or not 0.0 <= fpr <= 1.0 or not 0.0 <= prevalence <= 1.0:
+        raise ValueError("fnr, fpr, and prevalence must lie within [0.0, 1.0]")
+    expected_per_msg = prevalence * fnr * cost_fn + (1.0 - prevalence) * fpr * cost_fp
+    return round(1000.0 * expected_per_msg, 4)
+
+
+def compute_dual_tier_cost_per_1000(
+    fnr_tier1: float,
+    fpr_tier1: float,
+    fpr_tier2: float,
+    prevalence: float,
+    *,
+    cost_fn_escape: float = COST_FN_ESCAPE,
+    cost_fp_tier1_flag: float = COST_FP_TIER1_FLAG,
+    cost_fp_tier2_block: float = COST_FP_TIER2_BLOCK,
+) -> float:
+    """Computes expected cost per 1,000 messages for joint Tier-1 (FLAG) and Tier-2 (BLOCK) cutoffs."""
+    tier1_only_fpr = max(0.0, float(fpr_tier1) - float(fpr_tier2))
+    escape_cost = prevalence * float(fnr_tier1) * cost_fn_escape
+    flag_cost = (1.0 - prevalence) * tier1_only_fpr * cost_fp_tier1_flag
+    block_cost = (1.0 - prevalence) * float(fpr_tier2) * cost_fp_tier2_block
+    return round(1000.0 * (escape_cost + flag_cost + block_cost), 4)
+
+
+def _sweep_rates_at_threshold(
+    scores_arr: np.ndarray,
+    y_arr: np.ndarray,
+    threshold: float,
+) -> tuple[int, int, int, int, float, float, float, float]:
+    """Returns (tp, fp, tn, fn, tpr, fpr, fnr, specificity) for scalar cutoff threshold."""
+    preds = (scores_arr >= threshold).astype(int)
+    tn, fp, fn, tp = confusion_matrix(y_arr, preds, labels=[0, 1]).ravel()
+    pos_total = int(tp + fn)
+    neg_total = int(fp + tn)
+    tpr = float(tp / pos_total) if pos_total > 0 else 0.0
+    fpr = float(fp / neg_total) if neg_total > 0 else 0.0
+    fnr = float(fn / pos_total) if pos_total > 0 else 0.0
+    spec = float(tn / neg_total) if neg_total > 0 else 0.0
+    return int(tp), int(fp), int(tn), int(fn), tpr, fpr, fnr, spec
+
+
+def compute_threshold_sensitivity_analysis(
+    scores: Sequence[float] | np.ndarray,
+    y_true: Sequence[int] | np.ndarray,
+    *,
+    thresholds: Sequence[float] = DEFAULT_SWEEP_THRESHOLDS,
+    prevalences: Sequence[float] = DEFAULT_PREVALENCE_RATES,
+    cost_fn_escape: float = COST_FN_ESCAPE,
+    cost_fp_tier1_flag: float = COST_FP_TIER1_FLAG,
+    cost_fp_tier2_block: float = COST_FP_TIER2_BLOCK,
+    score_kind: str = "composite_score",
+) -> dict[str, Any]:
+    """Computes threshold sweeps, Bayes base-rate PPV curves, and asymmetric costs."""
+    scores_arr = np.asarray(scores, dtype=float)
+    y_arr = np.asarray(y_true, dtype=int)
+    if scores_arr.ndim != 1 or y_arr.ndim != 1 or scores_arr.shape != y_arr.shape:
+        raise ValueError("scores and y_true must be 1D sequences of equal length")
+    if len(scores_arr) == 0:
+        raise ValueError("scores and y_true must be non-empty")
+    if not np.all(np.isfinite(scores_arr)) or np.any(scores_arr < 0.0) or np.any(scores_arr > 1.0):
+        raise ValueError("scores must be finite values in [0.0, 1.0]")
+    if not np.all((y_arr == 0) | (y_arr == 1)):
+        raise ValueError("y_true must contain strictly binary 0/1 labels")
+
+    ordered_thresholds = [round(float(t), 4) for t in sorted(thresholds)]
+    ordered_prevalences = [round(float(p), 6) for p in sorted(prevalences)]
+    rows: list[dict[str, Any]] = []
+
+    for tau in ordered_thresholds:
+        tp, fp, tn, fn, tpr, fpr, fnr, spec = _sweep_rates_at_threshold(scores_arr, y_arr, tau)
+        fpr_ci = _safe_wilson_ci(fp, fp + tn)
+        fpr_upper = float(fpr_ci[1]) if fpr_ci is not None else 0.0
+
+        ppv_by_prev = {f"{pi:g}": compute_base_rate_ppv(tpr, fpr, pi) for pi in ordered_prevalences}
+        ppv_worst_by_prev = {
+            f"{pi:g}": compute_base_rate_ppv(tpr, fpr_upper, pi) for pi in ordered_prevalences
+        }
+        cost_t1 = {
+            f"{pi:g}": compute_expected_cost_per_1000(
+                fnr, fpr, pi, cost_fn=cost_fn_escape, cost_fp=cost_fp_tier1_flag
+            )
+            for pi in ordered_prevalences
+        }
+        cost_t2 = {
+            f"{pi:g}": compute_expected_cost_per_1000(
+                fnr, fpr, pi, cost_fn=cost_fn_escape, cost_fp=cost_fp_tier2_block
+            )
+            for pi in ordered_prevalences
+        }
+        rows.append(
+            {
+                "threshold": tau,
+                "confusion_matrix": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
+                "tpr": round(tpr, 6),
+                "fpr": round(fpr, 6),
+                "fnr": round(fnr, 6),
+                "specificity": round(spec, 6),
+                "fpr_wilson_95_ci": fpr_ci,
+                "fpr_wilson_95_upper": round(fpr_upper, 6),
+                "ppv_by_prevalence": ppv_by_prev,
+                "ppv_at_fpr_wilson_95_upper_by_prevalence": ppv_worst_by_prev,
+                "expected_cost_per_1000_tier1_flag": cost_t1,
+                "expected_cost_per_1000_tier2_block": cost_t2,
+            }
+        )
+
+    dual_tier_pairs = ((0.40, 0.75), (0.40, 0.80), (0.40, 0.85), (0.40, 0.90))
+    dual_tier_policies: list[dict[str, Any]] = []
+    for tau1, tau2 in dual_tier_pairs:
+        _, _, _, _, tpr1, fpr1, fnr1, _ = _sweep_rates_at_threshold(scores_arr, y_arr, tau1)
+        _, _, _, _, tpr2, fpr2, _, _ = _sweep_rates_at_threshold(scores_arr, y_arr, tau2)
+        dual_tier_policies.append(
+            {
+                "tier1_flag_threshold": tau1,
+                "tier2_block_threshold": tau2,
+                "tier1_tpr": round(tpr1, 6),
+                "tier1_fpr": round(fpr1, 6),
+                "tier1_fnr": round(fnr1, 6),
+                "tier2_tpr": round(tpr2, 6),
+                "tier2_fpr": round(fpr2, 6),
+                "expected_cost_per_1000_by_prevalence": {
+                    f"{pi:g}": compute_dual_tier_cost_per_1000(
+                        fnr1,
+                        fpr1,
+                        fpr2,
+                        pi,
+                        cost_fn_escape=cost_fn_escape,
+                        cost_fp_tier1_flag=cost_fp_tier1_flag,
+                        cost_fp_tier2_block=cost_fp_tier2_block,
+                    )
+                    for pi in ordered_prevalences
+                },
+            }
+        )
+
+    return {
+        "score_kind": score_kind,
+        "sample_count": int(len(scores_arr)),
+        "benign_count": int(np.sum(y_arr == 0)),
+        "fraud_count": int(np.sum(y_arr == 1)),
+        "sample_prevalence": round(float(np.mean(y_arr == 1)), 6),
+        "prevalences": ordered_prevalences,
+        "cost_model": {
+            "cost_fn_escape": float(cost_fn_escape),
+            "cost_fp_tier1_flag": float(cost_fp_tier1_flag),
+            "cost_fp_tier2_block": float(cost_fp_tier2_block),
+            "unit": "normalized_cost_per_1000_messages",
+        },
+        "thresholds": rows,
+        "dual_tier_policies": dual_tier_policies,
+    }
+
+
+def build_threshold_and_base_rate_bundle(
+    y_true: Sequence[int] | np.ndarray,
+    y_prob: Sequence[float] | np.ndarray,
+    composite_scores: Sequence[float] | np.ndarray,
+    *,
+    oof_predictions_rows: Sequence[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Builds the complete SF-012 threshold & Bayes base-rate analysis payload with blocker metadata."""
+    dev_comp = compute_threshold_sensitivity_analysis(
+        composite_scores,
+        y_true,
+        score_kind="dev_val_composite_n400",
+    )
+    dev_ml = compute_threshold_sensitivity_analysis(
+        y_prob,
+        y_true,
+        score_kind="dev_val_pure_ml_n400",
+    )
+    bundle: dict[str, Any] = {
+        "external_validation_status": "UNAVAILABLE_BLOCKED",
+        "class_c_primary_holdout_present": False,
+        "legacy_holdout_300_present": False,
+        "default_operational_thresholds": {
+            "tier1_flag_threshold": 0.40,
+            "tier2_block_threshold": 0.75,
+        },
+        "evaluated_benchmarks": ["dev_val_composite", "dev_val_pure_ml"],
+        "scope_and_limitations_note": (
+            "No Class C primary external two-class fraud holdout exists (UNAVAILABLE_BLOCKED per SF-010/SF-011; "
+            "no N=300 external holdout exists). Curves summarize internal Dev/Val (N=400) and SF-009 Nested "
+            "5-Fold OOF (N=703) behavior strictly for analytical threshold justification, not verified live "
+            "carrier generalization."
+        ),
+        "dev_val_composite": dev_comp,
+        "dev_val_pure_ml": dev_ml,
+    }
+    if oof_predictions_rows:
+        oof_labels = [int(r["true_label"]) for r in oof_predictions_rows]
+        oof_comp_scores = [float(r["oof_composite_score"]) for r in oof_predictions_rows]
+        oof_ml_scores = [float(r["oof_probability"]) for r in oof_predictions_rows]
+        bundle["oof_composite"] = compute_threshold_sensitivity_analysis(
+            oof_comp_scores,
+            oof_labels,
+            score_kind="sf009_oof_composite_n703",
+        )
+        bundle["oof_pure_ml"] = compute_threshold_sensitivity_analysis(
+            oof_ml_scores,
+            oof_labels,
+            score_kind="sf009_oof_pure_ml_n703",
+        )
+        bundle["evaluated_benchmarks"].extend(["oof_composite", "oof_pure_ml"])
+    return bundle
+
+
 def compute_calibration_diagnostics(
     y_true: Sequence[int] | np.ndarray,
     y_prob: Sequence[float] | np.ndarray,
@@ -833,6 +1156,8 @@ def compute_evaluation_metrics(
     texts: list[str],
     threshold: float = 0.50,
     samples: list[dict[str, Any]] | None = None,
+    *,
+    threshold_oof_rows: Sequence[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Computes exact empirical evaluation metrics across both operational tiers, categories, and ablations."""
     y_true_arr = np.asarray(y_true, dtype=int)
@@ -888,7 +1213,9 @@ def compute_evaluation_metrics(
     if samples is None:
         samples = get_held_out_samples_with_metadata()
 
-    category_analysis = compute_category_metrics(samples, y_prob_arr, comp_arr, heuristic_scores=heuristic_scores)
+    category_analysis = compute_category_metrics(
+        samples, y_prob_arr, comp_arr, heuristic_scores=heuristic_scores
+    )
     ablation_analysis = compute_ablation_metrics(y_true_arr, y_prob_arr, heuristic_scores, comp_arr)
     error_analysis = extract_error_analysis(samples, y_prob_arr, heuristic_scores, comp_arr)
     cal_diag = compute_calibration_diagnostics(y_true_arr, y_prob_arr, n_bins=10)
@@ -932,6 +1259,12 @@ def compute_evaluation_metrics(
         "reliability_bins": cal_diag["reliability_bins"],
         "calibration_diagnostics": cal_diag,
         "wilson_95_ci": wilson_95_ci,
+        "threshold_and_base_rate_analysis": build_threshold_and_base_rate_bundle(
+            y_true_arr,
+            y_prob_arr,
+            comp_arr,
+            oof_predictions_rows=threshold_oof_rows,
+        ),
         "false_positive_rate": round(fpr, 4),
         "false_negative_rate": round(fnr, 4),
         "tier1_escalation": {
@@ -1189,23 +1522,43 @@ def _run_evaluation_snapshot(
 
     canonical_preds_name = "benchmark_predictions_400.json"
     if write_predictions:
-        preds_path, predictions_sha256, pred_rows, parity_summary = export_benchmark_predictions_400(
-            samples=samples,
-            sklearn_probs=sklearn_probs_arr,
-            onnx_probs=onnx_probs_arr,
+        preds_path, predictions_sha256, pred_rows, parity_summary = (
+            export_benchmark_predictions_400(
+                samples=samples,
+                sklearn_probs=sklearn_probs_arr,
+                onnx_probs=onnx_probs_arr,
+            )
         )
         preds_bytes = preds_path.read_bytes()
     else:
-        pred_rows, parity_summary, preds_bytes, predictions_sha256 = build_benchmark_prediction_rows(
-            samples=samples,
-            sklearn_probs=sklearn_probs_arr,
-            onnx_probs=onnx_probs_arr,
+        pred_rows, parity_summary, preds_bytes, predictions_sha256 = (
+            build_benchmark_prediction_rows(
+                samples=samples,
+                sklearn_probs=sklearn_probs_arr,
+                onnx_probs=onnx_probs_arr,
+            )
         )
 
     parity_summary["max_tfidf_vector_abs_diff"] = max_vec_diff
     parity_summary["mean_tfidf_vector_abs_diff"] = mean_vec_diff
 
-    metrics = compute_evaluation_metrics(labels, y_prob, texts=texts, samples=samples)
+    canonical_oof_path = Path(__file__).resolve().parent / "oof_predictions.json"
+    oof_rows_for_sweep: list[dict[str, Any]] | None = None
+    if canonical_oof_path.exists():
+        try:
+            loaded_oof = json.loads(canonical_oof_path.read_text(encoding="utf-8"))
+            if isinstance(loaded_oof, list) and loaded_oof:
+                oof_rows_for_sweep = loaded_oof
+        except Exception as err:
+            logger.warning("Could not load oof_predictions.json for SF-012 sweep: %s", err)
+
+    metrics = compute_evaluation_metrics(
+        labels,
+        y_prob,
+        texts=texts,
+        samples=samples,
+        threshold_oof_rows=oof_rows_for_sweep,
+    )
     model_bytes = model_path.read_bytes()
     model_sha256 = hashlib.sha256(model_bytes).hexdigest()
     eval_dataset_sha256 = hashlib.sha256(
@@ -1296,6 +1649,8 @@ def build_merged_metadata(
     metadata["wilson_95_ci"] = metrics["wilson_95_ci"]
     if "oof_cross_validation" in metrics:
         metadata["oof_cross_validation"] = metrics["oof_cross_validation"]
+    if "threshold_and_base_rate_analysis" in metrics:
+        metadata["threshold_and_base_rate_analysis"] = metrics["threshold_and_base_rate_analysis"]
     metadata["evaluation_timestamp"] = metrics["evaluation_timestamp"]
     metadata["software_versions"] = metrics["software_versions"]
     metadata["dev_benchmark_metrics"] = metrics
@@ -1400,14 +1755,14 @@ def _format_calibration_and_wilson_markdown(metrics: dict[str, Any]) -> list[str
             "",
             "| Operational Metric | Point Estimate | 95% Wilson CI |",
             "|---|:---:|:---:|",
-            f"| **Raw ML Precision ($P \\ge 0.50$)** | {metrics['precision']*100:.2f}% | `{_format_ci_pct(wilson.get('ml_p50_precision'))}` |",
-            f"| **Raw ML Recall ($P \\ge 0.50$)** | {metrics['recall']*100:.2f}% | `{_format_ci_pct(wilson.get('ml_p50_recall'))}` |",
-            f"| **Tier 1 Precision (`S >= 0.40`)** | {t1['precision']*100:.2f}% | `{_format_ci_pct(wilson.get('tier1_precision'))}` |",
-            f"| **Tier 1 Recall (`S >= 0.40`)** | {t1['recall']*100:.2f}% | `{_format_ci_pct(wilson.get('tier1_recall'))}` |",
-            f"| **Tier 1 False Positive Rate (`S >= 0.40`)** | {t1['false_positive_rate']*100:.2f}% | `{_format_ci_pct(wilson.get('tier1_fpr'))}` |",
-            f"| **Tier 2 Precision (`S >= 0.75`)** | {t2['precision']*100:.2f}% | `{_format_ci_pct(wilson.get('tier2_precision'))}` |",
-            f"| **Tier 2 Recall (`S >= 0.75`)** | {t2['recall']*100:.2f}% | `{_format_ci_pct(wilson.get('tier2_recall'))}` |",
-            f"| **Tier 2 False Positive Rate (`S >= 0.75`)** | {t2['false_positive_rate']*100:.2f}% | `{_format_ci_pct(wilson.get('tier2_fpr'))}` |",
+            f"| **Raw ML Precision ($P \\ge 0.50$)** | {metrics['precision'] * 100:.2f}% | `{_format_ci_pct(wilson.get('ml_p50_precision'))}` |",
+            f"| **Raw ML Recall ($P \\ge 0.50$)** | {metrics['recall'] * 100:.2f}% | `{_format_ci_pct(wilson.get('ml_p50_recall'))}` |",
+            f"| **Tier 1 Precision (`S >= 0.40`)** | {t1['precision'] * 100:.2f}% | `{_format_ci_pct(wilson.get('tier1_precision'))}` |",
+            f"| **Tier 1 Recall (`S >= 0.40`)** | {t1['recall'] * 100:.2f}% | `{_format_ci_pct(wilson.get('tier1_recall'))}` |",
+            f"| **Tier 1 False Positive Rate (`S >= 0.40`)** | {t1['false_positive_rate'] * 100:.2f}% | `{_format_ci_pct(wilson.get('tier1_fpr'))}` |",
+            f"| **Tier 2 Precision (`S >= 0.75`)** | {t2['precision'] * 100:.2f}% | `{_format_ci_pct(wilson.get('tier2_precision'))}` |",
+            f"| **Tier 2 Recall (`S >= 0.75`)** | {t2['recall'] * 100:.2f}% | `{_format_ci_pct(wilson.get('tier2_recall'))}` |",
+            f"| **Tier 2 False Positive Rate (`S >= 0.75`)** | {t2['false_positive_rate'] * 100:.2f}% | `{_format_ci_pct(wilson.get('tier2_fpr'))}` |",
             "",
         ]
     )
@@ -1436,8 +1791,8 @@ def _format_oof_cv_markdown(oof: dict[str, Any]) -> list[str]:
         "### Fine-Grained Semantic Families (56 Families, Out-of-Fold Pooled & Per-Fold Summary)",
         "",
         f"- **Per-Fold Pure-ML Mean ± Std ($P \\ge 0.50$, 5 folds):** ROC-AUC `{pf['roc_auc']['mean']:.4f} ± {pf['roc_auc']['std']:.4f}`, PR-AUC `{pf['pr_auc']['mean']:.4f} ± {pf['pr_auc']['std']:.4f}`, Brier `{pf['brier_score']['mean']:.4f} ± {pf['brier_score']['std']:.4f}`, F1 `{pf['f1_score']['mean']:.4f} ± {pf['f1_score']['std']:.4f}`",
-        f"- **Pooled OOF Pure-ML ($P \\ge 0.50$):** ROC-AUC `{ml_oof['roc_auc']:.4f}`, PR-AUC `{ml_oof['pr_auc']:.4f}`, Brier `{ml_oof['brier_score']:.4f}`, ECE `{ml_oof['ece']:.6f}`, Precision `{ml_oof['precision']*100:.2f}%`, Recall `{ml_oof['recall']*100:.2f}%`, F1 `{ml_oof['f1_score']:.4f}`",
-        f"- **Pooled OOF Composite ($V = 0.0$ offline invariant):** Tier 1 (`S >= 0.40`) Precision `{comp_oof['tier1']['precision']*100:.2f}%`, Recall `{comp_oof['tier1']['recall']*100:.2f}%`, FPR `{comp_oof['tier1']['false_positive_rate']*100:.2f}%`; Tier 2 (`S >= 0.75`) Precision `{comp_oof['tier2']['precision']*100:.2f}%`, Recall `{comp_oof['tier2']['recall']*100:.2f}%`, FPR `{comp_oof['tier2']['false_positive_rate']*100:.2f}%`",
+        f"- **Pooled OOF Pure-ML ($P \\ge 0.50$):** ROC-AUC `{ml_oof['roc_auc']:.4f}`, PR-AUC `{ml_oof['pr_auc']:.4f}`, Brier `{ml_oof['brier_score']:.4f}`, ECE `{ml_oof['ece']:.6f}`, Precision `{ml_oof['precision'] * 100:.2f}%`, Recall `{ml_oof['recall'] * 100:.2f}%`, F1 `{ml_oof['f1_score']:.4f}`",
+        f"- **Pooled OOF Composite ($V = 0.0$ offline invariant):** Tier 1 (`S >= 0.40`) Precision `{comp_oof['tier1']['precision'] * 100:.2f}%`, Recall `{comp_oof['tier1']['recall'] * 100:.2f}%`, FPR `{comp_oof['tier1']['false_positive_rate'] * 100:.2f}%`; Tier 2 (`S >= 0.75`) Precision `{comp_oof['tier2']['precision'] * 100:.2f}%`, Recall `{comp_oof['tier2']['recall'] * 100:.2f}%`, FPR `{comp_oof['tier2']['false_positive_rate'] * 100:.2f}%`",
         "",
         f"### Semantic-Family Cluster Bootstrap 95% CIs (`{boot['method']}`, `B={boot['replicate_count']}`, `seed={boot['seed']}`, `G={boot['independent_group_count']}` clusters)",
         "",
@@ -1479,6 +1834,84 @@ def _format_oof_cv_markdown(oof: dict[str, Any]) -> list[str]:
     return rows
 
 
+def _format_sweep_table_rows(sweep: dict[str, Any]) -> list[str]:
+    """Formats one threshold sweep table for Section 10 of ml_evaluation_report.md."""
+    out = [
+        "| $\\tau$ | TPR (Recall) | FPR (95% Wilson Upper) | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% | PPV @ 50.0% | Cost/1k (Tier 1 @ 1%) | Cost/1k (Tier 2 @ 1%) |",
+        "|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|",
+    ]
+    for row in sweep["thresholds"]:
+        tau = f"`{float(row['threshold']):.2f}`"
+        tpr = f"{float(row['tpr']) * 100:.2f}%"
+        fpr = f"{float(row['fpr']) * 100:.2f}% (`{float(row['fpr_wilson_95_upper']) * 100:.2f}%`)"
+        ppv = row["ppv_by_prevalence"]
+        c1 = row["expected_cost_per_1000_tier1_flag"]
+        c2 = row["expected_cost_per_1000_tier2_block"]
+        out.append(
+            f"| {tau} | {tpr} | {fpr} | {float(ppv['0.005']) * 100:.2f}% | "
+            f"{float(ppv['0.01']) * 100:.2f}% | {float(ppv['0.05']) * 100:.2f}% | "
+            f"{float(ppv['0.5']) * 100:.2f}% | {float(c1['0.01']):.2f} | {float(c2['0.01']):.2f} |"
+        )
+    return out
+
+
+def _format_threshold_and_base_rate_markdown(analysis: dict[str, Any]) -> list[str]:
+    """Formats Section 10 (Operational Cost Matrix & Bayes Base-Rate Sensitivity) for Markdown."""
+    dev_comp = analysis["dev_val_composite"]
+    cost_cfg = dev_comp["cost_model"]
+    rows = [
+        "## 10. Operational Cost Matrix & Bayes Base-Rate Prevalence Sensitivity (`SF-012`)",
+        "",
+        f"> **External Validation Blocker (`{analysis['external_validation_status']}`):** {analysis['scope_and_limitations_note']}",
+        "",
+        f"- **Asymmetric Cost Matrix (per 1,000 messages):** $C_{{\\text{{FN, Escape}}}} = {cost_cfg['cost_fn_escape']:.1f}$, $C_{{\\text{{FP, Tier1\\_Flag}}}} = {cost_cfg['cost_fp_tier1_flag']:.1f}$, $C_{{\\text{{FP, Tier2\\_Block}}}} = {cost_cfg['cost_fp_tier2_block']:.1f}$ (ratio $50:10:1$ prioritizing protection of legitimate banking/OTP traffic against silent wire drops).",
+        "- **Bayes Precision Law:** $\\text{PPV}(\\pi) = \\frac{\\text{TPR}\\cdot \\pi}{\\text{TPR}\\cdot \\pi + \\text{FPR}\\cdot (1-\\pi)}$ for live carrier prevalence $\\pi \\in \\{0.5\\%, 1.0\\%, 5.0\\%, 50.0\\%\\}$.",
+        "",
+        "### Dev/Val Benchmark ($N = 400$) Composite Score ($S_{\\text{composite}}, V = 0.0$) Sweep",
+        "",
+    ]
+    rows.extend(_format_sweep_table_rows(dev_comp))
+    oof_comp = analysis.get("oof_composite")
+    if isinstance(oof_comp, dict) and oof_comp.get("thresholds"):
+        rows.extend(
+            [
+                "",
+                "### `SF-009` Nested 5-Fold Unseen-Family OOF ($N = 703$, $G = 56$) Composite Sweep",
+                "",
+            ]
+        )
+        rows.extend(_format_sweep_table_rows(oof_comp))
+
+    rows.extend(
+        [
+            "",
+            "### Joint Dual-Tier Operational Policy Comparison (Normalized Cost per 1,000 Messages)",
+            "",
+            "| Cohort | Policy `(tau_flag, tau_block)` | Tier-1 Recall / FPR | Tier-2 Recall / FPR | Cost @ 0.5% | Cost @ 1.0% | Cost @ 5.0% | Cost @ 50.0% |",
+            "|---|---|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for label, section in (("Dev/Val N=400", dev_comp), ("SF-009 OOF N=703", oof_comp)):
+        if not isinstance(section, dict):
+            continue
+        for pol in section.get("dual_tier_policies", []):
+            if (pol["tier1_flag_threshold"], pol["tier2_block_threshold"]) not in (
+                (0.40, 0.75),
+                (0.40, 0.85),
+            ):
+                continue
+            costs = pol["expected_cost_per_1000_by_prevalence"]
+            rows.append(
+                f"| {label} | `({pol['tier1_flag_threshold']:.2f}, {pol['tier2_block_threshold']:.2f})` | "
+                f"{float(pol['tier1_tpr']) * 100:.2f}% / {float(pol['tier1_fpr']) * 100:.2f}% | "
+                f"{float(pol['tier2_tpr']) * 100:.2f}% / {float(pol['tier2_fpr']) * 100:.2f}% | "
+                f"{float(costs['0.005']):.2f} | {float(costs['0.01']):.2f} | "
+                f"{float(costs['0.05']):.2f} | {float(costs['0.5']):.2f} |"
+            )
+    rows.append("")
+    return rows
+
+
 def generate_markdown_report(metrics: dict[str, Any]) -> str:
     """Generates an exhaustive human-readable Markdown evaluation report."""
     t1 = metrics["tier1_escalation"]
@@ -1512,7 +1945,7 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
         f"- **Mean TF-IDF Vector Absolute Diff:** `{parity.get('mean_tfidf_vector_abs_diff', 0.0):.10e}`",
         f"- **Max Calibrated Probability Absolute Diff ($|P_{{\\text{{sklearn}}}} - P_{{\\text{{onnx}}}}|$):** `{parity.get('max_prob_abs_diff', 0.0):.10e}`",
         f"- **Mean Calibrated Probability Absolute Diff:** `{parity.get('mean_prob_abs_diff', 0.0):.10e}`",
-        f"- **End-to-End Operational Verdict Agreement (`ALLOW` / `FLAG` / `BLOCK`):** `{parity.get('verdict_parity_count', 400)} / {parity.get('sample_count', 400)}` (`{parity.get('verdict_parity_rate', 1.0)*100:.1f}%`)",
+        f"- **End-to-End Operational Verdict Agreement (`ALLOW` / `FLAG` / `BLOCK`):** `{parity.get('verdict_parity_count', 400)} / {parity.get('sample_count', 400)}` (`{parity.get('verdict_parity_rate', 1.0) * 100:.1f}%`)",
         "",
         "### Evaluation Integrity & Provenance Clarification",
         "The 400-message benchmark suite (200 hard benign, 200 adversarial smishing) was curated and utilized iteratively during development to guide heuristic tuning, rule escalation validation, and calibration verification. Consequently, it represents an empirical **Development & Validation Benchmark** rather than an untouched, single-use external holdout. While exact normalized SHA-256 hash overlap against the training corpus is strictly 0, iterative engineering inspection occurred during model tuning.",
@@ -1530,18 +1963,18 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
         f"| **ROC-AUC** | **{metrics['roc_auc']:.4f}** | Area under ROC curve across all possible decision thresholds |",
         f"| **PR-AUC** | **{metrics['pr_auc']:.4f}** | Precision-Recall curve area (robust under class skew) |",
         f"| **Brier Score** | **{metrics['brier_score']:.4f}** | Probability calibration loss (lower is better, calibrated < 0.10) |",
-        f"| **Precision (P >= 0.50)** | **{metrics['precision']*100:.2f}%** | True fraud / (True fraud + False alarms) |",
-        f"| **Recall (P >= 0.50)** | **{metrics['recall']*100:.2f}%** | True fraud caught / Total actual fraud |",
+        f"| **Precision (P >= 0.50)** | **{metrics['precision'] * 100:.2f}%** | True fraud / (True fraud + False alarms) |",
+        f"| **Recall (P >= 0.50)** | **{metrics['recall'] * 100:.2f}%** | True fraud caught / Total actual fraud |",
         f"| **F1-Score** | **{metrics['f1_score']:.4f}** | Harmonic mean of precision and recall |",
-        f"| **False Positive Rate (FPR)** | **{metrics['false_positive_rate']*100:.2f}%** | Benign messages incorrectly flagged |",
-        f"| **False Negative Rate (FNR)** | **{metrics['false_negative_rate']*100:.2f}%** | Fraud messages that evaded detection |",
+        f"| **False Positive Rate (FPR)** | **{metrics['false_positive_rate'] * 100:.2f}%** | Benign messages incorrectly flagged |",
+        f"| **False Negative Rate (FNR)** | **{metrics['false_negative_rate'] * 100:.2f}%** | Fraud messages that evaded detection |",
         "",
         "## 3. Dual-Threshold Operational Tiers",
         "",
         "| Operational Tier | Threshold | Purpose | Recall | Precision | FPR | Confusion Matrix |",
         "|---|:---:|---|:---:|:---:|:---:|---|",
-        f"| **Tier 1: Escalation Queue** | $S \\ge 0.40$ | Async SentinelFlow Review | **{t1['recall']*100:.2f}%** | **{t1['precision']*100:.2f}%** | **{t1['false_positive_rate']*100:.2f}%** | TP={t1['confusion_matrix']['tp']}, FP={t1['confusion_matrix']['fp']}, TN={t1['confusion_matrix']['tn']}, FN={t1['confusion_matrix']['fn']} |",
-        f"| **Tier 2: Immediate Wire Drop** | $S \\ge 0.75$ | Synchronous Wire Drop | **{t2['recall']*100:.2f}%** | **{t2['precision']*100:.2f}%** | **{t2['false_positive_rate']*100:.2f}%** | TP={t2['confusion_matrix']['tp']}, FP={t2['confusion_matrix']['fp']}, TN={t2['confusion_matrix']['tn']}, FN={t2['confusion_matrix']['fn']} |",
+        f"| **Tier 1: Escalation Queue** | $S \\ge 0.40$ | Async SentinelFlow Review | **{t1['recall'] * 100:.2f}%** | **{t1['precision'] * 100:.2f}%** | **{t1['false_positive_rate'] * 100:.2f}%** | TP={t1['confusion_matrix']['tp']}, FP={t1['confusion_matrix']['fp']}, TN={t1['confusion_matrix']['tn']}, FN={t1['confusion_matrix']['fn']} |",
+        f"| **Tier 2: Immediate Wire Drop** | $S \\ge 0.75$ | Synchronous Wire Drop | **{t2['recall'] * 100:.2f}%** | **{t2['precision'] * 100:.2f}%** | **{t2['false_positive_rate'] * 100:.2f}%** | TP={t2['confusion_matrix']['tp']}, FP={t2['confusion_matrix']['fp']}, TN={t2['confusion_matrix']['tn']}, FN={t2['confusion_matrix']['fn']} |",
         "",
         "## 4. Component Ablation Study (ML vs. Heuristics vs. Combined)",
         "",
@@ -1553,17 +1986,19 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
     h_alone = ablation.get("heuristics_alone", {})
     comb = ablation.get("ml_plus_heuristics", {})
 
-    lines.extend([
-        f"| **ML Model Alone** | $P \\ge 0.50$ | {m_alone.get('at_threshold_0_50', {}).get('recall', 0)*100:.2f}% | {m_alone.get('at_threshold_0_50', {}).get('precision', 0)*100:.2f}% | {m_alone.get('at_threshold_0_50', {}).get('false_positive_rate', 0)*100:.2f}% | {m_alone.get('at_threshold_0_50', {}).get('f1_score', 0):.4f} | Statistical semantic pattern recognition |",
-        f"| **Heuristics Alone** | $H \\ge 0.50$ | {h_alone.get('at_threshold_0_50', {}).get('recall', 0)*100:.2f}% | {h_alone.get('at_threshold_0_50', {}).get('precision', 0)*100:.2f}% | {h_alone.get('at_threshold_0_50', {}).get('false_positive_rate', 0)*100:.2f}% | {h_alone.get('at_threshold_0_50', {}).get('f1_score', 0):.4f} | Deterministic regex rule triggers |",
-        f"| **Combined (Tier 1)** | $S \\ge 0.40$ | {comb.get('tier1_escalation', {}).get('recall', 0)*100:.2f}% | {comb.get('tier1_escalation', {}).get('precision', 0)*100:.2f}% | {comb.get('tier1_escalation', {}).get('false_positive_rate', 0)*100:.2f}% | {comb.get('tier1_escalation', {}).get('f1_score', 0):.4f} | Zero FN guarantee for human escalation |",
-        f"| **Combined (Tier 2)** | $S \\ge 0.75$ | {comb.get('tier2_block', {}).get('recall', 0)*100:.2f}% | {comb.get('tier2_block', {}).get('precision', 0)*100:.2f}% | {comb.get('tier2_block', {}).get('false_positive_rate', 0)*100:.2f}% | {comb.get('tier2_block', {}).get('f1_score', 0):.4f} | High-precision wire drop (>98.5% precision) |",
-        "",
-        "## 5. Fine-Grained Category-Level Performance Breakdown",
-        "",
-        "| Category | Class | Samples | Mean P | Mean H | Mean S | Pure ML (P>=0.50) | Heuristics (H>=0.50) | Tier 1 (S>=0.40) | Tier 2 (S>=0.75) | Status |",
-        "|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|",
-    ])
+    lines.extend(
+        [
+            f"| **ML Model Alone** | $P \\ge 0.50$ | {m_alone.get('at_threshold_0_50', {}).get('recall', 0) * 100:.2f}% | {m_alone.get('at_threshold_0_50', {}).get('precision', 0) * 100:.2f}% | {m_alone.get('at_threshold_0_50', {}).get('false_positive_rate', 0) * 100:.2f}% | {m_alone.get('at_threshold_0_50', {}).get('f1_score', 0):.4f} | Statistical semantic pattern recognition |",
+            f"| **Heuristics Alone** | $H \\ge 0.50$ | {h_alone.get('at_threshold_0_50', {}).get('recall', 0) * 100:.2f}% | {h_alone.get('at_threshold_0_50', {}).get('precision', 0) * 100:.2f}% | {h_alone.get('at_threshold_0_50', {}).get('false_positive_rate', 0) * 100:.2f}% | {h_alone.get('at_threshold_0_50', {}).get('f1_score', 0):.4f} | Deterministic regex rule triggers |",
+            f"| **Combined (Tier 1)** | $S \\ge 0.40$ | {comb.get('tier1_escalation', {}).get('recall', 0) * 100:.2f}% | {comb.get('tier1_escalation', {}).get('precision', 0) * 100:.2f}% | {comb.get('tier1_escalation', {}).get('false_positive_rate', 0) * 100:.2f}% | {comb.get('tier1_escalation', {}).get('f1_score', 0):.4f} | Zero FN guarantee for human escalation |",
+            f"| **Combined (Tier 2)** | $S \\ge 0.75$ | {comb.get('tier2_block', {}).get('recall', 0) * 100:.2f}% | {comb.get('tier2_block', {}).get('precision', 0) * 100:.2f}% | {comb.get('tier2_block', {}).get('false_positive_rate', 0) * 100:.2f}% | {comb.get('tier2_block', {}).get('f1_score', 0):.4f} | High-precision wire drop (>98.5% precision) |",
+            "",
+            "## 5. Fine-Grained Category-Level Performance Breakdown",
+            "",
+            "| Category | Class | Samples | Mean P | Mean H | Mean S | Pure ML (P>=0.50) | Heuristics (H>=0.50) | Tier 1 (S>=0.40) | Tier 2 (S>=0.75) | Status |",
+            "|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|",
+        ]
+    )
 
     for c in categories:
         lbl = "FRAUD" if c["label"] == 1 else "BENIGN"
@@ -1581,58 +2016,63 @@ def generate_markdown_report(metrics: dict[str, Any]) -> str:
             f"| {c['category_name']} | {lbl} | {cnt} | {c['mean_onnx_probability']:.4f} | {c.get('mean_heuristic_score', 0.0):.4f} | {c['mean_composite_score']:.4f} | {ml_cnt}/{cnt} ({ml_rt:.1f}%) | {h_cnt}/{cnt} ({h_rt:.1f}%) | {t1_cnt}/{cnt} ({t1_rt:.1f}%) | {t2_cnt}/{cnt} ({t2_rt:.1f}%) | {status} |"
         )
 
-    lines.extend([
-        "",
-        "## 6. Error Analysis Summary",
-        "",
-        f"- **Tier 1 False Positives ($S \\ge 0.40$, Benign):** {errors.get('tier1_false_positives_count', 0)} samples",
-        f"- **Tier 2 False Positives ($S \\ge 0.75$, Benign):** {errors.get('tier2_false_positives_count', 0)} samples",
-        f"- **Tier 1 False Negatives ($S < 0.40$, Fraud):** {errors.get('tier1_false_negatives_count', 0)} samples (Zero Escaped Attacks)",
-        f"- **Tier 2 False Negatives ($S < 0.75$, Fraud):** {errors.get('tier2_false_negatives_count', 0)} samples (Safely caught in Tier 1 queue)",
-        "",
-        "### Key False Positive Insights",
-        "Legitimate banking fraud alerts with urgency keywords (e.g. *'Chase Fraud Alert: Did you attempt $35.50? Reply YES or NO'*), and carrier data threshold alerts account for benign messages receiving Tier 1 review. Because they are routed to Tier 1 review rather than dropped on the wire, no legitimate alert or OTP is blocked by those Tier 1 flags.",
-        "",
-        "### Heuristic Rule Refinement Audit Trail (`SF-005`)",
-        "- **Sample 184 Remediation (`RULE:TAX_ARREST_THREAT`):** Driven directly by `Dev/Val N=400` error analysis on Sample 184 (*\"Process server showed up at the neighbors house looking for the previous tenant.\"*), `RULE:TAX_ARREST_THREAT` ($H = 0.80$) was refined in [`onnx_engine.py`](../sentinelflow/backend/app/telecom/onnx_engine.py) so legal/tax/process terms require paired coercive enforcement/extortion context rather than matching third-person narrative.",
-        "- **Measured Benchmark Impact (`Dev/Val N=400`):** Sample 184 shifted from unconditional wire drop (`BLOCK`, $S = 1.0$) to `ALLOW` ($S = 0.0825$, $H = 0.0$), reducing Tier 2 false positives from 2 to 1 and improving Tier 2 precision while preserving `100%` recall (`30/30`) on `smish_legal_extortion` without retraining or altering model weights (`32c4a024...`).",
-        "",
-        "### 3-Tier Family-Impersonation Operational Policy (`SF-007`)",
-        "",
-        "| Sub-Class | Behavioral Signal Profile | Heuristic Rule & Weight | Target Tier & Score Range | Operational Action |",
-        "|---|---|:---:|:---:|---|",
-        "| **Class A — Benign Repair / Casual Broken-Phone Chat** | Repair pickup/quote confirmations, or casual personal/colleague device switches (`iPad`, laptop, spare phone) without unverified kinship relay, external links, or financial demands | None ($H = 0.00$) | `ALLOW` ($S < 0.40$) | Immediate wire delivery |",
-        "| **Class B — Ambiguous Unverified Kinship + Broken Phone + App Mention** | Unverified kinship/relay cue + broken/lost phone/SIM + P2P app (`WhatsApp`/`Telegram`/`Signal`), **strictly excluding** external URLs (`http`/`wa.me`/`t.me`) and payment/bill demands | `RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P` ($H = 0.55$) | `FLAG` (Tier 1, $0.40 \\le S < 0.75$) | Async warning / review queue (no silent drop) |",
-        "| **Class C — Actionable Family-Impersonation Scam** | Kinship/relay + broken phone or new/temporary number + external link (`wa.me`/`http`/`t.me`) **or** urgent financial demand (`Zelle`/`Venmo`/`Cash App`/wire/urgent bill) | `RULE:FAMILY_IMPERSONATION_MESSAGING_LURE` ($H = 0.75$, $0.87$ with `STANDALONE_URL`) | `BLOCK` (Tier 2, $S \\ge 0.75$) | Immediate synchronous wire drop |",
-        "",
-        "## 7. Mathematical Formulation & Monotonicity Guarantees",
-        "",
-        "SentinelPulse implements a **monotonic non-decreasing, continuous gated blend** combining Platt-calibrated ML probabilities with compiled regex heuristics and multi-dimensional velocity risk:",
-        "",
-        "$$\\begin{aligned}",
-        "\\alpha(P_{\\text{onnx}}, H) &= \\text{clip}\\left(\\frac{\\max(P_{\\text{onnx}} - 0.15, H - 0.30, 0.0)}{0.25}, 0.0, 1.0\\right) \\\\[0.5em]",
-        "W_H &= 0.35 \\times H + 0.30 \\times \\max(0.0, H - 0.30) \\\\[0.5em]",
-        "S_{\\text{content}} &= \\begin{cases}",
-        "1.0 & \\text{if } H \\ge 0.80 \\quad \\text{(Authoritative High-Risk Override)} \\\\",
-        "P_{\\text{onnx}} + \\alpha(P_{\\text{onnx}}, H) \\cdot W_H \\cdot (1 - P_{\\text{onnx}}) & \\text{otherwise}",
-        "\\end{cases} \\\\[0.8em]",
-        "S_{\\text{composite}} &= \\begin{cases}",
-        "1.0 & \\text{if } H \\ge 0.80 \\\\",
-        "S_{\\text{content}} + V \\cdot (1 - S_{\\text{content}}) & \\text{otherwise \\quad (Probabilistic Noisy-OR)}",
-        "\\end{cases}",
-        "\\end{aligned}$$",
-        "",
-        "### Mathematical Invariants & Monotonicity Properties:",
-        "1. **Monotonic Non-Decreasing Property:** $\\frac{\\partial S_{\\text{composite}}}{\\partial P} \\ge 0$, $\\frac{\\partial S_{\\text{composite}}}{\\partial H} \\ge 0$, and $\\frac{\\partial S_{\\text{composite}}}{\\partial V} \\ge 0$ everywhere on $[0, 1]^3$. Output is strictly bounded within $[0.0, 1.0]$. Terminology note: the function is strictly *monotonic non-decreasing* rather than strictly monotonic due to the flat boundary plateau where $H \\ge 0.80$ forces $S_{\\text{composite}} = 1.0$.",
-        "2. **Benign Indicator Suppression:** When $H \\le 0.25$ and $P < 0.30$, $\\alpha(P, H) = 0.0$ and $S_{\\text{content}} = P < 0.30 < 0.40$, strictly avoiding false-positive customer friction.",
-        "3. **Authoritative Heuristic Override ($H \\ge 0.80$):** High-confidence threat rules immediately override to $S_{\\text{composite}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` ($H = 0.80$) is the explicit rule capable of triggering an immediate standalone override block. High-severity rules with base score $\\ge 0.70$ (e.g. `URGENT_ACCOUNT_LOCKOUT`, `UNPAID_TOLL_INVOICE`) reach $\\ge 0.82$ via compound rule escalation (+0.12 boost) when paired with a secondary risk signal.",
-        "4. **Individual Heuristic Threshold Clarification ($H = 0.65$):** A heuristic score of $H = 0.65$ (e.g. `RULE:DELIVERY_FEE_SCAM`, `RULE:WORK_FROM_HOME_SCAM`) does *not* force Tier 1 escalation ($S_{\\text{composite}} \\ge 0.40$) on its own when ML suspicion is zero ($P = 0.0, V = 0.0$). At $P = 0.0$, $W_H = 0.3325$ and $S_{\\text{composite}} = 0.3325 < 0.40$ (`ALLOW`). Escalation to Tier 1 without velocity requires baseline ML suspicion $P \\ge 0.1012$.",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 6. Error Analysis Summary",
+            "",
+            f"- **Tier 1 False Positives ($S \\ge 0.40$, Benign):** {errors.get('tier1_false_positives_count', 0)} samples",
+            f"- **Tier 2 False Positives ($S \\ge 0.75$, Benign):** {errors.get('tier2_false_positives_count', 0)} samples",
+            f"- **Tier 1 False Negatives ($S < 0.40$, Fraud):** {errors.get('tier1_false_negatives_count', 0)} samples (Zero Escaped Attacks)",
+            f"- **Tier 2 False Negatives ($S < 0.75$, Fraud):** {errors.get('tier2_false_negatives_count', 0)} samples (Safely caught in Tier 1 queue)",
+            "",
+            "### Key False Positive Insights",
+            "Legitimate banking fraud alerts with urgency keywords (e.g. *'Chase Fraud Alert: Did you attempt $35.50? Reply YES or NO'*), and carrier data threshold alerts account for benign messages receiving Tier 1 review. Because they are routed to Tier 1 review rather than dropped on the wire, no legitimate alert or OTP is blocked by those Tier 1 flags.",
+            "",
+            "### Heuristic Rule Refinement Audit Trail (`SF-005`)",
+            '- **Sample 184 Remediation (`RULE:TAX_ARREST_THREAT`):** Driven directly by `Dev/Val N=400` error analysis on Sample 184 (*"Process server showed up at the neighbors house looking for the previous tenant."*), `RULE:TAX_ARREST_THREAT` ($H = 0.80$) was refined in [`onnx_engine.py`](../sentinelflow/backend/app/telecom/onnx_engine.py) so legal/tax/process terms require paired coercive enforcement/extortion context rather than matching third-person narrative.',
+            "- **Measured Benchmark Impact (`Dev/Val N=400`):** Sample 184 shifted from unconditional wire drop (`BLOCK`, $S = 1.0$) to `ALLOW` ($S = 0.0825$, $H = 0.0$), reducing Tier 2 false positives from 2 to 1 and improving Tier 2 precision while preserving `100%` recall (`30/30`) on `smish_legal_extortion` without retraining or altering model weights (`32c4a024...`).",
+            "",
+            "### 3-Tier Family-Impersonation Operational Policy (`SF-007`)",
+            "",
+            "| Sub-Class | Behavioral Signal Profile | Heuristic Rule & Weight | Target Tier & Score Range | Operational Action |",
+            "|---|---|:---:|:---:|---|",
+            "| **Class A — Benign Repair / Casual Broken-Phone Chat** | Repair pickup/quote confirmations, or casual personal/colleague device switches (`iPad`, laptop, spare phone) without unverified kinship relay, external links, or financial demands | None ($H = 0.00$) | `ALLOW` ($S < 0.40$) | Immediate wire delivery |",
+            "| **Class B — Ambiguous Unverified Kinship + Broken Phone + App Mention** | Unverified kinship/relay cue + broken/lost phone/SIM + P2P app (`WhatsApp`/`Telegram`/`Signal`), **strictly excluding** external URLs (`http`/`wa.me`/`t.me`) and payment/bill demands | `RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P` ($H = 0.55$) | `FLAG` (Tier 1, $0.40 \\le S < 0.75$) | Async warning / review queue (no silent drop) |",
+            "| **Class C — Actionable Family-Impersonation Scam** | Kinship/relay + broken phone or new/temporary number + external link (`wa.me`/`http`/`t.me`) **or** urgent financial demand (`Zelle`/`Venmo`/`Cash App`/wire/urgent bill) | `RULE:FAMILY_IMPERSONATION_MESSAGING_LURE` ($H = 0.75$, $0.87$ with `STANDALONE_URL`) | `BLOCK` (Tier 2, $S \\ge 0.75$) | Immediate synchronous wire drop |",
+            "",
+            "## 7. Mathematical Formulation & Monotonicity Guarantees",
+            "",
+            "SentinelPulse implements a **monotonic non-decreasing, continuous gated blend** combining Platt-calibrated ML probabilities with compiled regex heuristics and multi-dimensional velocity risk:",
+            "",
+            "$$\\begin{aligned}",
+            "\\alpha(P_{\\text{onnx}}, H) &= \\text{clip}\\left(\\frac{\\max(P_{\\text{onnx}} - 0.15, H - 0.30, 0.0)}{0.25}, 0.0, 1.0\\right) \\\\[0.5em]",
+            "W_H &= 0.35 \\times H + 0.30 \\times \\max(0.0, H - 0.30) \\\\[0.5em]",
+            "S_{\\text{content}} &= \\begin{cases}",
+            "1.0 & \\text{if } H \\ge 0.80 \\quad \\text{(Authoritative High-Risk Override)} \\\\",
+            "P_{\\text{onnx}} + \\alpha(P_{\\text{onnx}}, H) \\cdot W_H \\cdot (1 - P_{\\text{onnx}}) & \\text{otherwise}",
+            "\\end{cases} \\\\[0.8em]",
+            "S_{\\text{composite}} &= \\begin{cases}",
+            "1.0 & \\text{if } H \\ge 0.80 \\\\",
+            "S_{\\text{content}} + V \\cdot (1 - S_{\\text{content}}) & \\text{otherwise \\quad (Probabilistic Noisy-OR)}",
+            "\\end{cases}",
+            "\\end{aligned}$$",
+            "",
+            "### Mathematical Invariants & Monotonicity Properties:",
+            "1. **Monotonic Non-Decreasing Property:** $\\frac{\\partial S_{\\text{composite}}}{\\partial P} \\ge 0$, $\\frac{\\partial S_{\\text{composite}}}{\\partial H} \\ge 0$, and $\\frac{\\partial S_{\\text{composite}}}{\\partial V} \\ge 0$ everywhere on $[0, 1]^3$. Output is strictly bounded within $[0.0, 1.0]$. Terminology note: the function is strictly *monotonic non-decreasing* rather than strictly monotonic due to the flat boundary plateau where $H \\ge 0.80$ forces $S_{\\text{composite}} = 1.0$.",
+            "2. **Benign Indicator Suppression:** When $H \\le 0.25$ and $P < 0.30$, $\\alpha(P, H) = 0.0$ and $S_{\\text{content}} = P < 0.30 < 0.40$, strictly avoiding false-positive customer friction.",
+            "3. **Authoritative Heuristic Override ($H \\ge 0.80$):** High-confidence threat rules immediately override to $S_{\\text{composite}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` ($H = 0.80$) is the explicit rule capable of triggering an immediate standalone override block. High-severity rules with base score $\\ge 0.70$ (e.g. `URGENT_ACCOUNT_LOCKOUT`, `UNPAID_TOLL_INVOICE`) reach $\\ge 0.82$ via compound rule escalation (+0.12 boost) when paired with a secondary risk signal.",
+            "4. **Individual Heuristic Threshold Clarification ($H = 0.65$):** A heuristic score of $H = 0.65$ (e.g. `RULE:DELIVERY_FEE_SCAM`, `RULE:WORK_FROM_HOME_SCAM`) does *not* force Tier 1 escalation ($S_{\\text{composite}} \\ge 0.40$) on its own when ML suspicion is zero ($P = 0.0, V = 0.0$). At $P = 0.0$, $W_H = 0.3325$ and $S_{\\text{composite}} = 0.3325 < 0.40$ (`ALLOW`). Escalation to Tier 1 without velocity requires baseline ML suspicion $P \\ge 0.1012$.",
+            "",
+        ]
+    )
     lines.extend(_format_calibration_and_wilson_markdown(metrics))
     oof_section = metrics.get("oof_cross_validation")
     if isinstance(oof_section, dict) and "fine_grained" in oof_section:
         lines.extend(_format_oof_cv_markdown(oof_section))
+    threshold_section = metrics.get("threshold_and_base_rate_analysis")
+    if isinstance(threshold_section, dict) and "dev_val_composite" in threshold_section:
+        lines.extend(_format_threshold_and_base_rate_markdown(threshold_section))
 
     return "\n".join(lines)
 
@@ -2027,7 +2467,10 @@ def _assert_close_metrics(
                 f"reconstructed={expected['specificity']} vs stored={actual['specificity']}"
             )
     if require_fnr and "false_negative_rate" in actual:
-        if abs(float(expected["false_negative_rate"]) - float(actual["false_negative_rate"])) > 1e-4:
+        if (
+            abs(float(expected["false_negative_rate"]) - float(actual["false_negative_rate"]))
+            > 1e-4
+        ):
             raise ValueError(
                 f"{section_name} fnr mismatch: "
                 f"reconstructed={expected['false_negative_rate']} vs stored={actual['false_negative_rate']}"
@@ -2069,7 +2512,9 @@ def _validate_markdown_report_content(
     ):
         match = re.search(pattern, text)
         if match is None:
-            raise ValueError(f"Markdown report missing table confusion counts for pattern: {pattern}")
+            raise ValueError(
+                f"Markdown report missing table confusion counts for pattern: {pattern}"
+            )
         parsed = {
             "tp": int(match.group(1)),
             "fp": int(match.group(2)),
@@ -2077,7 +2522,9 @@ def _validate_markdown_report_content(
             "fn": int(match.group(4)),
         }
         if parsed != expected_cm:
-            raise ValueError(f"Markdown report confusion mismatch: parsed={parsed} vs expected={expected_cm}")
+            raise ValueError(
+                f"Markdown report confusion mismatch: parsed={parsed} vs expected={expected_cm}"
+            )
 
 
 def validate_artifact_bundle_invariants(
@@ -2091,7 +2538,9 @@ def validate_artifact_bundle_invariants(
         if not path.exists() or path.stat().st_size == 0:
             raise ValueError(f"Missing or empty artifact '{key}': {path}")
 
-    samples = held_out_samples if held_out_samples is not None else get_held_out_samples_with_metadata()
+    samples = (
+        held_out_samples if held_out_samples is not None else get_held_out_samples_with_metadata()
+    )
     texts = [s["text"] for s in samples]
     labels = [int(s["label"]) for s in samples]
     live_dataset_sha256 = hashlib.sha256(
@@ -2113,7 +2562,9 @@ def validate_artifact_bundle_invariants(
         raise ValueError("Duplicate text_sha256 detected in predictions artifact")
     for idx, (row, sample) in enumerate(zip(pred_rows, samples, strict=True)):
         expected_hash = hashlib.sha256(sample["text"].encode("utf-8")).hexdigest()
-        if str(row["text_sha256"]) != expected_hash or int(row["expected_label"]) != int(sample["label"]):
+        if str(row["text_sha256"]) != expected_hash or int(row["expected_label"]) != int(
+            sample["label"]
+        ):
             raise ValueError(f"Prediction identity mismatch at sample {idx}")
 
     hash_targets = [
@@ -2133,7 +2584,9 @@ def validate_artifact_bundle_invariants(
         if str(container.get("model_sha256")) != live_model_sha256:
             raise ValueError(f"{name}.model_sha256 mismatch against ONNX binary")
         if str(container.get("benchmark_predictions_sha256")) != live_pred_sha256:
-            raise ValueError(f"{name}.benchmark_predictions_sha256 mismatch against predictions JSON")
+            raise ValueError(
+                f"{name}.benchmark_predictions_sha256 mismatch against predictions JSON"
+            )
         if str(container.get("evaluation_dataset_sha256")) != live_dataset_sha256:
             raise ValueError(f"{name}.evaluation_dataset_sha256 mismatch against live dataset")
 
@@ -2143,7 +2596,9 @@ def validate_artifact_bundle_invariants(
         ("metadata.dev_benchmark_metrics", metadata["dev_benchmark_metrics"]),
         ("metadata.held_out_adversarial_metrics", metadata["held_out_adversarial_metrics"]),
     ):
-        _assert_close_metrics(f"{target_name}.pure_ml", reconstructed["pure_ml_p50"], metrics_obj, require_fnr=True)
+        _assert_close_metrics(
+            f"{target_name}.pure_ml", reconstructed["pure_ml_p50"], metrics_obj, require_fnr=True
+        )
         _assert_close_metrics(
             f"{target_name}.tier1",
             reconstructed["tier1_flagged"],
@@ -2204,12 +2659,26 @@ def validate_artifact_bundle_invariants(
         raise ValueError(f"Category sample total {totals['sample_count']} != {len(pred_rows)}")
     t1_cm = metrics["tier1_escalation"]["confusion_matrix"]
     t2_cm = metrics["tier2_block"]["confusion_matrix"]
-    for cm_key, sum_key in (("tp", "tier1_tp"), ("fp", "tier1_fp"), ("tn", "tier1_tn"), ("fn", "tier1_fn")):
+    for cm_key, sum_key in (
+        ("tp", "tier1_tp"),
+        ("fp", "tier1_fp"),
+        ("tn", "tier1_tn"),
+        ("fn", "tier1_fn"),
+    ):
         if totals[sum_key] != int(t1_cm[cm_key]):
-            raise ValueError(f"Category sum {sum_key}={totals[sum_key]} != Tier 1 {cm_key}={t1_cm[cm_key]}")
-    for cm_key, sum_key in (("tp", "tier2_tp"), ("fp", "tier2_fp"), ("tn", "tier2_tn"), ("fn", "tier2_fn")):
+            raise ValueError(
+                f"Category sum {sum_key}={totals[sum_key]} != Tier 1 {cm_key}={t1_cm[cm_key]}"
+            )
+    for cm_key, sum_key in (
+        ("tp", "tier2_tp"),
+        ("fp", "tier2_fp"),
+        ("tn", "tier2_tn"),
+        ("fn", "tier2_fn"),
+    ):
         if totals[sum_key] != int(t2_cm[cm_key]):
-            raise ValueError(f"Category sum {sum_key}={totals[sum_key]} != Tier 2 {cm_key}={t2_cm[cm_key]}")
+            raise ValueError(
+                f"Category sum {sum_key}={totals[sum_key]} != Tier 2 {cm_key}={t2_cm[cm_key]}"
+            )
 
     _validate_markdown_report_content(
         report_bytes=artifact_paths["report_root"].read_bytes(),
@@ -2250,7 +2719,9 @@ def validate_artifact_bundle_invariants(
             raise ValueError(f"{target_name}.reliability_bins expected 10 bins, got {len(bins)}")
         for b_stored, b_exp in zip(bins, expected_cal["reliability_bins"], strict=True):
             if int(b_stored["sample_count"]) != int(b_exp["sample_count"]):
-                raise ValueError(f"{target_name} reliability bin {b_exp['bin_index']} count mismatch")
+                raise ValueError(
+                    f"{target_name} reliability bin {b_exp['bin_index']} count mismatch"
+                )
 
     ml_cm = reconstructed["pure_ml_p50"]["confusion_matrix"]
     expected_wilson = {
@@ -2274,14 +2745,20 @@ def validate_artifact_bundle_invariants(
         else:
             if not isinstance(got_bounds, list) or len(got_bounds) != 2:
                 raise ValueError(f"Invalid Wilson CI shape for {w_key}: {got_bounds}")
-            if abs(float(got_bounds[0]) - exp_bounds[0]) > 1e-5 or abs(float(got_bounds[1]) - exp_bounds[1]) > 1e-5:
+            if (
+                abs(float(got_bounds[0]) - exp_bounds[0]) > 1e-5
+                or abs(float(got_bounds[1]) - exp_bounds[1]) > 1e-5
+            ):
                 raise ValueError(f"Wilson CI mismatch for {w_key}: {got_bounds} vs {exp_bounds}")
 
     oof_section = metrics.get("oof_cross_validation")
     if isinstance(oof_section, dict) and "fine_grained" in oof_section:
         for variant_key in ("fine_grained", "macro_bank_2way"):
             variant = oof_section[variant_key]
-            if int(variant["max_outer_group_overlap"]) != 0 or int(variant["max_inner_group_overlap"]) != 0:
+            if (
+                int(variant["max_outer_group_overlap"]) != 0
+                or int(variant["max_inner_group_overlap"]) != 0
+            ):
                 raise ValueError(f"OOF CV group leakage detected in {variant_key}")
             if not variant["completeness"]["is_complete"]:
                 raise ValueError(f"OOF CV predictions incomplete in {variant_key}")
@@ -2301,7 +2778,9 @@ def _evaluation_publish_lock(lock_path: Path, timeout_s: float = 30.0) -> Iterat
             acquired = True
         except FileExistsError as err:
             if time.monotonic() >= deadline:
-                raise TimeoutError(f"Timed out waiting for evaluation publish lock: {lock_path}") from err
+                raise TimeoutError(
+                    f"Timed out waiting for evaluation publish lock: {lock_path}"
+                ) from err
             time.sleep(0.05)
     try:
         yield
@@ -2334,6 +2813,10 @@ def publish_evaluation_artifacts_atomically(
             if base_metadata is None:
                 base_metadata = existing_meta
 
+        existing_metrics: dict[str, Any] = {}
+        if paths["metrics"].exists():
+            existing_metrics = json.loads(paths["metrics"].read_text(encoding="utf-8"))
+
         with tempfile.TemporaryDirectory(prefix="sentinelflow_eval_stage_") as stage_raw:
             stage_dir = Path(stage_raw)
             staged_model = stage_dir / "sms_fraud_model.onnx"
@@ -2349,6 +2832,14 @@ def publish_evaluation_artifacts_atomically(
             )
             if extra_metrics_fields:
                 metrics.update(extra_metrics_fields)
+            elif old_model_sha256 == metrics["model_sha256"]:
+                for preserved_key in (
+                    "brier_score_before_calibration",
+                    "brier_score_after_calibration",
+                    "oof_cross_validation",
+                ):
+                    if preserved_key not in metrics and preserved_key in existing_metrics:
+                        metrics[preserved_key] = existing_metrics[preserved_key]
 
             merged_metadata = build_merged_metadata(metrics, base_metadata=base_metadata)
             delta_summary = compute_sample_level_delta(
@@ -2369,7 +2860,9 @@ def publish_evaluation_artifacts_atomically(
                 "report_mirror": stage_dir / "ml_evaluation_report.mirror.md",
             }
             staged_bundle["predictions"].write_bytes(preds_bytes)
-            staged_bundle["metrics"].write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+            staged_bundle["metrics"].write_text(
+                json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
+            )
             staged_bundle["metadata"].write_text(
                 json.dumps(merged_metadata, indent=2) + "\n",
                 encoding="utf-8",
@@ -2383,7 +2876,14 @@ def publish_evaluation_artifacts_atomically(
 
             validate_artifact_bundle_invariants(staged_bundle, held_out_samples=samples)
 
-            publish_keys = ["predictions", "metrics", "metadata", "delta", "report_root", "report_mirror"]
+            publish_keys = [
+                "predictions",
+                "metrics",
+                "metadata",
+                "delta",
+                "report_root",
+                "report_mirror",
+            ]
             if staged_model_bytes is not None:
                 publish_keys.insert(0, "model")
 
@@ -2422,10 +2922,18 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="SentinelPulse ML Evaluation Workflow")
     parser.add_argument("--model-path", type=str, default=None, help="Path to ONNX model artifact")
-    parser.add_argument("--output-json", type=str, default=None, help="Custom output path for metrics JSON")
-    parser.add_argument("--output-md", type=str, default=None, help="Custom output path for Markdown report")
-    parser.add_argument("--report", action="store_true", help="Generate and export human-readable Markdown report")
-    parser.add_argument("--all", action="store_true", help="Run full atomic evaluation and publish all artifacts")
+    parser.add_argument(
+        "--output-json", type=str, default=None, help="Custom output path for metrics JSON"
+    )
+    parser.add_argument(
+        "--output-md", type=str, default=None, help="Custom output path for Markdown report"
+    )
+    parser.add_argument(
+        "--report", action="store_true", help="Generate and export human-readable Markdown report"
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="Run full atomic evaluation and publish all artifacts"
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -2449,42 +2957,60 @@ def main() -> None:
     print("\n" + "=" * 70)
     print("SENTINELPULSE EMPIRICAL ML DEVELOPMENT & VALIDATION BENCHMARK REPORT (Dev/Val N = 400)")
     print("=" * 70)
-    print(f"Model Artifact:    {repro.get('model_artifact', metrics.get('model_artifact'))} ({repro.get('model_artifact_size_kb', metrics.get('model_artifact_size_kb'))} KB)")
+    print(
+        f"Model Artifact:    {repro.get('model_artifact', metrics.get('model_artifact'))} ({repro.get('model_artifact_size_kb', metrics.get('model_artifact_size_kb'))} KB)"
+    )
     print(f"Model SHA-256:     {repro.get('model_sha256', metrics.get('model_sha256'))}")
-    print(f"Dataset SHA-256:   {repro.get('evaluation_dataset_sha256', metrics.get('evaluation_dataset_sha256'))}")
-    print(f"Predictions SHA:   {repro.get('benchmark_predictions_sha256', metrics.get('benchmark_predictions_sha256'))}")
+    print(
+        f"Dataset SHA-256:   {repro.get('evaluation_dataset_sha256', metrics.get('evaluation_dataset_sha256'))}"
+    )
+    print(
+        f"Predictions SHA:   {repro.get('benchmark_predictions_sha256', metrics.get('benchmark_predictions_sha256'))}"
+    )
     print(f"Evaluator:         {metrics['evaluator']}")
-    print(f"Held-Out Samples:  {metrics['sample_count']} (Benign: {metrics['benign_count']}, Fraud: {metrics['fraud_count']})")
+    print(
+        f"Held-Out Samples:  {metrics['sample_count']} (Benign: {metrics['benign_count']}, Fraud: {metrics['fraud_count']})"
+    )
     print(f"ROC-AUC:           {metrics['roc_auc']:.4f}")
     print(f"PR-AUC:            {metrics['pr_auc']:.4f}")
     print(f"Brier Score:       {metrics['brier_score']:.4f}")
     print("-" * 70)
     print("OPERATIONAL TIER 1: FLAG + BLOCK (S_composite >= 0.40 -> Escalation)")
-    print(f"Confusion Matrix:  TP={t1['confusion_matrix']['tp']}  FP={t1['confusion_matrix']['fp']}  TN={t1['confusion_matrix']['tn']}  FN={t1['confusion_matrix']['fn']}")
-    print(f"Recall:            {t1['recall']*100:.2f}% (Target >= 94.0%)")
-    print(f"FPR (False Pos):   {t1['false_positive_rate']*100:.2f}% (Target <= 15.0%)")
-    print(f"Precision:         {t1['precision']*100:.2f}%")
+    print(
+        f"Confusion Matrix:  TP={t1['confusion_matrix']['tp']}  FP={t1['confusion_matrix']['fp']}  TN={t1['confusion_matrix']['tn']}  FN={t1['confusion_matrix']['fn']}"
+    )
+    print(f"Recall:            {t1['recall'] * 100:.2f}% (Target >= 94.0%)")
+    print(f"FPR (False Pos):   {t1['false_positive_rate'] * 100:.2f}% (Target <= 15.0%)")
+    print(f"Precision:         {t1['precision'] * 100:.2f}%")
     print(f"F1-Score:          {t1['f1_score']:.4f}")
     print("-" * 70)
     print("OPERATIONAL TIER 2: BLOCK (S_composite >= 0.75 -> Wire Drop)")
-    print(f"Confusion Matrix:  TP={t2['confusion_matrix']['tp']}  FP={t2['confusion_matrix']['fp']}  TN={t2['confusion_matrix']['tn']}  FN={t2['confusion_matrix']['fn']}")
-    print(f"Precision:         {t2['precision']*100:.2f}% (Target >= 98.5%)")
-    print(f"FPR (False Pos):   {t2['false_positive_rate']*100:.2f}% (Target <= 1.5%)")
-    print(f"Recall:            {t2['recall']*100:.2f}%")
+    print(
+        f"Confusion Matrix:  TP={t2['confusion_matrix']['tp']}  FP={t2['confusion_matrix']['fp']}  TN={t2['confusion_matrix']['tn']}  FN={t2['confusion_matrix']['fn']}"
+    )
+    print(f"Precision:         {t2['precision'] * 100:.2f}% (Target >= 98.5%)")
+    print(f"FPR (False Pos):   {t2['false_positive_rate'] * 100:.2f}% (Target <= 1.5%)")
+    print(f"Recall:            {t2['recall'] * 100:.2f}%")
     print(f"F1-Score:          {t2['f1_score']:.4f}")
     if delta_summary is not None:
         interp = delta_summary["change_interpretation"]
         print("-" * 70)
         print("CANONICAL SAMPLE-LEVEL DELTA SUMMARY")
-        print(f"Added/Removed IDs: +{len(delta_summary['sample_identity_changes']['added_sample_ids'])} / -{len(delta_summary['sample_identity_changes']['removed_sample_ids'])}")
+        print(
+            f"Added/Removed IDs: +{len(delta_summary['sample_identity_changes']['added_sample_ids'])} / -{len(delta_summary['sample_identity_changes']['removed_sample_ids'])}"
+        )
         print(f"Verdict Changes:   {len(delta_summary['verdict_changes'])}")
         print(f"Prob Diffs (>1e-6):{len(delta_summary['onnx_probability_changes'])}")
         print(f"Heuristic Changes: {len(delta_summary['heuristic_score_changes'])}")
-        print(f"Requires Review:   {interp['requires_manual_review']} (IDs: {interp['review_required_sample_ids']})")
+        print(
+            f"Requires Review:   {interp['requires_manual_review']} (IDs: {interp['review_required_sample_ids']})"
+        )
     print("-" * 70)
     print(f"Categories Analyzed: {len(metrics['category_analysis']['categories'])} sub-types")
     print("Ablation Models:     ML Alone, Heuristics Alone, ML+Heuristics Combined")
-    print(f"Error Analysis:      {metrics['error_analysis']['tier1_false_positives_count']} FP (Tier 1), {metrics['error_analysis']['tier2_false_positives_count']} FP (Tier 2), {metrics['error_analysis']['tier1_false_negatives_count']} FN (Tier 1)")
+    print(
+        f"Error Analysis:      {metrics['error_analysis']['tier1_false_positives_count']} FP (Tier 1), {metrics['error_analysis']['tier2_false_positives_count']} FP (Tier 2), {metrics['error_analysis']['tier1_false_negatives_count']} FN (Tier 1)"
+    )
     print("=" * 70 + "\n")
 
 

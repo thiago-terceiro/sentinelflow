@@ -189,6 +189,22 @@ Conversational broken-phone messages sit along a product boundary between benign
 
 ---
 
+### 4.2 Decision Policy, Cost Model & Base-Rate Prevalence Analysis (`SF-012`)
+
+SentinelPulse separates **non-destructive async inspection** from **synchronous wire drops** using a $50:10:1$ asymmetric cost structure and Bayes base-rate awareness ($\text{PPV}(\pi) = \frac{\text{TPR}\cdot \pi}{\text{TPR}\cdot \pi + \text{FPR}\cdot (1 - \pi)}$):
+
+1. **Verdict Semantics & Evidence Requirements:**
+   * **`ALLOW` ($S_{\text{composite}} < 0.40$):** Immediate synchronous pass-through. Benign indicator suppression ($\alpha(P, H) = 0$ when $H \le 0.25$ and $P < 0.30$) prevents routine 2FA codes, bank balance notices, and delivery updates from escalating.
+   * **`FLAG` ($0.40 \le S_{\text{composite}} < 0.75$ — Tier 1 Async Review Queue):** Suspicious or borderline signals (elevated ML probability, ambiguous kinship/app notices, moderate velocity $V > 0$) enqueue an asynchronous investigation without delaying wire delivery. Cost of a Tier-1 false flag ($C_{\text{FP, Tier1\_Flag}} = 1.0$) is $10\times$ lower than a fraud escape ($C_{\text{FN, Escape}} = 10.0$) and $50\times$ lower than blocking a legitimate customer message ($C_{\text{FP, Tier2\_Block}} = 50.0$).
+   * **`BLOCK` ($S_{\text{composite}} \ge 0.75$ — Tier 2 Synchronous Wire Drop):** Reserved for high-confidence ML consensus, compound multi-signal confirmation (ML + heuristic + Redis velocity $V$), or explicit authoritative heuristic overrides ($H \ge 0.80$).
+2. **Base-Rate Precision Erosion & Strict FPR Discipline ($\pi \le 1\%$):**
+   * Balanced development benchmarks ($\pi = 50\%$) mask false-positive impact under real carrier smishing base rates ($\pi \in [0.5\%, 5.0\%]$). On `Dev/Val (N = 400)`, Tier 2 (`S >= 0.75`) achieves `0.00%` FPR (95% Wilson upper bound `1.88%`); on unseen semantic-family cross-validation (`SF-009` OOF `N = 703`), composite `S >= 0.75` exhibits `2.39%` FPR (`13/543`), which collapses Bayes precision to `13.31%` (normalized cost `1249.12` per 1,000 messages) at $\pi = 0.5\%$ unless operating at stricter confirmation ($\tau \ge 0.85$ yielding `0.00%` OOF FPR with `0.70%` Wilson upper bound and dual-tier cost `81.88`, or compound velocity/override evidence).
+   * **External Validation Blocker (`UNAVAILABLE / BLOCKED`):** As established in `SF-010`/`SF-011`, no `Class C` primary external two-class carrier holdout (and no `Test Holdout N = 300`) currently exists. Operational thresholds (`0.40`, `0.75`) remain frozen pending partner-enclave Class C/D verification.
+3. **Degraded-Mode Fail-Open vs. Fail-Closed Behavior:**
+   * Under Redis timeouts (`VelocityFeatureStore` 30s circuit breaker) or ONNX session unavailability, **2FA/authentication SMS and benign traffic fail open (`ALLOW`)** via fast-path heuristics-only inspection to avoid blocking OTPs; unverified bulk/suspicious messages quarantine to **`FLAG`** unless deterministic high-confidence threat patterns ($H \ge 0.80$) trigger `BLOCK`.
+
+---
+
 ## 5. Fallback Strategies & Graceful Service Degradation
 
 ```mermaid

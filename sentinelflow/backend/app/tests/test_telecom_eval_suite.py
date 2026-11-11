@@ -1625,3 +1625,136 @@ def test_sf011_acquisition_ledger_gates_sample_size_and_mirrored_docs() -> None:
             assert not any(mod == p or mod.startswith(f"{p}.") for p in forbidden_prefixes), (
                 f"dataset_quarantine.py imported forbidden module '{mod}'"
             )
+
+
+def test_bayes_prevalence_precision_and_threshold_sweep() -> None:
+    """Verifies SF-012 Bayes PPV math, threshold sweeps, cost matrix, and docs/metrics parity."""
+    from app.telecom.dataset_quarantine import FROZEN_ONNX_MODEL_SHA256
+    from app.telecom.evaluate_model import (
+        DEFAULT_PREVALENCE_RATES,
+        DEFAULT_SWEEP_THRESHOLDS,
+        compute_base_rate_ppv,
+        compute_dual_tier_cost_per_1000,
+        compute_expected_cost_per_1000,
+        compute_threshold_sensitivity_analysis,
+        get_canonical_artifact_paths,
+    )
+
+    # 1. Bayes PPV mathematical accuracy & 0/0 safe fallback
+    assert compute_base_rate_ppv(0.95, 0.05, 0.50) == 0.95
+    assert compute_base_rate_ppv(0.95, 0.05, 0.05) == 0.5
+    assert compute_base_rate_ppv(0.95, 0.05, 0.01) == 0.161017
+    assert compute_base_rate_ppv(0.95, 0.01, 0.005) == 0.323129
+    assert compute_base_rate_ppv(0.0, 0.0, 0.01) == 0.0
+    assert compute_base_rate_ppv(0.5, 0.0, 0.0) == 0.0
+
+    with pytest.raises(ValueError, match="within \\[0.0, 1.0\\]"):
+        compute_base_rate_ppv(1.1, 0.05, 0.01)
+
+    # 2. Synthetic sweep check: monotonic FPR/TPR non-increase & exact cost math
+    synth_scores = [0.05, 0.25, 0.45, 0.72, 0.82, 0.35, 0.55, 0.78, 0.88, 0.96]
+    synth_labels = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+    synth_sweep = compute_threshold_sensitivity_analysis(synth_scores, synth_labels)
+    assert [r["threshold"] for r in synth_sweep["thresholds"]] == list(DEFAULT_SWEEP_THRESHOLDS)
+    assert synth_sweep["prevalences"] == list(DEFAULT_PREVALENCE_RATES)
+
+    fprs = [r["fpr"] for r in synth_sweep["thresholds"]]
+    tprs = [r["tpr"] for r in synth_sweep["thresholds"]]
+    assert fprs == sorted(fprs, reverse=True), f"FPR must be non-increasing: {fprs}"
+    assert tprs == sorted(tprs, reverse=True), f"TPR must be non-increasing: {tprs}"
+
+    row_75 = next(r for r in synth_sweep["thresholds"] if r["threshold"] == 0.75)
+    assert row_75["expected_cost_per_1000_tier1_flag"]["0.01"] == compute_expected_cost_per_1000(
+        row_75["fnr"], row_75["fpr"], 0.01, cost_fp=1.0
+    )
+    assert row_75["expected_cost_per_1000_tier2_block"]["0.01"] == compute_expected_cost_per_1000(
+        row_75["fnr"], row_75["fpr"], 0.01, cost_fp=50.0
+    )
+
+    # 3. Canonical ml_metrics.json, sms_fraud_metadata.json, and mirrored docs consistency
+    canonical = get_canonical_artifact_paths()
+    assert hashlib.sha256(canonical["model"].read_bytes()).hexdigest() == FROZEN_ONNX_MODEL_SHA256
+
+    metrics = json.loads(canonical["metrics"].read_text(encoding="utf-8"))
+    metadata = json.loads(canonical["metadata"].read_text(encoding="utf-8"))
+    assert "oof_cross_validation" in metrics
+    assert "threshold_and_base_rate_analysis" in metrics
+    assert (
+        metadata["threshold_and_base_rate_analysis"] == metrics["threshold_and_base_rate_analysis"]
+    )
+
+    analysis = metrics["threshold_and_base_rate_analysis"]
+    assert analysis["external_validation_status"] == "UNAVAILABLE_BLOCKED"
+    assert analysis["class_c_primary_holdout_present"] is False
+    assert analysis["legacy_holdout_300_present"] is False
+    assert analysis["default_operational_thresholds"] == {
+        "tier1_flag_threshold": 0.4,
+        "tier2_block_threshold": 0.75,
+    }
+
+    for cohort_key in ("dev_val_composite", "dev_val_pure_ml", "oof_composite", "oof_pure_ml"):
+        cohort = analysis[cohort_key]
+        rows = cohort["thresholds"]
+        assert [r["threshold"] for r in rows] == list(DEFAULT_SWEEP_THRESHOLDS)
+        cohort_fprs = [r["fpr"] for r in rows]
+        cohort_tprs = [r["tpr"] for r in rows]
+        assert cohort_fprs == sorted(cohort_fprs, reverse=True)
+        assert cohort_tprs == sorted(cohort_tprs, reverse=True)
+        for row in rows:
+            cm = row["confusion_matrix"]
+            exact_tpr = cm["tp"] / (cm["tp"] + cm["fn"])
+            exact_fpr = cm["fp"] / (cm["fp"] + cm["tn"])
+            for pi in DEFAULT_PREVALENCE_RATES:
+                assert row["ppv_by_prevalence"][f"{pi:g}"] == compute_base_rate_ppv(
+                    exact_tpr, exact_fpr, pi
+                )
+
+    # Confirm SF-009 OOF unseen-family erosion at tau=0.75 vs tau=0.85 at pi=0.5%
+    oof_rows = analysis["oof_composite"]["thresholds"]
+    oof_40 = next(r for r in oof_rows if r["threshold"] == 0.40)
+    oof_75 = next(r for r in oof_rows if r["threshold"] == 0.75)
+    oof_85 = next(r for r in oof_rows if r["threshold"] == 0.85)
+    assert oof_75["fpr"] > 0.02 and oof_75["ppv_by_prevalence"]["0.005"] < 0.15
+    assert oof_85["fpr"] == 0.0 and oof_85["ppv_by_prevalence"]["0.005"] == 1.0
+
+    oof_dual = analysis["oof_composite"]["dual_tier_policies"]
+    pol_40_75 = next(
+        p
+        for p in oof_dual
+        if (p["tier1_flag_threshold"], p["tier2_block_threshold"]) == (0.4, 0.75)
+    )
+    pol_40_85 = next(
+        p
+        for p in oof_dual
+        if (p["tier1_flag_threshold"], p["tier2_block_threshold"]) == (0.4, 0.85)
+    )
+    assert (
+        pol_40_85["expected_cost_per_1000_by_prevalence"]["0.005"]
+        < pol_40_75["expected_cost_per_1000_by_prevalence"]["0.005"]
+    )
+    cm_40 = oof_40["confusion_matrix"]
+    cm_75 = oof_75["confusion_matrix"]
+    assert pol_40_75["expected_cost_per_1000_by_prevalence"][
+        "0.01"
+    ] == compute_dual_tier_cost_per_1000(
+        cm_40["fn"] / (cm_40["tp"] + cm_40["fn"]),
+        cm_40["fp"] / (cm_40["fp"] + cm_40["tn"]),
+        cm_75["fp"] / (cm_75["fp"] + cm_75["tn"]),
+        0.01,
+    )
+
+    # Mirrored markdown report & SYSTEM_DESIGN.md verification
+    report_root = canonical["report_root"].read_bytes()
+    report_mirror = canonical["report_mirror"].read_bytes()
+    assert report_root == report_mirror
+    report_text = report_root.decode("utf-8")
+    assert "Operational Cost Matrix & Bayes Base-Rate Prevalence Sensitivity" in report_text
+    assert "UNAVAILABLE_BLOCKED" in report_text
+
+    workspace_root = canonical["report_root"].parents[1]
+    sys_root = (workspace_root / "SYSTEM_DESIGN.md").read_bytes()
+    sys_mirror = (workspace_root / "sentinelflow" / "SYSTEM_DESIGN.md").read_bytes()
+    assert sys_root == sys_mirror
+    sys_text = sys_root.decode("utf-8")
+    assert "4.2 Decision Policy, Cost Model & Base-Rate Prevalence Analysis" in sys_text
+    assert "UNAVAILABLE / BLOCKED" in sys_text

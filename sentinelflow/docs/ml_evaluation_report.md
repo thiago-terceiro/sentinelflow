@@ -9,7 +9,7 @@
 - **Evaluation Dataset SHA-256:** `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03`
 - **Canonical 400-Row Predictions Artifact:** `benchmark_predictions_400.json`
 - **Canonical 400-Row Predictions SHA-256:** `66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e`
-- **Timestamp:** `2026-11-10T21:35:58.605112+00:00`
+- **Timestamp:** `2026-11-11T16:19:19.585975+00:00`
 - **Evaluator Engine:** `ONNXRuntime-CPU (AVX-512)`
 - **Software Versions:** `onnxruntime=1.31.0`, `numpy=2.5.4`, `scikit-learn=1.9.1`
 - **Dataset Size:** 400 samples (200 Benign, 200 Fraud)
@@ -195,3 +195,49 @@ S_{\text{content}} + V \cdot (1 - S_{\text{content}}) & \text{otherwise \quad (P
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Fine-Grained Families** | 56 | 0.9559 | 0.8751 | 0.0678 | 0.7928 | `[0.2158, 0.2448]` |
 | **Macro Bank 2-Way (`legit_bank_2way_macro`)** | 54 | 0.9309 | 0.7330 | 0.0842 | 0.7831 | `[0.1987, 0.2500]` |
+
+## 10. Operational Cost Matrix & Bayes Base-Rate Prevalence Sensitivity (`SF-012`)
+
+> **External Validation Blocker (`UNAVAILABLE_BLOCKED`):** No Class C primary external two-class fraud holdout exists (UNAVAILABLE_BLOCKED per SF-010/SF-011; no N=300 external holdout exists). Curves summarize internal Dev/Val (N=400) and SF-009 Nested 5-Fold OOF (N=703) behavior strictly for analytical threshold justification, not verified live carrier generalization.
+
+- **Asymmetric Cost Matrix (per 1,000 messages):** $C_{\text{FN, Escape}} = 10.0$, $C_{\text{FP, Tier1\_Flag}} = 1.0$, $C_{\text{FP, Tier2\_Block}} = 50.0$ (ratio $50:10:1$ prioritizing protection of legitimate banking/OTP traffic against silent wire drops).
+- **Bayes Precision Law:** $\text{PPV}(\pi) = \frac{\text{TPR}\cdot \pi}{\text{TPR}\cdot \pi + \text{FPR}\cdot (1-\pi)}$ for live carrier prevalence $\pi \in \{0.5\%, 1.0\%, 5.0\%, 50.0\%\}$.
+
+### Dev/Val Benchmark ($N = 400$) Composite Score ($S_{\text{composite}}, V = 0.0$) Sweep
+
+| $\tau$ | TPR (Recall) | FPR (95% Wilson Upper) | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% | PPV @ 50.0% | Cost/1k (Tier 1 @ 1%) | Cost/1k (Tier 2 @ 1%) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `0.30` | 100.00% | 7.00% (`11.41%`) | 6.70% | 12.61% | 42.92% | 93.46% | 69.30 | 3465.00 |
+| `0.40` | 100.00% | 5.00% (`8.96%`) | 9.13% | 16.81% | 51.28% | 95.24% | 49.50 | 2475.00 |
+| `0.50` | 100.00% | 3.50% (`7.05%`) | 12.55% | 22.40% | 60.06% | 96.62% | 34.65 | 1732.50 |
+| `0.60` | 98.00% | 2.00% (`5.03%`) | 19.76% | 33.11% | 72.06% | 98.00% | 21.80 | 992.00 |
+| `0.70` | 92.00% | 0.50% (`2.78%`) | 48.04% | 65.02% | 90.64% | 99.46% | 12.95 | 255.50 |
+| `0.75` | 89.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 10.50 | 10.50 |
+| `0.80` | 85.00% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 15.00 | 15.00 |
+| `0.85` | 74.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 25.50 | 25.50 |
+| `0.90` | 65.00% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 35.00 | 35.00 |
+| `0.95` | 32.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 67.50 | 67.50 |
+
+### `SF-009` Nested 5-Fold Unseen-Family OOF ($N = 703$, $G = 56$) Composite Sweep
+
+| $\tau$ | TPR (Recall) | FPR (95% Wilson Upper) | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% | PPV @ 50.0% | Cost/1k (Tier 1 @ 1%) | Cost/1k (Tier 2 @ 1%) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `0.30` | 98.12% | 8.47% (`11.12%`) | 5.50% | 10.47% | 37.87% | 92.05% | 85.74 | 4195.25 |
+| `0.40` | 97.50% | 8.10% (`10.70%`) | 5.70% | 10.84% | 38.77% | 92.33% | 82.72 | 4013.55 |
+| `0.50` | 96.25% | 7.55% (`10.08%`) | 6.02% | 11.41% | 40.15% | 92.73% | 78.50 | 3741.32 |
+| `0.60` | 91.88% | 7.37% (`9.88%`) | 5.90% | 11.19% | 39.63% | 92.58% | 81.05 | 3654.53 |
+| `0.70` | 81.88% | 4.97% (`7.14%`) | 7.64% | 14.26% | 46.43% | 94.27% | 67.35 | 2479.45 |
+| `0.75` | 73.12% | 2.39% (`4.05%`) | 13.31% | 23.58% | 61.65% | 96.83% | 50.58 | 1211.96 |
+| `0.80` | 62.50% | 0.74% (`1.88%`) | 29.89% | 46.15% | 81.70% | 98.84% | 44.79 | 402.14 |
+| `0.85` | 56.88% | 0.00% (`0.70%`) | 100.00% | 100.00% | 100.00% | 100.00% | 43.12 | 43.12 |
+| `0.90` | 46.25% | 0.00% (`0.70%`) | 100.00% | 100.00% | 100.00% | 100.00% | 53.75 | 53.75 |
+| `0.95` | 38.12% | 0.00% (`0.70%`) | 100.00% | 100.00% | 100.00% | 100.00% | 61.88 | 61.88 |
+
+### Joint Dual-Tier Operational Policy Comparison (Normalized Cost per 1,000 Messages)
+
+| Cohort | Policy `(tau_flag, tau_block)` | Tier-1 Recall / FPR | Tier-2 Recall / FPR | Cost @ 0.5% | Cost @ 1.0% | Cost @ 5.0% | Cost @ 50.0% |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Dev/Val N=400 | `(0.40, 0.75)` | 100.00% / 5.00% | 89.50% / 0.00% | 49.75 | 49.50 | 47.50 | 25.00 |
+| Dev/Val N=400 | `(0.40, 0.85)` | 100.00% / 5.00% | 74.50% / 0.00% | 49.75 | 49.50 | 47.50 | 25.00 |
+| SF-009 OOF N=703 | `(0.40, 0.75)` | 97.50% / 8.10% | 73.12% / 2.39% | 1249.12 | 1244.10 | 1203.94 | 752.07 |
+| SF-009 OOF N=703 | `(0.40, 0.85)` | 97.50% / 8.10% | 56.88% / 0.00% | 81.88 | 82.72 | 89.48 | 165.52 |

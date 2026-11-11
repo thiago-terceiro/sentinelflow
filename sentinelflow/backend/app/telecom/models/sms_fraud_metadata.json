@@ -1139,7 +1139,7 @@
     "oof_predictions_artifact": "oof_predictions.json",
     "oof_predictions_sha256": "9b6376520d0161e6969646a07d98babc00231e51f166d9149e18b567bd163265"
   },
-  "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
+  "evaluation_timestamp": "2026-11-11T16:19:19.585975+00:00",
   "software_versions": {
     "onnxruntime": "1.31.0",
     "numpy": "2.5.4",
@@ -1393,6 +1393,2034 @@
         0.0,
         0.018845
       ]
+    },
+    "threshold_and_base_rate_analysis": {
+      "external_validation_status": "UNAVAILABLE_BLOCKED",
+      "class_c_primary_holdout_present": false,
+      "legacy_holdout_300_present": false,
+      "default_operational_thresholds": {
+        "tier1_flag_threshold": 0.4,
+        "tier2_block_threshold": 0.75
+      },
+      "evaluated_benchmarks": [
+        "dev_val_composite",
+        "dev_val_pure_ml",
+        "oof_composite",
+        "oof_pure_ml"
+      ],
+      "scope_and_limitations_note": "No Class C primary external two-class fraud holdout exists (UNAVAILABLE_BLOCKED per SF-010/SF-011; no N=300 external holdout exists). Curves summarize internal Dev/Val (N=400) and SF-009 Nested 5-Fold OOF (N=703) behavior strictly for analytical threshold justification, not verified live carrier generalization.",
+      "dev_val_composite": {
+        "score_kind": "dev_val_composite_n400",
+        "sample_count": 400,
+        "benign_count": 200,
+        "fraud_count": 200,
+        "sample_prevalence": 0.5,
+        "prevalences": [
+          0.005,
+          0.01,
+          0.05,
+          0.5
+        ],
+        "cost_model": {
+          "cost_fn_escape": 10.0,
+          "cost_fp_tier1_flag": 1.0,
+          "cost_fp_tier2_block": 50.0,
+          "unit": "normalized_cost_per_1000_messages"
+        },
+        "thresholds": [
+          {
+            "threshold": 0.3,
+            "confusion_matrix": {
+              "tp": 200,
+              "fp": 14,
+              "tn": 186,
+              "fn": 0
+            },
+            "tpr": 1.0,
+            "fpr": 0.07,
+            "fnr": 0.0,
+            "specificity": 0.93,
+            "fpr_wilson_95_ci": [
+              0.042152,
+              0.114055
+            ],
+            "fpr_wilson_95_upper": 0.114055,
+            "ppv_by_prevalence": {
+              "0.005": 0.066979,
+              "0.01": 0.126103,
+              "0.05": 0.429185,
+              "0.5": 0.934579
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0422,
+              "0.01": 0.081357,
+              "0.05": 0.315752,
+              "0.5": 0.897622
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 69.65,
+              "0.01": 69.3,
+              "0.05": 66.5,
+              "0.5": 35.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3482.5,
+              "0.01": 3465.0,
+              "0.05": 3325.0,
+              "0.5": 1750.0
+            }
+          },
+          {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 200,
+              "fp": 10,
+              "tn": 190,
+              "fn": 0
+            },
+            "tpr": 1.0,
+            "fpr": 0.05,
+            "fnr": 0.0,
+            "specificity": 0.95,
+            "fpr_wilson_95_ci": [
+              0.027383,
+              0.089578
+            ],
+            "fpr_wilson_95_upper": 0.089578,
+            "ppv_by_prevalence": {
+              "0.005": 0.091324,
+              "0.01": 0.168067,
+              "0.05": 0.512821,
+              "0.5": 0.952381
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.053118,
+              "0.01": 0.101335,
+              "0.05": 0.370099,
+              "0.5": 0.917787
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 2487.5,
+              "0.01": 2475.0,
+              "0.05": 2375.0,
+              "0.5": 1250.0
+            }
+          },
+          {
+            "threshold": 0.5,
+            "confusion_matrix": {
+              "tp": 200,
+              "fp": 7,
+              "tn": 193,
+              "fn": 0
+            },
+            "tpr": 1.0,
+            "fpr": 0.035,
+            "fnr": 0.0,
+            "specificity": 0.965,
+            "fpr_wilson_95_ci": [
+              0.017056,
+              0.070471
+            ],
+            "fpr_wilson_95_upper": 0.070471,
+            "ppv_by_prevalence": {
+              "0.005": 0.125549,
+              "0.01": 0.223964,
+              "0.05": 0.600601,
+              "0.5": 0.966184
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.066561,
+              "0.01": 0.125366,
+              "0.05": 0.427542,
+              "0.5": 0.934168
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 34.825,
+              "0.01": 34.65,
+              "0.05": 33.25,
+              "0.5": 17.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 1741.25,
+              "0.01": 1732.5,
+              "0.05": 1662.5,
+              "0.5": 875.0
+            }
+          },
+          {
+            "threshold": 0.6,
+            "confusion_matrix": {
+              "tp": 196,
+              "fp": 4,
+              "tn": 196,
+              "fn": 4
+            },
+            "tpr": 0.98,
+            "fpr": 0.02,
+            "fnr": 0.02,
+            "specificity": 0.98,
+            "fpr_wilson_95_ci": [
+              0.007804,
+              0.050287
+            ],
+            "fpr_wilson_95_upper": 0.050287,
+            "ppv_by_prevalence": {
+              "0.005": 0.197581,
+              "0.01": 0.331081,
+              "0.05": 0.720588,
+              "0.5": 0.98
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.089195,
+              "0.01": 0.164473,
+              "0.05": 0.506341,
+              "0.5": 0.951191
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 20.9,
+              "0.01": 21.8,
+              "0.05": 29.0,
+              "0.5": 110.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 996.0,
+              "0.01": 992.0,
+              "0.05": 960.0,
+              "0.5": 600.0
+            }
+          },
+          {
+            "threshold": 0.7,
+            "confusion_matrix": {
+              "tp": 184,
+              "fp": 1,
+              "tn": 199,
+              "fn": 16
+            },
+            "tpr": 0.92,
+            "fpr": 0.005,
+            "fnr": 0.08,
+            "specificity": 0.995,
+            "fpr_wilson_95_ci": [
+              0.000883,
+              0.027774
+            ],
+            "fpr_wilson_95_upper": 0.027774,
+            "ppv_by_prevalence": {
+              "0.005": 0.480418,
+              "0.01": 0.650177,
+              "0.05": 0.906404,
+              "0.5": 0.994595
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.142701,
+              "0.01": 0.250707,
+              "0.05": 0.635488,
+              "0.5": 0.970696
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 8.975,
+              "0.01": 12.95,
+              "0.05": 44.75,
+              "0.5": 402.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 252.75,
+              "0.01": 255.5,
+              "0.05": 277.5,
+              "0.5": 525.0
+            }
+          },
+          {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 179,
+              "fp": 0,
+              "tn": 200,
+              "fn": 21
+            },
+            "tpr": 0.895,
+            "fpr": 0.0,
+            "fnr": 0.105,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.192674,
+              "0.01": 0.324198,
+              "0.05": 0.714254,
+              "0.5": 0.979378
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 5.25,
+              "0.01": 10.5,
+              "0.05": 52.5,
+              "0.5": 525.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 5.25,
+              "0.01": 10.5,
+              "0.05": 52.5,
+              "0.5": 525.0
+            }
+          },
+          {
+            "threshold": 0.8,
+            "confusion_matrix": {
+              "tp": 170,
+              "fp": 0,
+              "tn": 200,
+              "fn": 30
+            },
+            "tpr": 0.85,
+            "fpr": 0.0,
+            "fnr": 0.15,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.184776,
+              "0.01": 0.313,
+              "0.05": 0.70361,
+              "0.5": 0.97831
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 7.5,
+              "0.01": 15.0,
+              "0.05": 75.0,
+              "0.5": 750.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 7.5,
+              "0.01": 15.0,
+              "0.05": 75.0,
+              "0.5": 750.0
+            }
+          },
+          {
+            "threshold": 0.85,
+            "confusion_matrix": {
+              "tp": 149,
+              "fp": 0,
+              "tn": 200,
+              "fn": 51
+            },
+            "tpr": 0.745,
+            "fpr": 0.0,
+            "fnr": 0.255,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.165734,
+              "0.01": 0.285369,
+              "0.05": 0.675397,
+              "0.5": 0.975329
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 12.75,
+              "0.01": 25.5,
+              "0.05": 127.5,
+              "0.5": 1275.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 12.75,
+              "0.01": 25.5,
+              "0.05": 127.5,
+              "0.5": 1275.0
+            }
+          },
+          {
+            "threshold": 0.9,
+            "confusion_matrix": {
+              "tp": 130,
+              "fp": 0,
+              "tn": 200,
+              "fn": 70
+            },
+            "tpr": 0.65,
+            "fpr": 0.0,
+            "fnr": 0.35,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.147722,
+              "0.01": 0.258382,
+              "0.05": 0.644806,
+              "0.5": 0.971825
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 17.5,
+              "0.01": 35.0,
+              "0.05": 175.0,
+              "0.5": 1750.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 17.5,
+              "0.01": 35.0,
+              "0.05": 175.0,
+              "0.5": 1750.0
+            }
+          },
+          {
+            "threshold": 0.95,
+            "confusion_matrix": {
+              "tp": 65,
+              "fp": 0,
+              "tn": 200,
+              "fn": 135
+            },
+            "tpr": 0.325,
+            "fpr": 0.0,
+            "fnr": 0.675,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.079752,
+              "0.01": 0.148357,
+              "0.05": 0.475804,
+              "0.5": 0.945193
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 33.75,
+              "0.01": 67.5,
+              "0.05": 337.5,
+              "0.5": 3375.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 33.75,
+              "0.01": 67.5,
+              "0.05": 337.5,
+              "0.5": 3375.0
+            }
+          }
+        ],
+        "dual_tier_policies": [
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.75,
+            "tier1_tpr": 1.0,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.0,
+            "tier2_tpr": 0.895,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.8,
+            "tier1_tpr": 1.0,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.0,
+            "tier2_tpr": 0.85,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.85,
+            "tier1_tpr": 1.0,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.0,
+            "tier2_tpr": 0.745,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.9,
+            "tier1_tpr": 1.0,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.0,
+            "tier2_tpr": 0.65,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            }
+          }
+        ]
+      },
+      "dev_val_pure_ml": {
+        "score_kind": "dev_val_pure_ml_n400",
+        "sample_count": 400,
+        "benign_count": 200,
+        "fraud_count": 200,
+        "sample_prevalence": 0.5,
+        "prevalences": [
+          0.005,
+          0.01,
+          0.05,
+          0.5
+        ],
+        "cost_model": {
+          "cost_fn_escape": 10.0,
+          "cost_fp_tier1_flag": 1.0,
+          "cost_fp_tier2_block": 50.0,
+          "unit": "normalized_cost_per_1000_messages"
+        },
+        "thresholds": [
+          {
+            "threshold": 0.3,
+            "confusion_matrix": {
+              "tp": 200,
+              "fp": 14,
+              "tn": 186,
+              "fn": 0
+            },
+            "tpr": 1.0,
+            "fpr": 0.07,
+            "fnr": 0.0,
+            "specificity": 0.93,
+            "fpr_wilson_95_ci": [
+              0.042152,
+              0.114055
+            ],
+            "fpr_wilson_95_upper": 0.114055,
+            "ppv_by_prevalence": {
+              "0.005": 0.066979,
+              "0.01": 0.126103,
+              "0.05": 0.429185,
+              "0.5": 0.934579
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0422,
+              "0.01": 0.081357,
+              "0.05": 0.315752,
+              "0.5": 0.897622
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 69.65,
+              "0.01": 69.3,
+              "0.05": 66.5,
+              "0.5": 35.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3482.5,
+              "0.01": 3465.0,
+              "0.05": 3325.0,
+              "0.5": 1750.0
+            }
+          },
+          {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 196,
+              "fp": 10,
+              "tn": 190,
+              "fn": 4
+            },
+            "tpr": 0.98,
+            "fpr": 0.05,
+            "fnr": 0.02,
+            "specificity": 0.95,
+            "fpr_wilson_95_ci": [
+              0.027383,
+              0.089578
+            ],
+            "fpr_wilson_95_upper": 0.089578,
+            "ppv_by_prevalence": {
+              "0.005": 0.089661,
+              "0.01": 0.165261,
+              "0.05": 0.507772,
+              "0.5": 0.951456
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.052111,
+              "0.01": 0.09951,
+              "0.05": 0.365401,
+              "0.5": 0.916249
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 2488.5,
+              "0.01": 2477.0,
+              "0.05": 2385.0,
+              "0.5": 1350.0
+            }
+          },
+          {
+            "threshold": 0.5,
+            "confusion_matrix": {
+              "tp": 191,
+              "fp": 7,
+              "tn": 193,
+              "fn": 9
+            },
+            "tpr": 0.955,
+            "fpr": 0.035,
+            "fnr": 0.045,
+            "specificity": 0.965,
+            "fpr_wilson_95_ci": [
+              0.017056,
+              0.070471
+            ],
+            "fpr_wilson_95_upper": 0.070471,
+            "ppv_by_prevalence": {
+              "0.005": 0.120581,
+              "0.01": 0.216063,
+              "0.05": 0.589506,
+              "0.5": 0.964646
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.063757,
+              "0.01": 0.120404,
+              "0.05": 0.416313,
+              "0.5": 0.931279
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 37.075,
+              "0.01": 39.15,
+              "0.05": 55.75,
+              "0.5": 242.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 1743.5,
+              "0.01": 1737.0,
+              "0.05": 1685.0,
+              "0.5": 1100.0
+            }
+          },
+          {
+            "threshold": 0.6,
+            "confusion_matrix": {
+              "tp": 189,
+              "fp": 4,
+              "tn": 196,
+              "fn": 11
+            },
+            "tpr": 0.945,
+            "fpr": 0.02,
+            "fnr": 0.055,
+            "specificity": 0.98,
+            "fpr_wilson_95_ci": [
+              0.007804,
+              0.050287
+            ],
+            "fpr_wilson_95_upper": 0.050287,
+            "ppv_by_prevalence": {
+              "0.005": 0.191878,
+              "0.01": 0.323077,
+              "0.05": 0.713208,
+              "0.5": 0.979275
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.086285,
+              "0.01": 0.159536,
+              "0.05": 0.49725,
+              "0.5": 0.949475
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 22.65,
+              "0.01": 25.3,
+              "0.05": 46.5,
+              "0.5": 285.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 997.75,
+              "0.01": 995.5,
+              "0.05": 977.5,
+              "0.5": 775.0
+            }
+          },
+          {
+            "threshold": 0.7,
+            "confusion_matrix": {
+              "tp": 178,
+              "fp": 1,
+              "tn": 199,
+              "fn": 22
+            },
+            "tpr": 0.89,
+            "fpr": 0.005,
+            "fnr": 0.11,
+            "specificity": 0.995,
+            "fpr_wilson_95_ci": [
+              0.000883,
+              0.027774
+            ],
+            "fpr_wilson_95_upper": 0.027774,
+            "ppv_by_prevalence": {
+              "0.005": 0.472149,
+              "0.01": 0.642599,
+              "0.05": 0.903553,
+              "0.5": 0.994413
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.138694,
+              "0.01": 0.244531,
+              "0.05": 0.627775,
+              "0.5": 0.969738
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 10.475,
+              "0.01": 15.95,
+              "0.05": 59.75,
+              "0.5": 552.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 254.25,
+              "0.01": 258.5,
+              "0.05": 292.5,
+              "0.5": 675.0
+            }
+          },
+          {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 171,
+              "fp": 0,
+              "tn": 200,
+              "fn": 29
+            },
+            "tpr": 0.855,
+            "fpr": 0.0,
+            "fnr": 0.145,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.185662,
+              "0.01": 0.314263,
+              "0.05": 0.704832,
+              "0.5": 0.978434
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 7.25,
+              "0.01": 14.5,
+              "0.05": 72.5,
+              "0.5": 725.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 7.25,
+              "0.01": 14.5,
+              "0.05": 72.5,
+              "0.5": 725.0
+            }
+          },
+          {
+            "threshold": 0.8,
+            "confusion_matrix": {
+              "tp": 161,
+              "fp": 0,
+              "tn": 200,
+              "fn": 39
+            },
+            "tpr": 0.805,
+            "fpr": 0.0,
+            "fnr": 0.195,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.176723,
+              "0.01": 0.301424,
+              "0.05": 0.692143,
+              "0.5": 0.977126
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 9.75,
+              "0.01": 19.5,
+              "0.05": 97.5,
+              "0.5": 975.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 9.75,
+              "0.01": 19.5,
+              "0.05": 97.5,
+              "0.5": 975.0
+            }
+          },
+          {
+            "threshold": 0.85,
+            "confusion_matrix": {
+              "tp": 77,
+              "fp": 0,
+              "tn": 200,
+              "fn": 123
+            },
+            "tpr": 0.385,
+            "fpr": 0.0,
+            "fnr": 0.615,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.093104,
+              "0.01": 0.171061,
+              "0.05": 0.518131,
+              "0.5": 0.953336
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 30.75,
+              "0.01": 61.5,
+              "0.05": 307.5,
+              "0.5": 3075.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 30.75,
+              "0.01": 61.5,
+              "0.05": 307.5,
+              "0.5": 3075.0
+            }
+          },
+          {
+            "threshold": 0.9,
+            "confusion_matrix": {
+              "tp": 0,
+              "fp": 0,
+              "tn": 200,
+              "fn": 200
+            },
+            "tpr": 0.0,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 0.0,
+              "0.01": 0.0,
+              "0.05": 0.0,
+              "0.5": 0.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0,
+              "0.01": 0.0,
+              "0.05": 0.0,
+              "0.5": 0.0
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 50.0,
+              "0.01": 100.0,
+              "0.05": 500.0,
+              "0.5": 5000.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 50.0,
+              "0.01": 100.0,
+              "0.05": 500.0,
+              "0.5": 5000.0
+            }
+          },
+          {
+            "threshold": 0.95,
+            "confusion_matrix": {
+              "tp": 0,
+              "fp": 0,
+              "tn": 200,
+              "fn": 200
+            },
+            "tpr": 0.0,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 0.0,
+              "0.01": 0.0,
+              "0.05": 0.0,
+              "0.5": 0.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0,
+              "0.01": 0.0,
+              "0.05": 0.0,
+              "0.5": 0.0
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 50.0,
+              "0.01": 100.0,
+              "0.05": 500.0,
+              "0.5": 5000.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 50.0,
+              "0.01": 100.0,
+              "0.05": 500.0,
+              "0.5": 5000.0
+            }
+          }
+        ],
+        "dual_tier_policies": [
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.75,
+            "tier1_tpr": 0.98,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.02,
+            "tier2_tpr": 0.855,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.8,
+            "tier1_tpr": 0.98,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.02,
+            "tier2_tpr": 0.805,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.85,
+            "tier1_tpr": 0.98,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.02,
+            "tier2_tpr": 0.385,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.9,
+            "tier1_tpr": 0.98,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.02,
+            "tier2_tpr": 0.0,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            }
+          }
+        ]
+      },
+      "oof_composite": {
+        "score_kind": "sf009_oof_composite_n703",
+        "sample_count": 703,
+        "benign_count": 543,
+        "fraud_count": 160,
+        "sample_prevalence": 0.227596,
+        "prevalences": [
+          0.005,
+          0.01,
+          0.05,
+          0.5
+        ],
+        "cost_model": {
+          "cost_fn_escape": 10.0,
+          "cost_fp_tier1_flag": 1.0,
+          "cost_fp_tier2_block": 50.0,
+          "unit": "normalized_cost_per_1000_messages"
+        },
+        "thresholds": [
+          {
+            "threshold": 0.3,
+            "confusion_matrix": {
+              "tp": 157,
+              "fp": 46,
+              "tn": 497,
+              "fn": 3
+            },
+            "tpr": 0.98125,
+            "fpr": 0.084715,
+            "fnr": 0.01875,
+            "specificity": 0.915285,
+            "fpr_wilson_95_ci": [
+              0.064112,
+              0.111152
+            ],
+            "fpr_wilson_95_upper": 0.111152,
+            "ppv_by_prevalence": {
+              "0.005": 0.055005,
+              "0.01": 0.104745,
+              "0.05": 0.37874,
+              "0.5": 0.920528
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.042477,
+              "0.01": 0.081871,
+              "0.05": 0.317234,
+              "0.5": 0.89825
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 85.2285,
+              "0.01": 85.7424,
+              "0.05": 89.8538,
+              "0.5": 136.1073
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 4215.4863,
+              "0.01": 4195.2452,
+              "0.05": 4033.3161,
+              "0.5": 2211.6137
+            }
+          },
+          {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 156,
+              "fp": 44,
+              "tn": 499,
+              "fn": 4
+            },
+            "tpr": 0.975,
+            "fpr": 0.081031,
+            "fnr": 0.025,
+            "specificity": 0.918969,
+            "fpr_wilson_95_ci": [
+              0.060914,
+              0.107034
+            ],
+            "fpr_wilson_95_upper": 0.107034,
+            "ppv_by_prevalence": {
+              "0.005": 0.057017,
+              "0.01": 0.108368,
+              "0.05": 0.387736,
+              "0.5": 0.923268
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.043772,
+              "0.01": 0.08426,
+              "0.05": 0.324066,
+              "0.5": 0.901081
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 81.8762,
+              "0.01": 82.721,
+              "0.05": 89.4797,
+              "0.5": 165.5157
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 4032.5576,
+              "0.01": 4013.5497,
+              "0.05": 3861.4871,
+              "0.5": 2150.7827
+            }
+          },
+          {
+            "threshold": 0.5,
+            "confusion_matrix": {
+              "tp": 154,
+              "fp": 41,
+              "tn": 502,
+              "fn": 6
+            },
+            "tpr": 0.9625,
+            "fpr": 0.075506,
+            "fnr": 0.0375,
+            "specificity": 0.924494,
+            "fpr_wilson_95_ci": [
+              0.056144,
+              0.100833
+            ],
+            "fpr_wilson_95_upper": 0.100833,
+            "ppv_by_prevalence": {
+              "0.005": 0.0602,
+              "0.01": 0.114072,
+              "0.05": 0.401523,
+              "0.5": 0.927258
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.045772,
+              "0.01": 0.08794,
+              "0.05": 0.334396,
+              "0.5": 0.905173
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 77.0039,
+              "0.01": 78.5014,
+              "0.05": 90.4811,
+              "0.5": 225.2532
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3758.3207,
+              "0.01": 3741.3191,
+              "0.05": 3605.3062,
+              "0.5": 2075.1611
+            }
+          },
+          {
+            "threshold": 0.6,
+            "confusion_matrix": {
+              "tp": 147,
+              "fp": 40,
+              "tn": 503,
+              "fn": 13
+            },
+            "tpr": 0.91875,
+            "fpr": 0.073665,
+            "fnr": 0.08125,
+            "specificity": 0.926335,
+            "fpr_wilson_95_ci": [
+              0.054562,
+              0.098758
+            ],
+            "fpr_wilson_95_upper": 0.098758,
+            "ppv_by_prevalence": {
+              "0.005": 0.058977,
+              "0.01": 0.111885,
+              "0.05": 0.396289,
+              "0.5": 0.925772
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.044661,
+              "0.01": 0.085898,
+              "0.05": 0.328694,
+              "0.5": 0.902941
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 77.359,
+              "0.01": 81.0532,
+              "0.05": 110.6066,
+              "0.5": 443.0824
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3668.8875,
+              "0.01": 3654.5338,
+              "0.05": 3539.7042,
+              "0.5": 2247.8706
+            }
+          },
+          {
+            "threshold": 0.7,
+            "confusion_matrix": {
+              "tp": 131,
+              "fp": 27,
+              "tn": 516,
+              "fn": 29
+            },
+            "tpr": 0.81875,
+            "fpr": 0.049724,
+            "fnr": 0.18125,
+            "specificity": 0.950276,
+            "fpr_wilson_95_ci": [
+              0.034395,
+              0.071378
+            ],
+            "fpr_wilson_95_upper": 0.071378,
+            "ppv_by_prevalence": {
+              "0.005": 0.07642,
+              "0.01": 0.142605,
+              "0.05": 0.464275,
+              "0.5": 0.942746
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0545,
+              "0.01": 0.103834,
+              "0.05": 0.376449,
+              "0.5": 0.919812
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 58.5376,
+              "0.01": 67.3515,
+              "0.05": 137.8626,
+              "0.5": 931.1119
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 2482.8194,
+              "0.01": 2479.451,
+              "0.05": 2452.5035,
+              "0.5": 2149.3439
+            }
+          },
+          {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 117,
+              "fp": 13,
+              "tn": 530,
+              "fn": 43
+            },
+            "tpr": 0.73125,
+            "fpr": 0.023941,
+            "fnr": 0.26875,
+            "specificity": 0.976059,
+            "fpr_wilson_95_ci": [
+              0.014044,
+              0.040527
+            ],
+            "fpr_wilson_95_upper": 0.040527,
+            "ppv_by_prevalence": {
+              "0.005": 0.133063,
+              "0.01": 0.235779,
+              "0.05": 0.616501,
+              "0.5": 0.968298
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.083133,
+              "0.01": 0.154161,
+              "0.05": 0.48709,
+              "0.5": 0.947489
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 37.2589,
+              "0.01": 50.5767,
+              "0.05": 157.119,
+              "0.5": 1355.7205
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 1204.5056,
+              "0.01": 1211.9579,
+              "0.05": 1271.5757,
+              "0.5": 1942.2767
+            }
+          },
+          {
+            "threshold": 0.8,
+            "confusion_matrix": {
+              "tp": 100,
+              "fp": 4,
+              "tn": 539,
+              "fn": 60
+            },
+            "tpr": 0.625,
+            "fpr": 0.007366,
+            "fnr": 0.375,
+            "specificity": 0.992634,
+            "fpr_wilson_95_ci": [
+              0.002868,
+              0.018786
+            ],
+            "fpr_wilson_95_upper": 0.018786,
+            "ppv_by_prevalence": {
+              "0.005": 0.29891,
+              "0.01": 0.461499,
+              "0.05": 0.817033,
+              "0.5": 0.988351
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.143236,
+              "0.01": 0.251528,
+              "0.05": 0.636499,
+              "0.5": 0.970819
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 26.0797,
+              "0.01": 44.7928,
+              "0.05": 194.4982,
+              "0.5": 1878.6832
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 385.2325,
+              "0.01": 402.1409,
+              "0.05": 537.4079,
+              "0.5": 2059.1621
+            }
+          },
+          {
+            "threshold": 0.85,
+            "confusion_matrix": {
+              "tp": 91,
+              "fp": 0,
+              "tn": 543,
+              "fn": 69
+            },
+            "tpr": 0.56875,
+            "fpr": 0.0,
+            "fnr": 0.43125,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.289186,
+              "0.01": 0.44988,
+              "0.05": 0.809926,
+              "0.5": 0.987799
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 21.5625,
+              "0.01": 43.125,
+              "0.05": 215.625,
+              "0.5": 2156.25
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 21.5625,
+              "0.01": 43.125,
+              "0.05": 215.625,
+              "0.5": 2156.25
+            }
+          },
+          {
+            "threshold": 0.9,
+            "confusion_matrix": {
+              "tp": 74,
+              "fp": 0,
+              "tn": 543,
+              "fn": 86
+            },
+            "tpr": 0.4625,
+            "fpr": 0.0,
+            "fnr": 0.5375,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.248592,
+              "0.01": 0.399404,
+              "0.05": 0.776039,
+              "0.5": 0.985038
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 26.875,
+              "0.01": 53.75,
+              "0.05": 268.75,
+              "0.5": 2687.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 26.875,
+              "0.01": 53.75,
+              "0.05": 268.75,
+              "0.5": 2687.5
+            }
+          },
+          {
+            "threshold": 0.95,
+            "confusion_matrix": {
+              "tp": 61,
+              "fp": 0,
+              "tn": 543,
+              "fn": 99
+            },
+            "tpr": 0.38125,
+            "fpr": 0.0,
+            "fnr": 0.61875,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.214279,
+              "0.01": 0.354083,
+              "0.05": 0.740687,
+              "0.5": 0.981907
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 30.9375,
+              "0.01": 61.875,
+              "0.05": 309.375,
+              "0.5": 3093.75
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 30.9375,
+              "0.01": 61.875,
+              "0.05": 309.375,
+              "0.5": 3093.75
+            }
+          }
+        ],
+        "dual_tier_policies": [
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.75,
+            "tier1_tpr": 0.975,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.025,
+            "tier2_tpr": 0.73125,
+            "tier2_fpr": 0.023941,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 1249.1229,
+              "0.01": 1244.1022,
+              "0.05": 1203.9365,
+              "0.5": 752.0718
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.8,
+            "tier1_tpr": 0.975,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.025,
+            "tier2_tpr": 0.625,
+            "tier2_fpr": 0.007366,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 441.029,
+              "0.01": 440.0691,
+              "0.05": 432.3895,
+              "0.5": 345.9945
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.85,
+            "tier1_tpr": 0.975,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.025,
+            "tier2_tpr": 0.56875,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 81.8762,
+              "0.01": 82.721,
+              "0.05": 89.4797,
+              "0.5": 165.5157
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.9,
+            "tier1_tpr": 0.975,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.025,
+            "tier2_tpr": 0.4625,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 81.8762,
+              "0.01": 82.721,
+              "0.05": 89.4797,
+              "0.5": 165.5157
+            }
+          }
+        ]
+      },
+      "oof_pure_ml": {
+        "score_kind": "sf009_oof_pure_ml_n703",
+        "sample_count": 703,
+        "benign_count": 543,
+        "fraud_count": 160,
+        "sample_prevalence": 0.227596,
+        "prevalences": [
+          0.005,
+          0.01,
+          0.05,
+          0.5
+        ],
+        "cost_model": {
+          "cost_fn_escape": 10.0,
+          "cost_fp_tier1_flag": 1.0,
+          "cost_fp_tier2_block": 50.0,
+          "unit": "normalized_cost_per_1000_messages"
+        },
+        "thresholds": [
+          {
+            "threshold": 0.3,
+            "confusion_matrix": {
+              "tp": 151,
+              "fp": 46,
+              "tn": 497,
+              "fn": 9
+            },
+            "tpr": 0.94375,
+            "fpr": 0.084715,
+            "fnr": 0.05625,
+            "specificity": 0.915285,
+            "fpr_wilson_95_ci": [
+              0.064112,
+              0.111152
+            ],
+            "fpr_wilson_95_upper": 0.111152,
+            "ppv_by_prevalence": {
+              "0.005": 0.053014,
+              "0.01": 0.101147,
+              "0.05": 0.369616,
+              "0.5": 0.91763
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.040921,
+              "0.01": 0.078989,
+              "0.05": 0.308855,
+              "0.5": 0.894633
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 87.1035,
+              "0.01": 89.4924,
+              "0.05": 108.6038,
+              "0.5": 323.6073
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 4217.3613,
+              "0.01": 4198.9952,
+              "0.05": 4052.0661,
+              "0.5": 2399.1137
+            }
+          },
+          {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 145,
+              "fp": 44,
+              "tn": 499,
+              "fn": 15
+            },
+            "tpr": 0.90625,
+            "fpr": 0.081031,
+            "fnr": 0.09375,
+            "specificity": 0.918969,
+            "fpr_wilson_95_ci": [
+              0.060914,
+              0.107034
+            ],
+            "fpr_wilson_95_upper": 0.107034,
+            "ppv_by_prevalence": {
+              "0.005": 0.05321,
+              "0.01": 0.101503,
+              "0.05": 0.370526,
+              "0.5": 0.917925
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.040811,
+              "0.01": 0.078786,
+              "0.05": 0.308259,
+              "0.5": 0.894369
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 85.3137,
+              "0.01": 89.596,
+              "0.05": 123.8547,
+              "0.5": 509.2657
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 4035.9951,
+              "0.01": 4020.4247,
+              "0.05": 3895.8621,
+              "0.5": 2494.5327
+            }
+          },
+          {
+            "threshold": 0.5,
+            "confusion_matrix": {
+              "tp": 132,
+              "fp": 41,
+              "tn": 502,
+              "fn": 28
+            },
+            "tpr": 0.825,
+            "fpr": 0.075506,
+            "fnr": 0.175,
+            "specificity": 0.924494,
+            "fpr_wilson_95_ci": [
+              0.056144,
+              0.100833
+            ],
+            "fpr_wilson_95_upper": 0.100833,
+            "ppv_by_prevalence": {
+              "0.005": 0.052048,
+              "0.01": 0.099396,
+              "0.05": 0.365105,
+              "0.5": 0.916151
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.039491,
+              "0.01": 0.076336,
+              "0.05": 0.301004,
+              "0.5": 0.891089
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 83.8789,
+              "0.01": 92.2514,
+              "0.05": 159.2311,
+              "0.5": 912.7532
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3765.1957,
+              "0.01": 3755.0691,
+              "0.05": 3674.0562,
+              "0.5": 2762.6611
+            }
+          },
+          {
+            "threshold": 0.6,
+            "confusion_matrix": {
+              "tp": 104,
+              "fp": 40,
+              "tn": 503,
+              "fn": 56
+            },
+            "tpr": 0.65,
+            "fpr": 0.073665,
+            "fnr": 0.35,
+            "specificity": 0.926335,
+            "fpr_wilson_95_ci": [
+              0.054562,
+              0.098758
+            ],
+            "fpr_wilson_95_upper": 0.098758,
+            "ppv_by_prevalence": {
+              "0.005": 0.042458,
+              "0.01": 0.081835,
+              "0.05": 0.31713,
+              "0.5": 0.898206
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.032015,
+              "0.01": 0.062338,
+              "0.05": 0.257283,
+              "0.5": 0.868104
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 90.7965,
+              "0.01": 107.9282,
+              "0.05": 244.9816,
+              "0.5": 1786.8324
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3682.325,
+              "0.01": 3681.4088,
+              "0.05": 3674.0792,
+              "0.5": 3591.6206
+            }
+          },
+          {
+            "threshold": 0.7,
+            "confusion_matrix": {
+              "tp": 93,
+              "fp": 27,
+              "tn": 516,
+              "fn": 67
+            },
+            "tpr": 0.58125,
+            "fpr": 0.049724,
+            "fnr": 0.41875,
+            "specificity": 0.950276,
+            "fpr_wilson_95_ci": [
+              0.034395,
+              0.071378
+            ],
+            "fpr_wilson_95_upper": 0.071378,
+            "ppv_by_prevalence": {
+              "0.005": 0.055482,
+              "0.01": 0.105607,
+              "0.05": 0.380897,
+              "0.5": 0.921195
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.039312,
+              "0.01": 0.076004,
+              "0.05": 0.300011,
+              "0.5": 0.89063
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 70.4126,
+              "0.01": 91.1015,
+              "0.05": 256.6126,
+              "0.5": 2118.6119
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 2494.6944,
+              "0.01": 2503.201,
+              "0.05": 2571.2535,
+              "0.5": 3336.8439
+            }
+          },
+          {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 86,
+              "fp": 13,
+              "tn": 530,
+              "fn": 74
+            },
+            "tpr": 0.5375,
+            "fpr": 0.023941,
+            "fnr": 0.4625,
+            "specificity": 0.976059,
+            "fpr_wilson_95_ci": [
+              0.014044,
+              0.040527
+            ],
+            "fpr_wilson_95_upper": 0.040527,
+            "ppv_by_prevalence": {
+              "0.005": 0.101381,
+              "0.01": 0.184856,
+              "0.05": 0.541627,
+              "0.5": 0.957358
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.062483,
+              "0.01": 0.11814,
+              "0.05": 0.411086,
+              "0.5": 0.929887
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 46.9464,
+              "0.01": 69.9517,
+              "0.05": 253.994,
+              "0.5": 2324.4705
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 1214.1931,
+              "0.01": 1231.3329,
+              "0.05": 1368.4507,
+              "0.5": 2911.0267
+            }
+          },
+          {
+            "threshold": 0.8,
+            "confusion_matrix": {
+              "tp": 79,
+              "fp": 4,
+              "tn": 539,
+              "fn": 81
+            },
+            "tpr": 0.49375,
+            "fpr": 0.007366,
+            "fnr": 0.50625,
+            "specificity": 0.992634,
+            "fpr_wilson_95_ci": [
+              0.002868,
+              0.018786
+            ],
+            "fpr_wilson_95_upper": 0.018786,
+            "ppv_by_prevalence": {
+              "0.005": 0.251954,
+              "0.01": 0.40371,
+              "0.05": 0.779138,
+              "0.5": 0.9853
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.116666,
+              "0.01": 0.209788,
+              "0.05": 0.580415,
+              "0.5": 0.963347
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 32.6422,
+              "0.01": 57.9178,
+              "0.05": 260.1232,
+              "0.5": 2534.9332
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 391.795,
+              "0.01": 415.2659,
+              "0.05": 603.0329,
+              "0.5": 2715.4121
+            }
+          },
+          {
+            "threshold": 0.85,
+            "confusion_matrix": {
+              "tp": 66,
+              "fp": 0,
+              "tn": 543,
+              "fn": 94
+            },
+            "tpr": 0.4125,
+            "fpr": 0.0,
+            "fnr": 0.5875,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.227841,
+              "0.01": 0.372301,
+              "0.05": 0.755529,
+              "0.5": 0.983255
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 29.375,
+              "0.01": 58.75,
+              "0.05": 293.75,
+              "0.5": 2937.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 29.375,
+              "0.01": 58.75,
+              "0.05": 293.75,
+              "0.5": 2937.5
+            }
+          },
+          {
+            "threshold": 0.9,
+            "confusion_matrix": {
+              "tp": 47,
+              "fp": 0,
+              "tn": 543,
+              "fn": 113
+            },
+            "tpr": 0.29375,
+            "fpr": 0.0,
+            "fnr": 0.70625,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.173639,
+              "0.01": 0.29695,
+              "0.05": 0.687577,
+              "0.5": 0.976644
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 35.3125,
+              "0.01": 70.625,
+              "0.05": 353.125,
+              "0.5": 3531.25
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 35.3125,
+              "0.01": 70.625,
+              "0.05": 353.125,
+              "0.5": 3531.25
+            }
+          },
+          {
+            "threshold": 0.95,
+            "confusion_matrix": {
+              "tp": 35,
+              "fp": 0,
+              "tn": 543,
+              "fn": 125
+            },
+            "tpr": 0.21875,
+            "fpr": 0.0,
+            "fnr": 0.78125,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.135304,
+              "0.01": 0.239274,
+              "0.05": 0.621052,
+              "0.5": 0.968885
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 39.0625,
+              "0.01": 78.125,
+              "0.05": 390.625,
+              "0.5": 3906.25
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 39.0625,
+              "0.01": 78.125,
+              "0.05": 390.625,
+              "0.5": 3906.25
+            }
+          }
+        ],
+        "dual_tier_policies": [
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.75,
+            "tier1_tpr": 0.90625,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.09375,
+            "tier2_tpr": 0.5375,
+            "tier2_fpr": 0.023941,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 1252.5604,
+              "0.01": 1250.9772,
+              "0.05": 1238.3115,
+              "0.5": 1095.8218
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.8,
+            "tier1_tpr": 0.90625,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.09375,
+            "tier2_tpr": 0.49375,
+            "tier2_fpr": 0.007366,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 444.4665,
+              "0.01": 446.9441,
+              "0.05": 466.7645,
+              "0.5": 689.7445
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.85,
+            "tier1_tpr": 0.90625,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.09375,
+            "tier2_tpr": 0.4125,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 85.3137,
+              "0.01": 89.596,
+              "0.05": 123.8547,
+              "0.5": 509.2657
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.9,
+            "tier1_tpr": 0.90625,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.09375,
+            "tier2_tpr": 0.29375,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 85.3137,
+              "0.01": 89.596,
+              "0.05": 123.8547,
+              "0.5": 509.2657
+            }
+          }
+        ]
+      }
     },
     "false_positive_rate": 0.035,
     "false_negative_rate": 0.045,
@@ -2272,19 +4300,22 @@
         "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
         "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
       },
-      "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
+      "evaluation_timestamp": "2026-11-11T16:19:19.585975+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
       "training_config": {
-        "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=5)",
+        "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=GroupKFold(5))",
         "framework": "scikit-learn + skl2onnx + onnxruntime",
         "calibration": {
           "method": "sigmoid",
           "cv_folds": 5,
+          "cv_strategy": "GroupKFold(n_splits=5)",
+          "max_group_overlap": 0,
+          "ensemble": "auto",
           "brier_score_before": 0.1472,
-          "brier_score_after": 0.0757,
-          "brier_score_improvement": 0.0714
+          "brier_score_after": 0.0629,
+          "brier_score_improvement": 0.0842
         },
         "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
       },
@@ -2317,7 +4348,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
+    "evaluation_timestamp": "2026-11-11T16:19:19.585975+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -3399,6 +5430,2034 @@
         0.018845
       ]
     },
+    "threshold_and_base_rate_analysis": {
+      "external_validation_status": "UNAVAILABLE_BLOCKED",
+      "class_c_primary_holdout_present": false,
+      "legacy_holdout_300_present": false,
+      "default_operational_thresholds": {
+        "tier1_flag_threshold": 0.4,
+        "tier2_block_threshold": 0.75
+      },
+      "evaluated_benchmarks": [
+        "dev_val_composite",
+        "dev_val_pure_ml",
+        "oof_composite",
+        "oof_pure_ml"
+      ],
+      "scope_and_limitations_note": "No Class C primary external two-class fraud holdout exists (UNAVAILABLE_BLOCKED per SF-010/SF-011; no N=300 external holdout exists). Curves summarize internal Dev/Val (N=400) and SF-009 Nested 5-Fold OOF (N=703) behavior strictly for analytical threshold justification, not verified live carrier generalization.",
+      "dev_val_composite": {
+        "score_kind": "dev_val_composite_n400",
+        "sample_count": 400,
+        "benign_count": 200,
+        "fraud_count": 200,
+        "sample_prevalence": 0.5,
+        "prevalences": [
+          0.005,
+          0.01,
+          0.05,
+          0.5
+        ],
+        "cost_model": {
+          "cost_fn_escape": 10.0,
+          "cost_fp_tier1_flag": 1.0,
+          "cost_fp_tier2_block": 50.0,
+          "unit": "normalized_cost_per_1000_messages"
+        },
+        "thresholds": [
+          {
+            "threshold": 0.3,
+            "confusion_matrix": {
+              "tp": 200,
+              "fp": 14,
+              "tn": 186,
+              "fn": 0
+            },
+            "tpr": 1.0,
+            "fpr": 0.07,
+            "fnr": 0.0,
+            "specificity": 0.93,
+            "fpr_wilson_95_ci": [
+              0.042152,
+              0.114055
+            ],
+            "fpr_wilson_95_upper": 0.114055,
+            "ppv_by_prevalence": {
+              "0.005": 0.066979,
+              "0.01": 0.126103,
+              "0.05": 0.429185,
+              "0.5": 0.934579
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0422,
+              "0.01": 0.081357,
+              "0.05": 0.315752,
+              "0.5": 0.897622
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 69.65,
+              "0.01": 69.3,
+              "0.05": 66.5,
+              "0.5": 35.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3482.5,
+              "0.01": 3465.0,
+              "0.05": 3325.0,
+              "0.5": 1750.0
+            }
+          },
+          {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 200,
+              "fp": 10,
+              "tn": 190,
+              "fn": 0
+            },
+            "tpr": 1.0,
+            "fpr": 0.05,
+            "fnr": 0.0,
+            "specificity": 0.95,
+            "fpr_wilson_95_ci": [
+              0.027383,
+              0.089578
+            ],
+            "fpr_wilson_95_upper": 0.089578,
+            "ppv_by_prevalence": {
+              "0.005": 0.091324,
+              "0.01": 0.168067,
+              "0.05": 0.512821,
+              "0.5": 0.952381
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.053118,
+              "0.01": 0.101335,
+              "0.05": 0.370099,
+              "0.5": 0.917787
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 2487.5,
+              "0.01": 2475.0,
+              "0.05": 2375.0,
+              "0.5": 1250.0
+            }
+          },
+          {
+            "threshold": 0.5,
+            "confusion_matrix": {
+              "tp": 200,
+              "fp": 7,
+              "tn": 193,
+              "fn": 0
+            },
+            "tpr": 1.0,
+            "fpr": 0.035,
+            "fnr": 0.0,
+            "specificity": 0.965,
+            "fpr_wilson_95_ci": [
+              0.017056,
+              0.070471
+            ],
+            "fpr_wilson_95_upper": 0.070471,
+            "ppv_by_prevalence": {
+              "0.005": 0.125549,
+              "0.01": 0.223964,
+              "0.05": 0.600601,
+              "0.5": 0.966184
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.066561,
+              "0.01": 0.125366,
+              "0.05": 0.427542,
+              "0.5": 0.934168
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 34.825,
+              "0.01": 34.65,
+              "0.05": 33.25,
+              "0.5": 17.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 1741.25,
+              "0.01": 1732.5,
+              "0.05": 1662.5,
+              "0.5": 875.0
+            }
+          },
+          {
+            "threshold": 0.6,
+            "confusion_matrix": {
+              "tp": 196,
+              "fp": 4,
+              "tn": 196,
+              "fn": 4
+            },
+            "tpr": 0.98,
+            "fpr": 0.02,
+            "fnr": 0.02,
+            "specificity": 0.98,
+            "fpr_wilson_95_ci": [
+              0.007804,
+              0.050287
+            ],
+            "fpr_wilson_95_upper": 0.050287,
+            "ppv_by_prevalence": {
+              "0.005": 0.197581,
+              "0.01": 0.331081,
+              "0.05": 0.720588,
+              "0.5": 0.98
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.089195,
+              "0.01": 0.164473,
+              "0.05": 0.506341,
+              "0.5": 0.951191
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 20.9,
+              "0.01": 21.8,
+              "0.05": 29.0,
+              "0.5": 110.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 996.0,
+              "0.01": 992.0,
+              "0.05": 960.0,
+              "0.5": 600.0
+            }
+          },
+          {
+            "threshold": 0.7,
+            "confusion_matrix": {
+              "tp": 184,
+              "fp": 1,
+              "tn": 199,
+              "fn": 16
+            },
+            "tpr": 0.92,
+            "fpr": 0.005,
+            "fnr": 0.08,
+            "specificity": 0.995,
+            "fpr_wilson_95_ci": [
+              0.000883,
+              0.027774
+            ],
+            "fpr_wilson_95_upper": 0.027774,
+            "ppv_by_prevalence": {
+              "0.005": 0.480418,
+              "0.01": 0.650177,
+              "0.05": 0.906404,
+              "0.5": 0.994595
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.142701,
+              "0.01": 0.250707,
+              "0.05": 0.635488,
+              "0.5": 0.970696
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 8.975,
+              "0.01": 12.95,
+              "0.05": 44.75,
+              "0.5": 402.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 252.75,
+              "0.01": 255.5,
+              "0.05": 277.5,
+              "0.5": 525.0
+            }
+          },
+          {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 179,
+              "fp": 0,
+              "tn": 200,
+              "fn": 21
+            },
+            "tpr": 0.895,
+            "fpr": 0.0,
+            "fnr": 0.105,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.192674,
+              "0.01": 0.324198,
+              "0.05": 0.714254,
+              "0.5": 0.979378
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 5.25,
+              "0.01": 10.5,
+              "0.05": 52.5,
+              "0.5": 525.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 5.25,
+              "0.01": 10.5,
+              "0.05": 52.5,
+              "0.5": 525.0
+            }
+          },
+          {
+            "threshold": 0.8,
+            "confusion_matrix": {
+              "tp": 170,
+              "fp": 0,
+              "tn": 200,
+              "fn": 30
+            },
+            "tpr": 0.85,
+            "fpr": 0.0,
+            "fnr": 0.15,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.184776,
+              "0.01": 0.313,
+              "0.05": 0.70361,
+              "0.5": 0.97831
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 7.5,
+              "0.01": 15.0,
+              "0.05": 75.0,
+              "0.5": 750.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 7.5,
+              "0.01": 15.0,
+              "0.05": 75.0,
+              "0.5": 750.0
+            }
+          },
+          {
+            "threshold": 0.85,
+            "confusion_matrix": {
+              "tp": 149,
+              "fp": 0,
+              "tn": 200,
+              "fn": 51
+            },
+            "tpr": 0.745,
+            "fpr": 0.0,
+            "fnr": 0.255,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.165734,
+              "0.01": 0.285369,
+              "0.05": 0.675397,
+              "0.5": 0.975329
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 12.75,
+              "0.01": 25.5,
+              "0.05": 127.5,
+              "0.5": 1275.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 12.75,
+              "0.01": 25.5,
+              "0.05": 127.5,
+              "0.5": 1275.0
+            }
+          },
+          {
+            "threshold": 0.9,
+            "confusion_matrix": {
+              "tp": 130,
+              "fp": 0,
+              "tn": 200,
+              "fn": 70
+            },
+            "tpr": 0.65,
+            "fpr": 0.0,
+            "fnr": 0.35,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.147722,
+              "0.01": 0.258382,
+              "0.05": 0.644806,
+              "0.5": 0.971825
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 17.5,
+              "0.01": 35.0,
+              "0.05": 175.0,
+              "0.5": 1750.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 17.5,
+              "0.01": 35.0,
+              "0.05": 175.0,
+              "0.5": 1750.0
+            }
+          },
+          {
+            "threshold": 0.95,
+            "confusion_matrix": {
+              "tp": 65,
+              "fp": 0,
+              "tn": 200,
+              "fn": 135
+            },
+            "tpr": 0.325,
+            "fpr": 0.0,
+            "fnr": 0.675,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.079752,
+              "0.01": 0.148357,
+              "0.05": 0.475804,
+              "0.5": 0.945193
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 33.75,
+              "0.01": 67.5,
+              "0.05": 337.5,
+              "0.5": 3375.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 33.75,
+              "0.01": 67.5,
+              "0.05": 337.5,
+              "0.5": 3375.0
+            }
+          }
+        ],
+        "dual_tier_policies": [
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.75,
+            "tier1_tpr": 1.0,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.0,
+            "tier2_tpr": 0.895,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.8,
+            "tier1_tpr": 1.0,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.0,
+            "tier2_tpr": 0.85,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.85,
+            "tier1_tpr": 1.0,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.0,
+            "tier2_tpr": 0.745,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.9,
+            "tier1_tpr": 1.0,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.0,
+            "tier2_tpr": 0.65,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 49.75,
+              "0.01": 49.5,
+              "0.05": 47.5,
+              "0.5": 25.0
+            }
+          }
+        ]
+      },
+      "dev_val_pure_ml": {
+        "score_kind": "dev_val_pure_ml_n400",
+        "sample_count": 400,
+        "benign_count": 200,
+        "fraud_count": 200,
+        "sample_prevalence": 0.5,
+        "prevalences": [
+          0.005,
+          0.01,
+          0.05,
+          0.5
+        ],
+        "cost_model": {
+          "cost_fn_escape": 10.0,
+          "cost_fp_tier1_flag": 1.0,
+          "cost_fp_tier2_block": 50.0,
+          "unit": "normalized_cost_per_1000_messages"
+        },
+        "thresholds": [
+          {
+            "threshold": 0.3,
+            "confusion_matrix": {
+              "tp": 200,
+              "fp": 14,
+              "tn": 186,
+              "fn": 0
+            },
+            "tpr": 1.0,
+            "fpr": 0.07,
+            "fnr": 0.0,
+            "specificity": 0.93,
+            "fpr_wilson_95_ci": [
+              0.042152,
+              0.114055
+            ],
+            "fpr_wilson_95_upper": 0.114055,
+            "ppv_by_prevalence": {
+              "0.005": 0.066979,
+              "0.01": 0.126103,
+              "0.05": 0.429185,
+              "0.5": 0.934579
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0422,
+              "0.01": 0.081357,
+              "0.05": 0.315752,
+              "0.5": 0.897622
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 69.65,
+              "0.01": 69.3,
+              "0.05": 66.5,
+              "0.5": 35.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3482.5,
+              "0.01": 3465.0,
+              "0.05": 3325.0,
+              "0.5": 1750.0
+            }
+          },
+          {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 196,
+              "fp": 10,
+              "tn": 190,
+              "fn": 4
+            },
+            "tpr": 0.98,
+            "fpr": 0.05,
+            "fnr": 0.02,
+            "specificity": 0.95,
+            "fpr_wilson_95_ci": [
+              0.027383,
+              0.089578
+            ],
+            "fpr_wilson_95_upper": 0.089578,
+            "ppv_by_prevalence": {
+              "0.005": 0.089661,
+              "0.01": 0.165261,
+              "0.05": 0.507772,
+              "0.5": 0.951456
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.052111,
+              "0.01": 0.09951,
+              "0.05": 0.365401,
+              "0.5": 0.916249
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 2488.5,
+              "0.01": 2477.0,
+              "0.05": 2385.0,
+              "0.5": 1350.0
+            }
+          },
+          {
+            "threshold": 0.5,
+            "confusion_matrix": {
+              "tp": 191,
+              "fp": 7,
+              "tn": 193,
+              "fn": 9
+            },
+            "tpr": 0.955,
+            "fpr": 0.035,
+            "fnr": 0.045,
+            "specificity": 0.965,
+            "fpr_wilson_95_ci": [
+              0.017056,
+              0.070471
+            ],
+            "fpr_wilson_95_upper": 0.070471,
+            "ppv_by_prevalence": {
+              "0.005": 0.120581,
+              "0.01": 0.216063,
+              "0.05": 0.589506,
+              "0.5": 0.964646
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.063757,
+              "0.01": 0.120404,
+              "0.05": 0.416313,
+              "0.5": 0.931279
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 37.075,
+              "0.01": 39.15,
+              "0.05": 55.75,
+              "0.5": 242.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 1743.5,
+              "0.01": 1737.0,
+              "0.05": 1685.0,
+              "0.5": 1100.0
+            }
+          },
+          {
+            "threshold": 0.6,
+            "confusion_matrix": {
+              "tp": 189,
+              "fp": 4,
+              "tn": 196,
+              "fn": 11
+            },
+            "tpr": 0.945,
+            "fpr": 0.02,
+            "fnr": 0.055,
+            "specificity": 0.98,
+            "fpr_wilson_95_ci": [
+              0.007804,
+              0.050287
+            ],
+            "fpr_wilson_95_upper": 0.050287,
+            "ppv_by_prevalence": {
+              "0.005": 0.191878,
+              "0.01": 0.323077,
+              "0.05": 0.713208,
+              "0.5": 0.979275
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.086285,
+              "0.01": 0.159536,
+              "0.05": 0.49725,
+              "0.5": 0.949475
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 22.65,
+              "0.01": 25.3,
+              "0.05": 46.5,
+              "0.5": 285.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 997.75,
+              "0.01": 995.5,
+              "0.05": 977.5,
+              "0.5": 775.0
+            }
+          },
+          {
+            "threshold": 0.7,
+            "confusion_matrix": {
+              "tp": 178,
+              "fp": 1,
+              "tn": 199,
+              "fn": 22
+            },
+            "tpr": 0.89,
+            "fpr": 0.005,
+            "fnr": 0.11,
+            "specificity": 0.995,
+            "fpr_wilson_95_ci": [
+              0.000883,
+              0.027774
+            ],
+            "fpr_wilson_95_upper": 0.027774,
+            "ppv_by_prevalence": {
+              "0.005": 0.472149,
+              "0.01": 0.642599,
+              "0.05": 0.903553,
+              "0.5": 0.994413
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.138694,
+              "0.01": 0.244531,
+              "0.05": 0.627775,
+              "0.5": 0.969738
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 10.475,
+              "0.01": 15.95,
+              "0.05": 59.75,
+              "0.5": 552.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 254.25,
+              "0.01": 258.5,
+              "0.05": 292.5,
+              "0.5": 675.0
+            }
+          },
+          {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 171,
+              "fp": 0,
+              "tn": 200,
+              "fn": 29
+            },
+            "tpr": 0.855,
+            "fpr": 0.0,
+            "fnr": 0.145,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.185662,
+              "0.01": 0.314263,
+              "0.05": 0.704832,
+              "0.5": 0.978434
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 7.25,
+              "0.01": 14.5,
+              "0.05": 72.5,
+              "0.5": 725.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 7.25,
+              "0.01": 14.5,
+              "0.05": 72.5,
+              "0.5": 725.0
+            }
+          },
+          {
+            "threshold": 0.8,
+            "confusion_matrix": {
+              "tp": 161,
+              "fp": 0,
+              "tn": 200,
+              "fn": 39
+            },
+            "tpr": 0.805,
+            "fpr": 0.0,
+            "fnr": 0.195,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.176723,
+              "0.01": 0.301424,
+              "0.05": 0.692143,
+              "0.5": 0.977126
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 9.75,
+              "0.01": 19.5,
+              "0.05": 97.5,
+              "0.5": 975.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 9.75,
+              "0.01": 19.5,
+              "0.05": 97.5,
+              "0.5": 975.0
+            }
+          },
+          {
+            "threshold": 0.85,
+            "confusion_matrix": {
+              "tp": 77,
+              "fp": 0,
+              "tn": 200,
+              "fn": 123
+            },
+            "tpr": 0.385,
+            "fpr": 0.0,
+            "fnr": 0.615,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.093104,
+              "0.01": 0.171061,
+              "0.05": 0.518131,
+              "0.5": 0.953336
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 30.75,
+              "0.01": 61.5,
+              "0.05": 307.5,
+              "0.5": 3075.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 30.75,
+              "0.01": 61.5,
+              "0.05": 307.5,
+              "0.5": 3075.0
+            }
+          },
+          {
+            "threshold": 0.9,
+            "confusion_matrix": {
+              "tp": 0,
+              "fp": 0,
+              "tn": 200,
+              "fn": 200
+            },
+            "tpr": 0.0,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 0.0,
+              "0.01": 0.0,
+              "0.05": 0.0,
+              "0.5": 0.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0,
+              "0.01": 0.0,
+              "0.05": 0.0,
+              "0.5": 0.0
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 50.0,
+              "0.01": 100.0,
+              "0.05": 500.0,
+              "0.5": 5000.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 50.0,
+              "0.01": 100.0,
+              "0.05": 500.0,
+              "0.5": 5000.0
+            }
+          },
+          {
+            "threshold": 0.95,
+            "confusion_matrix": {
+              "tp": 0,
+              "fp": 0,
+              "tn": 200,
+              "fn": 200
+            },
+            "tpr": 0.0,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.018845
+            ],
+            "fpr_wilson_95_upper": 0.018845,
+            "ppv_by_prevalence": {
+              "0.005": 0.0,
+              "0.01": 0.0,
+              "0.05": 0.0,
+              "0.5": 0.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0,
+              "0.01": 0.0,
+              "0.05": 0.0,
+              "0.5": 0.0
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 50.0,
+              "0.01": 100.0,
+              "0.05": 500.0,
+              "0.5": 5000.0
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 50.0,
+              "0.01": 100.0,
+              "0.05": 500.0,
+              "0.5": 5000.0
+            }
+          }
+        ],
+        "dual_tier_policies": [
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.75,
+            "tier1_tpr": 0.98,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.02,
+            "tier2_tpr": 0.855,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.8,
+            "tier1_tpr": 0.98,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.02,
+            "tier2_tpr": 0.805,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.85,
+            "tier1_tpr": 0.98,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.02,
+            "tier2_tpr": 0.385,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.9,
+            "tier1_tpr": 0.98,
+            "tier1_fpr": 0.05,
+            "tier1_fnr": 0.02,
+            "tier2_tpr": 0.0,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 50.75,
+              "0.01": 51.5,
+              "0.05": 57.5,
+              "0.5": 125.0
+            }
+          }
+        ]
+      },
+      "oof_composite": {
+        "score_kind": "sf009_oof_composite_n703",
+        "sample_count": 703,
+        "benign_count": 543,
+        "fraud_count": 160,
+        "sample_prevalence": 0.227596,
+        "prevalences": [
+          0.005,
+          0.01,
+          0.05,
+          0.5
+        ],
+        "cost_model": {
+          "cost_fn_escape": 10.0,
+          "cost_fp_tier1_flag": 1.0,
+          "cost_fp_tier2_block": 50.0,
+          "unit": "normalized_cost_per_1000_messages"
+        },
+        "thresholds": [
+          {
+            "threshold": 0.3,
+            "confusion_matrix": {
+              "tp": 157,
+              "fp": 46,
+              "tn": 497,
+              "fn": 3
+            },
+            "tpr": 0.98125,
+            "fpr": 0.084715,
+            "fnr": 0.01875,
+            "specificity": 0.915285,
+            "fpr_wilson_95_ci": [
+              0.064112,
+              0.111152
+            ],
+            "fpr_wilson_95_upper": 0.111152,
+            "ppv_by_prevalence": {
+              "0.005": 0.055005,
+              "0.01": 0.104745,
+              "0.05": 0.37874,
+              "0.5": 0.920528
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.042477,
+              "0.01": 0.081871,
+              "0.05": 0.317234,
+              "0.5": 0.89825
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 85.2285,
+              "0.01": 85.7424,
+              "0.05": 89.8538,
+              "0.5": 136.1073
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 4215.4863,
+              "0.01": 4195.2452,
+              "0.05": 4033.3161,
+              "0.5": 2211.6137
+            }
+          },
+          {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 156,
+              "fp": 44,
+              "tn": 499,
+              "fn": 4
+            },
+            "tpr": 0.975,
+            "fpr": 0.081031,
+            "fnr": 0.025,
+            "specificity": 0.918969,
+            "fpr_wilson_95_ci": [
+              0.060914,
+              0.107034
+            ],
+            "fpr_wilson_95_upper": 0.107034,
+            "ppv_by_prevalence": {
+              "0.005": 0.057017,
+              "0.01": 0.108368,
+              "0.05": 0.387736,
+              "0.5": 0.923268
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.043772,
+              "0.01": 0.08426,
+              "0.05": 0.324066,
+              "0.5": 0.901081
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 81.8762,
+              "0.01": 82.721,
+              "0.05": 89.4797,
+              "0.5": 165.5157
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 4032.5576,
+              "0.01": 4013.5497,
+              "0.05": 3861.4871,
+              "0.5": 2150.7827
+            }
+          },
+          {
+            "threshold": 0.5,
+            "confusion_matrix": {
+              "tp": 154,
+              "fp": 41,
+              "tn": 502,
+              "fn": 6
+            },
+            "tpr": 0.9625,
+            "fpr": 0.075506,
+            "fnr": 0.0375,
+            "specificity": 0.924494,
+            "fpr_wilson_95_ci": [
+              0.056144,
+              0.100833
+            ],
+            "fpr_wilson_95_upper": 0.100833,
+            "ppv_by_prevalence": {
+              "0.005": 0.0602,
+              "0.01": 0.114072,
+              "0.05": 0.401523,
+              "0.5": 0.927258
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.045772,
+              "0.01": 0.08794,
+              "0.05": 0.334396,
+              "0.5": 0.905173
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 77.0039,
+              "0.01": 78.5014,
+              "0.05": 90.4811,
+              "0.5": 225.2532
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3758.3207,
+              "0.01": 3741.3191,
+              "0.05": 3605.3062,
+              "0.5": 2075.1611
+            }
+          },
+          {
+            "threshold": 0.6,
+            "confusion_matrix": {
+              "tp": 147,
+              "fp": 40,
+              "tn": 503,
+              "fn": 13
+            },
+            "tpr": 0.91875,
+            "fpr": 0.073665,
+            "fnr": 0.08125,
+            "specificity": 0.926335,
+            "fpr_wilson_95_ci": [
+              0.054562,
+              0.098758
+            ],
+            "fpr_wilson_95_upper": 0.098758,
+            "ppv_by_prevalence": {
+              "0.005": 0.058977,
+              "0.01": 0.111885,
+              "0.05": 0.396289,
+              "0.5": 0.925772
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.044661,
+              "0.01": 0.085898,
+              "0.05": 0.328694,
+              "0.5": 0.902941
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 77.359,
+              "0.01": 81.0532,
+              "0.05": 110.6066,
+              "0.5": 443.0824
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3668.8875,
+              "0.01": 3654.5338,
+              "0.05": 3539.7042,
+              "0.5": 2247.8706
+            }
+          },
+          {
+            "threshold": 0.7,
+            "confusion_matrix": {
+              "tp": 131,
+              "fp": 27,
+              "tn": 516,
+              "fn": 29
+            },
+            "tpr": 0.81875,
+            "fpr": 0.049724,
+            "fnr": 0.18125,
+            "specificity": 0.950276,
+            "fpr_wilson_95_ci": [
+              0.034395,
+              0.071378
+            ],
+            "fpr_wilson_95_upper": 0.071378,
+            "ppv_by_prevalence": {
+              "0.005": 0.07642,
+              "0.01": 0.142605,
+              "0.05": 0.464275,
+              "0.5": 0.942746
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.0545,
+              "0.01": 0.103834,
+              "0.05": 0.376449,
+              "0.5": 0.919812
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 58.5376,
+              "0.01": 67.3515,
+              "0.05": 137.8626,
+              "0.5": 931.1119
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 2482.8194,
+              "0.01": 2479.451,
+              "0.05": 2452.5035,
+              "0.5": 2149.3439
+            }
+          },
+          {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 117,
+              "fp": 13,
+              "tn": 530,
+              "fn": 43
+            },
+            "tpr": 0.73125,
+            "fpr": 0.023941,
+            "fnr": 0.26875,
+            "specificity": 0.976059,
+            "fpr_wilson_95_ci": [
+              0.014044,
+              0.040527
+            ],
+            "fpr_wilson_95_upper": 0.040527,
+            "ppv_by_prevalence": {
+              "0.005": 0.133063,
+              "0.01": 0.235779,
+              "0.05": 0.616501,
+              "0.5": 0.968298
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.083133,
+              "0.01": 0.154161,
+              "0.05": 0.48709,
+              "0.5": 0.947489
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 37.2589,
+              "0.01": 50.5767,
+              "0.05": 157.119,
+              "0.5": 1355.7205
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 1204.5056,
+              "0.01": 1211.9579,
+              "0.05": 1271.5757,
+              "0.5": 1942.2767
+            }
+          },
+          {
+            "threshold": 0.8,
+            "confusion_matrix": {
+              "tp": 100,
+              "fp": 4,
+              "tn": 539,
+              "fn": 60
+            },
+            "tpr": 0.625,
+            "fpr": 0.007366,
+            "fnr": 0.375,
+            "specificity": 0.992634,
+            "fpr_wilson_95_ci": [
+              0.002868,
+              0.018786
+            ],
+            "fpr_wilson_95_upper": 0.018786,
+            "ppv_by_prevalence": {
+              "0.005": 0.29891,
+              "0.01": 0.461499,
+              "0.05": 0.817033,
+              "0.5": 0.988351
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.143236,
+              "0.01": 0.251528,
+              "0.05": 0.636499,
+              "0.5": 0.970819
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 26.0797,
+              "0.01": 44.7928,
+              "0.05": 194.4982,
+              "0.5": 1878.6832
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 385.2325,
+              "0.01": 402.1409,
+              "0.05": 537.4079,
+              "0.5": 2059.1621
+            }
+          },
+          {
+            "threshold": 0.85,
+            "confusion_matrix": {
+              "tp": 91,
+              "fp": 0,
+              "tn": 543,
+              "fn": 69
+            },
+            "tpr": 0.56875,
+            "fpr": 0.0,
+            "fnr": 0.43125,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.289186,
+              "0.01": 0.44988,
+              "0.05": 0.809926,
+              "0.5": 0.987799
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 21.5625,
+              "0.01": 43.125,
+              "0.05": 215.625,
+              "0.5": 2156.25
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 21.5625,
+              "0.01": 43.125,
+              "0.05": 215.625,
+              "0.5": 2156.25
+            }
+          },
+          {
+            "threshold": 0.9,
+            "confusion_matrix": {
+              "tp": 74,
+              "fp": 0,
+              "tn": 543,
+              "fn": 86
+            },
+            "tpr": 0.4625,
+            "fpr": 0.0,
+            "fnr": 0.5375,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.248592,
+              "0.01": 0.399404,
+              "0.05": 0.776039,
+              "0.5": 0.985038
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 26.875,
+              "0.01": 53.75,
+              "0.05": 268.75,
+              "0.5": 2687.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 26.875,
+              "0.01": 53.75,
+              "0.05": 268.75,
+              "0.5": 2687.5
+            }
+          },
+          {
+            "threshold": 0.95,
+            "confusion_matrix": {
+              "tp": 61,
+              "fp": 0,
+              "tn": 543,
+              "fn": 99
+            },
+            "tpr": 0.38125,
+            "fpr": 0.0,
+            "fnr": 0.61875,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.214279,
+              "0.01": 0.354083,
+              "0.05": 0.740687,
+              "0.5": 0.981907
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 30.9375,
+              "0.01": 61.875,
+              "0.05": 309.375,
+              "0.5": 3093.75
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 30.9375,
+              "0.01": 61.875,
+              "0.05": 309.375,
+              "0.5": 3093.75
+            }
+          }
+        ],
+        "dual_tier_policies": [
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.75,
+            "tier1_tpr": 0.975,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.025,
+            "tier2_tpr": 0.73125,
+            "tier2_fpr": 0.023941,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 1249.1229,
+              "0.01": 1244.1022,
+              "0.05": 1203.9365,
+              "0.5": 752.0718
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.8,
+            "tier1_tpr": 0.975,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.025,
+            "tier2_tpr": 0.625,
+            "tier2_fpr": 0.007366,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 441.029,
+              "0.01": 440.0691,
+              "0.05": 432.3895,
+              "0.5": 345.9945
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.85,
+            "tier1_tpr": 0.975,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.025,
+            "tier2_tpr": 0.56875,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 81.8762,
+              "0.01": 82.721,
+              "0.05": 89.4797,
+              "0.5": 165.5157
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.9,
+            "tier1_tpr": 0.975,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.025,
+            "tier2_tpr": 0.4625,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 81.8762,
+              "0.01": 82.721,
+              "0.05": 89.4797,
+              "0.5": 165.5157
+            }
+          }
+        ]
+      },
+      "oof_pure_ml": {
+        "score_kind": "sf009_oof_pure_ml_n703",
+        "sample_count": 703,
+        "benign_count": 543,
+        "fraud_count": 160,
+        "sample_prevalence": 0.227596,
+        "prevalences": [
+          0.005,
+          0.01,
+          0.05,
+          0.5
+        ],
+        "cost_model": {
+          "cost_fn_escape": 10.0,
+          "cost_fp_tier1_flag": 1.0,
+          "cost_fp_tier2_block": 50.0,
+          "unit": "normalized_cost_per_1000_messages"
+        },
+        "thresholds": [
+          {
+            "threshold": 0.3,
+            "confusion_matrix": {
+              "tp": 151,
+              "fp": 46,
+              "tn": 497,
+              "fn": 9
+            },
+            "tpr": 0.94375,
+            "fpr": 0.084715,
+            "fnr": 0.05625,
+            "specificity": 0.915285,
+            "fpr_wilson_95_ci": [
+              0.064112,
+              0.111152
+            ],
+            "fpr_wilson_95_upper": 0.111152,
+            "ppv_by_prevalence": {
+              "0.005": 0.053014,
+              "0.01": 0.101147,
+              "0.05": 0.369616,
+              "0.5": 0.91763
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.040921,
+              "0.01": 0.078989,
+              "0.05": 0.308855,
+              "0.5": 0.894633
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 87.1035,
+              "0.01": 89.4924,
+              "0.05": 108.6038,
+              "0.5": 323.6073
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 4217.3613,
+              "0.01": 4198.9952,
+              "0.05": 4052.0661,
+              "0.5": 2399.1137
+            }
+          },
+          {
+            "threshold": 0.4,
+            "confusion_matrix": {
+              "tp": 145,
+              "fp": 44,
+              "tn": 499,
+              "fn": 15
+            },
+            "tpr": 0.90625,
+            "fpr": 0.081031,
+            "fnr": 0.09375,
+            "specificity": 0.918969,
+            "fpr_wilson_95_ci": [
+              0.060914,
+              0.107034
+            ],
+            "fpr_wilson_95_upper": 0.107034,
+            "ppv_by_prevalence": {
+              "0.005": 0.05321,
+              "0.01": 0.101503,
+              "0.05": 0.370526,
+              "0.5": 0.917925
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.040811,
+              "0.01": 0.078786,
+              "0.05": 0.308259,
+              "0.5": 0.894369
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 85.3137,
+              "0.01": 89.596,
+              "0.05": 123.8547,
+              "0.5": 509.2657
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 4035.9951,
+              "0.01": 4020.4247,
+              "0.05": 3895.8621,
+              "0.5": 2494.5327
+            }
+          },
+          {
+            "threshold": 0.5,
+            "confusion_matrix": {
+              "tp": 132,
+              "fp": 41,
+              "tn": 502,
+              "fn": 28
+            },
+            "tpr": 0.825,
+            "fpr": 0.075506,
+            "fnr": 0.175,
+            "specificity": 0.924494,
+            "fpr_wilson_95_ci": [
+              0.056144,
+              0.100833
+            ],
+            "fpr_wilson_95_upper": 0.100833,
+            "ppv_by_prevalence": {
+              "0.005": 0.052048,
+              "0.01": 0.099396,
+              "0.05": 0.365105,
+              "0.5": 0.916151
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.039491,
+              "0.01": 0.076336,
+              "0.05": 0.301004,
+              "0.5": 0.891089
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 83.8789,
+              "0.01": 92.2514,
+              "0.05": 159.2311,
+              "0.5": 912.7532
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3765.1957,
+              "0.01": 3755.0691,
+              "0.05": 3674.0562,
+              "0.5": 2762.6611
+            }
+          },
+          {
+            "threshold": 0.6,
+            "confusion_matrix": {
+              "tp": 104,
+              "fp": 40,
+              "tn": 503,
+              "fn": 56
+            },
+            "tpr": 0.65,
+            "fpr": 0.073665,
+            "fnr": 0.35,
+            "specificity": 0.926335,
+            "fpr_wilson_95_ci": [
+              0.054562,
+              0.098758
+            ],
+            "fpr_wilson_95_upper": 0.098758,
+            "ppv_by_prevalence": {
+              "0.005": 0.042458,
+              "0.01": 0.081835,
+              "0.05": 0.31713,
+              "0.5": 0.898206
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.032015,
+              "0.01": 0.062338,
+              "0.05": 0.257283,
+              "0.5": 0.868104
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 90.7965,
+              "0.01": 107.9282,
+              "0.05": 244.9816,
+              "0.5": 1786.8324
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 3682.325,
+              "0.01": 3681.4088,
+              "0.05": 3674.0792,
+              "0.5": 3591.6206
+            }
+          },
+          {
+            "threshold": 0.7,
+            "confusion_matrix": {
+              "tp": 93,
+              "fp": 27,
+              "tn": 516,
+              "fn": 67
+            },
+            "tpr": 0.58125,
+            "fpr": 0.049724,
+            "fnr": 0.41875,
+            "specificity": 0.950276,
+            "fpr_wilson_95_ci": [
+              0.034395,
+              0.071378
+            ],
+            "fpr_wilson_95_upper": 0.071378,
+            "ppv_by_prevalence": {
+              "0.005": 0.055482,
+              "0.01": 0.105607,
+              "0.05": 0.380897,
+              "0.5": 0.921195
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.039312,
+              "0.01": 0.076004,
+              "0.05": 0.300011,
+              "0.5": 0.89063
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 70.4126,
+              "0.01": 91.1015,
+              "0.05": 256.6126,
+              "0.5": 2118.6119
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 2494.6944,
+              "0.01": 2503.201,
+              "0.05": 2571.2535,
+              "0.5": 3336.8439
+            }
+          },
+          {
+            "threshold": 0.75,
+            "confusion_matrix": {
+              "tp": 86,
+              "fp": 13,
+              "tn": 530,
+              "fn": 74
+            },
+            "tpr": 0.5375,
+            "fpr": 0.023941,
+            "fnr": 0.4625,
+            "specificity": 0.976059,
+            "fpr_wilson_95_ci": [
+              0.014044,
+              0.040527
+            ],
+            "fpr_wilson_95_upper": 0.040527,
+            "ppv_by_prevalence": {
+              "0.005": 0.101381,
+              "0.01": 0.184856,
+              "0.05": 0.541627,
+              "0.5": 0.957358
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.062483,
+              "0.01": 0.11814,
+              "0.05": 0.411086,
+              "0.5": 0.929887
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 46.9464,
+              "0.01": 69.9517,
+              "0.05": 253.994,
+              "0.5": 2324.4705
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 1214.1931,
+              "0.01": 1231.3329,
+              "0.05": 1368.4507,
+              "0.5": 2911.0267
+            }
+          },
+          {
+            "threshold": 0.8,
+            "confusion_matrix": {
+              "tp": 79,
+              "fp": 4,
+              "tn": 539,
+              "fn": 81
+            },
+            "tpr": 0.49375,
+            "fpr": 0.007366,
+            "fnr": 0.50625,
+            "specificity": 0.992634,
+            "fpr_wilson_95_ci": [
+              0.002868,
+              0.018786
+            ],
+            "fpr_wilson_95_upper": 0.018786,
+            "ppv_by_prevalence": {
+              "0.005": 0.251954,
+              "0.01": 0.40371,
+              "0.05": 0.779138,
+              "0.5": 0.9853
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.116666,
+              "0.01": 0.209788,
+              "0.05": 0.580415,
+              "0.5": 0.963347
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 32.6422,
+              "0.01": 57.9178,
+              "0.05": 260.1232,
+              "0.5": 2534.9332
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 391.795,
+              "0.01": 415.2659,
+              "0.05": 603.0329,
+              "0.5": 2715.4121
+            }
+          },
+          {
+            "threshold": 0.85,
+            "confusion_matrix": {
+              "tp": 66,
+              "fp": 0,
+              "tn": 543,
+              "fn": 94
+            },
+            "tpr": 0.4125,
+            "fpr": 0.0,
+            "fnr": 0.5875,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.227841,
+              "0.01": 0.372301,
+              "0.05": 0.755529,
+              "0.5": 0.983255
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 29.375,
+              "0.01": 58.75,
+              "0.05": 293.75,
+              "0.5": 2937.5
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 29.375,
+              "0.01": 58.75,
+              "0.05": 293.75,
+              "0.5": 2937.5
+            }
+          },
+          {
+            "threshold": 0.9,
+            "confusion_matrix": {
+              "tp": 47,
+              "fp": 0,
+              "tn": 543,
+              "fn": 113
+            },
+            "tpr": 0.29375,
+            "fpr": 0.0,
+            "fnr": 0.70625,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.173639,
+              "0.01": 0.29695,
+              "0.05": 0.687577,
+              "0.5": 0.976644
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 35.3125,
+              "0.01": 70.625,
+              "0.05": 353.125,
+              "0.5": 3531.25
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 35.3125,
+              "0.01": 70.625,
+              "0.05": 353.125,
+              "0.5": 3531.25
+            }
+          },
+          {
+            "threshold": 0.95,
+            "confusion_matrix": {
+              "tp": 35,
+              "fp": 0,
+              "tn": 543,
+              "fn": 125
+            },
+            "tpr": 0.21875,
+            "fpr": 0.0,
+            "fnr": 0.78125,
+            "specificity": 1.0,
+            "fpr_wilson_95_ci": [
+              0.0,
+              0.007025
+            ],
+            "fpr_wilson_95_upper": 0.007025,
+            "ppv_by_prevalence": {
+              "0.005": 1.0,
+              "0.01": 1.0,
+              "0.05": 1.0,
+              "0.5": 1.0
+            },
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+              "0.005": 0.135304,
+              "0.01": 0.239274,
+              "0.05": 0.621052,
+              "0.5": 0.968885
+            },
+            "expected_cost_per_1000_tier1_flag": {
+              "0.005": 39.0625,
+              "0.01": 78.125,
+              "0.05": 390.625,
+              "0.5": 3906.25
+            },
+            "expected_cost_per_1000_tier2_block": {
+              "0.005": 39.0625,
+              "0.01": 78.125,
+              "0.05": 390.625,
+              "0.5": 3906.25
+            }
+          }
+        ],
+        "dual_tier_policies": [
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.75,
+            "tier1_tpr": 0.90625,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.09375,
+            "tier2_tpr": 0.5375,
+            "tier2_fpr": 0.023941,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 1252.5604,
+              "0.01": 1250.9772,
+              "0.05": 1238.3115,
+              "0.5": 1095.8218
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.8,
+            "tier1_tpr": 0.90625,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.09375,
+            "tier2_tpr": 0.49375,
+            "tier2_fpr": 0.007366,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 444.4665,
+              "0.01": 446.9441,
+              "0.05": 466.7645,
+              "0.5": 689.7445
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.85,
+            "tier1_tpr": 0.90625,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.09375,
+            "tier2_tpr": 0.4125,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 85.3137,
+              "0.01": 89.596,
+              "0.05": 123.8547,
+              "0.5": 509.2657
+            }
+          },
+          {
+            "tier1_flag_threshold": 0.4,
+            "tier2_block_threshold": 0.9,
+            "tier1_tpr": 0.90625,
+            "tier1_fpr": 0.081031,
+            "tier1_fnr": 0.09375,
+            "tier2_tpr": 0.29375,
+            "tier2_fpr": 0.0,
+            "expected_cost_per_1000_by_prevalence": {
+              "0.005": 85.3137,
+              "0.01": 89.596,
+              "0.05": 123.8547,
+              "0.5": 509.2657
+            }
+          }
+        ]
+      }
+    },
     "false_positive_rate": 0.035,
     "false_negative_rate": 0.045,
     "tier1_escalation": {
@@ -4277,19 +8336,22 @@
         "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
         "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
       },
-      "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
+      "evaluation_timestamp": "2026-11-11T16:19:19.585975+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
       "training_config": {
-        "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=5)",
+        "architecture": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=GroupKFold(5))",
         "framework": "scikit-learn + skl2onnx + onnxruntime",
         "calibration": {
           "method": "sigmoid",
           "cv_folds": 5,
+          "cv_strategy": "GroupKFold(n_splits=5)",
+          "max_group_overlap": 0,
+          "ensemble": "auto",
           "brier_score_before": 0.1472,
-          "brier_score_after": 0.0757,
-          "brier_score_improvement": 0.0714
+          "brier_score_after": 0.0629,
+          "brier_score_improvement": 0.0842
         },
         "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
       },
@@ -4322,7 +8384,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-10T21:35:58.605112+00:00",
+    "evaluation_timestamp": "2026-11-11T16:19:19.585975+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -5156,5 +9218,2033 @@
     }
   },
   "evaluation_artifacts_stale": false,
-  "evaluation_artifacts_status": "synchronized"
+  "evaluation_artifacts_status": "synchronized",
+  "threshold_and_base_rate_analysis": {
+    "external_validation_status": "UNAVAILABLE_BLOCKED",
+    "class_c_primary_holdout_present": false,
+    "legacy_holdout_300_present": false,
+    "default_operational_thresholds": {
+      "tier1_flag_threshold": 0.4,
+      "tier2_block_threshold": 0.75
+    },
+    "evaluated_benchmarks": [
+      "dev_val_composite",
+      "dev_val_pure_ml",
+      "oof_composite",
+      "oof_pure_ml"
+    ],
+    "scope_and_limitations_note": "No Class C primary external two-class fraud holdout exists (UNAVAILABLE_BLOCKED per SF-010/SF-011; no N=300 external holdout exists). Curves summarize internal Dev/Val (N=400) and SF-009 Nested 5-Fold OOF (N=703) behavior strictly for analytical threshold justification, not verified live carrier generalization.",
+    "dev_val_composite": {
+      "score_kind": "dev_val_composite_n400",
+      "sample_count": 400,
+      "benign_count": 200,
+      "fraud_count": 200,
+      "sample_prevalence": 0.5,
+      "prevalences": [
+        0.005,
+        0.01,
+        0.05,
+        0.5
+      ],
+      "cost_model": {
+        "cost_fn_escape": 10.0,
+        "cost_fp_tier1_flag": 1.0,
+        "cost_fp_tier2_block": 50.0,
+        "unit": "normalized_cost_per_1000_messages"
+      },
+      "thresholds": [
+        {
+          "threshold": 0.3,
+          "confusion_matrix": {
+            "tp": 200,
+            "fp": 14,
+            "tn": 186,
+            "fn": 0
+          },
+          "tpr": 1.0,
+          "fpr": 0.07,
+          "fnr": 0.0,
+          "specificity": 0.93,
+          "fpr_wilson_95_ci": [
+            0.042152,
+            0.114055
+          ],
+          "fpr_wilson_95_upper": 0.114055,
+          "ppv_by_prevalence": {
+            "0.005": 0.066979,
+            "0.01": 0.126103,
+            "0.05": 0.429185,
+            "0.5": 0.934579
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.0422,
+            "0.01": 0.081357,
+            "0.05": 0.315752,
+            "0.5": 0.897622
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 69.65,
+            "0.01": 69.3,
+            "0.05": 66.5,
+            "0.5": 35.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 3482.5,
+            "0.01": 3465.0,
+            "0.05": 3325.0,
+            "0.5": 1750.0
+          }
+        },
+        {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 200,
+            "fp": 10,
+            "tn": 190,
+            "fn": 0
+          },
+          "tpr": 1.0,
+          "fpr": 0.05,
+          "fnr": 0.0,
+          "specificity": 0.95,
+          "fpr_wilson_95_ci": [
+            0.027383,
+            0.089578
+          ],
+          "fpr_wilson_95_upper": 0.089578,
+          "ppv_by_prevalence": {
+            "0.005": 0.091324,
+            "0.01": 0.168067,
+            "0.05": 0.512821,
+            "0.5": 0.952381
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.053118,
+            "0.01": 0.101335,
+            "0.05": 0.370099,
+            "0.5": 0.917787
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 49.75,
+            "0.01": 49.5,
+            "0.05": 47.5,
+            "0.5": 25.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 2487.5,
+            "0.01": 2475.0,
+            "0.05": 2375.0,
+            "0.5": 1250.0
+          }
+        },
+        {
+          "threshold": 0.5,
+          "confusion_matrix": {
+            "tp": 200,
+            "fp": 7,
+            "tn": 193,
+            "fn": 0
+          },
+          "tpr": 1.0,
+          "fpr": 0.035,
+          "fnr": 0.0,
+          "specificity": 0.965,
+          "fpr_wilson_95_ci": [
+            0.017056,
+            0.070471
+          ],
+          "fpr_wilson_95_upper": 0.070471,
+          "ppv_by_prevalence": {
+            "0.005": 0.125549,
+            "0.01": 0.223964,
+            "0.05": 0.600601,
+            "0.5": 0.966184
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.066561,
+            "0.01": 0.125366,
+            "0.05": 0.427542,
+            "0.5": 0.934168
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 34.825,
+            "0.01": 34.65,
+            "0.05": 33.25,
+            "0.5": 17.5
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 1741.25,
+            "0.01": 1732.5,
+            "0.05": 1662.5,
+            "0.5": 875.0
+          }
+        },
+        {
+          "threshold": 0.6,
+          "confusion_matrix": {
+            "tp": 196,
+            "fp": 4,
+            "tn": 196,
+            "fn": 4
+          },
+          "tpr": 0.98,
+          "fpr": 0.02,
+          "fnr": 0.02,
+          "specificity": 0.98,
+          "fpr_wilson_95_ci": [
+            0.007804,
+            0.050287
+          ],
+          "fpr_wilson_95_upper": 0.050287,
+          "ppv_by_prevalence": {
+            "0.005": 0.197581,
+            "0.01": 0.331081,
+            "0.05": 0.720588,
+            "0.5": 0.98
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.089195,
+            "0.01": 0.164473,
+            "0.05": 0.506341,
+            "0.5": 0.951191
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 20.9,
+            "0.01": 21.8,
+            "0.05": 29.0,
+            "0.5": 110.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 996.0,
+            "0.01": 992.0,
+            "0.05": 960.0,
+            "0.5": 600.0
+          }
+        },
+        {
+          "threshold": 0.7,
+          "confusion_matrix": {
+            "tp": 184,
+            "fp": 1,
+            "tn": 199,
+            "fn": 16
+          },
+          "tpr": 0.92,
+          "fpr": 0.005,
+          "fnr": 0.08,
+          "specificity": 0.995,
+          "fpr_wilson_95_ci": [
+            0.000883,
+            0.027774
+          ],
+          "fpr_wilson_95_upper": 0.027774,
+          "ppv_by_prevalence": {
+            "0.005": 0.480418,
+            "0.01": 0.650177,
+            "0.05": 0.906404,
+            "0.5": 0.994595
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.142701,
+            "0.01": 0.250707,
+            "0.05": 0.635488,
+            "0.5": 0.970696
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 8.975,
+            "0.01": 12.95,
+            "0.05": 44.75,
+            "0.5": 402.5
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 252.75,
+            "0.01": 255.5,
+            "0.05": 277.5,
+            "0.5": 525.0
+          }
+        },
+        {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 179,
+            "fp": 0,
+            "tn": 200,
+            "fn": 21
+          },
+          "tpr": 0.895,
+          "fpr": 0.0,
+          "fnr": 0.105,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.192674,
+            "0.01": 0.324198,
+            "0.05": 0.714254,
+            "0.5": 0.979378
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 5.25,
+            "0.01": 10.5,
+            "0.05": 52.5,
+            "0.5": 525.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 5.25,
+            "0.01": 10.5,
+            "0.05": 52.5,
+            "0.5": 525.0
+          }
+        },
+        {
+          "threshold": 0.8,
+          "confusion_matrix": {
+            "tp": 170,
+            "fp": 0,
+            "tn": 200,
+            "fn": 30
+          },
+          "tpr": 0.85,
+          "fpr": 0.0,
+          "fnr": 0.15,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.184776,
+            "0.01": 0.313,
+            "0.05": 0.70361,
+            "0.5": 0.97831
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 7.5,
+            "0.01": 15.0,
+            "0.05": 75.0,
+            "0.5": 750.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 7.5,
+            "0.01": 15.0,
+            "0.05": 75.0,
+            "0.5": 750.0
+          }
+        },
+        {
+          "threshold": 0.85,
+          "confusion_matrix": {
+            "tp": 149,
+            "fp": 0,
+            "tn": 200,
+            "fn": 51
+          },
+          "tpr": 0.745,
+          "fpr": 0.0,
+          "fnr": 0.255,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.165734,
+            "0.01": 0.285369,
+            "0.05": 0.675397,
+            "0.5": 0.975329
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 12.75,
+            "0.01": 25.5,
+            "0.05": 127.5,
+            "0.5": 1275.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 12.75,
+            "0.01": 25.5,
+            "0.05": 127.5,
+            "0.5": 1275.0
+          }
+        },
+        {
+          "threshold": 0.9,
+          "confusion_matrix": {
+            "tp": 130,
+            "fp": 0,
+            "tn": 200,
+            "fn": 70
+          },
+          "tpr": 0.65,
+          "fpr": 0.0,
+          "fnr": 0.35,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.147722,
+            "0.01": 0.258382,
+            "0.05": 0.644806,
+            "0.5": 0.971825
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 17.5,
+            "0.01": 35.0,
+            "0.05": 175.0,
+            "0.5": 1750.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 17.5,
+            "0.01": 35.0,
+            "0.05": 175.0,
+            "0.5": 1750.0
+          }
+        },
+        {
+          "threshold": 0.95,
+          "confusion_matrix": {
+            "tp": 65,
+            "fp": 0,
+            "tn": 200,
+            "fn": 135
+          },
+          "tpr": 0.325,
+          "fpr": 0.0,
+          "fnr": 0.675,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.079752,
+            "0.01": 0.148357,
+            "0.05": 0.475804,
+            "0.5": 0.945193
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 33.75,
+            "0.01": 67.5,
+            "0.05": 337.5,
+            "0.5": 3375.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 33.75,
+            "0.01": 67.5,
+            "0.05": 337.5,
+            "0.5": 3375.0
+          }
+        }
+      ],
+      "dual_tier_policies": [
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.75,
+          "tier1_tpr": 1.0,
+          "tier1_fpr": 0.05,
+          "tier1_fnr": 0.0,
+          "tier2_tpr": 0.895,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 49.75,
+            "0.01": 49.5,
+            "0.05": 47.5,
+            "0.5": 25.0
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.8,
+          "tier1_tpr": 1.0,
+          "tier1_fpr": 0.05,
+          "tier1_fnr": 0.0,
+          "tier2_tpr": 0.85,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 49.75,
+            "0.01": 49.5,
+            "0.05": 47.5,
+            "0.5": 25.0
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.85,
+          "tier1_tpr": 1.0,
+          "tier1_fpr": 0.05,
+          "tier1_fnr": 0.0,
+          "tier2_tpr": 0.745,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 49.75,
+            "0.01": 49.5,
+            "0.05": 47.5,
+            "0.5": 25.0
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.9,
+          "tier1_tpr": 1.0,
+          "tier1_fpr": 0.05,
+          "tier1_fnr": 0.0,
+          "tier2_tpr": 0.65,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 49.75,
+            "0.01": 49.5,
+            "0.05": 47.5,
+            "0.5": 25.0
+          }
+        }
+      ]
+    },
+    "dev_val_pure_ml": {
+      "score_kind": "dev_val_pure_ml_n400",
+      "sample_count": 400,
+      "benign_count": 200,
+      "fraud_count": 200,
+      "sample_prevalence": 0.5,
+      "prevalences": [
+        0.005,
+        0.01,
+        0.05,
+        0.5
+      ],
+      "cost_model": {
+        "cost_fn_escape": 10.0,
+        "cost_fp_tier1_flag": 1.0,
+        "cost_fp_tier2_block": 50.0,
+        "unit": "normalized_cost_per_1000_messages"
+      },
+      "thresholds": [
+        {
+          "threshold": 0.3,
+          "confusion_matrix": {
+            "tp": 200,
+            "fp": 14,
+            "tn": 186,
+            "fn": 0
+          },
+          "tpr": 1.0,
+          "fpr": 0.07,
+          "fnr": 0.0,
+          "specificity": 0.93,
+          "fpr_wilson_95_ci": [
+            0.042152,
+            0.114055
+          ],
+          "fpr_wilson_95_upper": 0.114055,
+          "ppv_by_prevalence": {
+            "0.005": 0.066979,
+            "0.01": 0.126103,
+            "0.05": 0.429185,
+            "0.5": 0.934579
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.0422,
+            "0.01": 0.081357,
+            "0.05": 0.315752,
+            "0.5": 0.897622
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 69.65,
+            "0.01": 69.3,
+            "0.05": 66.5,
+            "0.5": 35.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 3482.5,
+            "0.01": 3465.0,
+            "0.05": 3325.0,
+            "0.5": 1750.0
+          }
+        },
+        {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 196,
+            "fp": 10,
+            "tn": 190,
+            "fn": 4
+          },
+          "tpr": 0.98,
+          "fpr": 0.05,
+          "fnr": 0.02,
+          "specificity": 0.95,
+          "fpr_wilson_95_ci": [
+            0.027383,
+            0.089578
+          ],
+          "fpr_wilson_95_upper": 0.089578,
+          "ppv_by_prevalence": {
+            "0.005": 0.089661,
+            "0.01": 0.165261,
+            "0.05": 0.507772,
+            "0.5": 0.951456
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.052111,
+            "0.01": 0.09951,
+            "0.05": 0.365401,
+            "0.5": 0.916249
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 50.75,
+            "0.01": 51.5,
+            "0.05": 57.5,
+            "0.5": 125.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 2488.5,
+            "0.01": 2477.0,
+            "0.05": 2385.0,
+            "0.5": 1350.0
+          }
+        },
+        {
+          "threshold": 0.5,
+          "confusion_matrix": {
+            "tp": 191,
+            "fp": 7,
+            "tn": 193,
+            "fn": 9
+          },
+          "tpr": 0.955,
+          "fpr": 0.035,
+          "fnr": 0.045,
+          "specificity": 0.965,
+          "fpr_wilson_95_ci": [
+            0.017056,
+            0.070471
+          ],
+          "fpr_wilson_95_upper": 0.070471,
+          "ppv_by_prevalence": {
+            "0.005": 0.120581,
+            "0.01": 0.216063,
+            "0.05": 0.589506,
+            "0.5": 0.964646
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.063757,
+            "0.01": 0.120404,
+            "0.05": 0.416313,
+            "0.5": 0.931279
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 37.075,
+            "0.01": 39.15,
+            "0.05": 55.75,
+            "0.5": 242.5
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 1743.5,
+            "0.01": 1737.0,
+            "0.05": 1685.0,
+            "0.5": 1100.0
+          }
+        },
+        {
+          "threshold": 0.6,
+          "confusion_matrix": {
+            "tp": 189,
+            "fp": 4,
+            "tn": 196,
+            "fn": 11
+          },
+          "tpr": 0.945,
+          "fpr": 0.02,
+          "fnr": 0.055,
+          "specificity": 0.98,
+          "fpr_wilson_95_ci": [
+            0.007804,
+            0.050287
+          ],
+          "fpr_wilson_95_upper": 0.050287,
+          "ppv_by_prevalence": {
+            "0.005": 0.191878,
+            "0.01": 0.323077,
+            "0.05": 0.713208,
+            "0.5": 0.979275
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.086285,
+            "0.01": 0.159536,
+            "0.05": 0.49725,
+            "0.5": 0.949475
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 22.65,
+            "0.01": 25.3,
+            "0.05": 46.5,
+            "0.5": 285.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 997.75,
+            "0.01": 995.5,
+            "0.05": 977.5,
+            "0.5": 775.0
+          }
+        },
+        {
+          "threshold": 0.7,
+          "confusion_matrix": {
+            "tp": 178,
+            "fp": 1,
+            "tn": 199,
+            "fn": 22
+          },
+          "tpr": 0.89,
+          "fpr": 0.005,
+          "fnr": 0.11,
+          "specificity": 0.995,
+          "fpr_wilson_95_ci": [
+            0.000883,
+            0.027774
+          ],
+          "fpr_wilson_95_upper": 0.027774,
+          "ppv_by_prevalence": {
+            "0.005": 0.472149,
+            "0.01": 0.642599,
+            "0.05": 0.903553,
+            "0.5": 0.994413
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.138694,
+            "0.01": 0.244531,
+            "0.05": 0.627775,
+            "0.5": 0.969738
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 10.475,
+            "0.01": 15.95,
+            "0.05": 59.75,
+            "0.5": 552.5
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 254.25,
+            "0.01": 258.5,
+            "0.05": 292.5,
+            "0.5": 675.0
+          }
+        },
+        {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 171,
+            "fp": 0,
+            "tn": 200,
+            "fn": 29
+          },
+          "tpr": 0.855,
+          "fpr": 0.0,
+          "fnr": 0.145,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.185662,
+            "0.01": 0.314263,
+            "0.05": 0.704832,
+            "0.5": 0.978434
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 7.25,
+            "0.01": 14.5,
+            "0.05": 72.5,
+            "0.5": 725.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 7.25,
+            "0.01": 14.5,
+            "0.05": 72.5,
+            "0.5": 725.0
+          }
+        },
+        {
+          "threshold": 0.8,
+          "confusion_matrix": {
+            "tp": 161,
+            "fp": 0,
+            "tn": 200,
+            "fn": 39
+          },
+          "tpr": 0.805,
+          "fpr": 0.0,
+          "fnr": 0.195,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.176723,
+            "0.01": 0.301424,
+            "0.05": 0.692143,
+            "0.5": 0.977126
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 9.75,
+            "0.01": 19.5,
+            "0.05": 97.5,
+            "0.5": 975.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 9.75,
+            "0.01": 19.5,
+            "0.05": 97.5,
+            "0.5": 975.0
+          }
+        },
+        {
+          "threshold": 0.85,
+          "confusion_matrix": {
+            "tp": 77,
+            "fp": 0,
+            "tn": 200,
+            "fn": 123
+          },
+          "tpr": 0.385,
+          "fpr": 0.0,
+          "fnr": 0.615,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.093104,
+            "0.01": 0.171061,
+            "0.05": 0.518131,
+            "0.5": 0.953336
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 30.75,
+            "0.01": 61.5,
+            "0.05": 307.5,
+            "0.5": 3075.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 30.75,
+            "0.01": 61.5,
+            "0.05": 307.5,
+            "0.5": 3075.0
+          }
+        },
+        {
+          "threshold": 0.9,
+          "confusion_matrix": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 200,
+            "fn": 200
+          },
+          "tpr": 0.0,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 0.0,
+            "0.01": 0.0,
+            "0.05": 0.0,
+            "0.5": 0.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.0,
+            "0.01": 0.0,
+            "0.05": 0.0,
+            "0.5": 0.0
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 50.0,
+            "0.01": 100.0,
+            "0.05": 500.0,
+            "0.5": 5000.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 50.0,
+            "0.01": 100.0,
+            "0.05": 500.0,
+            "0.5": 5000.0
+          }
+        },
+        {
+          "threshold": 0.95,
+          "confusion_matrix": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 200,
+            "fn": 200
+          },
+          "tpr": 0.0,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.018845
+          ],
+          "fpr_wilson_95_upper": 0.018845,
+          "ppv_by_prevalence": {
+            "0.005": 0.0,
+            "0.01": 0.0,
+            "0.05": 0.0,
+            "0.5": 0.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.0,
+            "0.01": 0.0,
+            "0.05": 0.0,
+            "0.5": 0.0
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 50.0,
+            "0.01": 100.0,
+            "0.05": 500.0,
+            "0.5": 5000.0
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 50.0,
+            "0.01": 100.0,
+            "0.05": 500.0,
+            "0.5": 5000.0
+          }
+        }
+      ],
+      "dual_tier_policies": [
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.75,
+          "tier1_tpr": 0.98,
+          "tier1_fpr": 0.05,
+          "tier1_fnr": 0.02,
+          "tier2_tpr": 0.855,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 50.75,
+            "0.01": 51.5,
+            "0.05": 57.5,
+            "0.5": 125.0
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.8,
+          "tier1_tpr": 0.98,
+          "tier1_fpr": 0.05,
+          "tier1_fnr": 0.02,
+          "tier2_tpr": 0.805,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 50.75,
+            "0.01": 51.5,
+            "0.05": 57.5,
+            "0.5": 125.0
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.85,
+          "tier1_tpr": 0.98,
+          "tier1_fpr": 0.05,
+          "tier1_fnr": 0.02,
+          "tier2_tpr": 0.385,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 50.75,
+            "0.01": 51.5,
+            "0.05": 57.5,
+            "0.5": 125.0
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.9,
+          "tier1_tpr": 0.98,
+          "tier1_fpr": 0.05,
+          "tier1_fnr": 0.02,
+          "tier2_tpr": 0.0,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 50.75,
+            "0.01": 51.5,
+            "0.05": 57.5,
+            "0.5": 125.0
+          }
+        }
+      ]
+    },
+    "oof_composite": {
+      "score_kind": "sf009_oof_composite_n703",
+      "sample_count": 703,
+      "benign_count": 543,
+      "fraud_count": 160,
+      "sample_prevalence": 0.227596,
+      "prevalences": [
+        0.005,
+        0.01,
+        0.05,
+        0.5
+      ],
+      "cost_model": {
+        "cost_fn_escape": 10.0,
+        "cost_fp_tier1_flag": 1.0,
+        "cost_fp_tier2_block": 50.0,
+        "unit": "normalized_cost_per_1000_messages"
+      },
+      "thresholds": [
+        {
+          "threshold": 0.3,
+          "confusion_matrix": {
+            "tp": 157,
+            "fp": 46,
+            "tn": 497,
+            "fn": 3
+          },
+          "tpr": 0.98125,
+          "fpr": 0.084715,
+          "fnr": 0.01875,
+          "specificity": 0.915285,
+          "fpr_wilson_95_ci": [
+            0.064112,
+            0.111152
+          ],
+          "fpr_wilson_95_upper": 0.111152,
+          "ppv_by_prevalence": {
+            "0.005": 0.055005,
+            "0.01": 0.104745,
+            "0.05": 0.37874,
+            "0.5": 0.920528
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.042477,
+            "0.01": 0.081871,
+            "0.05": 0.317234,
+            "0.5": 0.89825
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 85.2285,
+            "0.01": 85.7424,
+            "0.05": 89.8538,
+            "0.5": 136.1073
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 4215.4863,
+            "0.01": 4195.2452,
+            "0.05": 4033.3161,
+            "0.5": 2211.6137
+          }
+        },
+        {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 156,
+            "fp": 44,
+            "tn": 499,
+            "fn": 4
+          },
+          "tpr": 0.975,
+          "fpr": 0.081031,
+          "fnr": 0.025,
+          "specificity": 0.918969,
+          "fpr_wilson_95_ci": [
+            0.060914,
+            0.107034
+          ],
+          "fpr_wilson_95_upper": 0.107034,
+          "ppv_by_prevalence": {
+            "0.005": 0.057017,
+            "0.01": 0.108368,
+            "0.05": 0.387736,
+            "0.5": 0.923268
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.043772,
+            "0.01": 0.08426,
+            "0.05": 0.324066,
+            "0.5": 0.901081
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 81.8762,
+            "0.01": 82.721,
+            "0.05": 89.4797,
+            "0.5": 165.5157
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 4032.5576,
+            "0.01": 4013.5497,
+            "0.05": 3861.4871,
+            "0.5": 2150.7827
+          }
+        },
+        {
+          "threshold": 0.5,
+          "confusion_matrix": {
+            "tp": 154,
+            "fp": 41,
+            "tn": 502,
+            "fn": 6
+          },
+          "tpr": 0.9625,
+          "fpr": 0.075506,
+          "fnr": 0.0375,
+          "specificity": 0.924494,
+          "fpr_wilson_95_ci": [
+            0.056144,
+            0.100833
+          ],
+          "fpr_wilson_95_upper": 0.100833,
+          "ppv_by_prevalence": {
+            "0.005": 0.0602,
+            "0.01": 0.114072,
+            "0.05": 0.401523,
+            "0.5": 0.927258
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.045772,
+            "0.01": 0.08794,
+            "0.05": 0.334396,
+            "0.5": 0.905173
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 77.0039,
+            "0.01": 78.5014,
+            "0.05": 90.4811,
+            "0.5": 225.2532
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 3758.3207,
+            "0.01": 3741.3191,
+            "0.05": 3605.3062,
+            "0.5": 2075.1611
+          }
+        },
+        {
+          "threshold": 0.6,
+          "confusion_matrix": {
+            "tp": 147,
+            "fp": 40,
+            "tn": 503,
+            "fn": 13
+          },
+          "tpr": 0.91875,
+          "fpr": 0.073665,
+          "fnr": 0.08125,
+          "specificity": 0.926335,
+          "fpr_wilson_95_ci": [
+            0.054562,
+            0.098758
+          ],
+          "fpr_wilson_95_upper": 0.098758,
+          "ppv_by_prevalence": {
+            "0.005": 0.058977,
+            "0.01": 0.111885,
+            "0.05": 0.396289,
+            "0.5": 0.925772
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.044661,
+            "0.01": 0.085898,
+            "0.05": 0.328694,
+            "0.5": 0.902941
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 77.359,
+            "0.01": 81.0532,
+            "0.05": 110.6066,
+            "0.5": 443.0824
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 3668.8875,
+            "0.01": 3654.5338,
+            "0.05": 3539.7042,
+            "0.5": 2247.8706
+          }
+        },
+        {
+          "threshold": 0.7,
+          "confusion_matrix": {
+            "tp": 131,
+            "fp": 27,
+            "tn": 516,
+            "fn": 29
+          },
+          "tpr": 0.81875,
+          "fpr": 0.049724,
+          "fnr": 0.18125,
+          "specificity": 0.950276,
+          "fpr_wilson_95_ci": [
+            0.034395,
+            0.071378
+          ],
+          "fpr_wilson_95_upper": 0.071378,
+          "ppv_by_prevalence": {
+            "0.005": 0.07642,
+            "0.01": 0.142605,
+            "0.05": 0.464275,
+            "0.5": 0.942746
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.0545,
+            "0.01": 0.103834,
+            "0.05": 0.376449,
+            "0.5": 0.919812
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 58.5376,
+            "0.01": 67.3515,
+            "0.05": 137.8626,
+            "0.5": 931.1119
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 2482.8194,
+            "0.01": 2479.451,
+            "0.05": 2452.5035,
+            "0.5": 2149.3439
+          }
+        },
+        {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 117,
+            "fp": 13,
+            "tn": 530,
+            "fn": 43
+          },
+          "tpr": 0.73125,
+          "fpr": 0.023941,
+          "fnr": 0.26875,
+          "specificity": 0.976059,
+          "fpr_wilson_95_ci": [
+            0.014044,
+            0.040527
+          ],
+          "fpr_wilson_95_upper": 0.040527,
+          "ppv_by_prevalence": {
+            "0.005": 0.133063,
+            "0.01": 0.235779,
+            "0.05": 0.616501,
+            "0.5": 0.968298
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.083133,
+            "0.01": 0.154161,
+            "0.05": 0.48709,
+            "0.5": 0.947489
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 37.2589,
+            "0.01": 50.5767,
+            "0.05": 157.119,
+            "0.5": 1355.7205
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 1204.5056,
+            "0.01": 1211.9579,
+            "0.05": 1271.5757,
+            "0.5": 1942.2767
+          }
+        },
+        {
+          "threshold": 0.8,
+          "confusion_matrix": {
+            "tp": 100,
+            "fp": 4,
+            "tn": 539,
+            "fn": 60
+          },
+          "tpr": 0.625,
+          "fpr": 0.007366,
+          "fnr": 0.375,
+          "specificity": 0.992634,
+          "fpr_wilson_95_ci": [
+            0.002868,
+            0.018786
+          ],
+          "fpr_wilson_95_upper": 0.018786,
+          "ppv_by_prevalence": {
+            "0.005": 0.29891,
+            "0.01": 0.461499,
+            "0.05": 0.817033,
+            "0.5": 0.988351
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.143236,
+            "0.01": 0.251528,
+            "0.05": 0.636499,
+            "0.5": 0.970819
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 26.0797,
+            "0.01": 44.7928,
+            "0.05": 194.4982,
+            "0.5": 1878.6832
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 385.2325,
+            "0.01": 402.1409,
+            "0.05": 537.4079,
+            "0.5": 2059.1621
+          }
+        },
+        {
+          "threshold": 0.85,
+          "confusion_matrix": {
+            "tp": 91,
+            "fp": 0,
+            "tn": 543,
+            "fn": 69
+          },
+          "tpr": 0.56875,
+          "fpr": 0.0,
+          "fnr": 0.43125,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.007025
+          ],
+          "fpr_wilson_95_upper": 0.007025,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.289186,
+            "0.01": 0.44988,
+            "0.05": 0.809926,
+            "0.5": 0.987799
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 21.5625,
+            "0.01": 43.125,
+            "0.05": 215.625,
+            "0.5": 2156.25
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 21.5625,
+            "0.01": 43.125,
+            "0.05": 215.625,
+            "0.5": 2156.25
+          }
+        },
+        {
+          "threshold": 0.9,
+          "confusion_matrix": {
+            "tp": 74,
+            "fp": 0,
+            "tn": 543,
+            "fn": 86
+          },
+          "tpr": 0.4625,
+          "fpr": 0.0,
+          "fnr": 0.5375,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.007025
+          ],
+          "fpr_wilson_95_upper": 0.007025,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.248592,
+            "0.01": 0.399404,
+            "0.05": 0.776039,
+            "0.5": 0.985038
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 26.875,
+            "0.01": 53.75,
+            "0.05": 268.75,
+            "0.5": 2687.5
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 26.875,
+            "0.01": 53.75,
+            "0.05": 268.75,
+            "0.5": 2687.5
+          }
+        },
+        {
+          "threshold": 0.95,
+          "confusion_matrix": {
+            "tp": 61,
+            "fp": 0,
+            "tn": 543,
+            "fn": 99
+          },
+          "tpr": 0.38125,
+          "fpr": 0.0,
+          "fnr": 0.61875,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.007025
+          ],
+          "fpr_wilson_95_upper": 0.007025,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.214279,
+            "0.01": 0.354083,
+            "0.05": 0.740687,
+            "0.5": 0.981907
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 30.9375,
+            "0.01": 61.875,
+            "0.05": 309.375,
+            "0.5": 3093.75
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 30.9375,
+            "0.01": 61.875,
+            "0.05": 309.375,
+            "0.5": 3093.75
+          }
+        }
+      ],
+      "dual_tier_policies": [
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.75,
+          "tier1_tpr": 0.975,
+          "tier1_fpr": 0.081031,
+          "tier1_fnr": 0.025,
+          "tier2_tpr": 0.73125,
+          "tier2_fpr": 0.023941,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 1249.1229,
+            "0.01": 1244.1022,
+            "0.05": 1203.9365,
+            "0.5": 752.0718
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.8,
+          "tier1_tpr": 0.975,
+          "tier1_fpr": 0.081031,
+          "tier1_fnr": 0.025,
+          "tier2_tpr": 0.625,
+          "tier2_fpr": 0.007366,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 441.029,
+            "0.01": 440.0691,
+            "0.05": 432.3895,
+            "0.5": 345.9945
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.85,
+          "tier1_tpr": 0.975,
+          "tier1_fpr": 0.081031,
+          "tier1_fnr": 0.025,
+          "tier2_tpr": 0.56875,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 81.8762,
+            "0.01": 82.721,
+            "0.05": 89.4797,
+            "0.5": 165.5157
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.9,
+          "tier1_tpr": 0.975,
+          "tier1_fpr": 0.081031,
+          "tier1_fnr": 0.025,
+          "tier2_tpr": 0.4625,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 81.8762,
+            "0.01": 82.721,
+            "0.05": 89.4797,
+            "0.5": 165.5157
+          }
+        }
+      ]
+    },
+    "oof_pure_ml": {
+      "score_kind": "sf009_oof_pure_ml_n703",
+      "sample_count": 703,
+      "benign_count": 543,
+      "fraud_count": 160,
+      "sample_prevalence": 0.227596,
+      "prevalences": [
+        0.005,
+        0.01,
+        0.05,
+        0.5
+      ],
+      "cost_model": {
+        "cost_fn_escape": 10.0,
+        "cost_fp_tier1_flag": 1.0,
+        "cost_fp_tier2_block": 50.0,
+        "unit": "normalized_cost_per_1000_messages"
+      },
+      "thresholds": [
+        {
+          "threshold": 0.3,
+          "confusion_matrix": {
+            "tp": 151,
+            "fp": 46,
+            "tn": 497,
+            "fn": 9
+          },
+          "tpr": 0.94375,
+          "fpr": 0.084715,
+          "fnr": 0.05625,
+          "specificity": 0.915285,
+          "fpr_wilson_95_ci": [
+            0.064112,
+            0.111152
+          ],
+          "fpr_wilson_95_upper": 0.111152,
+          "ppv_by_prevalence": {
+            "0.005": 0.053014,
+            "0.01": 0.101147,
+            "0.05": 0.369616,
+            "0.5": 0.91763
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.040921,
+            "0.01": 0.078989,
+            "0.05": 0.308855,
+            "0.5": 0.894633
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 87.1035,
+            "0.01": 89.4924,
+            "0.05": 108.6038,
+            "0.5": 323.6073
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 4217.3613,
+            "0.01": 4198.9952,
+            "0.05": 4052.0661,
+            "0.5": 2399.1137
+          }
+        },
+        {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 145,
+            "fp": 44,
+            "tn": 499,
+            "fn": 15
+          },
+          "tpr": 0.90625,
+          "fpr": 0.081031,
+          "fnr": 0.09375,
+          "specificity": 0.918969,
+          "fpr_wilson_95_ci": [
+            0.060914,
+            0.107034
+          ],
+          "fpr_wilson_95_upper": 0.107034,
+          "ppv_by_prevalence": {
+            "0.005": 0.05321,
+            "0.01": 0.101503,
+            "0.05": 0.370526,
+            "0.5": 0.917925
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.040811,
+            "0.01": 0.078786,
+            "0.05": 0.308259,
+            "0.5": 0.894369
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 85.3137,
+            "0.01": 89.596,
+            "0.05": 123.8547,
+            "0.5": 509.2657
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 4035.9951,
+            "0.01": 4020.4247,
+            "0.05": 3895.8621,
+            "0.5": 2494.5327
+          }
+        },
+        {
+          "threshold": 0.5,
+          "confusion_matrix": {
+            "tp": 132,
+            "fp": 41,
+            "tn": 502,
+            "fn": 28
+          },
+          "tpr": 0.825,
+          "fpr": 0.075506,
+          "fnr": 0.175,
+          "specificity": 0.924494,
+          "fpr_wilson_95_ci": [
+            0.056144,
+            0.100833
+          ],
+          "fpr_wilson_95_upper": 0.100833,
+          "ppv_by_prevalence": {
+            "0.005": 0.052048,
+            "0.01": 0.099396,
+            "0.05": 0.365105,
+            "0.5": 0.916151
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.039491,
+            "0.01": 0.076336,
+            "0.05": 0.301004,
+            "0.5": 0.891089
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 83.8789,
+            "0.01": 92.2514,
+            "0.05": 159.2311,
+            "0.5": 912.7532
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 3765.1957,
+            "0.01": 3755.0691,
+            "0.05": 3674.0562,
+            "0.5": 2762.6611
+          }
+        },
+        {
+          "threshold": 0.6,
+          "confusion_matrix": {
+            "tp": 104,
+            "fp": 40,
+            "tn": 503,
+            "fn": 56
+          },
+          "tpr": 0.65,
+          "fpr": 0.073665,
+          "fnr": 0.35,
+          "specificity": 0.926335,
+          "fpr_wilson_95_ci": [
+            0.054562,
+            0.098758
+          ],
+          "fpr_wilson_95_upper": 0.098758,
+          "ppv_by_prevalence": {
+            "0.005": 0.042458,
+            "0.01": 0.081835,
+            "0.05": 0.31713,
+            "0.5": 0.898206
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.032015,
+            "0.01": 0.062338,
+            "0.05": 0.257283,
+            "0.5": 0.868104
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 90.7965,
+            "0.01": 107.9282,
+            "0.05": 244.9816,
+            "0.5": 1786.8324
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 3682.325,
+            "0.01": 3681.4088,
+            "0.05": 3674.0792,
+            "0.5": 3591.6206
+          }
+        },
+        {
+          "threshold": 0.7,
+          "confusion_matrix": {
+            "tp": 93,
+            "fp": 27,
+            "tn": 516,
+            "fn": 67
+          },
+          "tpr": 0.58125,
+          "fpr": 0.049724,
+          "fnr": 0.41875,
+          "specificity": 0.950276,
+          "fpr_wilson_95_ci": [
+            0.034395,
+            0.071378
+          ],
+          "fpr_wilson_95_upper": 0.071378,
+          "ppv_by_prevalence": {
+            "0.005": 0.055482,
+            "0.01": 0.105607,
+            "0.05": 0.380897,
+            "0.5": 0.921195
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.039312,
+            "0.01": 0.076004,
+            "0.05": 0.300011,
+            "0.5": 0.89063
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 70.4126,
+            "0.01": 91.1015,
+            "0.05": 256.6126,
+            "0.5": 2118.6119
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 2494.6944,
+            "0.01": 2503.201,
+            "0.05": 2571.2535,
+            "0.5": 3336.8439
+          }
+        },
+        {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 86,
+            "fp": 13,
+            "tn": 530,
+            "fn": 74
+          },
+          "tpr": 0.5375,
+          "fpr": 0.023941,
+          "fnr": 0.4625,
+          "specificity": 0.976059,
+          "fpr_wilson_95_ci": [
+            0.014044,
+            0.040527
+          ],
+          "fpr_wilson_95_upper": 0.040527,
+          "ppv_by_prevalence": {
+            "0.005": 0.101381,
+            "0.01": 0.184856,
+            "0.05": 0.541627,
+            "0.5": 0.957358
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.062483,
+            "0.01": 0.11814,
+            "0.05": 0.411086,
+            "0.5": 0.929887
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 46.9464,
+            "0.01": 69.9517,
+            "0.05": 253.994,
+            "0.5": 2324.4705
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 1214.1931,
+            "0.01": 1231.3329,
+            "0.05": 1368.4507,
+            "0.5": 2911.0267
+          }
+        },
+        {
+          "threshold": 0.8,
+          "confusion_matrix": {
+            "tp": 79,
+            "fp": 4,
+            "tn": 539,
+            "fn": 81
+          },
+          "tpr": 0.49375,
+          "fpr": 0.007366,
+          "fnr": 0.50625,
+          "specificity": 0.992634,
+          "fpr_wilson_95_ci": [
+            0.002868,
+            0.018786
+          ],
+          "fpr_wilson_95_upper": 0.018786,
+          "ppv_by_prevalence": {
+            "0.005": 0.251954,
+            "0.01": 0.40371,
+            "0.05": 0.779138,
+            "0.5": 0.9853
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.116666,
+            "0.01": 0.209788,
+            "0.05": 0.580415,
+            "0.5": 0.963347
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 32.6422,
+            "0.01": 57.9178,
+            "0.05": 260.1232,
+            "0.5": 2534.9332
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 391.795,
+            "0.01": 415.2659,
+            "0.05": 603.0329,
+            "0.5": 2715.4121
+          }
+        },
+        {
+          "threshold": 0.85,
+          "confusion_matrix": {
+            "tp": 66,
+            "fp": 0,
+            "tn": 543,
+            "fn": 94
+          },
+          "tpr": 0.4125,
+          "fpr": 0.0,
+          "fnr": 0.5875,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.007025
+          ],
+          "fpr_wilson_95_upper": 0.007025,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.227841,
+            "0.01": 0.372301,
+            "0.05": 0.755529,
+            "0.5": 0.983255
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 29.375,
+            "0.01": 58.75,
+            "0.05": 293.75,
+            "0.5": 2937.5
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 29.375,
+            "0.01": 58.75,
+            "0.05": 293.75,
+            "0.5": 2937.5
+          }
+        },
+        {
+          "threshold": 0.9,
+          "confusion_matrix": {
+            "tp": 47,
+            "fp": 0,
+            "tn": 543,
+            "fn": 113
+          },
+          "tpr": 0.29375,
+          "fpr": 0.0,
+          "fnr": 0.70625,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.007025
+          ],
+          "fpr_wilson_95_upper": 0.007025,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.173639,
+            "0.01": 0.29695,
+            "0.05": 0.687577,
+            "0.5": 0.976644
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 35.3125,
+            "0.01": 70.625,
+            "0.05": 353.125,
+            "0.5": 3531.25
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 35.3125,
+            "0.01": 70.625,
+            "0.05": 353.125,
+            "0.5": 3531.25
+          }
+        },
+        {
+          "threshold": 0.95,
+          "confusion_matrix": {
+            "tp": 35,
+            "fp": 0,
+            "tn": 543,
+            "fn": 125
+          },
+          "tpr": 0.21875,
+          "fpr": 0.0,
+          "fnr": 0.78125,
+          "specificity": 1.0,
+          "fpr_wilson_95_ci": [
+            0.0,
+            0.007025
+          ],
+          "fpr_wilson_95_upper": 0.007025,
+          "ppv_by_prevalence": {
+            "0.005": 1.0,
+            "0.01": 1.0,
+            "0.05": 1.0,
+            "0.5": 1.0
+          },
+          "ppv_at_fpr_wilson_95_upper_by_prevalence": {
+            "0.005": 0.135304,
+            "0.01": 0.239274,
+            "0.05": 0.621052,
+            "0.5": 0.968885
+          },
+          "expected_cost_per_1000_tier1_flag": {
+            "0.005": 39.0625,
+            "0.01": 78.125,
+            "0.05": 390.625,
+            "0.5": 3906.25
+          },
+          "expected_cost_per_1000_tier2_block": {
+            "0.005": 39.0625,
+            "0.01": 78.125,
+            "0.05": 390.625,
+            "0.5": 3906.25
+          }
+        }
+      ],
+      "dual_tier_policies": [
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.75,
+          "tier1_tpr": 0.90625,
+          "tier1_fpr": 0.081031,
+          "tier1_fnr": 0.09375,
+          "tier2_tpr": 0.5375,
+          "tier2_fpr": 0.023941,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 1252.5604,
+            "0.01": 1250.9772,
+            "0.05": 1238.3115,
+            "0.5": 1095.8218
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.8,
+          "tier1_tpr": 0.90625,
+          "tier1_fpr": 0.081031,
+          "tier1_fnr": 0.09375,
+          "tier2_tpr": 0.49375,
+          "tier2_fpr": 0.007366,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 444.4665,
+            "0.01": 446.9441,
+            "0.05": 466.7645,
+            "0.5": 689.7445
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.85,
+          "tier1_tpr": 0.90625,
+          "tier1_fpr": 0.081031,
+          "tier1_fnr": 0.09375,
+          "tier2_tpr": 0.4125,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 85.3137,
+            "0.01": 89.596,
+            "0.05": 123.8547,
+            "0.5": 509.2657
+          }
+        },
+        {
+          "tier1_flag_threshold": 0.4,
+          "tier2_block_threshold": 0.9,
+          "tier1_tpr": 0.90625,
+          "tier1_fpr": 0.081031,
+          "tier1_fnr": 0.09375,
+          "tier2_tpr": 0.29375,
+          "tier2_fpr": 0.0,
+          "expected_cost_per_1000_by_prevalence": {
+            "0.005": 85.3137,
+            "0.01": 89.596,
+            "0.05": 123.8547,
+            "0.5": 509.2657
+          }
+        }
+      ]
+    }
+  }
 }
