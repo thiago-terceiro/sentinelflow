@@ -9,7 +9,7 @@
 - **Evaluation Dataset SHA-256:** `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03`
 - **Canonical 400-Row Predictions Artifact:** `benchmark_predictions_400.json`
 - **Canonical 400-Row Predictions SHA-256:** `66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e`
-- **Timestamp:** `2026-11-11T16:19:19.585975+00:00`
+- **Timestamp:** `2026-11-11T16:58:08.054889+00:00`
 - **Evaluator Engine:** `ONNXRuntime-CPU (AVX-512)`
 - **Software Versions:** `onnxruntime=1.31.0`, `numpy=2.5.4`, `scikit-learn=1.9.1`
 - **Dataset Size:** 400 samples (200 Benign, 200 Fraud)
@@ -196,48 +196,92 @@ S_{\text{content}} + V \cdot (1 - S_{\text{content}}) & \text{otherwise \quad (P
 | **Fine-Grained Families** | 56 | 0.9559 | 0.8751 | 0.0678 | 0.7928 | `[0.2158, 0.2448]` |
 | **Macro Bank 2-Way (`legit_bank_2way_macro`)** | 54 | 0.9309 | 0.7330 | 0.0842 | 0.7831 | `[0.1987, 0.2500]` |
 
-## 10. Operational Cost Matrix & Bayes Base-Rate Prevalence Sensitivity (`SF-012`)
+## 10. Exploratory Threshold Sensitivity, Group-Aware Uncertainty & Assumed Cost Analysis (`SF-012` / `SF-012R`)
 
-> **External Validation Blocker (`UNAVAILABLE_BLOCKED`):** No Class C primary external two-class fraud holdout exists (UNAVAILABLE_BLOCKED per SF-010/SF-011; no N=300 external holdout exists). Curves summarize internal Dev/Val (N=400) and SF-009 Nested 5-Fold OOF (N=703) behavior strictly for analytical threshold justification, not verified live carrier generalization.
+> **External Validation Blocker (`UNAVAILABLE_BLOCKED`):** No Class C primary external two-class fraud holdout exists (UNAVAILABLE_BLOCKED per SF-010/SF-011; no N=300 external holdout exists). Internal Dev/Val (N=400) and SF-009 grouped OOF (N=703, G=56) sweeps are exploratory sensitivity analyses only, not independent threshold validation, observed carrier precision, or measured operational costs.
 
-- **Asymmetric Cost Matrix (per 1,000 messages):** $C_{\text{FN, Escape}} = 10.0$, $C_{\text{FP, Tier1\_Flag}} = 1.0$, $C_{\text{FP, Tier2\_Block}} = 50.0$ (ratio $50:10:1$ prioritizing protection of legitimate banking/OTP traffic against silent wire drops).
-- **Bayes Precision Law:** $\text{PPV}(\pi) = \frac{\text{TPR}\cdot \pi}{\text{TPR}\cdot \pi + \text{FPR}\cdot (1-\pi)}$ for live carrier prevalence $\pi \in \{0.5\%, 1.0\%, 5.0\%, 50.0\%\}$.
+### Evidence Scope & Permitted Interpretation Boundaries
 
-### Dev/Val Benchmark ($N = 400$) Composite Score ($S_{\text{composite}}, V = 0.0$) Sweep
+| Evidence | Permitted Interpretation |
+|---|---|
+| Dev/Val N=400 | Development/validation evidence; not independent holdout evidence |
+| SF-009 grouped OOF N=703 | Exploratory unseen-family estimates; not an untouched final test set |
+| Threshold sweep | Sensitivity analysis; not independent threshold selection validation |
+| Assumed cost ratios | Illustrative decision model; not measured operational costs |
+| Bayes PPV calculations | Modeled prevalence sensitivity; not observed production precision |
+| Class C external holdout | Unavailable; external generalization remains unverified |
 
-| $\tau$ | TPR (Recall) | FPR (95% Wilson Upper) | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% | PPV @ 50.0% | Cost/1k (Tier 1 @ 1%) | Cost/1k (Tier 2 @ 1%) |
+### Methodological Distinction (Exploratory Inspection vs. Independent Validation)
+
+- **Threshold Sensitivity Analysis:** Exploratory inspection of TPR, FPR, group error concentration, Bayes PPV sensitivity, and illustrative assumed-cost rankings across candidate cutoffs tau in [0.30, 0.95] on internal Dev/Val (N=400) and grouped OOF (N=703).
+- **Threshold Selection (Exploratory Only):** Inspecting multiple thresholds on OOF predictions and noting any candidate (e.g. tau=0.85) constitutes exploratory selection against that same OOF data; it cannot simultaneously serve as an unbiased confirmation of the chosen cutoff.
+- **Independent Threshold Validation:** Unavailable (UNAVAILABLE_BLOCKED): requires frozen one-shot evaluation on an untouched qualified Class C external holdout, which does not exist.
+- **Production Defaults & Provisional Status:** Production runtime defaults (`0.40` Tier-1 `FLAG`, `0.75` Tier-2 `BLOCK`) are unchanged. Any higher candidate such as `tau = 0.85` is strictly an unvalidated exploratory/provisional candidate for future Class C evaluation, NOT an empirically validated production optimum.
+
+### Dev/Val Benchmark ($N = 400$, Non-Independent Development Suite) Descriptive Sweep
+
+| $\tau$ | TP / FP / TN / FN | TPR | FPR (Descriptive Row 95% Wilson Upper) | Modeled PPV @ 0.2% | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% | PPV @ 50.0% |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| `0.30` | 100.00% | 7.00% (`11.41%`) | 6.70% | 12.61% | 42.92% | 93.46% | 69.30 | 3465.00 |
-| `0.40` | 100.00% | 5.00% (`8.96%`) | 9.13% | 16.81% | 51.28% | 95.24% | 49.50 | 2475.00 |
-| `0.50` | 100.00% | 3.50% (`7.05%`) | 12.55% | 22.40% | 60.06% | 96.62% | 34.65 | 1732.50 |
-| `0.60` | 98.00% | 2.00% (`5.03%`) | 19.76% | 33.11% | 72.06% | 98.00% | 21.80 | 992.00 |
-| `0.70` | 92.00% | 0.50% (`2.78%`) | 48.04% | 65.02% | 90.64% | 99.46% | 12.95 | 255.50 |
-| `0.75` | 89.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 10.50 | 10.50 |
-| `0.80` | 85.00% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 15.00 | 15.00 |
-| `0.85` | 74.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 25.50 | 25.50 |
-| `0.90` | 65.00% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 35.00 | 35.00 |
-| `0.95` | 32.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 67.50 | 67.50 |
+| `0.30` | 200/14/186/0 | 100.00% | 7.00% (`11.41%`) | 2.78% | 6.70% | 12.61% | 42.92% | 93.46% |
+| `0.40` | 200/10/190/0 | 100.00% | 5.00% (`8.96%`) | 3.85% | 9.13% | 16.81% | 51.28% | 95.24% |
+| `0.50` | 200/7/193/0 | 100.00% | 3.50% (`7.05%`) | 5.42% | 12.55% | 22.40% | 60.06% | 96.62% |
+| `0.60` | 196/4/196/4 | 98.00% | 2.00% (`5.03%`) | 8.94% | 19.76% | 33.11% | 72.06% | 98.00% |
+| `0.70` | 184/1/199/16 | 92.00% | 0.50% (`2.78%`) | 26.94% | 48.04% | 65.02% | 90.64% | 99.46% |
+| `0.75` | 179/0/200/21 | 89.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% |
+| `0.80` | 170/0/200/30 | 85.00% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% |
+| `0.85` | 149/0/200/51 | 74.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% |
+| `0.90` | 130/0/200/70 | 65.00% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% |
+| `0.95` | 65/0/200/135 | 32.50% | 0.00% (`1.88%`) | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% |
 
-### `SF-009` Nested 5-Fold Unseen-Family OOF ($N = 703$, $G = 56$) Composite Sweep
+### `SF-009` Grouped OOF ($N = 703$, $G = 56$ Semantic Families) Exploratory Group-Aware Analysis
 
-| $\tau$ | TPR (Recall) | FPR (95% Wilson Upper) | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% | PPV @ 50.0% | Cost/1k (Tier 1 @ 1%) | Cost/1k (Tier 2 @ 1%) |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| `0.30` | 98.12% | 8.47% (`11.12%`) | 5.50% | 10.47% | 37.87% | 92.05% | 85.74 | 4195.25 |
-| `0.40` | 97.50% | 8.10% (`10.70%`) | 5.70% | 10.84% | 38.77% | 92.33% | 82.72 | 4013.55 |
-| `0.50` | 96.25% | 7.55% (`10.08%`) | 6.02% | 11.41% | 40.15% | 92.73% | 78.50 | 3741.32 |
-| `0.60` | 91.88% | 7.37% (`9.88%`) | 5.90% | 11.19% | 39.63% | 92.58% | 81.05 | 3654.53 |
-| `0.70` | 81.88% | 4.97% (`7.14%`) | 7.64% | 14.26% | 46.43% | 94.27% | 67.35 | 2479.45 |
-| `0.75` | 73.12% | 2.39% (`4.05%`) | 13.31% | 23.58% | 61.65% | 96.83% | 50.58 | 1211.96 |
-| `0.80` | 62.50% | 0.74% (`1.88%`) | 29.89% | 46.15% | 81.70% | 98.84% | 44.79 | 402.14 |
-| `0.85` | 56.88% | 0.00% (`0.70%`) | 100.00% | 100.00% | 100.00% | 100.00% | 43.12 | 43.12 |
-| `0.90` | 46.25% | 0.00% (`0.70%`) | 100.00% | 100.00% | 100.00% | 100.00% | 53.75 | 53.75 |
-| `0.95` | 38.12% | 0.00% (`0.70%`) | 100.00% | 100.00% | 100.00% | 100.00% | 61.88 | 61.88 |
+- **Group Distribution:** `56` semantic families (`37` purely benign covering `543` messages, cluster sizes min=`2` / median=`6.0` / max=`53`; `19` purely fraud covering `160` messages, sizes min=`2` / median=`4.0` / max=`35`; mixed-label groups=`0`).
+- **Group-Concentration Finding:** At `tau = 0.60..0.80`, `100%` of OOF false positives (`40` at `0.60`, `27` at `0.70`, `13` at `0.75`, `4` at `0.80`) occur inside one benign family (`legit_bank_security_alert_12`), leaving `36 / 37` benign groups with `0` FPs. Row-level Wilson intervals severely understate this clustered uncertainty.
+- **Resampling & Zero-Event Assumptions:** Cluster bootstrap draws `G = 56` intact semantic families with replacement (`B = 1000`, `seed = 42`, valid vs. undefined replicates reported). At `tau >= 0.85`, `0 / 37` benign groups fail: bootstrap degenerates (`[0, 0]`, omitted as CI), a binomial bound on `0 / 37` bounds **affected-family probability** (`<= 7.78%` one-sided Clopper-Pearson / `<= 9.41%` Wilson) rather than message-level carrier FPR, and no ICC, DEFF, or effective sample size is invented.
 
-### Joint Dual-Tier Operational Policy Comparison (Normalized Cost per 1,000 Messages)
+| $\tau$ | TP/FP/TN/FN | TPR (Cluster 95% CI) | FPR | FP Benign Groups | FPR Cluster 95% CI / Group Zero-Event Bound | Valid Boot Reps (TPR/FPR) | Row Wilson FPR Upper (Ref Only) |
+|:---:|:---:|:---:|:---:|:---:|---|:---:|:---:|
+| `0.30` | 157/46/497/3 | 98.12% (`[93.90%, 100.00%]`) | 8.47% | `6 / 37` | `[0.47%, 24.48%]` | 1000/1000 (undef 0/0) | `11.12%` |
+| `0.40` | 156/44/499/4 | 97.50% (`[92.68%, 99.54%]`) | 8.10% | `5 / 37` | `[0.26%, 24.45%]` | 1000/1000 (undef 0/0) | `10.70%` |
+| `0.50` | 154/41/502/6 | 96.25% (`[88.31%, 99.08%]`) | 7.55% | `2 / 37` | `[0.00%, 24.03%]` | 1000/1000 (undef 0/0) | `10.08%` |
+| `0.60` | 147/40/503/13 | 91.88% (`[81.03%, 96.69%]`) | 7.37% | `1 / 37` (`legit_bank_security_alert_12`=40) | `[0.00%, 24.02%]` | 1000/1000 (undef 0/0) | `9.88%` |
+| `0.70` | 131/27/516/29 | 81.88% (`[58.06%, 92.41%]`) | 4.97% | `1 / 37` (`legit_bank_security_alert_12`=27) | `[0.00%, 16.22%]` | 1000/1000 (undef 0/0) | `7.14%` |
+| `0.75` | 117/13/530/43 | 73.12% (`[50.00%, 89.19%]`) | 2.39% | `1 / 37` (`legit_bank_security_alert_12`=13) | `[0.00%, 7.81%]` | 1000/1000 (undef 0/0) | `4.05%` |
+| `0.80` | 100/4/539/60 | 62.50% (`[30.53%, 86.24%]`) | 0.74% | `1 / 37` (`legit_bank_security_alert_12`=4) | `[0.00%, 2.40%]` | 1000/1000 (undef 0/0) | `1.88%` |
+| `0.85` | 91/0/543/69 | 56.88% (`[22.88%, 81.54%]`) | 0.00% | `0 / 37` | Degenerate (0 FP groups); Family-level zero-event <= `7.78%` (CP-95) / `9.41%` (Wilson) — not message FPR | 1000/1000 (undef 0/0) | `0.70%` |
+| `0.90` | 74/0/543/86 | 46.25% (`[14.46%, 70.73%]`) | 0.00% | `0 / 37` | Degenerate (0 FP groups); Family-level zero-event <= `7.78%` (CP-95) / `9.41%` (Wilson) — not message FPR | 1000/1000 (undef 0/0) | `0.70%` |
+| `0.95` | 61/0/543/99 | 38.12% (`[9.90%, 63.76%]`) | 0.00% | `0 / 37` | Degenerate (0 FP groups); Family-level zero-event <= `7.78%` (CP-95) / `9.41%` (Wilson) — not message FPR | 1000/1000 (undef 0/0) | `0.70%` |
 
-| Cohort | Policy `(tau_flag, tau_block)` | Tier-1 Recall / FPR | Tier-2 Recall / FPR | Cost @ 0.5% | Cost @ 1.0% | Cost @ 5.0% | Cost @ 50.0% |
-|---|---|---:|---:|---:|---:|---:|---:|
-| Dev/Val N=400 | `(0.40, 0.75)` | 100.00% / 5.00% | 89.50% / 0.00% | 49.75 | 49.50 | 47.50 | 25.00 |
-| Dev/Val N=400 | `(0.40, 0.85)` | 100.00% / 5.00% | 74.50% / 0.00% | 49.75 | 49.50 | 47.50 | 25.00 |
-| SF-009 OOF N=703 | `(0.40, 0.75)` | 97.50% / 8.10% | 73.12% / 2.39% | 1249.12 | 1244.10 | 1203.94 | 752.07 |
-| SF-009 OOF N=703 | `(0.40, 0.85)` | 97.50% / 8.10% | 56.88% / 0.00% | 81.88 | 82.72 | 89.48 | 165.52 |
+### Modeled Bayes Base-Rate PPV Sensitivity Scenarios (Illustrative Only — Not Observed Precision or PPV CIs)
+
+- Actual deployment smishing prevalence $\pi$ is unknown without live carrier measurement. Zero observed OOF false positives (`0 / 543` in `0 / 37` groups) yields `100%` point PPV mechanically, whereas plausible non-zero FPRs dramatically lower precision (e.g., at `tau = 0.85`, `TPR = 56.88%`, `pi = 0.5%`, even descriptive row-level Wilson upper `0.70%` implies `28.92%` PPV, not `100%`).
+
+| $\tau$ | Sensitivity Scenario | Assumed TPR | Assumed FPR | Modeled PPV @ 0.2% | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% |
+|:---:|---|---:|---:|:---:|:---:|:---:|:---:|
+| `0.40` | OOF point estimate | 97.50% | 8.10% | 2.35% | 5.70% | 10.84% | 38.77% |
+| `0.40` | Point TPR + descriptive row Wilson FPR upper (ref only) | 97.50% | 10.70% | 1.79% | 4.38% | 8.43% | 32.41% |
+| `0.75` | OOF point estimate | 73.12% | 2.39% | 5.77% | 13.31% | 23.58% | 61.65% |
+| `0.75` | Point TPR + descriptive row Wilson FPR upper (ref only) | 73.12% | 4.05% | 3.49% | 8.31% | 15.42% | 48.71% |
+| `0.80` | OOF point estimate | 62.50% | 0.74% | 14.53% | 29.89% | 46.15% | 81.70% |
+| `0.80` | Point TPR + descriptive row Wilson FPR upper (ref only) | 62.50% | 1.88% | 6.25% | 14.32% | 25.15% | 63.65% |
+| `0.85` | OOF point estimate | 56.88% | 0.00% | 100.00% | 100.00% | 100.00% | 100.00% |
+| `0.85` | Point TPR + descriptive row Wilson FPR upper (ref only) | 56.88% | 0.70% | 13.96% | 28.92% | 44.99% | 80.99% |
+| `0.85` | Cluster 2.5% TPR + descriptive row Wilson FPR upper | 22.88% | 0.70% | 6.13% | 14.06% | 24.75% | 63.16% |
+| `0.85` | Cluster 2.5% TPR + illustrative 0.5% tail FPR stress | 22.88% | 0.50% | 8.40% | 18.70% | 31.61% | 70.66% |
+
+### Illustrative Assumed Cost-Ratio Sensitivity (`10:1:50` Baseline & Alternative Ratios)
+
+- **Cost Evidence Distinction:** (1) *Mathematical cost under assumed ratios* is computed below as an illustrative normalized sensitivity check only (units are NOT euros, churn dollars, or carrier expenses); (2) *Empirically measured operational cost* is unavailable; (3) *Operational policy decisions* require both measured costs and independent Class C validation.
+- **Ranking Sensitivity Finding (`cost_assumption_sensitive = True`):** Threshold preferences shift materially across assumed cost weights and prevalence $\pi$ (e.g. under baseline `10:1:50` at `pi <= 1%`, `(0.85, 0.85)` ranks lower-cost than `(0.40, 0.85)` because Tier-1 benign flags dominate unless fraud escape cost increases, whereas `(0.40, 0.85)` or `(0.30, 0.85)` dominates when escape cost rises to `50..100`, and single-threshold ranking drops from `0.85` to `0.40` at `pi = 5%` under `(50, 1, 5)`). Cost-minimizing cutoffs are assumption-sensitive, not proven optima.
+
+| Assumed Cost Scenario `(C_FN, C_T1_FP, C_T2_FP)` | $\pi=0.2\%$ Single / Dual Top | $\pi=0.5\%$ Single / Dual Top | $\pi=1.0\%$ Single / Dual Top | $\pi=5.0\%$ Single / Dual Top |
+|---|---|---|---|---|
+| `assumed_baseline_10_1_50` `(10, 1, 50)` | `0.85` (8.62) / `(0.85, 0.85)` (8.62) | `0.85` (21.56) / `(0.85, 0.85)` (21.56) | `0.85` (43.12) / `(0.85, 0.85)` (43.12) | `0.85` (215.62) / `(0.40, 0.85)` (89.48) |
+| `low_block_high_escape_50_1_5` `(50, 1, 5)` | `0.85` (43.12) / `(0.85, 0.85)` (43.12) | `0.85` (107.81) / `(0.50, 0.85)` (84.50) | `0.85` (215.62) / `(0.40, 0.85)` (92.72) | `0.40` (447.40) / `(0.30, 0.85)` (127.35) |
+| `moderate_block_high_escape_25_1_10` `(25, 1, 10)` | `0.85` (21.56) / `(0.85, 0.85)` (21.56) | `0.85` (53.91) / `(0.85, 0.85)` (53.91) | `0.85` (107.81) / `(0.50, 0.85)` (84.13) | `0.80` (538.73) / `(0.30, 0.85)` (103.92) |
+| `low_escape_baseline_block_2_1_50` `(2, 1, 50)` | `0.85` (1.73) / `(0.85, 0.85)` (1.73) | `0.85` (4.31) / `(0.85, 0.85)` (4.31) | `0.85` (8.62) / `(0.85, 0.85)` (8.62) | `0.85` (43.12) / `(0.85, 0.85)` (43.12) |
+| `equal_escape_block_50_1_50` `(50, 1, 50)` | `0.85` (43.12) / `(0.85, 0.85)` (43.12) | `0.85` (107.81) / `(0.50, 0.85)` (84.50) | `0.85` (215.62) / `(0.40, 0.85)` (92.72) | `0.85` (1078.12) / `(0.30, 0.85)` (127.35) |
+| `high_escape_100_1_50` `(100, 1, 50)` | `0.85` (86.25) / `(0.75, 0.85)` (77.64) | `0.85` (215.62) / `(0.40, 0.85)` (93.13) | `0.85` (431.25) / `(0.30, 0.85)` (102.62) | `0.85` (2156.25) / `(0.30, 0.85)` (174.23) |
+| `high_block_250_1_250` `(10, 1, 250)` | `0.85` (8.62) / `(0.85, 0.85)` (8.62) | `0.85` (21.56) / `(0.85, 0.85)` (21.56) | `0.85` (43.12) / `(0.85, 0.85)` (43.12) | `0.85` (215.62) / `(0.40, 0.85)` (89.48) |
+| `extreme_block_5_1_500` `(5, 1, 500)` | `0.85` (4.31) / `(0.85, 0.85)` (4.31) | `0.85` (10.78) / `(0.85, 0.85)` (10.78) | `0.85` (21.56) / `(0.85, 0.85)` (21.56) | `0.85` (107.81) / `(0.50, 0.85)` (81.11) |
+| `high_review_overhead_10_5_50` `(10, 5, 50)` | `0.85` (8.62) / `(0.85, 0.85)` (8.62) | `0.85` (21.56) / `(0.85, 0.85)` (21.56) | `0.85` (43.12) / `(0.85, 0.85)` (43.12) | `0.85` (215.62) / `(0.85, 0.85)` (215.62) |

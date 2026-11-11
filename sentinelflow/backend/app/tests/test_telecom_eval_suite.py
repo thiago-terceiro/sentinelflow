@@ -1748,7 +1748,7 @@ def test_bayes_prevalence_precision_and_threshold_sweep() -> None:
     report_mirror = canonical["report_mirror"].read_bytes()
     assert report_root == report_mirror
     report_text = report_root.decode("utf-8")
-    assert "Operational Cost Matrix & Bayes Base-Rate Prevalence Sensitivity" in report_text
+    assert "Exploratory Threshold Sensitivity, Group-Aware Uncertainty" in report_text
     assert "UNAVAILABLE_BLOCKED" in report_text
 
     workspace_root = canonical["report_root"].parents[1]
@@ -1756,5 +1756,265 @@ def test_bayes_prevalence_precision_and_threshold_sweep() -> None:
     sys_mirror = (workspace_root / "sentinelflow" / "SYSTEM_DESIGN.md").read_bytes()
     assert sys_root == sys_mirror
     sys_text = sys_root.decode("utf-8")
-    assert "4.2 Decision Policy, Cost Model & Base-Rate Prevalence Analysis" in sys_text
+    assert "4.2 Exploratory Decision Policy, Group Uncertainty & Cost Sensitivity" in sys_text
     assert "UNAVAILABLE / BLOCKED" in sys_text
+
+
+def test_sf012r_grouped_uncertainty_ppv_scenarios_cost_sensitivity_and_language_guardrails() -> (
+    None
+):
+    """Verifies SF-012R statistical remediation: group bootstrap, zero-event limits, PPV, cost & wording."""
+    import numpy as np
+    from app.telecom.dataset_quarantine import FROZEN_ONNX_MODEL_SHA256
+    from app.telecom.evaluate_model import (
+        DEFAULT_PREVALENCE_RATES,
+        DEFAULT_SWEEP_THRESHOLDS,
+        compute_base_rate_ppv,
+        compute_expected_cost_per_1000,
+        compute_threshold_sensitivity_analysis,
+        get_canonical_artifact_paths,
+    )
+
+    canonical = get_canonical_artifact_paths()
+    telecom_dir = canonical["model"].resolve().parents[1]
+    oof_path = telecom_dir / "oof_predictions.json"
+    oof_raw = json.loads(oof_path.read_text(encoding="utf-8"))
+
+    # 1. Existing SF-009 OOF artifacts and frozen hashes remain preserved
+    assert hashlib.sha256(canonical["model"].read_bytes()).hexdigest() == FROZEN_ONNX_MODEL_SHA256
+    assert len(oof_raw) == 703
+    assert all(r["family_id"] and r["family_id"] == r["eval_group_id"] for r in oof_raw)
+
+    metrics = json.loads(canonical["metrics"].read_text(encoding="utf-8"))
+    metadata = json.loads(canonical["metadata"].read_text(encoding="utf-8"))
+    assert metrics["oof_cross_validation"] == metadata["oof_cross_validation"]
+    assert (
+        metrics["oof_cross_validation"]["oof_predictions_sha256"]
+        == hashlib.sha256(oof_path.read_bytes()).hexdigest()
+    )
+
+    analysis = metrics["threshold_and_base_rate_analysis"]
+    assert (
+        analysis["analysis_classification"] == "exploratory_sensitivity_and_assumed_cost_analysis"
+    )
+    assert analysis["independent_threshold_validation_available"] is False
+    assert analysis["external_validation_status"] == "UNAVAILABLE_BLOCKED"
+    assert analysis["default_operational_thresholds"] == {
+        "tier1_flag_threshold": 0.4,
+        "tier2_block_threshold": 0.75,
+    }
+    assert (
+        analysis["provisional_threshold_status"]["provisional_candidates"][0]["threshold"] == 0.85
+    )
+    assert (
+        analysis["provisional_threshold_status"]["provisional_candidates"][0]["classification"]
+        == "unvalidated_provisional_candidate_for_future_external_eval"
+    )
+    assert len(analysis["evidence_interpretation_boundaries"]) == 6
+
+    # 2. Full reconciliation of SF-012 OOF sweep & group FP counts against oof_predictions.json
+    for cohort_key, score_field in (
+        ("oof_composite", "oof_composite_score"),
+        ("oof_pure_ml", "oof_probability"),
+    ):
+        cohort = analysis[cohort_key]
+        assert cohort["analysis_classification"] == "exploratory_sensitivity_only"
+        assert cohort["independent_threshold_validation"] is False
+        gs = cohort["group_structure"]
+        assert gs["total_groups"] == 56
+        assert gs["mixed_label_groups"] == 0
+        assert gs["benign_groups"]["count"] == 37
+        assert gs["benign_groups"]["total_observations"] == 543
+        assert gs["fraud_groups"]["count"] == 19
+        assert gs["fraud_groups"]["total_observations"] == 160
+
+        for row in cohort["thresholds"]:
+            tau = float(row["threshold"])
+            exp_tp = sum(1 for r in oof_raw if r["true_label"] == 1 and r[score_field] >= tau)
+            exp_fp = sum(1 for r in oof_raw if r["true_label"] == 0 and r[score_field] >= tau)
+            exp_tn = sum(1 for r in oof_raw if r["true_label"] == 0 and r[score_field] < tau)
+            exp_fn = sum(1 for r in oof_raw if r["true_label"] == 1 and r[score_field] < tau)
+            assert row["confusion_matrix"] == {
+                "tp": exp_tp,
+                "fp": exp_fp,
+                "tn": exp_tn,
+                "fn": exp_fn,
+            }
+            gc = row["group_fp_counts"]
+            assert gc["benign_groups_total"] == 37
+            assert gc["fraud_groups_total"] == 19
+            assert sum(gc["benign_group_fp_breakdown"].values()) == exp_fp
+            assert sum(gc["fraud_group_fn_breakdown"].values()) == exp_fn
+
+            gu = row["grouped_uncertainty"]
+            assert gu["resampling_unit"] == "semantic_family_id"
+            assert gu["independent_group_count"] == 56
+            assert (
+                gu["valid_replicates"]["tpr"] + gu["undefined_replicates"]["tpr"]
+                == gu["n_replicates"]
+            )
+            assert (
+                gu["valid_replicates"]["fpr"] + gu["undefined_replicates"]["fpr"]
+                == gu["n_replicates"]
+            )
+
+    # 3. Zero-event degeneration & affected-family bound at tau >= 0.85, plus concentrated FP at 0.75
+    oof_comp_rows = analysis["oof_composite"]["thresholds"]
+    row_75 = next(r for r in oof_comp_rows if r["threshold"] == 0.75)
+    assert row_75["group_fp_counts"]["benign_groups_with_fp"] == 1
+    assert row_75["group_fp_counts"]["benign_group_fp_breakdown"] == {
+        "legit_bank_security_alert_12": 13
+    }
+    assert row_75["grouped_uncertainty"]["fpr_cluster_bootstrap_95_ci"] is not None
+    assert (
+        row_75["grouped_uncertainty"]["fpr_cluster_bootstrap_95_ci"][1]
+        > row_75["fpr_wilson_95_upper"]
+    )
+
+    for tau_zero in (0.85, 0.90, 0.95):
+        z_row = next(r for r in oof_comp_rows if r["threshold"] == tau_zero)
+        gu = z_row["grouped_uncertainty"]
+        assert z_row["confusion_matrix"]["fp"] == 0
+        assert z_row["group_fp_counts"]["benign_groups_with_fp"] == 0
+        assert gu["fpr_cluster_bootstrap_95_ci"] is None
+        assert (
+            gu["fpr_cluster_bootstrap_status"] == "degenerate_zero_observed_false_positive_groups"
+        )
+        zb = gu["group_level_zero_event_bound"]
+        assert zb is not None
+        assert zb["affected_benign_groups"] == 0
+        assert zb["benign_groups_total"] == 37
+        assert zb["one_sided_95_clopper_pearson_upper"] == round(1.0 - 0.05 ** (1.0 / 37), 6)
+        assert "NOT message-level carrier FPR" in zb["limitation"]
+
+    # 4. Synthetic group-boundary & undefined-replicate verification
+    # 1 fraud group (size 2) + 5 benign groups (one size 4 with all FP at 0.5, four size 2 clean)
+    synth_scores = [0.9, 0.9, 0.6, 0.6, 0.6, 0.6] + [0.1] * 8
+    synth_labels = [1, 1] + [0] * 12
+    synth_groups = [
+        "f1",
+        "f1",
+        "b_fp",
+        "b_fp",
+        "b_fp",
+        "b_fp",
+        "b2",
+        "b2",
+        "b3",
+        "b3",
+        "b4",
+        "b4",
+        "b5",
+        "b5",
+    ]
+    synth_grouped = compute_threshold_sensitivity_analysis(
+        synth_scores,
+        synth_labels,
+        groups=synth_groups,
+        thresholds=(0.40, 0.75),
+        bootstrap_replicates=200,
+        bootstrap_seed=7,
+    )
+    gu_s40 = synth_grouped["thresholds"][0]["grouped_uncertainty"]
+    gu_s75 = synth_grouped["thresholds"][1]["grouped_uncertainty"]
+    # With 1 fraud group out of 6, (5/6)^6 ~ 33% of bootstrap draws omit f1 -> undefined_replicates['tpr'] > 0
+    assert gu_s40["undefined_replicates"]["tpr"] > 0
+    assert gu_s40["valid_replicates"]["tpr"] + gu_s40["undefined_replicates"]["tpr"] == 200
+    assert gu_s75["fpr_cluster_bootstrap_95_ci"] is None
+    assert gu_s75["group_level_zero_event_bound"]["benign_groups_total"] == 5
+
+    # Verify group resampling preserves whole clusters by inspecting unique drawn FPR values independently
+    rng = np.random.default_rng(7)
+    unique_g = sorted(set(synth_groups))
+    g_neg = np.array(
+        [
+            sum(
+                1
+                for g, lbl in zip(synth_groups, synth_labels, strict=True)
+                if g == gid and lbl == 0
+            )
+            for gid in unique_g
+        ]
+    )
+    g_fp = np.array(
+        [
+            sum(
+                1
+                for g, lbl, s in zip(synth_groups, synth_labels, synth_scores, strict=True)
+                if g == gid and lbl == 0 and s >= 0.40
+            )
+            for gid in unique_g
+        ]
+    )
+    # All FP counts inside sampled replicates must be multiples of 4 (never odd/row-split FPs!)
+    for _ in range(50):
+        draw = rng.integers(0, len(unique_g), size=len(unique_g))
+        if g_neg[draw].sum() > 0:
+            assert g_fp[draw].sum() % 4 == 0
+
+    # 5. Monotonic PPV with prevalence & tau=0.85 upper-Wilson illustration (~28.9% at 0.5%, not 100%)
+    row_85 = next(r for r in oof_comp_rows if r["threshold"] == 0.85)
+    assert row_85["ppv_uncertainty_scenarios"]["deployment_prevalence_status"] == (
+        "unknown_without_measured_operational_telemetry"
+    )
+    desc_85_ppv_005 = row_85["ppv_uncertainty_scenarios"][
+        "descriptive_row_wilson_upper_fpr_at_point_tpr"
+    ]["ppv_by_prevalence"]["0.005"]
+    assert 0.25 < desc_85_ppv_005 < 0.32
+    ppv_seq = [compute_base_rate_ppv(0.75, 0.02, pi) for pi in DEFAULT_PREVALENCE_RATES]
+    assert ppv_seq == sorted(ppv_seq) and len(set(ppv_seq)) == len(DEFAULT_PREVALENCE_RATES)
+
+    # 6. Cost sensitivity responds to cost ratios & proves ranking changes across assumptions
+    cost_sens = analysis["oof_composite"]["cost_sensitivity"]
+    assert cost_sens["empirically_measured_carrier_costs_available"] is False
+    assert cost_sens["cost_assumption_sensitive"] is True
+    assert any(
+        v["ranking_changes_across_scenarios"]
+        for v in cost_sens["ranking_stability_by_prevalence"].values()
+    )
+    c_low = compute_expected_cost_per_1000(0.25, 0.02, 0.01, cost_fn=10.0, cost_fp=5.0)
+    c_mid = compute_expected_cost_per_1000(0.25, 0.02, 0.01, cost_fn=10.0, cost_fp=50.0)
+    c_high = compute_expected_cost_per_1000(0.25, 0.02, 0.01, cost_fn=10.0, cost_fp=250.0)
+    assert c_low < c_mid < c_high
+
+    # 7. Language guardrail verification across JSON, mirrored reports, and mirrored SYSTEM_DESIGN.md
+    workspace_root = canonical["report_root"].parents[1]
+    report_text = canonical["report_root"].read_text(encoding="utf-8")
+    sys_text = (workspace_root / "SYSTEM_DESIGN.md").read_text(encoding="utf-8")
+    assert report_text == canonical["report_mirror"].read_text(encoding="utf-8")
+    assert sys_text == (workspace_root / "sentinelflow" / "SYSTEM_DESIGN.md").read_text(
+        encoding="utf-8"
+    )
+    metrics_raw_lower = canonical["metrics"].read_text(encoding="utf-8").lower()
+    for text_blob in (report_text.lower(), sys_text.lower(), metrics_raw_lower):
+        for forbidden in (
+            "15.3x",
+            "production-optimal",
+            "is independently validated",
+            "empirically validated optimum",
+            "are measured operational costs",
+            "mean zero underlying fpr",
+        ):
+            assert forbidden not in text_blob, f"Forbidden overclaim {forbidden!r} found"
+
+    assert "not measured operational costs" in report_text.lower()
+    assert "not measured operational costs" in sys_text.lower()
+    assert "not independent threshold selection validation" in report_text.lower()
+    assert "not independent threshold selection validation" in sys_text.lower()
+    assert "28.92%" in report_text
+    assert "unvalidated exploratory/provisional candidate" in report_text.lower()
+    assert "unvalidated provisional candidate" in sys_text.lower()
+
+    assert all(p in DEFAULT_PREVALENCE_RATES for p in (0.002, 0.005, 0.01, 0.05, 0.50))
+    assert list(DEFAULT_SWEEP_THRESHOLDS) == [
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.75,
+        0.8,
+        0.85,
+        0.9,
+        0.95,
+    ]

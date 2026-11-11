@@ -69,10 +69,95 @@ DEFAULT_SWEEP_THRESHOLDS: tuple[float, ...] = (
     0.90,
     0.95,
 )
-DEFAULT_PREVALENCE_RATES: tuple[float, ...] = (0.005, 0.01, 0.05, 0.50)
+DEFAULT_PREVALENCE_RATES: tuple[float, ...] = (0.002, 0.005, 0.01, 0.05, 0.50)
 COST_FN_ESCAPE: float = 10.0
 COST_FP_TIER1_FLAG: float = 1.0
 COST_FP_TIER2_BLOCK: float = 50.0
+ASSUMED_COST_SENSITIVITY_SCENARIOS: tuple[tuple[str, float, float, float, str], ...] = (
+    ("assumed_baseline_10_1_50", 10.0, 1.0, 50.0, "Baseline illustrative assumed ratio (10:1:50)"),
+    (
+        "low_block_high_escape_50_1_5",
+        50.0,
+        1.0,
+        5.0,
+        "Block penalty materially lower (5), fraud escape materially higher (50)",
+    ),
+    (
+        "moderate_block_high_escape_25_1_10",
+        25.0,
+        1.0,
+        10.0,
+        "Block penalty materially lower (10), fraud escape higher (25)",
+    ),
+    (
+        "low_escape_baseline_block_2_1_50",
+        2.0,
+        1.0,
+        50.0,
+        "Fraud escape materially lower (2), baseline block penalty (50)",
+    ),
+    (
+        "equal_escape_block_50_1_50",
+        50.0,
+        1.0,
+        50.0,
+        "Fraud escape materially higher (50) matching block penalty (50)",
+    ),
+    (
+        "high_escape_100_1_50",
+        100.0,
+        1.0,
+        50.0,
+        "Extreme fraud escape penalty (100), baseline block penalty (50)",
+    ),
+    (
+        "high_block_250_1_250",
+        10.0,
+        1.0,
+        250.0,
+        "Block penalty materially higher (250), baseline escape (10)",
+    ),
+    (
+        "extreme_block_5_1_500",
+        5.0,
+        1.0,
+        500.0,
+        "Block penalty materially higher (500), lower fraud escape (5)",
+    ),
+    (
+        "high_review_overhead_10_5_50",
+        10.0,
+        5.0,
+        50.0,
+        "Elevated Tier-1 async review false-flag cost (5) with baseline (10, 50)",
+    ),
+)
+EVIDENCE_INTERPRETATION_BOUNDARIES: tuple[dict[str, str], ...] = (
+    {
+        "evidence": "Dev/Val N=400",
+        "permitted_interpretation": "Development/validation evidence; not independent holdout evidence",
+    },
+    {
+        "evidence": "SF-009 grouped OOF N=703",
+        "permitted_interpretation": "Exploratory unseen-family estimates; not an untouched final test set",
+    },
+    {
+        "evidence": "Threshold sweep",
+        "permitted_interpretation": "Sensitivity analysis; not independent threshold selection validation",
+    },
+    {
+        "evidence": "Assumed cost ratios",
+        "permitted_interpretation": "Illustrative decision model; not measured operational costs",
+    },
+    {
+        "evidence": "Bayes PPV calculations",
+        "permitted_interpretation": "Modeled prevalence sensitivity; not observed production precision",
+    },
+    {
+        "evidence": "Class C external holdout",
+        "permitted_interpretation": "Unavailable; external generalization remains unverified",
+    },
+)
 
 
 def get_canonical_artifact_paths(telecom_dir: Path | None = None) -> dict[str, Path]:
@@ -900,18 +985,447 @@ def _sweep_rates_at_threshold(
     return int(tp), int(fp), int(tn), int(fn), tpr, fpr, fnr, spec
 
 
+def _summarize_group_structure(
+    y_arr: np.ndarray,
+    g_arr: np.ndarray,
+) -> dict[str, Any]:
+    """Summarizes semantic-group sizes and class separation without modifying input labels."""
+    unique_groups = sorted({str(g) for g in g_arr})
+    benign_sizes: list[int] = []
+    fraud_sizes: list[int] = []
+    mixed_groups: list[str] = []
+
+    for gid in unique_groups:
+        mask = g_arr == gid
+        labels_in_group = set(int(v) for v in y_arr[mask])
+        size = int(np.sum(mask))
+        if labels_in_group == {0}:
+            benign_sizes.append(size)
+        elif labels_in_group == {1}:
+            fraud_sizes.append(size)
+        else:
+            mixed_groups.append(gid)
+
+    def _size_stats(sizes: list[int]) -> dict[str, Any]:
+        if not sizes:
+            return {"count": 0, "total_observations": 0, "min": None, "median": None, "max": None}
+        sorted_sizes = sorted(sizes)
+        mid = len(sorted_sizes) // 2
+        median = (
+            float(sorted_sizes[mid])
+            if len(sorted_sizes) % 2 == 1
+            else (sorted_sizes[mid - 1] + sorted_sizes[mid]) / 2.0
+        )
+        return {
+            "count": len(sorted_sizes),
+            "total_observations": int(sum(sorted_sizes)),
+            "min": int(sorted_sizes[0]),
+            "median": median,
+            "max": int(sorted_sizes[-1]),
+        }
+
+    return {
+        "group_identifier": "semantic_family_id",
+        "total_groups": len(unique_groups),
+        "mixed_label_groups": len(mixed_groups),
+        "benign_groups": _size_stats(benign_sizes),
+        "fraud_groups": _size_stats(fraud_sizes),
+    }
+
+
+def _build_zero_event_group_bound(benign_groups_total: int) -> dict[str, Any] | None:
+    """Computes an exact group-level zero-event upper bound with explicit assumptions and limits."""
+    if benign_groups_total <= 0:
+        return None
+    cp_one_sided_95 = 1.0 - (0.05 ** (1.0 / benign_groups_total))
+    cp_two_sided_95 = 1.0 - (0.025 ** (1.0 / benign_groups_total))
+    _, wilson_two_sided_upper = compute_wilson_ci(0, benign_groups_total)
+    return {
+        "affected_benign_groups": 0,
+        "benign_groups_total": benign_groups_total,
+        "one_sided_95_clopper_pearson_upper": round(float(cp_one_sided_95), 6),
+        "two_sided_95_clopper_pearson_upper": round(float(cp_two_sided_95), 6),
+        "two_sided_95_wilson_upper": round(float(wilson_two_sided_upper), 6),
+        "estimand": "probability_that_an_independently_sampled_benign_semantic_family_produces_ge_1_fp",
+        "sampling_assumption": (
+            f"Treats the {benign_groups_total} benign semantic families as independent family-level "
+            "draws from the population of benign template families."
+        ),
+        "limitation": (
+            "Bounds the proportion of affected benign semantic families ONLY, NOT message-level "
+            "carrier FPR. Converting affected-family risk into message-level FPR requires unknown "
+            "within-family error rates on failing unseen families and carrier template traffic shares; "
+            "zero observed failing groups do not imply zero underlying message-level FPR."
+        ),
+    }
+
+
+def _compute_group_counts_at_threshold(
+    scores_arr: np.ndarray,
+    y_arr: np.ndarray,
+    g_arr: np.ndarray,
+    tau: float,
+    benign_groups: Sequence[str],
+    fraud_groups: Sequence[str],
+) -> dict[str, Any]:
+    """Counts false-positive and false-negative errors at both observation and semantic-group levels."""
+    benign_fp_breakdown: dict[str, int] = {}
+    for gid in benign_groups:
+        mask = (g_arr == gid) & (y_arr == 0)
+        fp_cnt = int(np.sum(scores_arr[mask] >= tau))
+        if fp_cnt > 0:
+            benign_fp_breakdown[gid] = fp_cnt
+
+    fraud_fn_breakdown: dict[str, int] = {}
+    for gid in fraud_groups:
+        mask = (g_arr == gid) & (y_arr == 1)
+        fn_cnt = int(np.sum(scores_arr[mask] < tau))
+        if fn_cnt > 0:
+            fraud_fn_breakdown[gid] = fn_cnt
+
+    sorted_fp_breakdown = dict(sorted(benign_fp_breakdown.items(), key=lambda kv: (-kv[1], kv[0])))
+    sorted_fn_breakdown = dict(sorted(fraud_fn_breakdown.items(), key=lambda kv: (-kv[1], kv[0])))
+    return {
+        "benign_groups_total": len(benign_groups),
+        "benign_groups_with_fp": len(sorted_fp_breakdown),
+        "benign_group_fp_breakdown": sorted_fp_breakdown,
+        "fraud_groups_total": len(fraud_groups),
+        "fraud_groups_with_fn": len(sorted_fn_breakdown),
+        "fraud_group_fn_breakdown": sorted_fn_breakdown,
+    }
+
+
+def _compute_group_bootstrap_metrics(
+    scores_arr: np.ndarray,
+    y_arr: np.ndarray,
+    g_arr: np.ndarray,
+    ordered_thresholds: Sequence[float],
+    *,
+    n_replicates: int = 1000,
+    seed: int = 42,
+) -> dict[float, dict[str, Any]]:
+    """Computes intact-group cluster percentile bootstrap CIs and zero-event limits per threshold."""
+    if n_replicates <= 0:
+        raise ValueError(f"n_replicates must be positive (got {n_replicates})")
+
+    unique_groups = sorted({str(g) for g in g_arr})
+    n_groups = len(unique_groups)
+    g_neg_counts = np.array(
+        [int(np.sum((g_arr == gid) & (y_arr == 0))) for gid in unique_groups],
+        dtype=np.int64,
+    )
+    g_pos_counts = np.array(
+        [int(np.sum((g_arr == gid) & (y_arr == 1))) for gid in unique_groups],
+        dtype=np.int64,
+    )
+    benign_groups_total = int(np.sum(g_neg_counts > 0))
+    total_obs_pos = int(np.sum(g_pos_counts))
+    total_obs_neg = int(np.sum(g_neg_counts))
+
+    rng = np.random.default_rng(seed)
+    draws = rng.integers(0, n_groups, size=(n_replicates, n_groups))
+    boot_n_pos = g_pos_counts[draws].sum(axis=1)
+    boot_n_neg = g_neg_counts[draws].sum(axis=1)
+    pos_valid_mask = boot_n_pos > 0
+    neg_valid_mask = boot_n_neg > 0
+    tpr_valid_count = int(np.sum(pos_valid_mask))
+    tpr_undefined_count = n_replicates - tpr_valid_count
+    fpr_valid_count = int(np.sum(neg_valid_mask))
+    fpr_undefined_count = n_replicates - fpr_valid_count
+
+    results: dict[float, dict[str, Any]] = {}
+    sampling_assumption = (
+        f"Resamples {n_groups} intact semantic_family_id clusters with replacement (B={n_replicates}, "
+        f"seed={seed}); preserves intra-family correlation assuming semantic families are i.i.d. draws "
+        "and excludes replicates missing a required class denominator."
+    )
+
+    for tau in ordered_thresholds:
+        g_tp = np.array(
+            [
+                int(np.sum((g_arr == gid) & (y_arr == 1) & (scores_arr >= tau)))
+                for gid in unique_groups
+            ],
+            dtype=np.int64,
+        )
+        g_fp = np.array(
+            [
+                int(np.sum((g_arr == gid) & (y_arr == 0) & (scores_arr >= tau)))
+                for gid in unique_groups
+            ],
+            dtype=np.int64,
+        )
+        obs_tp = int(np.sum(g_tp))
+        obs_fn = total_obs_pos - obs_tp
+        obs_fp = int(np.sum(g_fp))
+        obs_fp_groups = int(np.sum(g_fp > 0))
+
+        tpr_ci: list[float] | None = None
+        if obs_tp == 0:
+            tpr_status = "degenerate_zero_observed_true_positives"
+        elif obs_fn == 0:
+            tpr_status = "degenerate_zero_observed_false_negatives"
+        elif tpr_valid_count > 0:
+            tpr_vals = g_tp[draws].sum(axis=1)[pos_valid_mask] / boot_n_pos[pos_valid_mask]
+            tpr_ci = [
+                round(float(np.percentile(tpr_vals, 2.5)), 6),
+                round(float(np.percentile(tpr_vals, 97.5)), 6),
+            ]
+            tpr_status = "non_degenerate_percentile_bootstrap"
+        else:
+            tpr_status = "undefined_all_replicates_missing_positives"
+
+        fpr_ci: list[float] | None = None
+        zero_event_bound: dict[str, Any] | None = None
+        if obs_fp == 0 or obs_fp_groups == 0:
+            fpr_status = "degenerate_zero_observed_false_positive_groups"
+            zero_event_bound = _build_zero_event_group_bound(benign_groups_total)
+            message_level_fpr_limitation = (
+                "Conventional cluster bootstrap degenerates to [0, 0] with 0 observed false-positive "
+                "groups; no defensible message-level FPR confidence interval can be estimated from "
+                "these data without independent external observations."
+            )
+        elif total_obs_neg > 0 and fpr_valid_count > 0:
+            fpr_vals = g_fp[draws].sum(axis=1)[neg_valid_mask] / boot_n_neg[neg_valid_mask]
+            fpr_ci = [
+                round(float(np.percentile(fpr_vals, 2.5)), 6),
+                round(float(np.percentile(fpr_vals, 97.5)), 6),
+            ]
+            fpr_status = "non_degenerate_percentile_bootstrap"
+            message_level_fpr_limitation = (
+                "Concentrated false positives across few benign families produce wide cluster intervals; "
+                "only independent Class C observations validate carrier FPR."
+            )
+        else:
+            fpr_status = "undefined_missing_negatives"
+            message_level_fpr_limitation = "Undefined negative denominator across bootstrap draws."
+
+        results[tau] = {
+            "resampling_method": "nonparametric_cluster_percentile_bootstrap",
+            "resampling_unit": "semantic_family_id",
+            "independent_group_count": n_groups,
+            "n_replicates": n_replicates,
+            "seed": seed,
+            "sampling_assumption": sampling_assumption,
+            "valid_replicates": {"tpr": tpr_valid_count, "fpr": fpr_valid_count},
+            "undefined_replicates": {"tpr": tpr_undefined_count, "fpr": fpr_undefined_count},
+            "tpr_cluster_bootstrap_status": tpr_status,
+            "tpr_cluster_bootstrap_95_ci": tpr_ci,
+            "fpr_cluster_bootstrap_status": fpr_status,
+            "fpr_cluster_bootstrap_95_ci": fpr_ci,
+            "group_level_zero_event_bound": zero_event_bound,
+            "message_level_fpr_limitation": message_level_fpr_limitation,
+        }
+
+    return results
+
+
+def _build_ppv_uncertainty_scenarios(
+    tpr: float,
+    fpr: float,
+    row_fpr_upper: float,
+    tpr_boot_ci: list[float] | None,
+    fpr_boot_ci: list[float] | None,
+    ordered_prevalences: Sequence[float],
+    *,
+    zero_fp_groups: bool,
+) -> dict[str, Any]:
+    """Builds separate PPV sensitivity scenarios without fabricating a formal joint PPV CI."""
+
+    def _ppv_map(t_val: float, f_val: float) -> dict[str, float]:
+        return {f"{pi:g}": compute_base_rate_ppv(t_val, f_val, pi) for pi in ordered_prevalences}
+
+    scenarios: dict[str, Any] = {
+        "scenario_type": "illustrative_plausible_bounds_sensitivity_not_a_ppv_ci",
+        "deployment_prevalence_status": "unknown_without_measured_operational_telemetry",
+        "point_estimate": {
+            "tpr": round(tpr, 6),
+            "fpr": round(fpr, 6),
+            "ppv_by_prevalence": _ppv_map(tpr, fpr),
+        },
+        "descriptive_row_wilson_upper_fpr_at_point_tpr": {
+            "tpr": round(tpr, 6),
+            "fpr": round(row_fpr_upper, 6),
+            "ppv_by_prevalence": _ppv_map(tpr, row_fpr_upper),
+            "warning": (
+                "Descriptive illustration only: row-level Wilson FPR upper bound assumes independent "
+                "messages and is not a valid group-aware confidence bound."
+            ),
+        },
+    }
+
+    if tpr_boot_ci is not None and fpr_boot_ci is not None and not zero_fp_groups:
+        scenarios["cluster_ppv_sensitivity_status"] = (
+            "separate_cluster_bootstrap_sensitivity_bounds"
+        )
+        scenarios["conservative_cluster_bounds"] = {
+            "tpr": tpr_boot_ci[0],
+            "fpr": fpr_boot_ci[1],
+            "ppv_by_prevalence": _ppv_map(float(tpr_boot_ci[0]), float(fpr_boot_ci[1])),
+            "note": "Combines separate 2.5% TPR lower bound and 97.5% FPR upper bound (not a joint PPV CI).",
+        }
+        scenarios["optimistic_cluster_bounds"] = {
+            "tpr": tpr_boot_ci[1],
+            "fpr": fpr_boot_ci[0],
+            "ppv_by_prevalence": _ppv_map(float(tpr_boot_ci[1]), float(fpr_boot_ci[0])),
+            "note": "Combines separate 97.5% TPR upper bound and 2.5% FPR lower bound (not a joint PPV CI).",
+        }
+    else:
+        tpr_low = float(tpr_boot_ci[0]) if tpr_boot_ci is not None else tpr
+        scenarios["cluster_ppv_sensitivity_status"] = (
+            "not_estimable_due_to_zero_fp_groups_and_unbounded_message_level_fpr"
+            if zero_fp_groups
+            else "group_bounds_unavailable"
+        )
+        scenarios["cluster_tpr_low_with_row_wilson_upper_fpr"] = {
+            "tpr": round(tpr_low, 6),
+            "fpr": round(row_fpr_upper, 6),
+            "ppv_by_prevalence": _ppv_map(tpr_low, row_fpr_upper),
+            "warning": "Uses cluster lower TPR with row-level Wilson upper FPR (understates cluster FPR).",
+        }
+        scenarios["illustrative_non_zero_tail_stress_0_5pct_fpr"] = {
+            "tpr": round(tpr_low, 6),
+            "fpr": 0.005,
+            "ppv_by_prevalence": _ppv_map(tpr_low, 0.005),
+            "note": "Stress scenario if unseen benign families cause 0.5% carrier message FPR.",
+        }
+
+    return scenarios
+
+
+def compute_cost_ratio_sensitivity(
+    threshold_rows: Sequence[dict[str, Any]],
+    *,
+    prevalences: Sequence[float] = DEFAULT_PREVALENCE_RATES,
+    scenarios: Sequence[tuple[str, float, float, float, str]] = ASSUMED_COST_SENSITIVITY_SCENARIOS,
+) -> dict[str, Any]:
+    """Evaluates single- and dual-tier threshold rankings across multiple assumed cost ratios."""
+    ordered_prevalences = [round(float(p), 6) for p in sorted(prevalences)]
+    rates_by_tau: dict[float, tuple[float, float]] = {
+        float(r["threshold"]): (float(r["fnr"]), float(r["fpr"])) for r in threshold_rows
+    }
+    available_taus = sorted(rates_by_tau.keys())
+    candidate_dual_pairs = [
+        (t1, t2)
+        for t1 in (0.30, 0.40, 0.50, 0.60, 0.75, 0.85)
+        for t2 in (0.75, 0.80, 0.85, 0.90)
+        if t1 <= t2 and t1 in rates_by_tau and t2 in rates_by_tau
+    ]
+
+    scenario_outputs: list[dict[str, Any]] = []
+    distinct_best_single: dict[str, set[float]] = {f"{pi:g}": set() for pi in ordered_prevalences}
+    distinct_best_dual: dict[str, set[tuple[float, float]]] = {
+        f"{pi:g}": set() for pi in ordered_prevalences
+    }
+
+    for scenario_id, c_fn, c_t1, c_t2, desc in scenarios:
+        single_rankings: dict[str, list[dict[str, Any]]] = {}
+        dual_rankings: dict[str, list[dict[str, Any]]] = {}
+        for pi in ordered_prevalences:
+            pi_key = f"{pi:g}"
+            s_scored = [
+                {
+                    "threshold": tau,
+                    "expected_cost_per_1000": compute_expected_cost_per_1000(
+                        rates_by_tau[tau][0],
+                        rates_by_tau[tau][1],
+                        pi,
+                        cost_fn=c_fn,
+                        cost_fp=c_t2,
+                    ),
+                }
+                for tau in available_taus
+            ]
+            s_scored.sort(key=lambda item: (item["expected_cost_per_1000"], item["threshold"]))
+            single_rankings[pi_key] = s_scored
+            distinct_best_single[pi_key].add(float(s_scored[0]["threshold"]))
+
+            d_scored = [
+                {
+                    "tier1_flag_threshold": t1,
+                    "tier2_block_threshold": t2,
+                    "expected_cost_per_1000": compute_dual_tier_cost_per_1000(
+                        rates_by_tau[t1][0],
+                        rates_by_tau[t1][1],
+                        rates_by_tau[t2][1],
+                        pi,
+                        cost_fn_escape=c_fn,
+                        cost_fp_tier1_flag=c_t1,
+                        cost_fp_tier2_block=c_t2,
+                    ),
+                }
+                for t1, t2 in candidate_dual_pairs
+            ]
+            d_scored.sort(
+                key=lambda item: (
+                    item["expected_cost_per_1000"],
+                    item["tier2_block_threshold"],
+                    item["tier1_flag_threshold"],
+                )
+            )
+            dual_rankings[pi_key] = d_scored
+            distinct_best_dual[pi_key].add(
+                (
+                    float(d_scored[0]["tier1_flag_threshold"]),
+                    float(d_scored[0]["tier2_block_threshold"]),
+                )
+            )
+
+        scenario_outputs.append(
+            {
+                "scenario_id": scenario_id,
+                "cost_fn_escape": c_fn,
+                "cost_fp_tier1_flag": c_t1,
+                "cost_fp_tier2_block": c_t2,
+                "description": desc,
+                "single_threshold_rankings_by_prevalence": single_rankings,
+                "dual_tier_rankings_by_prevalence": dual_rankings,
+            }
+        )
+
+    ranking_summary_by_prevalence = {
+        pi_key: {
+            "distinct_top_single_thresholds": sorted(distinct_best_single[pi_key]),
+            "distinct_top_dual_tier_policies": [
+                list(p) for p in sorted(distinct_best_dual[pi_key])
+            ],
+            "ranking_changes_across_scenarios": (
+                len(distinct_best_single[pi_key]) > 1 or len(distinct_best_dual[pi_key]) > 1
+            ),
+        }
+        for pi_key in (f"{pi:g}" for pi in ordered_prevalences)
+    }
+
+    return {
+        "status": "illustrative_assumed_cost_sensitivity_only",
+        "empirically_measured_carrier_costs_available": False,
+        "cost_assumption_sensitive": any(
+            v["ranking_changes_across_scenarios"] for v in ranking_summary_by_prevalence.values()
+        ),
+        "ranking_stability_by_prevalence": ranking_summary_by_prevalence,
+        "scenarios": scenario_outputs,
+        "limitation": (
+            "All normalized units are assumed illustrative ratios, not measured euros, customer "
+            "churn costs, or carrier incident expenses."
+        ),
+    }
+
+
 def compute_threshold_sensitivity_analysis(
     scores: Sequence[float] | np.ndarray,
     y_true: Sequence[int] | np.ndarray,
     *,
+    groups: Sequence[str] | None = None,
     thresholds: Sequence[float] = DEFAULT_SWEEP_THRESHOLDS,
     prevalences: Sequence[float] = DEFAULT_PREVALENCE_RATES,
     cost_fn_escape: float = COST_FN_ESCAPE,
     cost_fp_tier1_flag: float = COST_FP_TIER1_FLAG,
     cost_fp_tier2_block: float = COST_FP_TIER2_BLOCK,
     score_kind: str = "composite_score",
+    bootstrap_replicates: int = 1000,
+    bootstrap_seed: int = 42,
 ) -> dict[str, Any]:
-    """Computes threshold sweeps, Bayes base-rate PPV curves, and asymmetric costs."""
+    """Computes exploratory threshold sweeps, group-aware uncertainty (if grouped), PPV & cost sensitivity."""
     scores_arr = np.asarray(scores, dtype=float)
     y_arr = np.asarray(y_true, dtype=int)
     if scores_arr.ndim != 1 or y_arr.ndim != 1 or scores_arr.shape != y_arr.shape:
@@ -923,14 +1437,37 @@ def compute_threshold_sensitivity_analysis(
     if not np.all((y_arr == 0) | (y_arr == 1)):
         raise ValueError("y_true must contain strictly binary 0/1 labels")
 
+    g_arr: np.ndarray | None = None
+    group_structure: dict[str, Any] | None = None
+    benign_groups: list[str] = []
+    fraud_groups: list[str] = []
     ordered_thresholds = [round(float(t), 4) for t in sorted(thresholds)]
     ordered_prevalences = [round(float(p), 6) for p in sorted(prevalences)]
-    rows: list[dict[str, Any]] = []
+    group_bootstrap_by_tau: dict[float, dict[str, Any]] = {}
 
+    if groups is not None:
+        if len(groups) != len(y_arr):
+            raise ValueError("groups must match length of scores and y_true")
+        g_arr = np.asarray([str(g) for g in groups])
+        group_structure = _summarize_group_structure(y_arr, g_arr)
+        unique_groups = sorted({str(g) for g in g_arr})
+        benign_groups = [g for g in unique_groups if np.any((g_arr == g) & (y_arr == 0))]
+        fraud_groups = [g for g in unique_groups if np.any((g_arr == g) & (y_arr == 1))]
+        group_bootstrap_by_tau = _compute_group_bootstrap_metrics(
+            scores_arr,
+            y_arr,
+            g_arr,
+            ordered_thresholds,
+            n_replicates=bootstrap_replicates,
+            seed=bootstrap_seed,
+        )
+
+    rows: list[dict[str, Any]] = []
     for tau in ordered_thresholds:
         tp, fp, tn, fn, tpr, fpr, fnr, spec = _sweep_rates_at_threshold(scores_arr, y_arr, tau)
         fpr_ci = _safe_wilson_ci(fp, fp + tn)
         fpr_upper = float(fpr_ci[1]) if fpr_ci is not None else 0.0
+        tpr_ci = _safe_wilson_ci(tp, tp + fn)
 
         ppv_by_prev = {f"{pi:g}": compute_base_rate_ppv(tpr, fpr, pi) for pi in ordered_prevalences}
         ppv_worst_by_prev = {
@@ -948,24 +1485,67 @@ def compute_threshold_sensitivity_analysis(
             )
             for pi in ordered_prevalences
         }
-        rows.append(
-            {
-                "threshold": tau,
-                "confusion_matrix": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
-                "tpr": round(tpr, 6),
-                "fpr": round(fpr, 6),
-                "fnr": round(fnr, 6),
-                "specificity": round(spec, 6),
-                "fpr_wilson_95_ci": fpr_ci,
-                "fpr_wilson_95_upper": round(fpr_upper, 6),
-                "ppv_by_prevalence": ppv_by_prev,
-                "ppv_at_fpr_wilson_95_upper_by_prevalence": ppv_worst_by_prev,
-                "expected_cost_per_1000_tier1_flag": cost_t1,
-                "expected_cost_per_1000_tier2_block": cost_t2,
-            }
-        )
 
-    dual_tier_pairs = ((0.40, 0.75), (0.40, 0.80), (0.40, 0.85), (0.40, 0.90))
+        row: dict[str, Any] = {
+            "threshold": tau,
+            "confusion_matrix": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
+            "tpr": round(tpr, 6),
+            "fpr": round(fpr, 6),
+            "fnr": round(fnr, 6),
+            "specificity": round(spec, 6),
+            "fpr_wilson_95_ci": fpr_ci,
+            "fpr_wilson_95_upper": round(fpr_upper, 6),
+            "descriptive_row_level_wilson_95_ci": {
+                "tpr": tpr_ci,
+                "fpr": fpr_ci,
+                "assumes_independent_messages": True,
+                "valid_for_clustered_data": groups is None,
+            },
+            "ppv_by_prevalence": ppv_by_prev,
+            "ppv_at_fpr_wilson_95_upper_by_prevalence": ppv_worst_by_prev,
+            "expected_cost_per_1000_tier1_flag": cost_t1,
+            "expected_cost_per_1000_tier2_block": cost_t2,
+        }
+
+        if g_arr is not None:
+            g_counts = _compute_group_counts_at_threshold(
+                scores_arr, y_arr, g_arr, tau, benign_groups, fraud_groups
+            )
+            g_boot = group_bootstrap_by_tau[tau]
+            row["group_fp_counts"] = g_counts
+            row["grouped_uncertainty"] = g_boot
+            row["ppv_uncertainty_scenarios"] = _build_ppv_uncertainty_scenarios(
+                tpr,
+                fpr,
+                fpr_upper,
+                g_boot["tpr_cluster_bootstrap_95_ci"],
+                g_boot["fpr_cluster_bootstrap_95_ci"],
+                ordered_prevalences,
+                zero_fp_groups=(g_counts["benign_groups_with_fp"] == 0),
+            )
+        else:
+            row["ppv_uncertainty_scenarios"] = _build_ppv_uncertainty_scenarios(
+                tpr,
+                fpr,
+                fpr_upper,
+                None,
+                None,
+                ordered_prevalences,
+                zero_fp_groups=(fp == 0),
+            )
+
+        rows.append(row)
+
+    dual_tier_pairs = (
+        (0.30, 0.75),
+        (0.30, 0.85),
+        (0.40, 0.75),
+        (0.40, 0.80),
+        (0.40, 0.85),
+        (0.50, 0.85),
+        (0.75, 0.85),
+        (0.85, 0.85),
+    )
     dual_tier_policies: list[dict[str, Any]] = []
     for tau1, tau2 in dual_tier_pairs:
         _, _, _, _, tpr1, fpr1, fnr1, _ = _sweep_rates_at_threshold(scores_arr, y_arr, tau1)
@@ -994,22 +1574,29 @@ def compute_threshold_sensitivity_analysis(
             }
         )
 
-    return {
+    out: dict[str, Any] = {
         "score_kind": score_kind,
+        "analysis_classification": "exploratory_sensitivity_only",
+        "independent_threshold_validation": False,
         "sample_count": int(len(scores_arr)),
         "benign_count": int(np.sum(y_arr == 0)),
         "fraud_count": int(np.sum(y_arr == 1)),
         "sample_prevalence": round(float(np.mean(y_arr == 1)), 6),
         "prevalences": ordered_prevalences,
         "cost_model": {
+            "status": "illustrative_assumed_cost_model_not_measured_carrier_cost",
             "cost_fn_escape": float(cost_fn_escape),
             "cost_fp_tier1_flag": float(cost_fp_tier1_flag),
             "cost_fp_tier2_block": float(cost_fp_tier2_block),
-            "unit": "normalized_cost_per_1000_messages",
+            "unit": "normalized_illustrative_units_per_1000_messages",
         },
         "thresholds": rows,
         "dual_tier_policies": dual_tier_policies,
+        "cost_sensitivity": compute_cost_ratio_sensitivity(rows, prevalences=ordered_prevalences),
     }
+    if group_structure is not None:
+        out["group_structure"] = group_structure
+    return out
 
 
 def build_threshold_and_base_rate_bundle(
@@ -1019,7 +1606,7 @@ def build_threshold_and_base_rate_bundle(
     *,
     oof_predictions_rows: Sequence[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Builds the complete SF-012 threshold & Bayes base-rate analysis payload with blocker metadata."""
+    """Builds the remediated SF-012R threshold sensitivity, group uncertainty, PPV & cost analysis bundle."""
     dev_comp = compute_threshold_sensitivity_analysis(
         composite_scores,
         y_true,
@@ -1031,19 +1618,58 @@ def build_threshold_and_base_rate_bundle(
         score_kind="dev_val_pure_ml_n400",
     )
     bundle: dict[str, Any] = {
+        "analysis_classification": "exploratory_sensitivity_and_assumed_cost_analysis",
         "external_validation_status": "UNAVAILABLE_BLOCKED",
+        "independent_threshold_validation_available": False,
         "class_c_primary_holdout_present": False,
         "legacy_holdout_300_present": False,
+        "deployment_prevalence_status": "unknown_without_measured_operational_telemetry",
         "default_operational_thresholds": {
             "tier1_flag_threshold": 0.40,
             "tier2_block_threshold": 0.75,
         },
+        "threshold_selection_methodology": {
+            "threshold_sensitivity_analysis": (
+                "Exploratory inspection of TPR, FPR, group error concentration, Bayes PPV sensitivity, "
+                "and illustrative assumed-cost rankings across candidate cutoffs tau in [0.30, 0.95] "
+                "on internal Dev/Val (N=400) and grouped OOF (N=703)."
+            ),
+            "threshold_selection": (
+                "Inspecting multiple thresholds on OOF predictions and noting any candidate (e.g. tau=0.85) "
+                "constitutes exploratory selection against that same OOF data; it cannot simultaneously serve "
+                "as an unbiased confirmation of the chosen cutoff."
+            ),
+            "independent_threshold_validation": (
+                "Unavailable (UNAVAILABLE_BLOCKED): requires frozen one-shot evaluation on an untouched "
+                "qualified Class C external holdout, which does not exist."
+            ),
+        },
+        "provisional_threshold_status": {
+            "production_defaults_unchanged": {"tier1_flag": 0.40, "tier2_block": 0.75},
+            "provisional_candidates": [
+                {
+                    "threshold": 0.85,
+                    "classification": "unvalidated_provisional_candidate_for_future_external_eval",
+                    "limitation": (
+                        "Identified via exploratory OOF sweep where 0 / 37 benign families failed; "
+                        "not independently validated, and message-level carrier FPR remains unverified "
+                        "(zero-event family upper bound is 7.78% one-sided / 9.41% Wilson across 37 families)."
+                    ),
+                }
+            ],
+        },
+        "cost_evidence_distinction": {
+            "assumed_mathematical_model": "Available as illustrative ratio scenarios (including 10:1:50).",
+            "empirically_measured_operational_cost": "Unavailable; actual carrier financial/churn costs unmeasured.",
+            "operational_business_decision": "Requires measured carrier costs, prevalence, and Class C validation.",
+        },
+        "evidence_interpretation_boundaries": list(EVIDENCE_INTERPRETATION_BOUNDARIES),
         "evaluated_benchmarks": ["dev_val_composite", "dev_val_pure_ml"],
         "scope_and_limitations_note": (
             "No Class C primary external two-class fraud holdout exists (UNAVAILABLE_BLOCKED per SF-010/SF-011; "
-            "no N=300 external holdout exists). Curves summarize internal Dev/Val (N=400) and SF-009 Nested "
-            "5-Fold OOF (N=703) behavior strictly for analytical threshold justification, not verified live "
-            "carrier generalization."
+            "no N=300 external holdout exists). Internal Dev/Val (N=400) and SF-009 grouped OOF (N=703, G=56) "
+            "sweeps are exploratory sensitivity analyses only, not independent threshold validation, observed "
+            "carrier precision, or measured operational costs."
         ),
         "dev_val_composite": dev_comp,
         "dev_val_pure_ml": dev_ml,
@@ -1052,14 +1678,26 @@ def build_threshold_and_base_rate_bundle(
         oof_labels = [int(r["true_label"]) for r in oof_predictions_rows]
         oof_comp_scores = [float(r["oof_composite_score"]) for r in oof_predictions_rows]
         oof_ml_scores = [float(r["oof_probability"]) for r in oof_predictions_rows]
+        oof_groups: list[str] = []
+        for row in oof_predictions_rows:
+            fam_id = row.get("family_id")
+            eval_gid = row.get("eval_group_id")
+            if not fam_id:
+                raise ValueError("Missing family_id in oof_predictions.json")
+            if eval_gid is not None and str(eval_gid) != str(fam_id):
+                raise ValueError(f"Inconsistent group IDs in OOF row: {fam_id!r} != {eval_gid!r}")
+            oof_groups.append(str(fam_id))
+
         bundle["oof_composite"] = compute_threshold_sensitivity_analysis(
             oof_comp_scores,
             oof_labels,
+            groups=oof_groups,
             score_kind="sf009_oof_composite_n703",
         )
         bundle["oof_pure_ml"] = compute_threshold_sensitivity_analysis(
             oof_ml_scores,
             oof_labels,
+            groups=oof_groups,
             score_kind="sf009_oof_pure_ml_n703",
         )
         bundle["evaluated_benchmarks"].extend(["oof_composite", "oof_pure_ml"])
@@ -1835,79 +2473,230 @@ def _format_oof_cv_markdown(oof: dict[str, Any]) -> list[str]:
 
 
 def _format_sweep_table_rows(sweep: dict[str, Any]) -> list[str]:
-    """Formats one threshold sweep table for Section 10 of ml_evaluation_report.md."""
+    """Formats descriptive threshold sweep & modeled PPV rows across pi in {0.2%..50%}."""
     out = [
-        "| $\\tau$ | TPR (Recall) | FPR (95% Wilson Upper) | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% | PPV @ 50.0% | Cost/1k (Tier 1 @ 1%) | Cost/1k (Tier 2 @ 1%) |",
+        "| $\\tau$ | TP / FP / TN / FN | TPR | FPR (Descriptive Row 95% Wilson Upper) | Modeled PPV @ 0.2% | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% | PPV @ 50.0% |",
         "|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|",
     ]
     for row in sweep["thresholds"]:
+        cm = row["confusion_matrix"]
         tau = f"`{float(row['threshold']):.2f}`"
+        cm_str = f"{cm['tp']}/{cm['fp']}/{cm['tn']}/{cm['fn']}"
         tpr = f"{float(row['tpr']) * 100:.2f}%"
         fpr = f"{float(row['fpr']) * 100:.2f}% (`{float(row['fpr_wilson_95_upper']) * 100:.2f}%`)"
         ppv = row["ppv_by_prevalence"]
-        c1 = row["expected_cost_per_1000_tier1_flag"]
-        c2 = row["expected_cost_per_1000_tier2_block"]
         out.append(
-            f"| {tau} | {tpr} | {fpr} | {float(ppv['0.005']) * 100:.2f}% | "
+            f"| {tau} | {cm_str} | {tpr} | {fpr} | "
+            f"{float(ppv['0.002']) * 100:.2f}% | {float(ppv['0.005']) * 100:.2f}% | "
             f"{float(ppv['0.01']) * 100:.2f}% | {float(ppv['0.05']) * 100:.2f}% | "
-            f"{float(ppv['0.5']) * 100:.2f}% | {float(c1['0.01']):.2f} | {float(c2['0.01']):.2f} |"
+            f"{float(ppv['0.5']) * 100:.2f}% |"
         )
     return out
 
 
+def _format_grouped_oof_table(oof_comp: dict[str, Any]) -> list[str]:
+    """Formats grouped OOF uncertainty rows with group FP counts, cluster CIs, and zero-event bounds."""
+    out = [
+        "| $\\tau$ | TP/FP/TN/FN | TPR (Cluster 95% CI) | FPR | FP Benign Groups | FPR Cluster 95% CI / Group Zero-Event Bound | Valid Boot Reps (TPR/FPR) | Row Wilson FPR Upper (Ref Only) |",
+        "|:---:|:---:|:---:|:---:|:---:|---|:---:|:---:|",
+    ]
+    for row in oof_comp["thresholds"]:
+        cm = row["confusion_matrix"]
+        gc = row["group_fp_counts"]
+        gu = row["grouped_uncertainty"]
+        tau = f"`{float(row['threshold']):.2f}`"
+        cm_str = f"{cm['tp']}/{cm['fp']}/{cm['tn']}/{cm['fn']}"
+        tpr_ci = gu["tpr_cluster_bootstrap_95_ci"]
+        tpr_ci_str = (
+            f"[{tpr_ci[0] * 100:.2f}%, {tpr_ci[1] * 100:.2f}%]"
+            if tpr_ci is not None
+            else str(gu["tpr_cluster_bootstrap_status"])
+        )
+        tpr_cell = f"{float(row['tpr']) * 100:.2f}% (`{tpr_ci_str}`)"
+        fpr_cell = f"{float(row['fpr']) * 100:.2f}%"
+        fp_grp_str = f"`{gc['benign_groups_with_fp']} / {gc['benign_groups_total']}`"
+        if gc["benign_group_fp_breakdown"]:
+            top_grp, top_cnt = next(iter(gc["benign_group_fp_breakdown"].items()))
+            if gc["benign_groups_with_fp"] == 1:
+                fp_grp_str += f" (`{top_grp}`={top_cnt})"
+        fpr_ci = gu["fpr_cluster_bootstrap_95_ci"]
+        zb = gu["group_level_zero_event_bound"]
+        if fpr_ci is not None:
+            fpr_unc_cell = f"`[{fpr_ci[0] * 100:.2f}%, {fpr_ci[1] * 100:.2f}%]`"
+        elif zb is not None:
+            fpr_unc_cell = (
+                f"Degenerate (0 FP groups); Family-level zero-event <= `{zb['one_sided_95_clopper_pearson_upper'] * 100:.2f}%` "
+                f"(CP-95) / `{zb['two_sided_95_wilson_upper'] * 100:.2f}%` (Wilson) — not message FPR"
+            )
+        else:
+            fpr_unc_cell = str(gu["fpr_cluster_bootstrap_status"])
+        v = gu["valid_replicates"]
+        u = gu["undefined_replicates"]
+        reps_cell = f"{v['tpr']}/{v['fpr']} (undef {u['tpr']}/{u['fpr']})"
+        row_wilson = f"`{float(row['fpr_wilson_95_upper']) * 100:.2f}%`"
+        out.append(
+            f"| {tau} | {cm_str} | {tpr_cell} | {fpr_cell} | {fp_grp_str} | "
+            f"{fpr_unc_cell} | {reps_cell} | {row_wilson} |"
+        )
+    return out
+
+
+def _format_ppv_uncertainty_table(oof_comp: dict[str, Any]) -> list[str]:
+    """Formats separate PPV sensitivity scenarios at key thresholds without fabricating PPV CIs."""
+    out = [
+        "| $\\tau$ | Sensitivity Scenario | Assumed TPR | Assumed FPR | Modeled PPV @ 0.2% | PPV @ 0.5% | PPV @ 1.0% | PPV @ 5.0% |",
+        "|:---:|---|---:|---:|:---:|:---:|:---:|:---:|",
+    ]
+    key_taus = {0.40, 0.75, 0.80, 0.85}
+    for row in oof_comp["thresholds"]:
+        tau_val = float(row["threshold"])
+        if tau_val not in key_taus:
+            continue
+        scen_map = row["ppv_uncertainty_scenarios"]
+        for s_key, label in (
+            ("point_estimate", "OOF point estimate"),
+            (
+                "descriptive_row_wilson_upper_fpr_at_point_tpr",
+                "Point TPR + descriptive row Wilson FPR upper (ref only)",
+            ),
+            (
+                "conservative_cluster_bootstrap_bounds",
+                "Separate cluster bounds (2.5% TPR, 97.5% FPR)",
+            ),
+            (
+                "cluster_tpr_low_with_row_wilson_upper_fpr",
+                "Cluster 2.5% TPR + descriptive row Wilson FPR upper",
+            ),
+            (
+                "illustrative_non_zero_tail_stress_0_5pct_fpr",
+                "Cluster 2.5% TPR + illustrative 0.5% tail FPR stress",
+            ),
+        ):
+            if s_key not in scen_map:
+                continue
+            item = scen_map[s_key]
+            ppv = item["ppv_by_prevalence"]
+            out.append(
+                f"| `{tau_val:.2f}` | {label} | {float(item['tpr']) * 100:.2f}% | "
+                f"{float(item['fpr']) * 100:.2f}% | {float(ppv['0.002']) * 100:.2f}% | "
+                f"{float(ppv['0.005']) * 100:.2f}% | {float(ppv['0.01']) * 100:.2f}% | "
+                f"{float(ppv['0.05']) * 100:.2f}% |"
+            )
+    return out
+
+
+def _format_cost_sensitivity_table(oof_comp: dict[str, Any]) -> list[str]:
+    """Formats multi-scenario assumed cost ranking sensitivity table on OOF."""
+    cost_sens = oof_comp["cost_sensitivity"]
+    out = [
+        "| Assumed Cost Scenario `(C_FN, C_T1_FP, C_T2_FP)` | $\\pi=0.2\\%$ Single / Dual Top | $\\pi=0.5\\%$ Single / Dual Top | $\\pi=1.0\\%$ Single / Dual Top | $\\pi=5.0\\%$ Single / Dual Top |",
+        "|---|---|---|---|---|",
+    ]
+    for sc in cost_sens["scenarios"]:
+        hdr = f"`{sc['scenario_id']}` `({sc['cost_fn_escape']:g}, {sc['cost_fp_tier1_flag']:g}, {sc['cost_fp_tier2_block']:g})`"
+        cells: list[str] = []
+        for pi_key in ("0.002", "0.005", "0.01", "0.05"):
+            s_top = sc["single_threshold_rankings_by_prevalence"][pi_key][0]
+            d_top = sc["dual_tier_rankings_by_prevalence"][pi_key][0]
+            cells.append(
+                f"`{float(s_top['threshold']):.2f}` ({float(s_top['expected_cost_per_1000']):.2f}) / "
+                f"`({float(d_top['tier1_flag_threshold']):.2f}, {float(d_top['tier2_block_threshold']):.2f})` "
+                f"({float(d_top['expected_cost_per_1000']):.2f})"
+            )
+        out.append(f"| {hdr} | {' | '.join(cells)} |")
+    return out
+
+
 def _format_threshold_and_base_rate_markdown(analysis: dict[str, Any]) -> list[str]:
-    """Formats Section 10 (Operational Cost Matrix & Bayes Base-Rate Sensitivity) for Markdown."""
+    """Formats Section 10 (SF-012 / SF-012R Exploratory Sensitivity, Group Uncertainty & Cost Caveats)."""
     dev_comp = analysis["dev_val_composite"]
-    cost_cfg = dev_comp["cost_model"]
+    oof_comp = analysis.get("oof_composite")
     rows = [
-        "## 10. Operational Cost Matrix & Bayes Base-Rate Prevalence Sensitivity (`SF-012`)",
+        "## 10. Exploratory Threshold Sensitivity, Group-Aware Uncertainty & Assumed Cost Analysis (`SF-012` / `SF-012R`)",
         "",
         f"> **External Validation Blocker (`{analysis['external_validation_status']}`):** {analysis['scope_and_limitations_note']}",
         "",
-        f"- **Asymmetric Cost Matrix (per 1,000 messages):** $C_{{\\text{{FN, Escape}}}} = {cost_cfg['cost_fn_escape']:.1f}$, $C_{{\\text{{FP, Tier1\\_Flag}}}} = {cost_cfg['cost_fp_tier1_flag']:.1f}$, $C_{{\\text{{FP, Tier2\\_Block}}}} = {cost_cfg['cost_fp_tier2_block']:.1f}$ (ratio $50:10:1$ prioritizing protection of legitimate banking/OTP traffic against silent wire drops).",
-        "- **Bayes Precision Law:** $\\text{PPV}(\\pi) = \\frac{\\text{TPR}\\cdot \\pi}{\\text{TPR}\\cdot \\pi + \\text{FPR}\\cdot (1-\\pi)}$ for live carrier prevalence $\\pi \\in \\{0.5\\%, 1.0\\%, 5.0\\%, 50.0\\%\\}$.",
+        "### Evidence Scope & Permitted Interpretation Boundaries",
         "",
-        "### Dev/Val Benchmark ($N = 400$) Composite Score ($S_{\\text{composite}}, V = 0.0$) Sweep",
-        "",
+        "| Evidence | Permitted Interpretation |",
+        "|---|---|",
     ]
-    rows.extend(_format_sweep_table_rows(dev_comp))
-    oof_comp = analysis.get("oof_composite")
-    if isinstance(oof_comp, dict) and oof_comp.get("thresholds"):
-        rows.extend(
-            [
-                "",
-                "### `SF-009` Nested 5-Fold Unseen-Family OOF ($N = 703$, $G = 56$) Composite Sweep",
-                "",
-            ]
-        )
-        rows.extend(_format_sweep_table_rows(oof_comp))
+    for item in analysis["evidence_interpretation_boundaries"]:
+        rows.append(f"| {item['evidence']} | {item['permitted_interpretation']} |")
 
+    meth = analysis["threshold_selection_methodology"]
     rows.extend(
         [
             "",
-            "### Joint Dual-Tier Operational Policy Comparison (Normalized Cost per 1,000 Messages)",
+            "### Methodological Distinction (Exploratory Inspection vs. Independent Validation)",
             "",
-            "| Cohort | Policy `(tau_flag, tau_block)` | Tier-1 Recall / FPR | Tier-2 Recall / FPR | Cost @ 0.5% | Cost @ 1.0% | Cost @ 5.0% | Cost @ 50.0% |",
-            "|---|---|---:|---:|---:|---:|---:|---:|",
+            f"- **Threshold Sensitivity Analysis:** {meth['threshold_sensitivity_analysis']}",
+            f"- **Threshold Selection (Exploratory Only):** {meth['threshold_selection']}",
+            f"- **Independent Threshold Validation:** {meth['independent_threshold_validation']}",
+            "- **Production Defaults & Provisional Status:** Production runtime defaults (`0.40` Tier-1 `FLAG`, `0.75` Tier-2 `BLOCK`) are unchanged. Any higher candidate such as `tau = 0.85` is strictly an unvalidated exploratory/provisional candidate for future Class C evaluation, NOT an empirically validated production optimum.",
+            "",
+            "### Dev/Val Benchmark ($N = 400$, Non-Independent Development Suite) Descriptive Sweep",
+            "",
         ]
     )
-    for label, section in (("Dev/Val N=400", dev_comp), ("SF-009 OOF N=703", oof_comp)):
-        if not isinstance(section, dict):
-            continue
-        for pol in section.get("dual_tier_policies", []):
-            if (pol["tier1_flag_threshold"], pol["tier2_block_threshold"]) not in (
-                (0.40, 0.75),
-                (0.40, 0.85),
-            ):
-                continue
-            costs = pol["expected_cost_per_1000_by_prevalence"]
-            rows.append(
-                f"| {label} | `({pol['tier1_flag_threshold']:.2f}, {pol['tier2_block_threshold']:.2f})` | "
-                f"{float(pol['tier1_tpr']) * 100:.2f}% / {float(pol['tier1_fpr']) * 100:.2f}% | "
-                f"{float(pol['tier2_tpr']) * 100:.2f}% / {float(pol['tier2_fpr']) * 100:.2f}% | "
-                f"{float(costs['0.005']):.2f} | {float(costs['0.01']):.2f} | "
-                f"{float(costs['0.05']):.2f} | {float(costs['0.5']):.2f} |"
+    rows.extend(_format_sweep_table_rows(dev_comp))
+
+    if isinstance(oof_comp, dict) and oof_comp.get("thresholds"):
+        gs = oof_comp.get("group_structure", {})
+        bg = gs.get("benign_groups", {})
+        fg = gs.get("fraud_groups", {})
+        rows.extend(
+            [
+                "",
+                "### `SF-009` Grouped OOF ($N = 703$, $G = 56$ Semantic Families) Exploratory Group-Aware Analysis",
+                "",
+                (
+                    f"- **Group Distribution:** `{gs.get('total_groups', 56)}` semantic families (`{bg.get('count', 37)}` "
+                    f"purely benign covering `{bg.get('total_observations', 543)}` messages, cluster sizes min=`{bg.get('min')}` / "
+                    f"median=`{bg.get('median')}` / max=`{bg.get('max')}`; `{fg.get('count', 19)}` purely fraud covering "
+                    f"`{fg.get('total_observations', 160)}` messages, sizes min=`{fg.get('min')}` / median=`{fg.get('median')}` / "
+                    f"max=`{fg.get('max')}`; mixed-label groups=`{gs.get('mixed_label_groups', 0)}`)."
+                ),
+                "- **Group-Concentration Finding:** At `tau = 0.60..0.80`, `100%` of OOF false positives (`40` at `0.60`, `27` at `0.70`, `13` at `0.75`, `4` at `0.80`) occur inside one benign family (`legit_bank_security_alert_12`), leaving `36 / 37` benign groups with `0` FPs. Row-level Wilson intervals severely understate this clustered uncertainty.",
+                "- **Resampling & Zero-Event Assumptions:** Cluster bootstrap draws `G = 56` intact semantic families with replacement (`B = 1000`, `seed = 42`, valid vs. undefined replicates reported). At `tau >= 0.85`, `0 / 37` benign groups fail: bootstrap degenerates (`[0, 0]`, omitted as CI), a binomial bound on `0 / 37` bounds **affected-family probability** (`<= 7.78%` one-sided Clopper-Pearson / `<= 9.41%` Wilson) rather than message-level carrier FPR, and no ICC, DEFF, or effective sample size is invented.",
+                "",
+            ]
+        )
+        rows.extend(_format_grouped_oof_table(oof_comp))
+        row_85 = next((r for r in oof_comp["thresholds"] if float(r["threshold"]) == 0.85), None)
+        if row_85 is not None:
+            ppv_85_desc = float(
+                row_85["ppv_uncertainty_scenarios"][
+                    "descriptive_row_wilson_upper_fpr_at_point_tpr"
+                ]["ppv_by_prevalence"]["0.005"]
             )
+            fpr_u_85 = float(row_85["fpr_wilson_95_upper"]) * 100.0
+            tpr_85 = float(row_85["tpr"]) * 100.0
+            ppv_note = f"- Actual deployment smishing prevalence $\\pi$ is unknown without live carrier measurement. Zero observed OOF false positives (`0 / 543` in `0 / 37` groups) yields `100%` point PPV mechanically, whereas plausible non-zero FPRs dramatically lower precision (e.g., at `tau = 0.85`, `TPR = {tpr_85:.2f}%`, `pi = 0.5%`, even descriptive row-level Wilson upper `{fpr_u_85:.2f}%` implies `{ppv_85_desc * 100:.2f}%` PPV, not `100%`)."
+        else:
+            ppv_note = "- Actual deployment smishing prevalence $\\pi$ is unknown without live carrier measurement."
+        rows.extend(
+            [
+                "",
+                "### Modeled Bayes Base-Rate PPV Sensitivity Scenarios (Illustrative Only — Not Observed Precision or PPV CIs)",
+                "",
+                ppv_note,
+                "",
+            ]
+        )
+        rows.extend(_format_ppv_uncertainty_table(oof_comp))
+        rows.extend(
+            [
+                "",
+                "### Illustrative Assumed Cost-Ratio Sensitivity (`10:1:50` Baseline & Alternative Ratios)",
+                "",
+                "- **Cost Evidence Distinction:** (1) *Mathematical cost under assumed ratios* is computed below as an illustrative normalized sensitivity check only (units are NOT euros, churn dollars, or carrier expenses); (2) *Empirically measured operational cost* is unavailable; (3) *Operational policy decisions* require both measured costs and independent Class C validation.",
+                f"- **Ranking Sensitivity Finding (`cost_assumption_sensitive = {oof_comp['cost_sensitivity']['cost_assumption_sensitive']}`):** Threshold preferences shift materially across assumed cost weights and prevalence $\\pi$ (e.g. under baseline `10:1:50` at `pi <= 1%`, `(0.85, 0.85)` ranks lower-cost than `(0.40, 0.85)` because Tier-1 benign flags dominate unless fraud escape cost increases, whereas `(0.40, 0.85)` or `(0.30, 0.85)` dominates when escape cost rises to `50..100`, and single-threshold ranking drops from `0.85` to `0.40` at `pi = 5%` under `(50, 1, 5)`). Cost-minimizing cutoffs are assumption-sensitive, not proven optima.",
+                "",
+            ]
+        )
+        rows.extend(_format_cost_sensitivity_table(oof_comp))
+
     rows.append("")
     return rows
 

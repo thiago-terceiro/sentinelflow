@@ -167,8 +167,8 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
      S_{\text{content}} + V \cdot (1 - S_{\text{content}}) & \text{otherwise} \quad \text{(Probabilistic Noisy-OR)}
      \end{cases}$$
    * **Dual-Threshold Operational Tiers & Verdict Routing:**
-     - **Tier 1 — `FLAG + BLOCK` ($S_{\text{composite}} \ge 0.40$):** Asynchronous Human/Agent Escalation Queue. High recall ($\ge 94.0\%$), low FPR ($\le 2.5\%$). Dispatches suspect traffic for background dispute analysis and deep enrichment without blocking wire delivery prematurely.
-     - **Tier 2 — `BLOCK` ($S_{\text{composite}} \ge 0.75$):** Immediate Carrier Wire Drop. Ultra-high precision ($\ge 98.5\%$) and near-zero False Positive Rate ($\le 0.5\%$, measured $0.00\%$ on legitimate OTP & transactional SMS) ensuring zero false drops on mission-critical traffic.
+     - **Tier 1 — `FLAG + BLOCK` ($S_{\text{composite}} \ge 0.40$):** Asynchronous Human/Agent Escalation Queue. Designed for high recall (`100.00%` recall / `5.00%` FPR on `Dev/Val N=400`; `97.50%` recall / `8.10%` FPR on exploratory `SF-009 OOF N=703`). Dispatches suspect traffic for background dispute analysis without blocking wire delivery prematurely.
+     - **Tier 2 — `BLOCK` ($S_{\text{composite}} \ge 0.75$):** Immediate Carrier Wire Drop. Design target is high precision ($\ge 98.5\%$) and minimal benign blocking (`0 / 200` on `Dev/Val N=400`, vs. exploratory `SF-009 OOF N=703` `2.39%` FPR concentrated in `1 / 37` benign families; external carrier FPR remains unverified).
      - **`ALLOW` ($S_{\text{composite}} < 0.40$):** Immediate pass-through with zero latency overhead.
    * **Mathematical Invariants & False-Positive Prevention:**
      - **Monotonic Non-Decreasing Property:** $\frac{\partial S_{\text{composite}}}{\partial P} \ge 0$, $\frac{\partial S_{\text{composite}}}{\partial H} \ge 0$, and $\frac{\partial S_{\text{composite}}}{\partial V} \ge 0$ everywhere on $[0, 1]^3$. Bounded within $[0.0, 1.0]$ with zero non-monotonic dips or threshold discontinuities. Terminology note: the formulation is mathematically monotonic non-decreasing rather than strictly monotonic due to flat boundary plateaus where $H \ge 0.80$ forces $S_{\text{composite}} = 1.0$.
@@ -189,18 +189,31 @@ Conversational broken-phone messages sit along a product boundary between benign
 
 ---
 
-### 4.2 Decision Policy, Cost Model & Base-Rate Prevalence Analysis (`SF-012`)
+### 4.2 Exploratory Decision Policy, Group Uncertainty & Cost Sensitivity (`SF-012` / `SF-012R`)
 
-SentinelPulse separates **non-destructive async inspection** from **synchronous wire drops** using a $50:10:1$ asymmetric cost structure and Bayes base-rate awareness ($\text{PPV}(\pi) = \frac{\text{TPR}\cdot \pi}{\text{TPR}\cdot \pi + \text{FPR}\cdot (1 - \pi)}$):
+SentinelPulse distinguishes **threshold sensitivity analysis** (exploring score cutoffs across internal data), **exploratory threshold selection** (identifying provisional candidates from those same OOF scores), and **independent threshold validation** (unavailable until an untouched Class C external holdout exists):
 
-1. **Verdict Semantics & Evidence Requirements:**
+| Evidence | Permitted Interpretation |
+|---|---|
+| `Dev/Val N=400` | Development/validation evidence; not independent holdout evidence |
+| `SF-009` grouped OOF `N=703` (`G=56`) | Exploratory unseen-family estimates; not an untouched final test set |
+| Threshold sweep ($\tau \in [0.30, 0.95]$) | Sensitivity analysis; not independent threshold selection validation |
+| Assumed cost ratios (including `10:1:50`) | Illustrative decision model; not measured operational costs |
+| Bayes PPV calculations | Modeled prevalence sensitivity; not observed production precision |
+| `Class C` external holdout | Unavailable (`UNAVAILABLE / BLOCKED`); external generalization remains unverified |
+
+1. **Verdict Semantics, Unchanged Production Defaults, & Provisional Candidates:**
    * **`ALLOW` ($S_{\text{composite}} < 0.40$):** Immediate synchronous pass-through. Benign indicator suppression ($\alpha(P, H) = 0$ when $H \le 0.25$ and $P < 0.30$) prevents routine 2FA codes, bank balance notices, and delivery updates from escalating.
-   * **`FLAG` ($0.40 \le S_{\text{composite}} < 0.75$ — Tier 1 Async Review Queue):** Suspicious or borderline signals (elevated ML probability, ambiguous kinship/app notices, moderate velocity $V > 0$) enqueue an asynchronous investigation without delaying wire delivery. Cost of a Tier-1 false flag ($C_{\text{FP, Tier1\_Flag}} = 1.0$) is $10\times$ lower than a fraud escape ($C_{\text{FN, Escape}} = 10.0$) and $50\times$ lower than blocking a legitimate customer message ($C_{\text{FP, Tier2\_Block}} = 50.0$).
+   * **`FLAG` ($0.40 \le S_{\text{composite}} < 0.75$ — Tier 1 Async Review Queue):** Suspicious or borderline signals enqueue an asynchronous investigation without delaying wire delivery.
    * **`BLOCK` ($S_{\text{composite}} \ge 0.75$ — Tier 2 Synchronous Wire Drop):** Reserved for high-confidence ML consensus, compound multi-signal confirmation (ML + heuristic + Redis velocity $V$), or explicit authoritative heuristic overrides ($H \ge 0.80$).
-2. **Base-Rate Precision Erosion & Strict FPR Discipline ($\pi \le 1\%$):**
-   * Balanced development benchmarks ($\pi = 50\%$) mask false-positive impact under real carrier smishing base rates ($\pi \in [0.5\%, 5.0\%]$). On `Dev/Val (N = 400)`, Tier 2 (`S >= 0.75`) achieves `0.00%` FPR (95% Wilson upper bound `1.88%`); on unseen semantic-family cross-validation (`SF-009` OOF `N = 703`), composite `S >= 0.75` exhibits `2.39%` FPR (`13/543`), which collapses Bayes precision to `13.31%` (normalized cost `1249.12` per 1,000 messages) at $\pi = 0.5\%$ unless operating at stricter confirmation ($\tau \ge 0.85$ yielding `0.00%` OOF FPR with `0.70%` Wilson upper bound and dual-tier cost `81.88`, or compound velocity/override evidence).
-   * **External Validation Blocker (`UNAVAILABLE / BLOCKED`):** As established in `SF-010`/`SF-011`, no `Class C` primary external two-class carrier holdout (and no `Test Holdout N = 300`) currently exists. Operational thresholds (`0.40`, `0.75`) remain frozen pending partner-enclave Class C/D verification.
-3. **Degraded-Mode Fail-Open vs. Fail-Closed Behavior:**
+   * **Provisional Threshold Status:** Production runtime defaults (`0.40` / `0.75`) are **unchanged**. Inspecting candidate $\tau = 0.85$ in exploratory `OOF` sweeps does **not** constitute independent validation; $\tau = 0.85$ is classified strictly as an unvalidated provisional candidate for future Class C evaluation.
+2. **Clustered Error Concentration, Zero-Event Limits & Modeled PPV Sensitivity:**
+   * **Cluster Concentration (`SF-009` OOF `N=703`, `G=56` families: `37` benign / `543` rows, `19` fraud / `160` rows, `0` mixed):** For $\tau \in [0.60, 0.80]$, all OOF false positives occur in **1 / 37 benign families** (`legit_bank_security_alert_12`: `13` FPs at `0.75`), making cluster-bootstrap 95% FPR CIs much wider (`[0.00%, 7.81%]` at `0.75`) than row-level Wilson intervals (`[1.40%, 4.05%]`).
+   * **Zero Observed False Positives Never Establish Zero Underlying FPR:** At $\tau = 0.85$, `0 / 543` (`0 / 37` benign families) triggers a degenerate `[0, 0]` cluster bootstrap (omitted as a CI). Treating the `37` benign families as independent family-level draws gives a zero-event bound of `<= 7.78%` (one-sided 95% Clopper-Pearson) / `<= 9.41%` (two-sided Wilson) on **affected benign family proportion**, NOT message-level carrier FPR (no ICC or DEFF is invented).
+   * **Base-Rate PPV Uncertainty ($\pi \in \{0.2\%, 0.5\%, 1.0\%, 5.0\%\}$):** Actual deployment prevalence $\pi$ is unknown. Modeled point PPV (`100%` when `FPR=0`) collapses sharply under non-zero FPR uncertainty (e.g., at `tau=0.85`, `TPR=56.88%`, `pi=0.5%`, even descriptive row Wilson upper `0.70%` implies `28.92%` PPV, not `100%`). Modeled PPV is illustrative sensitivity, not observed live precision.
+3. **Assumed Cost Model & Cost-Assumption Sensitivity (`SF-012R`):**
+   * The `10:1:50` weights ($C_{\text{FN, Escape}}=10.0$, $C_{\text{FP, Tier1\_Flag}}=1.0$, $C_{\text{FP, Tier2\_Block}}=50.0$) are an **illustrative assumed cost model**, not empirically measured financial/churn expenses. Multi-scenario evaluation across varying block penalties (`5..500`) and escape weights (`2..100`) confirms that single- and dual-tier threshold rankings shift substantially with assumed costs and prevalence (`cost_assumption_sensitive = True`). Operational decisions require (1) assumed mathematical modeling, (2) empirically measured carrier costs, and (3) external Class C validation; only (1) currently exists.
+4. **Degraded-Mode Fail-Open vs. Fail-Closed Behavior:**
    * Under Redis timeouts (`VelocityFeatureStore` 30s circuit breaker) or ONNX session unavailability, **2FA/authentication SMS and benign traffic fail open (`ALLOW`)** via fast-path heuristics-only inspection to avoid blocking OTPs; unverified bulk/suspicious messages quarantine to **`FLAG`** unless deterministic high-confidence threat patterns ($H \ge 0.80$) trigger `BLOCK`.
 
 ---
