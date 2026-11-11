@@ -363,11 +363,7 @@ class _PureAstEvaluator:
         if isinstance(stmt, ast.Continue):
             raise _ContinueSignal()
         if isinstance(stmt, ast.If):
-            branch = (
-                stmt.body
-                if self.eval_expr(stmt.test, scope, parent_scope)
-                else stmt.orelse
-            )
+            branch = stmt.body if self.eval_expr(stmt.test, scope, parent_scope) else stmt.orelse
             for sub in branch:
                 self.exec_stmt(sub, scope, parent_scope)
             return
@@ -493,9 +489,7 @@ class _PureAstEvaluator:
             return items
         if isinstance(expr, ast.DictComp):
             out: dict[Any, Any] = {}
-            pairs = self._eval_dict_comp(
-                expr.key, expr.value, expr.generators, scope, parent_scope
-            )
+            pairs = self._eval_dict_comp(expr.key, expr.value, expr.generators, scope, parent_scope)
             for k, v in pairs:
                 out[k] = v
             return out
@@ -721,9 +715,7 @@ def fetch_verified_bytes(
     actual_sha = sha256_bytes(data)
     if actual_sha != expected_sha256:
         source_label = str(local_path) if local_path is not None else url
-        raise ValueError(
-            f"Checksum mismatch for {source_label}: {actual_sha} != {expected_sha256}"
-        )
+        raise ValueError(f"Checksum mismatch for {source_label}: {actual_sha} != {expected_sha256}")
     return data
 
 
@@ -846,9 +838,7 @@ def compute_imc25_verified_evidence(
         "english_non_spam_empty_scam_type_csv_rows": empty_scam_type_csv_rows,
         "english_named_non_spam_smishing_total": named_non_spam_stats["row_count"],
         "english_named_non_spam_unique_normalized": named_non_spam_stats["unique_normalized_count"],
-        "english_non_spam_with_url_placeholder": all_non_spam_stats[
-            "unique_with_url_placeholder"
-        ],
+        "english_non_spam_with_url_placeholder": all_non_spam_stats["unique_with_url_placeholder"],
         "english_non_spam_with_raw_http_url": all_non_spam_stats["unique_with_raw_http_url"],
         "english_non_spam_without_any_presidio_tag": all_non_spam_stats[
             "unique_without_any_presidio_tag"
@@ -1559,9 +1549,7 @@ def verify_repository_reproducibility(
         expected_canonical_lf_sha256=assessment["secondary_transfer_benchmark_sha256"],
     )
     if b"\r\n" in uci_raw_bytes:
-        raise ValueError(
-            "Committed uci_sms_spam_secondary.json must use canonical LF line endings"
-        )
+        raise ValueError("Committed uci_sms_spam_secondary.json must use canonical LF line endings")
     if b"\r\n" in assessment_raw_bytes:
         raise ValueError(
             "Committed external_source_assessment.json must use canonical LF line endings"

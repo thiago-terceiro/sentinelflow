@@ -20,14 +20,14 @@ Verified on disk prior to `SF-010` execution (`sentinelflow/backend/app/telecom/
 | Development & Validation Benchmark (`N = 400`) | `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03` | Frozen `Class B` Dev/Val suite (`200` benign, `200` fraud) |
 
 Machine-readable governance files live under `sentinelflow/backend/app/telecom/datasets/` (committed with canonical **LF** line endings enforced by `.gitattributes`):
-- `external_source_assessment.json` — Complete suitability ledger across all 8 audited sources (`canonical LF sha256 = 72fa9ff4a519b75204272ba05d3138f6d0a3b8d72578f6eb9`), explicitly separating programmatically computed evidence from qualitative manual candidate adjudications
+- `external_source_assessment.json` — Complete suitability ledger across all 8 audited sources (`canonical LF sha256 = 72fa9ff4a519b75204272ba05d3138f6d0a3b8379b1d0fec493a8d72578f6eb9`), explicitly separating programmatically computed evidence from qualitative manual candidate adjudications
 - `uci_sms_spam_secondary.json` — Isolated `UCI SMS Spam Collection v.1` secondary benchmark:
   - Canonical LF Git/Disk file SHA-256: `169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7`
   - Timestamp-independent `canonical_content_sha256`: `793d53864389c7ef0b534c943a8baade86bf3c1d61a4f4ea7b2672fa63ce6249`
   - Deterministic `canonical_rows_sha256` (all `5,574` record payloads): `0e643ea940d4c18069c6e5e040a3ac090828771fc00d847f97babf992f6d39a7`
 - `quarantined_test_holdout.json` — **Intentionally absent** until a suitable two-class unredacted external fraud/smishing corpus passes all gates
 
-> **Cross-Platform Hash Verification (`SF-010R`):** Earlier `SF-010` commit `0acd742` recorded Windows CRLF working-tree SHA-256 `f35b8ea2ea0738732299498111ee8e89eadd4a207eb53bcf9654d2526e53dce6` while Git stored the LF blob `127ed840...`. To eliminate OS line-ending drift and volatile `retrieval_timestamp_utc` dependency, `dataset_quarantine.verify_uci_artifact_integrity()` reports `raw_disk_sha256`, `lf_canonical_sha256`, `canonical_rows_sha256`, and timestamp-free `canonical_content_sha256` separately, while `build_quarantine_artifacts.py` writes strict LF UTF-8 JSON bytes and `.gitattributes` pins `*.json` and these mirrored docs to `eol=lf`.
+> **Cross-Platform Hash Verification (`SF-010R`):** Earlier `SF-010` commit `0acd742` recorded Windows CRLF working-tree SHA-256 `f35b8ea2ea0738732299498111ee8e89eadd4a207eb53bcf9654d2526e53dce6` while Git stored the LF blob `127ed840...`. To eliminate OS line-ending drift and volatile `retrieval_timestamp_utc` dependency, `dataset_quarantine.verify_uci_artifact_integrity()` reports `raw_disk_sha256`, `lf_canonical_sha256`, `canonical_rows_sha256`, and timestamp-free `canonical_content_sha256` separately, while `build_quarantine_artifacts.py` writes strict LF UTF-8 JSON bytes and `.gitattributes` pins both SF-010R dataset JSON artifacts and these mirrored docs to `eol=lf`.
 
 ---
 

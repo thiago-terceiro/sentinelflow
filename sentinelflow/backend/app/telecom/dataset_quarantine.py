@@ -120,8 +120,7 @@ def verify_uci_artifact_integrity(
     stored_content_sha256 = manifest.get("canonical_content_sha256")
     if stored_content_sha256 is not None and actual_content_sha256 != stored_content_sha256:
         raise ValueError(
-            "canonical_content_sha256 mismatch: "
-            f"{actual_content_sha256} != {stored_content_sha256}"
+            f"canonical_content_sha256 mismatch: {actual_content_sha256} != {stored_content_sha256}"
         )
 
     if (
@@ -496,14 +495,10 @@ def assess_holdout_suitability(assessment: dict[str, Any]) -> dict[str, Any]:
         "eligible_primary_candidates": eligible_primary,
         "secondary_benchmarks_retained": secondary_retained,
         "primary_holdout_status": (
-            "READY_FOR_SINGLE_SHOT_EVALUATION"
-            if eligible_primary
-            else "UNAVAILABLE_BLOCKED"
+            "READY_FOR_SINGLE_SHOT_EVALUATION" if eligible_primary else "UNAVAILABLE_BLOCKED"
         ),
         "sf_011_status": (
-            "UNBLOCKED"
-            if eligible_primary
-            else "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT"
+            "UNBLOCKED" if eligible_primary else "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT"
         ),
         "gate_failures_by_candidate": gate_failures,
     }

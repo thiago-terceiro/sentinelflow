@@ -899,7 +899,9 @@ def test_calibration_ece_and_wilson_intervals() -> None:
         assert bins[empty_idx]["empirical_positive_rate"] is None
         assert bins[empty_idx]["abs_calibration_gap"] is None
 
-    expected_ece = (2 / 5) * abs(0.0495 - 0.0) + (1 / 5) * abs(0.1 - 0.0) + (2 / 5) * abs(0.95 - 1.0)
+    expected_ece = (
+        (2 / 5) * abs(0.0495 - 0.0) + (1 / 5) * abs(0.1 - 0.0) + (2 / 5) * abs(0.95 - 1.0)
+    )
     assert abs(float(cal["ece"]) - expected_ece) < 1e-6
 
     # Wilson 95% CI edge cases (all 1s, all 0s, and 0/0 denominator)
@@ -1015,7 +1017,9 @@ def test_sf010_frozen_baseline_artifacts_and_blocked_holdout_status() -> None:
     assert sha256_bytes(canon["model"].read_bytes()) == FROZEN_ONNX_MODEL_SHA256
     metadata = json.loads(canon["metadata"].read_text(encoding="utf-8"))
     metrics = json.loads(canon["metrics"].read_text(encoding="utf-8"))
-    inventory = json.loads((canon["model"].resolve().parents[1] / "dataset_inventory.json").read_text(encoding="utf-8"))
+    inventory = json.loads(
+        (canon["model"].resolve().parents[1] / "dataset_inventory.json").read_text(encoding="utf-8")
+    )
 
     assert metadata["model_sha256"] == FROZEN_ONNX_MODEL_SHA256
     assert metrics["model_sha256"] == FROZEN_ONNX_MODEL_SHA256
@@ -1068,12 +1072,14 @@ def test_sf010_uci_secondary_quarantine_provenance_and_zero_relabeling() -> None
     assert integrity["eol_style_on_disk"] == "LF"
     assert integrity["raw_matches_canonical_lf"] is True
     assert integrity["lf_canonical_sha256"] == assessment["secondary_transfer_benchmark_sha256"]
-    assert integrity["canonical_content_sha256"] == assessment[
-        "secondary_transfer_benchmark_content_sha256"
-    ]
-    assert integrity["canonical_rows_sha256"] == assessment[
-        "secondary_transfer_benchmark_canonical_rows_sha256"
-    ]
+    assert (
+        integrity["canonical_content_sha256"]
+        == assessment["secondary_transfer_benchmark_content_sha256"]
+    )
+    assert (
+        integrity["canonical_rows_sha256"]
+        == assessment["secondary_transfer_benchmark_canonical_rows_sha256"]
+    )
 
     # Simulated Windows CRLF bytes must transparently differ in raw digest while preserving LF & content digests
     crlf_bytes = raw_bytes.replace(b"\n", b"\r\n")
@@ -1188,9 +1194,12 @@ def test_sf010_source_assessment_completeness_and_gate_integrity() -> None:
         assert len(cand["rejection_or_limitation_reasons"]) >= 1, f"Missing limitations for {cid}"
 
     # Verify Mendeley f45bkkt8pr UCI-spam contamination evidence is explicitly documented
-    assert by_id["mendeley_f45bkkt8pr_v1"]["verified_counts"]["uci_exact_normalized_overlap_breakdown"][
-        "smishing_matching_uci_spam_RELABELED"
-    ] == 361
+    assert (
+        by_id["mendeley_f45bkkt8pr_v1"]["verified_counts"][
+            "uci_exact_normalized_overlap_breakdown"
+        ]["smishing_matching_uci_spam_RELABELED"]
+        == 361
+    )
 
     # Verify IMC25 pinned immutable commit URL and reconciled empty-category counts
     imc25 = by_id["imc25_smishing_reports"]
@@ -1280,7 +1289,9 @@ def test_sf010_statistical_wilson_base_rate_and_mirrored_docs() -> None:
     gov_paths = get_dataset_governance_paths()
     root_bytes = gov_paths["governance_root"].read_bytes()
     mirror_bytes = gov_paths["governance_mirror"].read_bytes()
-    assert root_bytes == mirror_bytes, "Mirrored provenance & governance docs must be byte-identical"
+    assert root_bytes == mirror_bytes, (
+        "Mirrored provenance & governance docs must be byte-identical"
+    )
 
     doc_text = root_bytes.decode("utf-8")
     assert b"\r\n" not in root_bytes, "Mirrored governance markdown must use canonical LF endings"
@@ -1296,6 +1307,39 @@ def test_sf010_statistical_wilson_base_rate_and_mirrored_docs() -> None:
     ):
         assert required_section in doc_text, f"Governance doc missing '{required_section}'"
     assert "±3.2%" not in doc_text and "3.2%" not in doc_text
+
+
+def test_sf010r1_assessment_sha256_and_mirrored_docs_regression() -> None:
+    """Verifies full 64-char canonical LF assessment SHA-256 matches both mirrored docs."""
+    import re
+    import string
+
+    from app.telecom.dataset_quarantine import (
+        get_dataset_governance_paths,
+        normalize_line_endings_lf,
+        sha256_bytes,
+    )
+
+    gov_paths = get_dataset_governance_paths()
+    assessment_raw = gov_paths["source_assessment"].read_bytes()
+    assert b"\r\n" not in assessment_raw, "external_source_assessment.json must use LF endings"
+    assessment_lf_sha256 = sha256_bytes(normalize_line_endings_lf(assessment_raw))
+
+    assert len(assessment_lf_sha256) == 64
+    assert all(ch in string.hexdigits[:16] for ch in assessment_lf_sha256)
+
+    root_bytes = gov_paths["governance_root"].read_bytes()
+    mirror_bytes = gov_paths["governance_mirror"].read_bytes()
+    assert root_bytes == mirror_bytes, "Mirrored governance docs must remain byte-identical"
+    assert b"\r\n" not in root_bytes, "Mirrored governance docs must use LF endings"
+
+    doc_text = root_bytes.decode("utf-8")
+    assert assessment_lf_sha256 in doc_text, (
+        f"Governance docs missing full 64-char assessment SHA-256 {assessment_lf_sha256}"
+    )
+    doc_match = re.search(r"canonical LF sha256 = ([0-9a-f]+)", doc_text)
+    assert doc_match is not None, "Governance docs missing 'canonical LF sha256 = <hash>' record"
+    assert doc_match.group(1) == assessment_lf_sha256
 
 
 def test_sf010r_builder_isolation_ast_corpus_and_hermetic_reconstruction(
@@ -1434,8 +1478,3 @@ def test_sf010r_builder_isolation_ast_corpus_and_hermetic_reconstruction(
     assert imc_counts["english_non_spam_smishing_total"] == 2
     assert imc_counts["english_non_spam_empty_scam_type_count"] == 1
     assert imc_counts["english_named_non_spam_smishing_total"] == 1
-
-
-
-
-
