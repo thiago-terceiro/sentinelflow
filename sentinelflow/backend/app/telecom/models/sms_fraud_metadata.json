@@ -1139,7 +1139,7 @@
     "oof_predictions_artifact": "oof_predictions.json",
     "oof_predictions_sha256": "9b6376520d0161e6969646a07d98babc00231e51f166d9149e18b567bd163265"
   },
-  "evaluation_timestamp": "2026-11-11T23:50:09.080495+00:00",
+  "evaluation_timestamp": "2026-11-12T10:36:23.948784+00:00",
   "software_versions": {
     "onnxruntime": "1.31.0",
     "numpy": "2.5.4",
@@ -18314,7 +18314,118 @@
       "total_evaluated_prompts": 70,
       "zero_leakage_verified_against_train_and_dev_val": true,
       "train_and_dev_val_overlap_count": 0,
-      "homoglyph_rule_present_in_frozen_engine": false,
+      "homoglyph_rule_present_in_engine": true,
+      "supported_homoglyph_scope": {
+        "confusable_count": 24,
+        "strategy": "mixed_script_and_isolated_confusable_cyrillic_selective_normalization",
+        "limitation": "Covers the 24 enumerated Cyrillic-to-Latin visual lookalikes only; does not cover Greek, Cherokee, mathematical, or arbitrary Unicode confusable blocks, and preserves natural pure-Cyrillic and bilingual prose untouched without heuristic flags."
+      },
+      "pre_remediation_afae166_reference": {
+        "baseline_unperturbed": {
+          "ml_p40": 1.0,
+          "ml_p50": 0.9,
+          "heur_h50": 1.0,
+          "comp_t1": 1.0,
+          "comp_t2": 0.9,
+          "mean_p": 0.811,
+          "mean_h": 0.772,
+          "mean_s": 0.9284
+        },
+        "unseen_institution_substitution": {
+          "ml_p40": 1.0,
+          "ml_p50": 0.9,
+          "heur_h50": 1.0,
+          "comp_t1": 1.0,
+          "comp_t2": 0.9,
+          "mean_p": 0.8104,
+          "mean_h": 0.772,
+          "mean_s": 0.9253
+        },
+        "url_domain_shortener_rotation": {
+          "ml_p40": 0.9,
+          "ml_p50": 0.9,
+          "heur_h50": 0.8,
+          "comp_t1": 1.0,
+          "comp_t2": 0.9,
+          "mean_p": 0.7461,
+          "mean_h": 0.711,
+          "mean_s": 0.9293
+        },
+        "cyrillic_homoglyph_substitution": {
+          "ml_p40": 0.8,
+          "ml_p50": 0.7,
+          "heur_h50": 0.0,
+          "comp_t1": 0.8,
+          "comp_t2": 0.1,
+          "mean_p": 0.5271,
+          "mean_h": 0.1,
+          "mean_s": 0.5415
+        },
+        "leetspeak_and_punctuation_splitting": {
+          "ml_p40": 1.0,
+          "ml_p50": 1.0,
+          "heur_h50": 0.6,
+          "comp_t1": 1.0,
+          "comp_t2": 0.7,
+          "mean_p": 0.7282,
+          "mean_h": 0.463,
+          "mean_s": 0.7791
+        },
+        "whitespace_casing_and_control_injection": {
+          "ml_p40": 1.0,
+          "ml_p50": 1.0,
+          "heur_h50": 1.0,
+          "comp_t1": 1.0,
+          "comp_t2": 0.9,
+          "mean_p": 0.8082,
+          "mean_h": 0.767,
+          "mean_s": 0.9208
+        },
+        "benign_near_miss_contrastive_controls": {
+          "ml_p40": 0.2,
+          "ml_p50": 0.2,
+          "heur_h50": 0.0,
+          "comp_t1": 0.2,
+          "comp_t2": 0.0,
+          "mean_p": 0.1373,
+          "mean_h": 0.04,
+          "mean_s": 0.1373
+        }
+      },
+      "benign_near_miss_false_positive_audit": {
+        "classification": "genuine_tfidf_bag_of_words_domain_shift_limitation",
+        "fixture_modified": false,
+        "flagged_controls": [
+          {
+            "sample_id": "benign_tax_prep_1099",
+            "p": 0.6298,
+            "h": 0.0,
+            "s": 0.6298,
+            "signals": [],
+            "top_fraud_pushing_tokens": [
+              "please (+0.1915)",
+              "before (+0.1072)",
+              "portal (+0.0881)",
+              "irs (+0.0608)"
+            ],
+            "explanation": "Unigrams seen predominantly in phishing lures (please/before/portal/irs) outweigh benign-associated tokens ('your', 'friday'), while domain words ('W-2', '1099', 'CPA') are absent from the 703-sample training vocabulary; heuristics hold H=0.00 (no BLOCK)."
+          },
+          {
+            "sample_id": "benign_courthouse_jury",
+            "p": 0.542,
+            "h": 0.0,
+            "s": 0.542,
+            "signals": [],
+            "top_fraud_pushing_tokens": [
+              "fee (+0.1668)",
+              "been (+0.1478)",
+              "has been (+0.1169)",
+              "notice (+0.1151)"
+            ],
+            "explanation": "Bag-of-words TF-IDF lacks syntactic negation scope over 'no fee required' ('fee' +0.1668 outweighs 'no' -0.1060); heuristics match zero extortion rules (H=0.00)."
+          }
+        ]
+      },
       "thresholds": {
         "ml_only": [
           0.4,
@@ -18371,7 +18482,114 @@
             "RULE:UNPAID_TOLL_INVOICE": 1,
             "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
             "RULE:WORK_FROM_HOME_SCAM": 1
-          }
+          },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.8918,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.8951,
+              "h": 0.77,
+              "s": 0.9382,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:DELIVERY_FEE_SCAM",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.8492,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.8098,
+              "h": 0.8,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT"
+              ]
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.8633,
+              "h": 0.77,
+              "s": 0.9194,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.8446,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.6911,
+              "h": 0.7,
+              "s": 0.8039,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM"
+              ]
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.9297,
+              "h": 0.75,
+              "s": 0.9577,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+              ]
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.8369,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.4985,
+              "h": 0.65,
+              "s": 0.6653,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM"
+              ]
+            }
+          ]
         },
         {
           "family_id": "unseen_institution_substitution",
@@ -18415,6 +18633,143 @@
             "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
             "RULE:WORK_FROM_HOME_SCAM": 1
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.9024,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0106,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.9052,
+              "h": 0.77,
+              "s": 0.9441,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:DELIVERY_FEE_SCAM",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0101,
+              "delta_h": 0.0,
+              "delta_s": 0.0059
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.867,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0178,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.8098,
+              "h": 0.8,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT"
+              ],
+              "delta_p": -0.0,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.8662,
+              "h": 0.77,
+              "s": 0.9211,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0029,
+              "delta_h": 0.0,
+              "delta_s": 0.0017
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.8446,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.6411,
+              "h": 0.7,
+              "s": 0.7721,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM"
+              ],
+              "delta_p": -0.05,
+              "delta_h": 0.0,
+              "delta_s": -0.0318
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.9174,
+              "h": 0.75,
+              "s": 0.9502,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+              ],
+              "delta_p": -0.0123,
+              "delta_h": 0.0,
+              "delta_s": -0.0075
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.8521,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0152,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.4985,
+              "h": 0.65,
+              "s": 0.6653,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM"
+              ],
+              "delta_p": 0.0,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.0006,
             "mean_h": 0.0,
@@ -18462,6 +18817,145 @@
             "RULE:URGENT_ACCOUNT_LOCKOUT": 1,
             "RULE:WORK_FROM_HOME_SCAM": 1
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.8468,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.045,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.815,
+              "h": 0.77,
+              "s": 0.8909,
+              "signals": [
+                "RULE:DELIVERY_FEE_SCAM",
+                "RULE:STANDALONE_URL",
+                "RULE:GENERIC_DELIVERY_KEYWORD",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0801,
+              "delta_h": 0.0,
+              "delta_s": -0.0473
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.6532,
+              "h": 0.25,
+              "s": 0.6835,
+              "signals": [
+                "RULE:STANDALONE_URL"
+              ],
+              "delta_p": -0.196,
+              "delta_h": -0.57,
+              "delta_s": -0.3165
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.6442,
+              "h": 0.92,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.1656,
+              "delta_h": 0.12,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.8328,
+              "h": 0.25,
+              "s": 0.8474,
+              "signals": [
+                "RULE:STANDALONE_URL"
+              ],
+              "delta_p": -0.0305,
+              "delta_h": -0.52,
+              "delta_s": -0.072
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.8219,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0227,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.3513,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.3398,
+              "delta_h": 0.12,
+              "delta_s": 0.1961
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.9121,
+              "h": 0.87,
+              "s": 1.0,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0176,
+              "delta_h": 0.12,
+              "delta_s": 0.0423
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.8022,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0347,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.782,
+              "h": 0.77,
+              "s": 0.8715,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.2835,
+              "delta_h": 0.12,
+              "delta_s": 0.2062
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.0649,
             "mean_h": -0.061,
@@ -18477,16 +18971,16 @@
           "perturbation_mechanism": "Substitutes Latin a/e/o/p/c with visually indistinguishable Cyrillic codepoints inside alphabetic brand and fraud-signal tokens.",
           "ml_only_p40_rate": 0.8,
           "ml_only_p50_rate": 0.7,
-          "heuristics_only_h40_rate": 0.0,
-          "heuristics_only_h50_rate": 0.0,
-          "composite_tier1_rate": 0.8,
-          "composite_tier2_rate": 0.1,
+          "heuristics_only_h40_rate": 1.0,
+          "heuristics_only_h50_rate": 1.0,
+          "composite_tier1_rate": 1.0,
+          "composite_tier2_rate": 0.7,
           "ml_only_p40_recall": 0.8,
           "ml_only_recall": 0.7,
-          "heuristics_only_h40_recall": 0.0,
-          "heuristics_only_recall": 0.0,
-          "composite_tier1_recall": 0.8,
-          "composite_tier2_recall": 0.1,
+          "heuristics_only_h40_recall": 1.0,
+          "heuristics_only_recall": 1.0,
+          "composite_tier1_recall": 1.0,
+          "composite_tier2_recall": 0.7,
           "ml_only_p40_fpr": null,
           "ml_only_fpr": null,
           "heuristics_only_h40_fpr": null,
@@ -18494,15 +18988,178 @@
           "composite_tier1_fpr": null,
           "composite_tier2_fpr": null,
           "mean_p": 0.5271,
-          "mean_h": 0.1,
-          "mean_s": 0.5415,
+          "mean_h": 0.82,
+          "mean_s": 0.8824,
           "triggered_rule_counts": {
-            "RULE:STANDALONE_URL": 4
+            "HEURISTIC:COMPOUND_SIGNALS": 10,
+            "RULE:DELIVERY_FEE_SCAM": 1,
+            "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE": 1,
+            "RULE:HIGH_RISK_SHORTLINK": 2,
+            "RULE:HOMOGLYPH_OBFUSCATION": 10,
+            "RULE:SIM_SWAP_OR_KYC_SCAM": 1,
+            "RULE:STANDALONE_URL": 4,
+            "RULE:SUSPICIOUS_TLD": 4,
+            "RULE:TAX_ARREST_THREAT": 1,
+            "RULE:TECH_SUPPORT_INVOICE_SCAM": 1,
+            "RULE:UNPAID_TOLL_INVOICE": 1,
+            "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
+            "RULE:WORK_FROM_HOME_SCAM": 1
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.684,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.2078,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.5062,
+              "h": 0.77,
+              "s": 0.7089,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:DELIVERY_FEE_SCAM",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.3889,
+              "delta_h": 0.0,
+              "delta_s": -0.2293
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.817,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0322,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.6369,
+              "h": 0.92,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.1729,
+              "delta_h": 0.12,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.4877,
+              "h": 0.77,
+              "s": 0.698,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.3756,
+              "delta_h": 0.0,
+              "delta_s": -0.2214
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.5392,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.3054,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.29,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.4011,
+              "delta_h": 0.12,
+              "delta_s": 0.1961
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.7252,
+              "h": 0.87,
+              "s": 1.0,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.2045,
+              "delta_h": 0.12,
+              "delta_s": 0.0423
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.5729,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.264,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.0117,
+              "h": 0.77,
+              "s": 0.4174,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.4868,
+              "delta_h": 0.12,
+              "delta_s": -0.2479
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.2839,
-            "mean_h": -0.672,
-            "mean_s": -0.3869
+            "mean_h": 0.048,
+            "mean_s": -0.0461
           }
         },
         {
@@ -18540,6 +19197,130 @@
             "RULE:STANDALONE_URL": 5,
             "RULE:SUSPICIOUS_TLD": 4
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.7262,
+              "h": 0.55,
+              "s": 0.7995,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK"
+              ],
+              "delta_p": -0.1656,
+              "delta_h": -0.27,
+              "delta_s": -0.2005
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.8319,
+              "h": 0.25,
+              "s": 0.8466,
+              "signals": [
+                "RULE:STANDALONE_URL"
+              ],
+              "delta_p": -0.0632,
+              "delta_h": -0.52,
+              "delta_s": -0.0916
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.8418,
+              "h": 0.77,
+              "s": 0.9068,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0074,
+              "delta_h": -0.05,
+              "delta_s": -0.0932
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.7424,
+              "h": 0.0,
+              "s": 0.7424,
+              "signals": [],
+              "delta_p": -0.0674,
+              "delta_h": -0.8,
+              "delta_s": -0.2576
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.7555,
+              "h": 0.77,
+              "s": 0.8558,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.1078,
+              "delta_h": 0.0,
+              "delta_s": -0.0636
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.7677,
+              "h": 0.77,
+              "s": 0.8631,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0769,
+              "delta_h": -0.05,
+              "delta_s": -0.1369
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.5096,
+              "h": 0.0,
+              "s": 0.5096,
+              "signals": [],
+              "delta_p": -0.1815,
+              "delta_h": -0.7,
+              "delta_s": -0.2943
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.7958,
+              "h": 0.75,
+              "s": 0.8769,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+              ],
+              "delta_p": -0.1339,
+              "delta_h": 0.0,
+              "delta_s": -0.0808
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.807,
+              "h": 0.77,
+              "s": 0.8862,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0299,
+              "delta_h": -0.05,
+              "delta_s": -0.1138
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.5038,
+              "h": 0.0,
+              "s": 0.5038,
+              "signals": [],
+              "delta_p": 0.0053,
+              "delta_h": -0.65,
+              "delta_s": -0.1615
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.0828,
             "mean_h": -0.309,
@@ -18572,13 +19353,14 @@
           "composite_tier1_fpr": null,
           "composite_tier2_fpr": null,
           "mean_p": 0.8082,
-          "mean_h": 0.767,
-          "mean_s": 0.9208,
+          "mean_h": 0.772,
+          "mean_s": 0.9321,
           "triggered_rule_counts": {
             "HEURISTIC:COMPOUND_SIGNALS": 6,
             "RULE:DELIVERY_FEE_SCAM": 1,
             "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE": 1,
             "RULE:HIGH_RISK_SHORTLINK": 2,
+            "RULE:SIM_SWAP_OR_KYC_SCAM": 1,
             "RULE:STANDALONE_URL": 4,
             "RULE:SUSPICIOUS_TLD": 4,
             "RULE:TAX_ARREST_THREAT": 1,
@@ -18587,10 +19369,147 @@
             "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
             "RULE:WORK_FROM_HOME_SCAM": 1
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.8708,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.021,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.8714,
+              "h": 0.77,
+              "s": 0.9242,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:DELIVERY_FEE_SCAM",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0237,
+              "delta_h": 0.0,
+              "delta_s": -0.014
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.834,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0152,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.8123,
+              "h": 0.8,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT"
+              ],
+              "delta_p": 0.0025,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.8524,
+              "h": 0.77,
+              "s": 0.913,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0109,
+              "delta_h": 0.0,
+              "delta_s": -0.0064
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.8307,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0139,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.7195,
+              "h": 0.7,
+              "s": 0.8219,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM"
+              ],
+              "delta_p": 0.0284,
+              "delta_h": 0.0,
+              "delta_s": 0.018
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.8952,
+              "h": 0.75,
+              "s": 0.9369,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+              ],
+              "delta_p": -0.0345,
+              "delta_h": 0.0,
+              "delta_s": -0.0208
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.8078,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0291,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.5879,
+              "h": 0.65,
+              "s": 0.7249,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM"
+              ],
+              "delta_p": 0.0894,
+              "delta_h": 0.0,
+              "delta_s": 0.0596
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.0028,
-            "mean_h": -0.005,
-            "mean_s": -0.0076
+            "mean_h": 0.0,
+            "mean_s": 0.0037
           }
         },
         {
@@ -18623,13 +19542,89 @@
           "mean_s": 0.1373,
           "triggered_rule_counts": {
             "RULE:GENERIC_DELIVERY_KEYWORD": 2
-          }
+          },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "benign_usps_delivery",
+              "p": 0.0171,
+              "h": 0.2,
+              "s": 0.0171,
+              "signals": [
+                "RULE:GENERIC_DELIVERY_KEYWORD"
+              ]
+            },
+            {
+              "sample_id": "benign_credit_union_stmt",
+              "p": 0.0069,
+              "h": 0.0,
+              "s": 0.0069,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_2fa_code",
+              "p": 0.003,
+              "h": 0.0,
+              "s": 0.003,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_tax_prep_1099",
+              "p": 0.6298,
+              "h": 0.0,
+              "s": 0.6298,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_courthouse_jury",
+              "p": 0.542,
+              "h": 0.0,
+              "s": 0.542,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_auto_renewal_receipt",
+              "p": 0.0153,
+              "h": 0.0,
+              "s": 0.0153,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_phone_repair_desk",
+              "p": 0.0031,
+              "h": 0.0,
+              "s": 0.0031,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_direct_deposit",
+              "p": 0.0076,
+              "h": 0.0,
+              "s": 0.0076,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_logistics_transit",
+              "p": 0.0091,
+              "h": 0.2,
+              "s": 0.0091,
+              "signals": [
+                "RULE:GENERIC_DELIVERY_KEYWORD"
+              ]
+            },
+            {
+              "sample_id": "benign_utility_tax_credit",
+              "p": 0.1386,
+              "h": 0.0,
+              "s": 0.1386,
+              "signals": []
+            }
+          ]
         }
       ],
       "key_architectural_findings": {
         "tfidf_vulnerability_mechanism": "The frozen ONNX TfidfVectorizer uses word regex token_pattern='\\\\b[a-zA-Z0-9_]+\\\\b'; substituting non-ASCII Cyrillic codepoints or inserting intra-word dots/digits/zero-width characters pushes fraud signals out of vocabulary and breaks bigrams (mean P drops from 0.8110 to 0.5271 on Cyrillic homoglyphs and 0.7282 on leetspeak/splitting).",
-        "heuristic_normalization_scope_and_gap": "normalize_heuristic_text() strips invisible zero-width formatting characters (U+200B..U+200F, U+FEFF, U+00AD) and applies NFKC decomposition, preserving heuristics recall under whitespace/control injection (H>=0.50 recall=1.00, minor drop in mean H from multi-space breaking single-space 'sim card'). However, the frozen heuristic engine has NO RULE:HOMOGLYPH_OBFUSCATION or Cyrillic confusable mapping, so Cyrillic homoglyphs collapse heuristics recall to 0.00 and Composite Tier-2 to 0.10.",
-        "benign_contrastive_precision_role": "On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%."
+        "heuristic_normalization_scope_and_gap": "normalize_heuristic_text() now strips zero-width formatting characters, applies NFKC decomposition, and collapses consecutive whitespace runs to single spaces\u2014fixing the literal-space SIM-swap fragility (H>=0.50 recall=1.00, mean H matches baseline 0.7720). Additionally, detect_and_normalize_cyrillic_homoglyphs() + RULE:HOMOGLYPH_OBFUSCATION (0.45) detect mixed-script spoofing without touching natural Cyrillic prose, lifting Cyrillic heuristics recall from 0.00 to 1.00 (mean H=0.8200) and Composite Tier-1 / Tier-2 from 0.80 / 0.10 to 1.00 / 0.70. Leetspeak/dot-splitting still degrades exact-word regexes (heuristics recall=0.60) cleanly without threshold tuning.",
+        "benign_contrastive_precision_role": "On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% (2/10: tax prep & jury duty controls) into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%."
       }
     },
     "reproducibility": {
@@ -18655,7 +19650,7 @@
         "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
         "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
       },
-      "evaluation_timestamp": "2026-11-11T23:50:09.080495+00:00",
+      "evaluation_timestamp": "2026-11-12T10:36:23.948784+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
@@ -18703,7 +19698,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-11T23:50:09.080495+00:00",
+    "evaluation_timestamp": "2026-11-12T10:36:23.948784+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -36705,7 +37700,118 @@
       "total_evaluated_prompts": 70,
       "zero_leakage_verified_against_train_and_dev_val": true,
       "train_and_dev_val_overlap_count": 0,
-      "homoglyph_rule_present_in_frozen_engine": false,
+      "homoglyph_rule_present_in_engine": true,
+      "supported_homoglyph_scope": {
+        "confusable_count": 24,
+        "strategy": "mixed_script_and_isolated_confusable_cyrillic_selective_normalization",
+        "limitation": "Covers the 24 enumerated Cyrillic-to-Latin visual lookalikes only; does not cover Greek, Cherokee, mathematical, or arbitrary Unicode confusable blocks, and preserves natural pure-Cyrillic and bilingual prose untouched without heuristic flags."
+      },
+      "pre_remediation_afae166_reference": {
+        "baseline_unperturbed": {
+          "ml_p40": 1.0,
+          "ml_p50": 0.9,
+          "heur_h50": 1.0,
+          "comp_t1": 1.0,
+          "comp_t2": 0.9,
+          "mean_p": 0.811,
+          "mean_h": 0.772,
+          "mean_s": 0.9284
+        },
+        "unseen_institution_substitution": {
+          "ml_p40": 1.0,
+          "ml_p50": 0.9,
+          "heur_h50": 1.0,
+          "comp_t1": 1.0,
+          "comp_t2": 0.9,
+          "mean_p": 0.8104,
+          "mean_h": 0.772,
+          "mean_s": 0.9253
+        },
+        "url_domain_shortener_rotation": {
+          "ml_p40": 0.9,
+          "ml_p50": 0.9,
+          "heur_h50": 0.8,
+          "comp_t1": 1.0,
+          "comp_t2": 0.9,
+          "mean_p": 0.7461,
+          "mean_h": 0.711,
+          "mean_s": 0.9293
+        },
+        "cyrillic_homoglyph_substitution": {
+          "ml_p40": 0.8,
+          "ml_p50": 0.7,
+          "heur_h50": 0.0,
+          "comp_t1": 0.8,
+          "comp_t2": 0.1,
+          "mean_p": 0.5271,
+          "mean_h": 0.1,
+          "mean_s": 0.5415
+        },
+        "leetspeak_and_punctuation_splitting": {
+          "ml_p40": 1.0,
+          "ml_p50": 1.0,
+          "heur_h50": 0.6,
+          "comp_t1": 1.0,
+          "comp_t2": 0.7,
+          "mean_p": 0.7282,
+          "mean_h": 0.463,
+          "mean_s": 0.7791
+        },
+        "whitespace_casing_and_control_injection": {
+          "ml_p40": 1.0,
+          "ml_p50": 1.0,
+          "heur_h50": 1.0,
+          "comp_t1": 1.0,
+          "comp_t2": 0.9,
+          "mean_p": 0.8082,
+          "mean_h": 0.767,
+          "mean_s": 0.9208
+        },
+        "benign_near_miss_contrastive_controls": {
+          "ml_p40": 0.2,
+          "ml_p50": 0.2,
+          "heur_h50": 0.0,
+          "comp_t1": 0.2,
+          "comp_t2": 0.0,
+          "mean_p": 0.1373,
+          "mean_h": 0.04,
+          "mean_s": 0.1373
+        }
+      },
+      "benign_near_miss_false_positive_audit": {
+        "classification": "genuine_tfidf_bag_of_words_domain_shift_limitation",
+        "fixture_modified": false,
+        "flagged_controls": [
+          {
+            "sample_id": "benign_tax_prep_1099",
+            "p": 0.6298,
+            "h": 0.0,
+            "s": 0.6298,
+            "signals": [],
+            "top_fraud_pushing_tokens": [
+              "please (+0.1915)",
+              "before (+0.1072)",
+              "portal (+0.0881)",
+              "irs (+0.0608)"
+            ],
+            "explanation": "Unigrams seen predominantly in phishing lures (please/before/portal/irs) outweigh benign-associated tokens ('your', 'friday'), while domain words ('W-2', '1099', 'CPA') are absent from the 703-sample training vocabulary; heuristics hold H=0.00 (no BLOCK)."
+          },
+          {
+            "sample_id": "benign_courthouse_jury",
+            "p": 0.542,
+            "h": 0.0,
+            "s": 0.542,
+            "signals": [],
+            "top_fraud_pushing_tokens": [
+              "fee (+0.1668)",
+              "been (+0.1478)",
+              "has been (+0.1169)",
+              "notice (+0.1151)"
+            ],
+            "explanation": "Bag-of-words TF-IDF lacks syntactic negation scope over 'no fee required' ('fee' +0.1668 outweighs 'no' -0.1060); heuristics match zero extortion rules (H=0.00)."
+          }
+        ]
+      },
       "thresholds": {
         "ml_only": [
           0.4,
@@ -36762,7 +37868,114 @@
             "RULE:UNPAID_TOLL_INVOICE": 1,
             "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
             "RULE:WORK_FROM_HOME_SCAM": 1
-          }
+          },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.8918,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.8951,
+              "h": 0.77,
+              "s": 0.9382,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:DELIVERY_FEE_SCAM",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.8492,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.8098,
+              "h": 0.8,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT"
+              ]
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.8633,
+              "h": 0.77,
+              "s": 0.9194,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.8446,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.6911,
+              "h": 0.7,
+              "s": 0.8039,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM"
+              ]
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.9297,
+              "h": 0.75,
+              "s": 0.9577,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+              ]
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.8369,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ]
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.4985,
+              "h": 0.65,
+              "s": 0.6653,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM"
+              ]
+            }
+          ]
         },
         {
           "family_id": "unseen_institution_substitution",
@@ -36806,6 +38019,143 @@
             "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
             "RULE:WORK_FROM_HOME_SCAM": 1
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.9024,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0106,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.9052,
+              "h": 0.77,
+              "s": 0.9441,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:DELIVERY_FEE_SCAM",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0101,
+              "delta_h": 0.0,
+              "delta_s": 0.0059
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.867,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0178,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.8098,
+              "h": 0.8,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT"
+              ],
+              "delta_p": -0.0,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.8662,
+              "h": 0.77,
+              "s": 0.9211,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0029,
+              "delta_h": 0.0,
+              "delta_s": 0.0017
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.8446,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.6411,
+              "h": 0.7,
+              "s": 0.7721,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM"
+              ],
+              "delta_p": -0.05,
+              "delta_h": 0.0,
+              "delta_s": -0.0318
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.9174,
+              "h": 0.75,
+              "s": 0.9502,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+              ],
+              "delta_p": -0.0123,
+              "delta_h": 0.0,
+              "delta_s": -0.0075
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.8521,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.0152,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.4985,
+              "h": 0.65,
+              "s": 0.6653,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM"
+              ],
+              "delta_p": 0.0,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.0006,
             "mean_h": 0.0,
@@ -36853,6 +38203,145 @@
             "RULE:URGENT_ACCOUNT_LOCKOUT": 1,
             "RULE:WORK_FROM_HOME_SCAM": 1
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.8468,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.045,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.815,
+              "h": 0.77,
+              "s": 0.8909,
+              "signals": [
+                "RULE:DELIVERY_FEE_SCAM",
+                "RULE:STANDALONE_URL",
+                "RULE:GENERIC_DELIVERY_KEYWORD",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0801,
+              "delta_h": 0.0,
+              "delta_s": -0.0473
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.6532,
+              "h": 0.25,
+              "s": 0.6835,
+              "signals": [
+                "RULE:STANDALONE_URL"
+              ],
+              "delta_p": -0.196,
+              "delta_h": -0.57,
+              "delta_s": -0.3165
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.6442,
+              "h": 0.92,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.1656,
+              "delta_h": 0.12,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.8328,
+              "h": 0.25,
+              "s": 0.8474,
+              "signals": [
+                "RULE:STANDALONE_URL"
+              ],
+              "delta_p": -0.0305,
+              "delta_h": -0.52,
+              "delta_s": -0.072
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.8219,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0227,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.3513,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.3398,
+              "delta_h": 0.12,
+              "delta_s": 0.1961
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.9121,
+              "h": 0.87,
+              "s": 1.0,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0176,
+              "delta_h": 0.12,
+              "delta_s": 0.0423
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.8022,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0347,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.782,
+              "h": 0.77,
+              "s": 0.8715,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": 0.2835,
+              "delta_h": 0.12,
+              "delta_s": 0.2062
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.0649,
             "mean_h": -0.061,
@@ -36868,16 +38357,16 @@
           "perturbation_mechanism": "Substitutes Latin a/e/o/p/c with visually indistinguishable Cyrillic codepoints inside alphabetic brand and fraud-signal tokens.",
           "ml_only_p40_rate": 0.8,
           "ml_only_p50_rate": 0.7,
-          "heuristics_only_h40_rate": 0.0,
-          "heuristics_only_h50_rate": 0.0,
-          "composite_tier1_rate": 0.8,
-          "composite_tier2_rate": 0.1,
+          "heuristics_only_h40_rate": 1.0,
+          "heuristics_only_h50_rate": 1.0,
+          "composite_tier1_rate": 1.0,
+          "composite_tier2_rate": 0.7,
           "ml_only_p40_recall": 0.8,
           "ml_only_recall": 0.7,
-          "heuristics_only_h40_recall": 0.0,
-          "heuristics_only_recall": 0.0,
-          "composite_tier1_recall": 0.8,
-          "composite_tier2_recall": 0.1,
+          "heuristics_only_h40_recall": 1.0,
+          "heuristics_only_recall": 1.0,
+          "composite_tier1_recall": 1.0,
+          "composite_tier2_recall": 0.7,
           "ml_only_p40_fpr": null,
           "ml_only_fpr": null,
           "heuristics_only_h40_fpr": null,
@@ -36885,15 +38374,178 @@
           "composite_tier1_fpr": null,
           "composite_tier2_fpr": null,
           "mean_p": 0.5271,
-          "mean_h": 0.1,
-          "mean_s": 0.5415,
+          "mean_h": 0.82,
+          "mean_s": 0.8824,
           "triggered_rule_counts": {
-            "RULE:STANDALONE_URL": 4
+            "HEURISTIC:COMPOUND_SIGNALS": 10,
+            "RULE:DELIVERY_FEE_SCAM": 1,
+            "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE": 1,
+            "RULE:HIGH_RISK_SHORTLINK": 2,
+            "RULE:HOMOGLYPH_OBFUSCATION": 10,
+            "RULE:SIM_SWAP_OR_KYC_SCAM": 1,
+            "RULE:STANDALONE_URL": 4,
+            "RULE:SUSPICIOUS_TLD": 4,
+            "RULE:TAX_ARREST_THREAT": 1,
+            "RULE:TECH_SUPPORT_INVOICE_SCAM": 1,
+            "RULE:UNPAID_TOLL_INVOICE": 1,
+            "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
+            "RULE:WORK_FROM_HOME_SCAM": 1
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.684,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.2078,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.5062,
+              "h": 0.77,
+              "s": 0.7089,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:DELIVERY_FEE_SCAM",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.3889,
+              "delta_h": 0.0,
+              "delta_s": -0.2293
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.817,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0322,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.6369,
+              "h": 0.92,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.1729,
+              "delta_h": 0.12,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.4877,
+              "h": 0.77,
+              "s": 0.698,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.3756,
+              "delta_h": 0.0,
+              "delta_s": -0.2214
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.5392,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.3054,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.29,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.4011,
+              "delta_h": 0.12,
+              "delta_s": 0.1961
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.7252,
+              "h": 0.87,
+              "s": 1.0,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.2045,
+              "delta_h": 0.12,
+              "delta_s": 0.0423
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.5729,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.264,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.0117,
+              "h": 0.77,
+              "s": 0.4174,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM",
+                "RULE:HOMOGLYPH_OBFUSCATION",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.4868,
+              "delta_h": 0.12,
+              "delta_s": -0.2479
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.2839,
-            "mean_h": -0.672,
-            "mean_s": -0.3869
+            "mean_h": 0.048,
+            "mean_s": -0.0461
           }
         },
         {
@@ -36931,6 +38583,130 @@
             "RULE:STANDALONE_URL": 5,
             "RULE:SUSPICIOUS_TLD": 4
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.7262,
+              "h": 0.55,
+              "s": 0.7995,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK"
+              ],
+              "delta_p": -0.1656,
+              "delta_h": -0.27,
+              "delta_s": -0.2005
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.8319,
+              "h": 0.25,
+              "s": 0.8466,
+              "signals": [
+                "RULE:STANDALONE_URL"
+              ],
+              "delta_p": -0.0632,
+              "delta_h": -0.52,
+              "delta_s": -0.0916
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.8418,
+              "h": 0.77,
+              "s": 0.9068,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0074,
+              "delta_h": -0.05,
+              "delta_s": -0.0932
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.7424,
+              "h": 0.0,
+              "s": 0.7424,
+              "signals": [],
+              "delta_p": -0.0674,
+              "delta_h": -0.8,
+              "delta_s": -0.2576
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.7555,
+              "h": 0.77,
+              "s": 0.8558,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.1078,
+              "delta_h": 0.0,
+              "delta_s": -0.0636
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.7677,
+              "h": 0.77,
+              "s": 0.8631,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0769,
+              "delta_h": -0.05,
+              "delta_s": -0.1369
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.5096,
+              "h": 0.0,
+              "s": 0.5096,
+              "signals": [],
+              "delta_p": -0.1815,
+              "delta_h": -0.7,
+              "delta_s": -0.2943
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.7958,
+              "h": 0.75,
+              "s": 0.8769,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+              ],
+              "delta_p": -0.1339,
+              "delta_h": 0.0,
+              "delta_s": -0.0808
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.807,
+              "h": 0.77,
+              "s": 0.8862,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0299,
+              "delta_h": -0.05,
+              "delta_s": -0.1138
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.5038,
+              "h": 0.0,
+              "s": 0.5038,
+              "signals": [],
+              "delta_p": 0.0053,
+              "delta_h": -0.65,
+              "delta_s": -0.1615
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.0828,
             "mean_h": -0.309,
@@ -36963,13 +38739,14 @@
           "composite_tier1_fpr": null,
           "composite_tier2_fpr": null,
           "mean_p": 0.8082,
-          "mean_h": 0.767,
-          "mean_s": 0.9208,
+          "mean_h": 0.772,
+          "mean_s": 0.9321,
           "triggered_rule_counts": {
             "HEURISTIC:COMPOUND_SIGNALS": 6,
             "RULE:DELIVERY_FEE_SCAM": 1,
             "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE": 1,
             "RULE:HIGH_RISK_SHORTLINK": 2,
+            "RULE:SIM_SWAP_OR_KYC_SCAM": 1,
             "RULE:STANDALONE_URL": 4,
             "RULE:SUSPICIOUS_TLD": 4,
             "RULE:TAX_ARREST_THREAT": 1,
@@ -36978,10 +38755,147 @@
             "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
             "RULE:WORK_FROM_HOME_SCAM": 1
           },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "bank_lockout",
+              "p": 0.8708,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.021,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "delivery_fee",
+              "p": 0.8714,
+              "h": 0.77,
+              "s": 0.9242,
+              "signals": [
+                "RULE:HIGH_RISK_SHORTLINK",
+                "RULE:DELIVERY_FEE_SCAM",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0237,
+              "delta_h": 0.0,
+              "delta_s": -0.014
+            },
+            {
+              "sample_id": "card_unlock",
+              "p": 0.834,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:URGENT_ACCOUNT_LOCKOUT",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0152,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "tax_extortion",
+              "p": 0.8123,
+              "h": 0.8,
+              "s": 1.0,
+              "signals": [
+                "RULE:TAX_ARREST_THREAT"
+              ],
+              "delta_p": 0.0025,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "subscription_billing",
+              "p": 0.8524,
+              "h": 0.77,
+              "s": 0.913,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0109,
+              "delta_h": 0.0,
+              "delta_s": -0.0064
+            },
+            {
+              "sample_id": "toll_invoice",
+              "p": 0.8307,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:UNPAID_TOLL_INVOICE",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0139,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "callback_tech",
+              "p": 0.7195,
+              "h": 0.7,
+              "s": 0.8219,
+              "signals": [
+                "RULE:TECH_SUPPORT_INVOICE_SCAM"
+              ],
+              "delta_p": 0.0284,
+              "delta_h": 0.0,
+              "delta_s": 0.018
+            },
+            {
+              "sample_id": "family_impersonation",
+              "p": 0.8952,
+              "h": 0.75,
+              "s": 0.9369,
+              "signals": [
+                "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+              ],
+              "delta_p": -0.0345,
+              "delta_h": 0.0,
+              "delta_s": -0.0208
+            },
+            {
+              "sample_id": "sim_swap_kyc",
+              "p": 0.8078,
+              "h": 0.82,
+              "s": 1.0,
+              "signals": [
+                "RULE:SUSPICIOUS_TLD",
+                "RULE:SIM_SWAP_OR_KYC_SCAM",
+                "RULE:STANDALONE_URL",
+                "HEURISTIC:COMPOUND_SIGNALS"
+              ],
+              "delta_p": -0.0291,
+              "delta_h": 0.0,
+              "delta_s": 0.0
+            },
+            {
+              "sample_id": "work_from_home_scam",
+              "p": 0.5879,
+              "h": 0.65,
+              "s": 0.7249,
+              "signals": [
+                "RULE:WORK_FROM_HOME_SCAM"
+              ],
+              "delta_p": 0.0894,
+              "delta_h": 0.0,
+              "delta_s": 0.0596
+            }
+          ],
           "delta_vs_baseline": {
             "mean_p": -0.0028,
-            "mean_h": -0.005,
-            "mean_s": -0.0076
+            "mean_h": 0.0,
+            "mean_s": 0.0037
           }
         },
         {
@@ -37014,13 +38928,89 @@
           "mean_s": 0.1373,
           "triggered_rule_counts": {
             "RULE:GENERIC_DELIVERY_KEYWORD": 2
-          }
+          },
+          "per_sample_comparisons": [
+            {
+              "sample_id": "benign_usps_delivery",
+              "p": 0.0171,
+              "h": 0.2,
+              "s": 0.0171,
+              "signals": [
+                "RULE:GENERIC_DELIVERY_KEYWORD"
+              ]
+            },
+            {
+              "sample_id": "benign_credit_union_stmt",
+              "p": 0.0069,
+              "h": 0.0,
+              "s": 0.0069,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_2fa_code",
+              "p": 0.003,
+              "h": 0.0,
+              "s": 0.003,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_tax_prep_1099",
+              "p": 0.6298,
+              "h": 0.0,
+              "s": 0.6298,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_courthouse_jury",
+              "p": 0.542,
+              "h": 0.0,
+              "s": 0.542,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_auto_renewal_receipt",
+              "p": 0.0153,
+              "h": 0.0,
+              "s": 0.0153,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_phone_repair_desk",
+              "p": 0.0031,
+              "h": 0.0,
+              "s": 0.0031,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_direct_deposit",
+              "p": 0.0076,
+              "h": 0.0,
+              "s": 0.0076,
+              "signals": []
+            },
+            {
+              "sample_id": "benign_logistics_transit",
+              "p": 0.0091,
+              "h": 0.2,
+              "s": 0.0091,
+              "signals": [
+                "RULE:GENERIC_DELIVERY_KEYWORD"
+              ]
+            },
+            {
+              "sample_id": "benign_utility_tax_credit",
+              "p": 0.1386,
+              "h": 0.0,
+              "s": 0.1386,
+              "signals": []
+            }
+          ]
         }
       ],
       "key_architectural_findings": {
         "tfidf_vulnerability_mechanism": "The frozen ONNX TfidfVectorizer uses word regex token_pattern='\\\\b[a-zA-Z0-9_]+\\\\b'; substituting non-ASCII Cyrillic codepoints or inserting intra-word dots/digits/zero-width characters pushes fraud signals out of vocabulary and breaks bigrams (mean P drops from 0.8110 to 0.5271 on Cyrillic homoglyphs and 0.7282 on leetspeak/splitting).",
-        "heuristic_normalization_scope_and_gap": "normalize_heuristic_text() strips invisible zero-width formatting characters (U+200B..U+200F, U+FEFF, U+00AD) and applies NFKC decomposition, preserving heuristics recall under whitespace/control injection (H>=0.50 recall=1.00, minor drop in mean H from multi-space breaking single-space 'sim card'). However, the frozen heuristic engine has NO RULE:HOMOGLYPH_OBFUSCATION or Cyrillic confusable mapping, so Cyrillic homoglyphs collapse heuristics recall to 0.00 and Composite Tier-2 to 0.10.",
-        "benign_contrastive_precision_role": "On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%."
+        "heuristic_normalization_scope_and_gap": "normalize_heuristic_text() now strips zero-width formatting characters, applies NFKC decomposition, and collapses consecutive whitespace runs to single spaces\u2014fixing the literal-space SIM-swap fragility (H>=0.50 recall=1.00, mean H matches baseline 0.7720). Additionally, detect_and_normalize_cyrillic_homoglyphs() + RULE:HOMOGLYPH_OBFUSCATION (0.45) detect mixed-script spoofing without touching natural Cyrillic prose, lifting Cyrillic heuristics recall from 0.00 to 1.00 (mean H=0.8200) and Composite Tier-1 / Tier-2 from 0.80 / 0.10 to 1.00 / 0.70. Leetspeak/dot-splitting still degrades exact-word regexes (heuristics recall=0.60) cleanly without threshold tuning.",
+        "benign_contrastive_precision_role": "On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% (2/10: tax prep & jury duty controls) into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%."
       }
     },
     "reproducibility": {
@@ -37046,7 +39036,7 @@
         "max_tfidf_vector_abs_diff": 6.02952408002011e-08,
         "mean_tfidf_vector_abs_diff": 2.248595491569083e-08
       },
-      "evaluation_timestamp": "2026-11-11T23:50:09.080495+00:00",
+      "evaluation_timestamp": "2026-11-12T10:36:23.948784+00:00",
       "evaluator": "ONNXRuntime-CPU (AVX-512)",
       "evaluation_mode": "content_only_zero_velocity",
       "velocity_score_fixed": 0.0,
@@ -37094,7 +39084,7 @@
     },
     "evaluation_mode": "content_only_zero_velocity",
     "velocity_score_fixed": 0.0,
-    "evaluation_timestamp": "2026-11-11T23:50:09.080495+00:00",
+    "evaluation_timestamp": "2026-11-12T10:36:23.948784+00:00",
     "software_versions": {
       "onnxruntime": "1.31.0",
       "numpy": "2.5.4",
@@ -53994,7 +55984,118 @@
     "total_evaluated_prompts": 70,
     "zero_leakage_verified_against_train_and_dev_val": true,
     "train_and_dev_val_overlap_count": 0,
-    "homoglyph_rule_present_in_frozen_engine": false,
+    "homoglyph_rule_present_in_engine": true,
+    "supported_homoglyph_scope": {
+      "confusable_count": 24,
+      "strategy": "mixed_script_and_isolated_confusable_cyrillic_selective_normalization",
+      "limitation": "Covers the 24 enumerated Cyrillic-to-Latin visual lookalikes only; does not cover Greek, Cherokee, mathematical, or arbitrary Unicode confusable blocks, and preserves natural pure-Cyrillic and bilingual prose untouched without heuristic flags."
+    },
+    "pre_remediation_afae166_reference": {
+      "baseline_unperturbed": {
+        "ml_p40": 1.0,
+        "ml_p50": 0.9,
+        "heur_h50": 1.0,
+        "comp_t1": 1.0,
+        "comp_t2": 0.9,
+        "mean_p": 0.811,
+        "mean_h": 0.772,
+        "mean_s": 0.9284
+      },
+      "unseen_institution_substitution": {
+        "ml_p40": 1.0,
+        "ml_p50": 0.9,
+        "heur_h50": 1.0,
+        "comp_t1": 1.0,
+        "comp_t2": 0.9,
+        "mean_p": 0.8104,
+        "mean_h": 0.772,
+        "mean_s": 0.9253
+      },
+      "url_domain_shortener_rotation": {
+        "ml_p40": 0.9,
+        "ml_p50": 0.9,
+        "heur_h50": 0.8,
+        "comp_t1": 1.0,
+        "comp_t2": 0.9,
+        "mean_p": 0.7461,
+        "mean_h": 0.711,
+        "mean_s": 0.9293
+      },
+      "cyrillic_homoglyph_substitution": {
+        "ml_p40": 0.8,
+        "ml_p50": 0.7,
+        "heur_h50": 0.0,
+        "comp_t1": 0.8,
+        "comp_t2": 0.1,
+        "mean_p": 0.5271,
+        "mean_h": 0.1,
+        "mean_s": 0.5415
+      },
+      "leetspeak_and_punctuation_splitting": {
+        "ml_p40": 1.0,
+        "ml_p50": 1.0,
+        "heur_h50": 0.6,
+        "comp_t1": 1.0,
+        "comp_t2": 0.7,
+        "mean_p": 0.7282,
+        "mean_h": 0.463,
+        "mean_s": 0.7791
+      },
+      "whitespace_casing_and_control_injection": {
+        "ml_p40": 1.0,
+        "ml_p50": 1.0,
+        "heur_h50": 1.0,
+        "comp_t1": 1.0,
+        "comp_t2": 0.9,
+        "mean_p": 0.8082,
+        "mean_h": 0.767,
+        "mean_s": 0.9208
+      },
+      "benign_near_miss_contrastive_controls": {
+        "ml_p40": 0.2,
+        "ml_p50": 0.2,
+        "heur_h50": 0.0,
+        "comp_t1": 0.2,
+        "comp_t2": 0.0,
+        "mean_p": 0.1373,
+        "mean_h": 0.04,
+        "mean_s": 0.1373
+      }
+    },
+    "benign_near_miss_false_positive_audit": {
+      "classification": "genuine_tfidf_bag_of_words_domain_shift_limitation",
+      "fixture_modified": false,
+      "flagged_controls": [
+        {
+          "sample_id": "benign_tax_prep_1099",
+          "p": 0.6298,
+          "h": 0.0,
+          "s": 0.6298,
+          "signals": [],
+          "top_fraud_pushing_tokens": [
+            "please (+0.1915)",
+            "before (+0.1072)",
+            "portal (+0.0881)",
+            "irs (+0.0608)"
+          ],
+          "explanation": "Unigrams seen predominantly in phishing lures (please/before/portal/irs) outweigh benign-associated tokens ('your', 'friday'), while domain words ('W-2', '1099', 'CPA') are absent from the 703-sample training vocabulary; heuristics hold H=0.00 (no BLOCK)."
+        },
+        {
+          "sample_id": "benign_courthouse_jury",
+          "p": 0.542,
+          "h": 0.0,
+          "s": 0.542,
+          "signals": [],
+          "top_fraud_pushing_tokens": [
+            "fee (+0.1668)",
+            "been (+0.1478)",
+            "has been (+0.1169)",
+            "notice (+0.1151)"
+          ],
+          "explanation": "Bag-of-words TF-IDF lacks syntactic negation scope over 'no fee required' ('fee' +0.1668 outweighs 'no' -0.1060); heuristics match zero extortion rules (H=0.00)."
+        }
+      ]
+    },
     "thresholds": {
       "ml_only": [
         0.4,
@@ -54051,7 +56152,114 @@
           "RULE:UNPAID_TOLL_INVOICE": 1,
           "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
           "RULE:WORK_FROM_HOME_SCAM": 1
-        }
+        },
+        "per_sample_comparisons": [
+          {
+            "sample_id": "bank_lockout",
+            "p": 0.8918,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK",
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ]
+          },
+          {
+            "sample_id": "delivery_fee",
+            "p": 0.8951,
+            "h": 0.77,
+            "s": 0.9382,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK",
+              "RULE:DELIVERY_FEE_SCAM",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ]
+          },
+          {
+            "sample_id": "card_unlock",
+            "p": 0.8492,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ]
+          },
+          {
+            "sample_id": "tax_extortion",
+            "p": 0.8098,
+            "h": 0.8,
+            "s": 1.0,
+            "signals": [
+              "RULE:TAX_ARREST_THREAT"
+            ]
+          },
+          {
+            "sample_id": "subscription_billing",
+            "p": 0.8633,
+            "h": 0.77,
+            "s": 0.9194,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ]
+          },
+          {
+            "sample_id": "toll_invoice",
+            "p": 0.8446,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:UNPAID_TOLL_INVOICE",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ]
+          },
+          {
+            "sample_id": "callback_tech",
+            "p": 0.6911,
+            "h": 0.7,
+            "s": 0.8039,
+            "signals": [
+              "RULE:TECH_SUPPORT_INVOICE_SCAM"
+            ]
+          },
+          {
+            "sample_id": "family_impersonation",
+            "p": 0.9297,
+            "h": 0.75,
+            "s": 0.9577,
+            "signals": [
+              "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+            ]
+          },
+          {
+            "sample_id": "sim_swap_kyc",
+            "p": 0.8369,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:SIM_SWAP_OR_KYC_SCAM",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ]
+          },
+          {
+            "sample_id": "work_from_home_scam",
+            "p": 0.4985,
+            "h": 0.65,
+            "s": 0.6653,
+            "signals": [
+              "RULE:WORK_FROM_HOME_SCAM"
+            ]
+          }
+        ]
       },
       {
         "family_id": "unseen_institution_substitution",
@@ -54095,6 +56303,143 @@
           "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
           "RULE:WORK_FROM_HOME_SCAM": 1
         },
+        "per_sample_comparisons": [
+          {
+            "sample_id": "bank_lockout",
+            "p": 0.9024,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK",
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": 0.0106,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "delivery_fee",
+            "p": 0.9052,
+            "h": 0.77,
+            "s": 0.9441,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK",
+              "RULE:DELIVERY_FEE_SCAM",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": 0.0101,
+            "delta_h": 0.0,
+            "delta_s": 0.0059
+          },
+          {
+            "sample_id": "card_unlock",
+            "p": 0.867,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": 0.0178,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "tax_extortion",
+            "p": 0.8098,
+            "h": 0.8,
+            "s": 1.0,
+            "signals": [
+              "RULE:TAX_ARREST_THREAT"
+            ],
+            "delta_p": -0.0,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "subscription_billing",
+            "p": 0.8662,
+            "h": 0.77,
+            "s": 0.9211,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": 0.0029,
+            "delta_h": 0.0,
+            "delta_s": 0.0017
+          },
+          {
+            "sample_id": "toll_invoice",
+            "p": 0.8446,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:UNPAID_TOLL_INVOICE",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": 0.0,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "callback_tech",
+            "p": 0.6411,
+            "h": 0.7,
+            "s": 0.7721,
+            "signals": [
+              "RULE:TECH_SUPPORT_INVOICE_SCAM"
+            ],
+            "delta_p": -0.05,
+            "delta_h": 0.0,
+            "delta_s": -0.0318
+          },
+          {
+            "sample_id": "family_impersonation",
+            "p": 0.9174,
+            "h": 0.75,
+            "s": 0.9502,
+            "signals": [
+              "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+            ],
+            "delta_p": -0.0123,
+            "delta_h": 0.0,
+            "delta_s": -0.0075
+          },
+          {
+            "sample_id": "sim_swap_kyc",
+            "p": 0.8521,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:SIM_SWAP_OR_KYC_SCAM",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": 0.0152,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "work_from_home_scam",
+            "p": 0.4985,
+            "h": 0.65,
+            "s": 0.6653,
+            "signals": [
+              "RULE:WORK_FROM_HOME_SCAM"
+            ],
+            "delta_p": 0.0,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          }
+        ],
         "delta_vs_baseline": {
           "mean_p": -0.0006,
           "mean_h": 0.0,
@@ -54142,6 +56487,145 @@
           "RULE:URGENT_ACCOUNT_LOCKOUT": 1,
           "RULE:WORK_FROM_HOME_SCAM": 1
         },
+        "per_sample_comparisons": [
+          {
+            "sample_id": "bank_lockout",
+            "p": 0.8468,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.045,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "delivery_fee",
+            "p": 0.815,
+            "h": 0.77,
+            "s": 0.8909,
+            "signals": [
+              "RULE:DELIVERY_FEE_SCAM",
+              "RULE:STANDALONE_URL",
+              "RULE:GENERIC_DELIVERY_KEYWORD",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0801,
+            "delta_h": 0.0,
+            "delta_s": -0.0473
+          },
+          {
+            "sample_id": "card_unlock",
+            "p": 0.6532,
+            "h": 0.25,
+            "s": 0.6835,
+            "signals": [
+              "RULE:STANDALONE_URL"
+            ],
+            "delta_p": -0.196,
+            "delta_h": -0.57,
+            "delta_s": -0.3165
+          },
+          {
+            "sample_id": "tax_extortion",
+            "p": 0.6442,
+            "h": 0.92,
+            "s": 1.0,
+            "signals": [
+              "RULE:TAX_ARREST_THREAT",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.1656,
+            "delta_h": 0.12,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "subscription_billing",
+            "p": 0.8328,
+            "h": 0.25,
+            "s": 0.8474,
+            "signals": [
+              "RULE:STANDALONE_URL"
+            ],
+            "delta_p": -0.0305,
+            "delta_h": -0.52,
+            "delta_s": -0.072
+          },
+          {
+            "sample_id": "toll_invoice",
+            "p": 0.8219,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:UNPAID_TOLL_INVOICE",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0227,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "callback_tech",
+            "p": 0.3513,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:TECH_SUPPORT_INVOICE_SCAM",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.3398,
+            "delta_h": 0.12,
+            "delta_s": 0.1961
+          },
+          {
+            "sample_id": "family_impersonation",
+            "p": 0.9121,
+            "h": 0.87,
+            "s": 1.0,
+            "signals": [
+              "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0176,
+            "delta_h": 0.12,
+            "delta_s": 0.0423
+          },
+          {
+            "sample_id": "sim_swap_kyc",
+            "p": 0.8022,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SIM_SWAP_OR_KYC_SCAM",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0347,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "work_from_home_scam",
+            "p": 0.782,
+            "h": 0.77,
+            "s": 0.8715,
+            "signals": [
+              "RULE:WORK_FROM_HOME_SCAM",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": 0.2835,
+            "delta_h": 0.12,
+            "delta_s": 0.2062
+          }
+        ],
         "delta_vs_baseline": {
           "mean_p": -0.0649,
           "mean_h": -0.061,
@@ -54157,16 +56641,16 @@
         "perturbation_mechanism": "Substitutes Latin a/e/o/p/c with visually indistinguishable Cyrillic codepoints inside alphabetic brand and fraud-signal tokens.",
         "ml_only_p40_rate": 0.8,
         "ml_only_p50_rate": 0.7,
-        "heuristics_only_h40_rate": 0.0,
-        "heuristics_only_h50_rate": 0.0,
-        "composite_tier1_rate": 0.8,
-        "composite_tier2_rate": 0.1,
+        "heuristics_only_h40_rate": 1.0,
+        "heuristics_only_h50_rate": 1.0,
+        "composite_tier1_rate": 1.0,
+        "composite_tier2_rate": 0.7,
         "ml_only_p40_recall": 0.8,
         "ml_only_recall": 0.7,
-        "heuristics_only_h40_recall": 0.0,
-        "heuristics_only_recall": 0.0,
-        "composite_tier1_recall": 0.8,
-        "composite_tier2_recall": 0.1,
+        "heuristics_only_h40_recall": 1.0,
+        "heuristics_only_recall": 1.0,
+        "composite_tier1_recall": 1.0,
+        "composite_tier2_recall": 0.7,
         "ml_only_p40_fpr": null,
         "ml_only_fpr": null,
         "heuristics_only_h40_fpr": null,
@@ -54174,15 +56658,178 @@
         "composite_tier1_fpr": null,
         "composite_tier2_fpr": null,
         "mean_p": 0.5271,
-        "mean_h": 0.1,
-        "mean_s": 0.5415,
+        "mean_h": 0.82,
+        "mean_s": 0.8824,
         "triggered_rule_counts": {
-          "RULE:STANDALONE_URL": 4
+          "HEURISTIC:COMPOUND_SIGNALS": 10,
+          "RULE:DELIVERY_FEE_SCAM": 1,
+          "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE": 1,
+          "RULE:HIGH_RISK_SHORTLINK": 2,
+          "RULE:HOMOGLYPH_OBFUSCATION": 10,
+          "RULE:SIM_SWAP_OR_KYC_SCAM": 1,
+          "RULE:STANDALONE_URL": 4,
+          "RULE:SUSPICIOUS_TLD": 4,
+          "RULE:TAX_ARREST_THREAT": 1,
+          "RULE:TECH_SUPPORT_INVOICE_SCAM": 1,
+          "RULE:UNPAID_TOLL_INVOICE": 1,
+          "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
+          "RULE:WORK_FROM_HOME_SCAM": 1
         },
+        "per_sample_comparisons": [
+          {
+            "sample_id": "bank_lockout",
+            "p": 0.684,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK",
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.2078,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "delivery_fee",
+            "p": 0.5062,
+            "h": 0.77,
+            "s": 0.7089,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK",
+              "RULE:DELIVERY_FEE_SCAM",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.3889,
+            "delta_h": 0.0,
+            "delta_s": -0.2293
+          },
+          {
+            "sample_id": "card_unlock",
+            "p": 0.817,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "RULE:STANDALONE_URL",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0322,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "tax_extortion",
+            "p": 0.6369,
+            "h": 0.92,
+            "s": 1.0,
+            "signals": [
+              "RULE:TAX_ARREST_THREAT",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.1729,
+            "delta_h": 0.12,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "subscription_billing",
+            "p": 0.4877,
+            "h": 0.77,
+            "s": 0.698,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:STANDALONE_URL",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.3756,
+            "delta_h": 0.0,
+            "delta_s": -0.2214
+          },
+          {
+            "sample_id": "toll_invoice",
+            "p": 0.5392,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:UNPAID_TOLL_INVOICE",
+              "RULE:STANDALONE_URL",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.3054,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "callback_tech",
+            "p": 0.29,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:TECH_SUPPORT_INVOICE_SCAM",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.4011,
+            "delta_h": 0.12,
+            "delta_s": 0.1961
+          },
+          {
+            "sample_id": "family_impersonation",
+            "p": 0.7252,
+            "h": 0.87,
+            "s": 1.0,
+            "signals": [
+              "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.2045,
+            "delta_h": 0.12,
+            "delta_s": 0.0423
+          },
+          {
+            "sample_id": "sim_swap_kyc",
+            "p": 0.5729,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:SIM_SWAP_OR_KYC_SCAM",
+              "RULE:STANDALONE_URL",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.264,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "work_from_home_scam",
+            "p": 0.0117,
+            "h": 0.77,
+            "s": 0.4174,
+            "signals": [
+              "RULE:WORK_FROM_HOME_SCAM",
+              "RULE:HOMOGLYPH_OBFUSCATION",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.4868,
+            "delta_h": 0.12,
+            "delta_s": -0.2479
+          }
+        ],
         "delta_vs_baseline": {
           "mean_p": -0.2839,
-          "mean_h": -0.672,
-          "mean_s": -0.3869
+          "mean_h": 0.048,
+          "mean_s": -0.0461
         }
       },
       {
@@ -54220,6 +56867,130 @@
           "RULE:STANDALONE_URL": 5,
           "RULE:SUSPICIOUS_TLD": 4
         },
+        "per_sample_comparisons": [
+          {
+            "sample_id": "bank_lockout",
+            "p": 0.7262,
+            "h": 0.55,
+            "s": 0.7995,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK"
+            ],
+            "delta_p": -0.1656,
+            "delta_h": -0.27,
+            "delta_s": -0.2005
+          },
+          {
+            "sample_id": "delivery_fee",
+            "p": 0.8319,
+            "h": 0.25,
+            "s": 0.8466,
+            "signals": [
+              "RULE:STANDALONE_URL"
+            ],
+            "delta_p": -0.0632,
+            "delta_h": -0.52,
+            "delta_s": -0.0916
+          },
+          {
+            "sample_id": "card_unlock",
+            "p": 0.8418,
+            "h": 0.77,
+            "s": 0.9068,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0074,
+            "delta_h": -0.05,
+            "delta_s": -0.0932
+          },
+          {
+            "sample_id": "tax_extortion",
+            "p": 0.7424,
+            "h": 0.0,
+            "s": 0.7424,
+            "signals": [],
+            "delta_p": -0.0674,
+            "delta_h": -0.8,
+            "delta_s": -0.2576
+          },
+          {
+            "sample_id": "subscription_billing",
+            "p": 0.7555,
+            "h": 0.77,
+            "s": 0.8558,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.1078,
+            "delta_h": 0.0,
+            "delta_s": -0.0636
+          },
+          {
+            "sample_id": "toll_invoice",
+            "p": 0.7677,
+            "h": 0.77,
+            "s": 0.8631,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0769,
+            "delta_h": -0.05,
+            "delta_s": -0.1369
+          },
+          {
+            "sample_id": "callback_tech",
+            "p": 0.5096,
+            "h": 0.0,
+            "s": 0.5096,
+            "signals": [],
+            "delta_p": -0.1815,
+            "delta_h": -0.7,
+            "delta_s": -0.2943
+          },
+          {
+            "sample_id": "family_impersonation",
+            "p": 0.7958,
+            "h": 0.75,
+            "s": 0.8769,
+            "signals": [
+              "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+            ],
+            "delta_p": -0.1339,
+            "delta_h": 0.0,
+            "delta_s": -0.0808
+          },
+          {
+            "sample_id": "sim_swap_kyc",
+            "p": 0.807,
+            "h": 0.77,
+            "s": 0.8862,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0299,
+            "delta_h": -0.05,
+            "delta_s": -0.1138
+          },
+          {
+            "sample_id": "work_from_home_scam",
+            "p": 0.5038,
+            "h": 0.0,
+            "s": 0.5038,
+            "signals": [],
+            "delta_p": 0.0053,
+            "delta_h": -0.65,
+            "delta_s": -0.1615
+          }
+        ],
         "delta_vs_baseline": {
           "mean_p": -0.0828,
           "mean_h": -0.309,
@@ -54252,13 +57023,14 @@
         "composite_tier1_fpr": null,
         "composite_tier2_fpr": null,
         "mean_p": 0.8082,
-        "mean_h": 0.767,
-        "mean_s": 0.9208,
+        "mean_h": 0.772,
+        "mean_s": 0.9321,
         "triggered_rule_counts": {
           "HEURISTIC:COMPOUND_SIGNALS": 6,
           "RULE:DELIVERY_FEE_SCAM": 1,
           "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE": 1,
           "RULE:HIGH_RISK_SHORTLINK": 2,
+          "RULE:SIM_SWAP_OR_KYC_SCAM": 1,
           "RULE:STANDALONE_URL": 4,
           "RULE:SUSPICIOUS_TLD": 4,
           "RULE:TAX_ARREST_THREAT": 1,
@@ -54267,10 +57039,147 @@
           "RULE:URGENT_ACCOUNT_LOCKOUT": 2,
           "RULE:WORK_FROM_HOME_SCAM": 1
         },
+        "per_sample_comparisons": [
+          {
+            "sample_id": "bank_lockout",
+            "p": 0.8708,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK",
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.021,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "delivery_fee",
+            "p": 0.8714,
+            "h": 0.77,
+            "s": 0.9242,
+            "signals": [
+              "RULE:HIGH_RISK_SHORTLINK",
+              "RULE:DELIVERY_FEE_SCAM",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0237,
+            "delta_h": 0.0,
+            "delta_s": -0.014
+          },
+          {
+            "sample_id": "card_unlock",
+            "p": 0.834,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:URGENT_ACCOUNT_LOCKOUT",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0152,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "tax_extortion",
+            "p": 0.8123,
+            "h": 0.8,
+            "s": 1.0,
+            "signals": [
+              "RULE:TAX_ARREST_THREAT"
+            ],
+            "delta_p": 0.0025,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "subscription_billing",
+            "p": 0.8524,
+            "h": 0.77,
+            "s": 0.913,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0109,
+            "delta_h": 0.0,
+            "delta_s": -0.0064
+          },
+          {
+            "sample_id": "toll_invoice",
+            "p": 0.8307,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:UNPAID_TOLL_INVOICE",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0139,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "callback_tech",
+            "p": 0.7195,
+            "h": 0.7,
+            "s": 0.8219,
+            "signals": [
+              "RULE:TECH_SUPPORT_INVOICE_SCAM"
+            ],
+            "delta_p": 0.0284,
+            "delta_h": 0.0,
+            "delta_s": 0.018
+          },
+          {
+            "sample_id": "family_impersonation",
+            "p": 0.8952,
+            "h": 0.75,
+            "s": 0.9369,
+            "signals": [
+              "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE"
+            ],
+            "delta_p": -0.0345,
+            "delta_h": 0.0,
+            "delta_s": -0.0208
+          },
+          {
+            "sample_id": "sim_swap_kyc",
+            "p": 0.8078,
+            "h": 0.82,
+            "s": 1.0,
+            "signals": [
+              "RULE:SUSPICIOUS_TLD",
+              "RULE:SIM_SWAP_OR_KYC_SCAM",
+              "RULE:STANDALONE_URL",
+              "HEURISTIC:COMPOUND_SIGNALS"
+            ],
+            "delta_p": -0.0291,
+            "delta_h": 0.0,
+            "delta_s": 0.0
+          },
+          {
+            "sample_id": "work_from_home_scam",
+            "p": 0.5879,
+            "h": 0.65,
+            "s": 0.7249,
+            "signals": [
+              "RULE:WORK_FROM_HOME_SCAM"
+            ],
+            "delta_p": 0.0894,
+            "delta_h": 0.0,
+            "delta_s": 0.0596
+          }
+        ],
         "delta_vs_baseline": {
           "mean_p": -0.0028,
-          "mean_h": -0.005,
-          "mean_s": -0.0076
+          "mean_h": 0.0,
+          "mean_s": 0.0037
         }
       },
       {
@@ -54303,13 +57212,89 @@
         "mean_s": 0.1373,
         "triggered_rule_counts": {
           "RULE:GENERIC_DELIVERY_KEYWORD": 2
-        }
+        },
+        "per_sample_comparisons": [
+          {
+            "sample_id": "benign_usps_delivery",
+            "p": 0.0171,
+            "h": 0.2,
+            "s": 0.0171,
+            "signals": [
+              "RULE:GENERIC_DELIVERY_KEYWORD"
+            ]
+          },
+          {
+            "sample_id": "benign_credit_union_stmt",
+            "p": 0.0069,
+            "h": 0.0,
+            "s": 0.0069,
+            "signals": []
+          },
+          {
+            "sample_id": "benign_2fa_code",
+            "p": 0.003,
+            "h": 0.0,
+            "s": 0.003,
+            "signals": []
+          },
+          {
+            "sample_id": "benign_tax_prep_1099",
+            "p": 0.6298,
+            "h": 0.0,
+            "s": 0.6298,
+            "signals": []
+          },
+          {
+            "sample_id": "benign_courthouse_jury",
+            "p": 0.542,
+            "h": 0.0,
+            "s": 0.542,
+            "signals": []
+          },
+          {
+            "sample_id": "benign_auto_renewal_receipt",
+            "p": 0.0153,
+            "h": 0.0,
+            "s": 0.0153,
+            "signals": []
+          },
+          {
+            "sample_id": "benign_phone_repair_desk",
+            "p": 0.0031,
+            "h": 0.0,
+            "s": 0.0031,
+            "signals": []
+          },
+          {
+            "sample_id": "benign_direct_deposit",
+            "p": 0.0076,
+            "h": 0.0,
+            "s": 0.0076,
+            "signals": []
+          },
+          {
+            "sample_id": "benign_logistics_transit",
+            "p": 0.0091,
+            "h": 0.2,
+            "s": 0.0091,
+            "signals": [
+              "RULE:GENERIC_DELIVERY_KEYWORD"
+            ]
+          },
+          {
+            "sample_id": "benign_utility_tax_credit",
+            "p": 0.1386,
+            "h": 0.0,
+            "s": 0.1386,
+            "signals": []
+          }
+        ]
       }
     ],
     "key_architectural_findings": {
       "tfidf_vulnerability_mechanism": "The frozen ONNX TfidfVectorizer uses word regex token_pattern='\\\\b[a-zA-Z0-9_]+\\\\b'; substituting non-ASCII Cyrillic codepoints or inserting intra-word dots/digits/zero-width characters pushes fraud signals out of vocabulary and breaks bigrams (mean P drops from 0.8110 to 0.5271 on Cyrillic homoglyphs and 0.7282 on leetspeak/splitting).",
-      "heuristic_normalization_scope_and_gap": "normalize_heuristic_text() strips invisible zero-width formatting characters (U+200B..U+200F, U+FEFF, U+00AD) and applies NFKC decomposition, preserving heuristics recall under whitespace/control injection (H>=0.50 recall=1.00, minor drop in mean H from multi-space breaking single-space 'sim card'). However, the frozen heuristic engine has NO RULE:HOMOGLYPH_OBFUSCATION or Cyrillic confusable mapping, so Cyrillic homoglyphs collapse heuristics recall to 0.00 and Composite Tier-2 to 0.10.",
-      "benign_contrastive_precision_role": "On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%."
+      "heuristic_normalization_scope_and_gap": "normalize_heuristic_text() now strips zero-width formatting characters, applies NFKC decomposition, and collapses consecutive whitespace runs to single spaces\u2014fixing the literal-space SIM-swap fragility (H>=0.50 recall=1.00, mean H matches baseline 0.7720). Additionally, detect_and_normalize_cyrillic_homoglyphs() + RULE:HOMOGLYPH_OBFUSCATION (0.45) detect mixed-script spoofing without touching natural Cyrillic prose, lifting Cyrillic heuristics recall from 0.00 to 1.00 (mean H=0.8200) and Composite Tier-1 / Tier-2 from 0.80 / 0.10 to 1.00 / 0.70. Leetspeak/dot-splitting still degrades exact-word regexes (heuristics recall=0.60) cleanly without threshold tuning.",
+      "benign_contrastive_precision_role": "On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% (2/10: tax prep & jury duty controls) into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%."
     }
   }
 }

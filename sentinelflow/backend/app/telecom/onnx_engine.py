@@ -234,16 +234,112 @@ class InferenceResult:
 
 
 _INVISIBLE_FORMAT_CHAR_RE = re.compile(r"[\u00ad\u200b-\u200f\u202a-\u202e\u2060\ufeff]")
+_WHITESPACE_RUN_RE = re.compile(r"\s+")
+
+HOMOGLYPH_OBFUSCATION_RULE = "RULE:HOMOGLYPH_OBFUSCATION"
+HOMOGLYPH_OBFUSCATION_WEIGHT = 0.45
+
+# Enumerated Cyrillic-to-Latin visual confusables used for mixed-script spoofing detection.
+# Does not claim full Unicode confusable coverage (e.g. Greek, Cherokee, or mathematical blocks)
+# and never transliterates legitimate non-confusable Cyrillic prose.
+CYRILLIC_CONFUSABLE_MAP: dict[str, str] = {
+    "\u0410": "A",  # Cyrillic Capital Letter A
+    "\u0430": "a",  # Cyrillic Small Letter A
+    "\u0412": "B",  # Cyrillic Capital Letter Ve (visual uppercase match only)
+    "\u0421": "C",  # Cyrillic Capital Letter Es
+    "\u0441": "c",  # Cyrillic Small Letter Es
+    "\u0415": "E",  # Cyrillic Capital Letter Ie
+    "\u0435": "e",  # Cyrillic Small Letter Ie
+    "\u041d": "H",  # Cyrillic Capital Letter En (visual uppercase match only)
+    "\u0406": "I",  # Cyrillic Capital Letter Byelorussian-Ukrainian I
+    "\u0456": "i",  # Cyrillic Small Letter Byelorussian-Ukrainian I
+    "\u0408": "J",  # Cyrillic Capital Letter Je
+    "\u0458": "j",  # Cyrillic Small Letter Je
+    "\u041a": "K",  # Cyrillic Capital Letter Ka (visual uppercase match only)
+    "\u041c": "M",  # Cyrillic Capital Letter Em (visual uppercase match only)
+    "\u041e": "O",  # Cyrillic Capital Letter O
+    "\u043e": "o",  # Cyrillic Small Letter O
+    "\u0420": "P",  # Cyrillic Capital Letter Er
+    "\u0440": "p",  # Cyrillic Small Letter Er
+    "\u0405": "S",  # Cyrillic Capital Letter Dze
+    "\u0455": "s",  # Cyrillic Small Letter Dze
+    "\u0422": "T",  # Cyrillic Capital Letter Te (visual uppercase match only)
+    "\u0425": "X",  # Cyrillic Capital Letter Ha
+    "\u0445": "x",  # Cyrillic Small Letter Ha
+    "\u0443": "y",  # Cyrillic Small Letter U (visual lowercase lookalike)
+}
+_CYRILLIC_CONFUSABLE_TRANS = str.maketrans(CYRILLIC_CONFUSABLE_MAP)
+_CYRILLIC_BLOCK_RE = re.compile(r"[\u0400-\u04ff]")
+_SCRIPT_TOKEN_RE = re.compile(r"[A-Za-z\u0400-\u04ff]+")
 
 
 def normalize_heuristic_text(text: str) -> str:
-    """Normalizes obfuscated Unicode text for deterministic lexical heuristic matching.
+    """Normalizes obfuscated Unicode and irregular whitespace for deterministic heuristic matching.
 
-    Strips zero-width/directional formatting code points used to split words across regex
-    boundaries and applies NFKC compatibility decomposition before rule evaluation.
+    Strips zero-width/directional formatting code points used to split tokens, applies
+    NFKC compatibility decomposition, and collapses consecutive whitespace runs to single
+    ASCII spaces while preserving word boundaries.
     """
     stripped = _INVISIBLE_FORMAT_CHAR_RE.sub("", text)
-    return unicodedata.normalize("NFKC", stripped)
+    nfkc = unicodedata.normalize("NFKC", stripped)
+    return _WHITESPACE_RUN_RE.sub(" ", nfkc).strip()
+
+
+def detect_and_normalize_cyrillic_homoglyphs(text: str) -> tuple[str, bool, list[str]]:
+    """Detects suspicious Cyrillic homoglyph spoofing and normalizes only spoofed tokens.
+
+    Distinguishes three cases deterministically without mutating original caller text:
+    1. Pure Cyrillic or legitimate multilingual prose (non-confusable Cyrillic words present,
+       zero intra-token script mixing): untouched, no rule triggered.
+    2. Mixed-script tokens combining ASCII Latin + Cyrillic confusables (e.g. ``Сhаsе``):
+       flagged and selectively mapped to ASCII equivalents for downstream rule matching.
+    3. Pure-confusable Cyrillic tokens inside predominantly Latin messages with no natural
+       Cyrillic prose (e.g. ``рау`` in ``Click to рау $50``): flagged and normalized.
+    """
+    if not _CYRILLIC_BLOCK_RE.search(text):
+        return text, False, []
+
+    mixed_spans: list[tuple[int, int, str]] = []
+    pure_confusable_spans: list[tuple[int, int, str]] = []
+    pure_latin_count = 0
+    natural_cyrillic_count = 0
+
+    for match in _SCRIPT_TOKEN_RE.finditer(text):
+        tok = match.group(0)
+        has_latin = any(("A" <= ch <= "Z") or ("a" <= ch <= "z") for ch in tok)
+        cyr_chars = [ch for ch in tok if "\u0400" <= ch <= "\u04ff"]
+        if not cyr_chars:
+            pure_latin_count += 1
+            continue
+
+        has_confusable = any(ch in CYRILLIC_CONFUSABLE_MAP for ch in cyr_chars)
+        has_non_confusable = any(ch not in CYRILLIC_CONFUSABLE_MAP for ch in cyr_chars)
+        if has_latin and has_confusable:
+            mixed_spans.append((match.start(), match.end(), tok))
+        elif not has_latin and has_non_confusable:
+            natural_cyrillic_count += 1
+        elif not has_latin and has_confusable:
+            pure_confusable_spans.append((match.start(), match.end(), tok))
+
+    normalize_pure_confusable = (pure_latin_count > 0) and (natural_cyrillic_count == 0)
+    target_spans = list(mixed_spans)
+    if normalize_pure_confusable:
+        target_spans.extend(pure_confusable_spans)
+
+    if not target_spans:
+        return text, False, []
+
+    target_spans.sort(key=lambda item: item[0])
+    rebuilt: list[str] = []
+    cursor = 0
+    flagged_tokens: list[str] = []
+    for start, end, tok in target_spans:
+        rebuilt.append(text[cursor:start])
+        rebuilt.append(tok.translate(_CYRILLIC_CONFUSABLE_TRANS))
+        flagged_tokens.append(tok)
+        cursor = end
+    rebuilt.append(text[cursor:])
+    return "".join(rebuilt), True, flagged_tokens
 
 
 def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
@@ -257,18 +353,24 @@ def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
     one is high-risk (>= 0.50) adds a +0.12 compound boost (capped at 0.95).
     """
     normalized_text = normalize_heuristic_text(text)
+    heuristic_text, homoglyph_detected, _ = detect_and_normalize_cyrillic_homoglyphs(
+        normalized_text
+    )
     signals: list[str] = []
     max_heuristic = 0.0
 
     for rule_name, pattern, score in HEURISTIC_RULES:
-        if pattern.search(normalized_text):
+        if pattern.search(heuristic_text):
             signals.append(rule_name)
             if score > max_heuristic:
                 max_heuristic = score
 
-    has_high_risk = any(
-        score >= 0.50 for name, _, score in HEURISTIC_RULES if name in signals
-    )
+    if homoglyph_detected:
+        signals.append(HOMOGLYPH_OBFUSCATION_RULE)
+        if HOMOGLYPH_OBFUSCATION_WEIGHT > max_heuristic:
+            max_heuristic = HOMOGLYPH_OBFUSCATION_WEIGHT
+
+    has_high_risk = any(score >= 0.50 for name, _, score in HEURISTIC_RULES if name in signals)
     if len(signals) >= 2 and has_high_risk:
         max_heuristic = min(0.95, max_heuristic + 0.12)
         signals.append("HEURISTIC:COMPOUND_SIGNALS")
@@ -377,9 +479,7 @@ class OnnxInferenceEngine:
 
         self.model_path = Path(model_path)
         if metadata_path is None:
-            self.metadata_path: Path | None = (
-                self.model_path.parent / "sms_fraud_metadata.json"
-            )
+            self.metadata_path: Path | None = self.model_path.parent / "sms_fraud_metadata.json"
         else:
             self.metadata_path = Path(metadata_path)
         self.verify_sha256 = verify_sha256

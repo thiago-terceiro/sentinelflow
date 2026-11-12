@@ -34,9 +34,14 @@ from app.telecom.evaluate_model import (
     validate_artifact_bundle_invariants,
 )
 from app.telecom.onnx_engine import (
+    CYRILLIC_CONFUSABLE_MAP,
+    HOMOGLYPH_OBFUSCATION_RULE,
+    HOMOGLYPH_OBFUSCATION_WEIGHT,
     compute_composite_score,
+    detect_and_normalize_cyrillic_homoglyphs,
     evaluate_heuristics,
     get_inference_engine,
+    normalize_heuristic_text,
 )
 from app.telecom.train_onnx_model import train_and_export_model
 
@@ -2112,7 +2117,21 @@ def test_adversarial_perturbation_ablation_matrix() -> None:
     assert pr["external_validation_status"] == "UNAVAILABLE_BLOCKED"
     assert pr["zero_leakage_verified_against_train_and_dev_val"] is True
     assert pr["train_and_dev_val_overlap_count"] == 0
-    assert pr["homoglyph_rule_present_in_frozen_engine"] is False
+    assert pr["homoglyph_rule_present_in_engine"] is True
+    assert pr["supported_homoglyph_scope"]["confusable_count"] == 24
+
+    pre_ref = pr["pre_remediation_afae166_reference"]
+    assert pre_ref["cyrillic_homoglyph_substitution"]["heur_h50"] == 0.0
+    assert pre_ref["cyrillic_homoglyph_substitution"]["mean_h"] == 0.1
+    assert pre_ref["cyrillic_homoglyph_substitution"]["comp_t2"] == 0.1
+    assert pre_ref["whitespace_casing_and_control_injection"]["mean_h"] == 0.767
+
+    fp_audit = pr["benign_near_miss_false_positive_audit"]
+    assert fp_audit["classification"] == "genuine_tfidf_bag_of_words_domain_shift_limitation"
+    assert fp_audit["fixture_modified"] is False
+    flagged_ids = [item["sample_id"] for item in fp_audit["flagged_controls"]]
+    assert flagged_ids == ["benign_tax_prep_1099", "benign_courthouse_jury"]
+    assert all(item["h"] == 0.0 and item["signals"] == [] for item in fp_audit["flagged_controls"])
 
     expected_family_ids = [
         "baseline_unperturbed",
@@ -2141,6 +2160,12 @@ def test_adversarial_perturbation_ablation_matrix() -> None:
     for fid, row in by_id.items():
         for field in required_rate_fields:
             assert 0.0 <= float(row[field]) <= 1.0, f"{fid}.{field} out of bounds"
+        per_samples = row["per_sample_comparisons"]
+        assert len(per_samples) == 10
+        for item in per_samples:
+            assert {"sample_id", "p", "h", "s", "signals"}.issubset(item.keys())
+            if fid not in ("baseline_unperturbed", "benign_near_miss_contrastive_controls"):
+                assert {"delta_p", "delta_h", "delta_s"}.issubset(item.keys())
         if row["is_positive_cohort"]:
             assert row["ml_only_recall"] is not None
             assert row["heuristics_only_recall"] is not None
@@ -2160,18 +2185,161 @@ def test_adversarial_perturbation_ablation_matrix() -> None:
     ws = by_id["whitespace_casing_and_control_injection"]
     benign = by_id["benign_near_miss_contrastive_controls"]
 
+    assert any(s["delta_h"] > 0.0 for s in cyr["per_sample_comparisons"])
+    assert any(s["delta_p"] < 0.0 for s in cyr["per_sample_comparisons"])
     assert cyr["mean_p"] < base["mean_p"]
     assert leet["mean_p"] < base["mean_p"]
-    assert cyr["heuristics_only_recall"] < base["heuristics_only_recall"]
+    assert cyr["heuristics_only_recall"] == 1.0
+    assert cyr["heuristics_only_h40_recall"] == 1.0
+    assert cyr["mean_h"] > 0.80
+    assert cyr["composite_tier1_recall"] == 1.0
+    assert cyr["composite_tier2_recall"] >= 0.70
+    assert cyr["triggered_rule_counts"].get(HOMOGLYPH_OBFUSCATION_RULE) == 10
     assert ws["heuristics_only_recall"] == 1.0
+    assert ws["mean_h"] == base["mean_h"]
     assert benign["heuristics_only_fpr"] == 0.0
     assert benign["composite_tier2_fpr"] == 0.0
-    assert "RULE:HOMOGLYPH_OBFUSCATION" not in cyr["triggered_rule_counts"]
+    assert benign["ml_only_p40_fpr"] == pytest.approx(0.2)
+    assert benign["ml_only_fpr"] == pytest.approx(0.2)
 
     report_root = canonical["report_root"].read_text(encoding="utf-8")
     report_mirror = canonical["report_mirror"].read_text(encoding="utf-8")
     assert report_root == report_mirror
     assert "Adversarial Perturbation & Component Ablation Matrix" in report_root
+    assert "Pre-Remediation (`afae166`) vs. Remediated" in report_root
+    assert "Benign Near-Miss ML Tier-1 False-Positive Investigation" in report_root
     assert "1. Unseen Institution & Brand Substitution" in report_root
     assert "6. Benign Near-Miss Contrastive Controls" in report_root
     assert "TfidfVectorizer" in report_root
+
+
+def test_cyrillic_homoglyph_defense_and_multilingual_safety(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Validates SF-013 Cyrillic confusable normalization, multilingual safety, and compound guards."""
+    assert len(CYRILLIC_CONFUSABLE_MAP) == 24
+    assert HOMOGLYPH_OBFUSCATION_WEIGHT == pytest.approx(0.45)
+
+    # Every enumerated confusable paired with ASCII in a mixed-script token triggers normalization
+    for cyr_char, latin_equiv in CYRILLIC_CONFUSABLE_MAP.items():
+        probe = f"x{cyr_char}y"
+        normalized, flagged, examples = detect_and_normalize_cyrillic_homoglyphs(probe)
+        assert flagged is True, f"Confusable U+{ord(cyr_char):04X} failed mixed-script detection"
+        assert normalized == f"x{latin_equiv}y"
+        assert examples == [probe]
+
+    # Isolated pure-confusable token inside a predominantly Latin sentence
+    isolated_norm, isolated_flag, isolated_tokens = detect_and_normalize_cyrillic_homoglyphs(
+        "Click to \u0440\u0430\u0443 $50 now"
+    )
+    assert isolated_flag is True
+    assert isolated_norm == "Click to pay $50 now"
+    assert isolated_tokens == ["\u0440\u0430\u0443"]
+
+    # Case + NFKC + ZWSP interaction on mixed-script fraud payload
+    obfuscated = (
+        "\uff23hase Bank \u0410lert: Account susp\u0435nded. "
+        "Verify kyc\u200b/otp now at https://t.co/xyz"
+    )
+    normalized_text = normalize_heuristic_text(obfuscated)
+    assert "\u200b" not in normalized_text
+    assert "\uff23" not in normalized_text and "Chase" in normalized_text
+    # NFKC leaves Cyrillic confusables intact until detect_and_normalize_cyrillic_homoglyphs
+    assert "\u0410" in normalized_text
+    homoglyph_norm, homoglyph_flag, _ = detect_and_normalize_cyrillic_homoglyphs(normalized_text)
+    assert homoglyph_flag is True
+    assert "\u0410" not in homoglyph_norm and "\u0435" not in homoglyph_norm
+    h_score, signals = evaluate_heuristics(obfuscated)
+    assert HOMOGLYPH_OBFUSCATION_RULE in signals
+    assert "RULE:URGENT_ACCOUNT_LOCKOUT" in signals
+    assert h_score >= 0.75
+
+    # Pure Cyrillic & legitimate bilingual Russian+English brand prose remain untouched and unflagged
+    multilingual_safe = [
+        "\u041f\u0440\u0438\u0432\u0435\u0442, \u0432\u0441\u0442\u0440\u0435\u0447\u0430 \u0432 \u043e\u0444\u0438\u0441\u0435 \u043f\u0435\u0440\u0435\u043d\u0435\u0441\u0435\u043d\u0430 \u043d\u0430 15:00.",
+        "\u0412\u0430\u0448 \u0437\u0430\u043a\u0430\u0437 Amazon \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d \u0432 \u043f\u0443\u043d\u043a\u0442 \u0432\u044b\u0434\u0430\u0447\u0438.",
+        "\u041f\u043b\u0430\u0442\u0435\u0436 Chase Card \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d.",
+    ]
+    for safe_text in multilingual_safe:
+        norm_safe, flagged_safe, tokens_safe = detect_and_normalize_cyrillic_homoglyphs(safe_text)
+        assert flagged_safe is False
+        assert tokens_safe == []
+        assert norm_safe == safe_text
+        h_safe, sig_safe = evaluate_heuristics(safe_text)
+        assert HOMOGLYPH_OBFUSCATION_RULE not in sig_safe
+        assert h_safe == 0.0
+
+    # Pure English baseline stays unflagged
+    norm_en, flagged_en, tokens_en = detect_and_normalize_cyrillic_homoglyphs(
+        "Team lunch moved to noon in conference room B."
+    )
+    assert flagged_en is False
+    assert tokens_en == []
+    assert norm_en == "Team lunch moved to noon in conference room B."
+
+    # Single accidental homoglyph in benign delivery note stays below Tier-1 escalation (ALLOW < 0.40)
+    engine = get_inference_engine()
+    benign_typo = (
+        "Your package was d\u0435livered to the front porch; check tracking https://ups.com/track"
+    )
+    typo_res = engine.predict(benign_typo)
+    assert HOMOGLYPH_OBFUSCATION_RULE in typo_res.signals
+    assert "HEURISTIC:COMPOUND_SIGNALS" not in typo_res.signals
+    assert typo_res.heuristic_score == pytest.approx(0.45)
+    assert typo_res.fraud_score < 0.40
+    assert typo_res.verdict == "ALLOW"
+
+    # Regression proof: disabling homoglyph defense fails on spoofed arrest threat
+    spoofed = "IRS FINAL NOTICE: Federal \u0430rrest w\u0430rrant pending. Call 1-800-555-0199."
+    h_active, sig_active = evaluate_heuristics(spoofed)
+    assert "RULE:TAX_ARREST_THREAT" in sig_active
+    assert HOMOGLYPH_OBFUSCATION_RULE in sig_active
+    assert h_active >= 0.85
+
+    monkeypatch.setattr(
+        "app.telecom.onnx_engine.detect_and_normalize_cyrillic_homoglyphs",
+        lambda txt: (txt, False, []),
+    )
+    h_bypassed, sig_bypassed = evaluate_heuristics(spoofed)
+    assert "RULE:TAX_ARREST_THREAT" not in sig_bypassed
+    assert HOMOGLYPH_OBFUSCATION_RULE not in sig_bypassed
+    assert h_bypassed == 0.0
+
+
+def test_whitespace_normalization_and_word_boundary_preservation() -> None:
+    """Verifies SF-013 whitespace collapsing fixes literal-space rules without merging words."""
+    multi_space_variants = [
+        "Carrier Alert: Confirm your  sim   card request to avoid line deactivation.",
+        "Carrier Alert: Confirm your sim\tcard request to avoid line deactivation.",
+        "Carrier Alert: Confirm your SIM\n\ncard request to avoid line deactivation.",
+        "Carrier Alert: Confirm your sim\r\n   Card request to avoid line deactivation.",
+        "Remote   work\t\nfrom   home offer: earn $800 daily reviewing apps via Telegram.",
+        "Urgent! Your\taccount\n\nhas  been  suspended. Verify immediately.",
+    ]
+    expected_rules = [
+        "RULE:SIM_SWAP_OR_KYC_SCAM",
+        "RULE:SIM_SWAP_OR_KYC_SCAM",
+        "RULE:SIM_SWAP_OR_KYC_SCAM",
+        "RULE:SIM_SWAP_OR_KYC_SCAM",
+        "RULE:WORK_FROM_HOME_SCAM",
+        "RULE:URGENT_ACCOUNT_LOCKOUT",
+    ]
+    for text, expected_rule in zip(multi_space_variants, expected_rules, strict=True):
+        normalized = normalize_heuristic_text(text)
+        assert "  " not in normalized and "\t" not in normalized and "\n" not in normalized
+        h_score, signals = evaluate_heuristics(text)
+        assert expected_rule in signals, f"{expected_rule} missed after normalization: {text!r}"
+        assert h_score >= 0.50
+
+    # Negative word-merging controls: collapsing spaces must preserve boundaries, never join words
+    merged_word_controls = [
+        ("Please check your simcard deactivation schedule.", "RULE:SIM_SWAP_OR_KYC_SCAM"),
+        ("Check your esimtransferability guide online.", "RULE:SIM_SWAP_OR_KYC_SCAM"),
+        (
+            "The workfromhomeostasis lab is reviewing applications on telegram.",
+            "RULE:WORK_FROM_HOME_SCAM",
+        ),
+    ]
+    for benign_text, forbidden_rule in merged_word_controls:
+        _, signals = evaluate_heuristics(benign_text)
+        assert forbidden_rule not in signals

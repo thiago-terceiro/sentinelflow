@@ -44,7 +44,9 @@ def _tax_rule_pattern() -> re.Pattern[str]:
     raise AssertionError("RULE:TAX_ARREST_THREAT missing from HEURISTIC_RULES")
 
 
-def _min_per_call_ms(pattern: re.Pattern[str], text: str, rounds: int = 3, iters: int = 120) -> float:
+def _min_per_call_ms(
+    pattern: re.Pattern[str], text: str, rounds: int = 3, iters: int = 120
+) -> float:
     """Measures minimum per-call latency in ms across repeated batches to reject OS jitter."""
     best = float("inf")
     for _ in range(rounds):
@@ -163,14 +165,15 @@ def test_adversarial_suite_categories_and_evidence_honesty() -> None:
     assert cat_c["C02"]["tax_rule_matched"] is True
     assert cat_c["C02"]["verdict"] == "BLOCK"
 
-    # Category D: Unicode zero-width, soft-hyphen, fullwidth NFKC, word-order, salting hold BLOCK.
+    # Category D: Unicode zero-width, soft-hyphen, fullwidth NFKC, word-order, salting, and mixed-script
+    # Cyrillic homoglyph (D08, remediated under SF-013) hold BLOCK.
     cat_d = {row["case_id"]: row for row in results_by_cat["D"]}
-    for invariant_id in ("D01", "D02", "D03", "D04", "D05", "D06", "D07"):
+    for invariant_id in ("D01", "D02", "D03", "D04", "D05", "D06", "D07", "D08"):
         assert cat_d[invariant_id]["tax_rule_matched"] is True, f"{invariant_id} missed rule"
         assert cat_d[invariant_id]["verdict"] == "BLOCK", f"{invariant_id} dropped from BLOCK"
+    assert "RULE:HOMOGLYPH_OBFUSCATION" in cat_d["D08"]["signals"]
 
-    # Honest documentation of lexical evasion probes (Cyrillic homoglyph / leetspeak / spaced URL)
-    assert cat_d["D08"]["tax_rule_matched"] is False
+    # Honest documentation of remaining unmitigated lexical evasion probes (leetspeak / spaced URL)
     assert cat_d["D09"]["tax_rule_matched"] is False
     assert cat_d["D10"]["tax_rule_matched"] is False
 
@@ -286,9 +289,9 @@ def test_mutation_suite_kills_predicate_and_threshold_regressions(
     )
     benign_billing_final_notice = "IRS Final Notice: Pay balance due for quarterly voucher Q2."
     assert _tax_rule_pattern().search(benign_billing_final_notice) is None
-    assert (
-        mutated_bare_final_notice.search(benign_billing_final_notice) is not None
-    ), "Mutation 4a survived!"
+    assert mutated_bare_final_notice.search(benign_billing_final_notice) is not None, (
+        "Mutation 4a survived!"
+    )
 
     abatement_guard = r"(?!\s+(?:abatement|relief|waiver))"
     unless_slice = r"unless\s+(?:paid|settled|resolved|verified)"
@@ -317,8 +320,7 @@ def test_mutation_suite_kills_predicate_and_threshold_regressions(
 
     # Mutation 6: Removing parenthesized phone support breaks C01 without unpaid back taxes phrasing.
     c01_callback_only = (
-        "IRS Notice: Federal arrest warrant active for your SSN. "
-        "Call (800) 555-0199 right away."
+        "IRS Notice: Federal arrest warrant active for your SSN. Call (800) 555-0199 right away."
     )
     paren_slice = r"(?:\(\d{3}\)|\d{3})"
     assert paren_slice in tax_pat_str

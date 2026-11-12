@@ -9,7 +9,7 @@
 - **Evaluation Dataset SHA-256:** `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03`
 - **Canonical 400-Row Predictions Artifact:** `benchmark_predictions_400.json`
 - **Canonical 400-Row Predictions SHA-256:** `66dc4862190c597f158298f199e9173f32901fd3ed916487a681c948a635d29e`
-- **Timestamp:** `2026-11-11T23:50:09.080495+00:00`
+- **Timestamp:** `2026-11-12T10:36:23.948784+00:00`
 - **Evaluator Engine:** `ONNXRuntime-CPU (AVX-512)`
 - **Software Versions:** `onnxruntime=1.31.0`, `numpy=2.5.4`, `scikit-learn=1.9.1`
 - **Dataset Size:** 400 samples (200 Benign, 200 Fraud)
@@ -330,22 +330,42 @@ S_{\text{content}} + V \cdot (1 - S_{\text{content}}) & \text{otherwise \quad (P
 | `row_wilson_upper_0_7025pct` (`0.7025%`) | `0.85` | 371.06 | `(0.85, 0.85)` | 371.06 |
 | `plausible_2_0pct_below_family_bound` (`2.0000%`) | `0.80` | 385.21 | `(0.75, 0.80)` | 396.39 |
 
-## 11. Adversarial Perturbation & Component Ablation Matrix (`SF-013`)
+## 11. Adversarial Perturbation & Component Ablation Matrix (`SF-013` / `SF-013 Remediation`)
 
-> **Diagnostic Scope (`UNAVAILABLE_BLOCKED`):** Evaluates frozen `ML-only`, `Heuristics-only`, and `Composite` scoring across 10 canonical smishing archetypes under 5 controlled obfuscation/shift perturbations plus 10 benign near-miss contrastive controls (`0` SHA-256 overlap with Train/DevVal). This is a controlled synthetic diagnostic suite—not an external real-world Class C carrier evaluation.
+> **Diagnostic Scope (`UNAVAILABLE_BLOCKED`):** Evaluates frozen ONNX `ML-only` (unmodified), remediated `Heuristics-only`, and `Composite` scoring across 10 canonical smishing archetypes under 5 controlled obfuscation/shift perturbations plus 10 benign near-miss contrastive controls (`0` SHA-256 overlap with Train/DevVal). This is a controlled synthetic diagnostic suite—not an external real-world Class C carrier evaluation.
 
 | Cohort / Perturbation Family | Class / Metric | Samples | ML ($P \ge 0.40$) | ML ($P \ge 0.50$) | Heuristics ($H \ge 0.40$ / $0.50$) | Composite Tier 1 ($S \ge 0.40$) | Composite Tier 2 ($S \ge 0.75$) | Mean $(P, H, S)$ |
 |---|---|---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Canonical Smishing Baseline (Unperturbed) | FRAUD (Recall) | 10 | 100.0% | 90.0% | 100.0% / 100.0% | 100.0% | 90.0% | `0.8110 / 0.7720 / 0.9284` |
 | 1. Unseen Institution & Brand Substitution | FRAUD (Recall) | 10 | 100.0% | 90.0% | 100.0% / 100.0% | 100.0% | 90.0% | `0.8104 / 0.7720 / 0.9253` |
 | 2. URL Domain & Shortener Rotation | FRAUD (Recall) | 10 | 90.0% | 90.0% | 80.0% / 80.0% | 100.0% | 90.0% | `0.7461 / 0.7110 / 0.9293` |
-| 3. Cyrillic Homoglyph Substitution | FRAUD (Recall) | 10 | 80.0% | 70.0% | 0.0% / 0.0% | 80.0% | 10.0% | `0.5271 / 0.1000 / 0.5415` |
+| 3. Cyrillic Homoglyph Substitution | FRAUD (Recall) | 10 | 80.0% | 70.0% | 100.0% / 100.0% | 100.0% | 70.0% | `0.5271 / 0.8200 / 0.8824` |
 | 4. Leetspeak & Intra-Word Punctuation Splitting | FRAUD (Recall) | 10 | 100.0% | 100.0% | 60.0% / 60.0% | 100.0% | 70.0% | `0.7282 / 0.4630 / 0.7791` |
-| 5. Whitespace, Casing & Control-Char Injection | FRAUD (Recall) | 10 | 100.0% | 100.0% | 100.0% / 100.0% | 100.0% | 90.0% | `0.8082 / 0.7670 / 0.9208` |
+| 5. Whitespace, Casing & Control-Char Injection | FRAUD (Recall) | 10 | 100.0% | 100.0% | 100.0% / 100.0% | 100.0% | 90.0% | `0.8082 / 0.7720 / 0.9321` |
 | 6. Benign Near-Miss Contrastive Controls | BENIGN (FPR) | 10 | 20.0% | 20.0% | 0.0% / 0.0% | 20.0% | 0.0% | `0.1373 / 0.0400 / 0.1373` |
 
-### Diagnostic Ablation Takeaways (Where TF-IDF & Heuristics Hold vs. Degrade)
+### Pre-Remediation (`afae166`) vs. Remediated Comparison
+
+| Cohort | Baseline ($P/H/S$) | Original `afae166` ($H \ge 0.50$ / $S \ge 0.40$ / $S \ge 0.75$) | Remediated ($H \ge 0.50$ / $S \ge 0.40$ / $S \ge 0.75$) | Remediated Mean $(P, H, S)$ |
+|---|---|:---:|:---:|:---:|
+| Canonical Smishing Baseline (Unperturbed) | `0.8110/0.7720/0.9284` | 100.0% / 100.0% / 90.0% | 100.0% / 100.0% / 90.0% | `0.8110 / 0.7720 / 0.9284` |
+| 1. Unseen Institution & Brand Substitution | `0.8110/0.7720/0.9284` | 100.0% / 100.0% / 90.0% | 100.0% / 100.0% / 90.0% | `0.8104 / 0.7720 / 0.9253` |
+| 2. URL Domain & Shortener Rotation | `0.8110/0.7720/0.9284` | 80.0% / 100.0% / 90.0% | 80.0% / 100.0% / 90.0% | `0.7461 / 0.7110 / 0.9293` |
+| 3. Cyrillic Homoglyph Substitution | `0.8110/0.7720/0.9284` | 0.0% / 80.0% / 10.0% | 100.0% / 100.0% / 70.0% | `0.5271 / 0.8200 / 0.8824` |
+| 4. Leetspeak & Intra-Word Punctuation Splitting | `0.8110/0.7720/0.9284` | 60.0% / 100.0% / 70.0% | 60.0% / 100.0% / 70.0% | `0.7282 / 0.4630 / 0.7791` |
+| 5. Whitespace, Casing & Control-Char Injection | `0.8110/0.7720/0.9284` | 100.0% / 100.0% / 90.0% | 100.0% / 100.0% / 90.0% | `0.8082 / 0.7720 / 0.9321` |
+| 6. Benign Near-Miss Contrastive Controls | `0.8110/0.7720/0.9284` | 0.0% / 20.0% / 0.0% | 0.0% / 20.0% / 0.0% | `0.1373 / 0.0400 / 0.1373` |
+
+### Benign Near-Miss ML Tier-1 False-Positive Investigation (`Unresolved TF-IDF Limitation`)
+
+| Control ID | $(P, H, S)$ | Heuristic Signals | Top Fraud-Pushing TF-IDF Tokens | Diagnosis |
+|---|---|---|---|---|
+| `benign_tax_prep_1099` | `0.6298 / 0.00 / 0.6298` | `[]` | please (+0.1915), before (+0.1072), portal (+0.0881), irs (+0.0608) | Unigrams seen predominantly in phishing lures (please/before/portal/irs) outweigh benign-associated tokens ('your', 'friday'), while domain words ('W-2', '1099', 'CPA') are absent from the 703-sample training vocabulary; heuristics hold H=0.00 (no BLOCK). |
+| `benign_courthouse_jury` | `0.5420 / 0.00 / 0.5420` | `[]` | fee (+0.1668), been (+0.1478), has been (+0.1169), notice (+0.1151) | Bag-of-words TF-IDF lacks syntactic negation scope over 'no fee required' ('fee' +0.1668 outweighs 'no' -0.1060); heuristics match zero extortion rules (H=0.00). |
+
+### Diagnostic Ablation Takeaways & Supported Homoglyph Scope
 
 - **Word-Level TF-IDF Generalization vs. Token-Splitting Degradation:** The frozen ONNX TfidfVectorizer uses word regex token_pattern='\\b[a-zA-Z0-9_]+\\b'; substituting non-ASCII Cyrillic codepoints or inserting intra-word dots/digits/zero-width characters pushes fraud signals out of vocabulary and breaks bigrams (mean P drops from 0.8110 to 0.5271 on Cyrillic homoglyphs and 0.7282 on leetspeak/splitting).
-- **Heuristic Normalization Defense-in-Depth & Residual Homoglyph Gap:** normalize_heuristic_text() strips invisible zero-width formatting characters (U+200B..U+200F, U+FEFF, U+00AD) and applies NFKC decomposition, preserving heuristics recall under whitespace/control injection (H>=0.50 recall=1.00, minor drop in mean H from multi-space breaking single-space 'sim card'). However, the frozen heuristic engine has NO RULE:HOMOGLYPH_OBFUSCATION or Cyrillic confusable mapping, so Cyrillic homoglyphs collapse heuristics recall to 0.00 and Composite Tier-2 to 0.10.
-- **Contrastive Benign Control Precision:** On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%.
+- **Heuristic Normalization Defense-in-Depth & Homoglyph Mitigation:** normalize_heuristic_text() now strips zero-width formatting characters, applies NFKC decomposition, and collapses consecutive whitespace runs to single spaces—fixing the literal-space SIM-swap fragility (H>=0.50 recall=1.00, mean H matches baseline 0.7720). Additionally, detect_and_normalize_cyrillic_homoglyphs() + RULE:HOMOGLYPH_OBFUSCATION (0.45) detect mixed-script spoofing without touching natural Cyrillic prose, lifting Cyrillic heuristics recall from 0.00 to 1.00 (mean H=0.8200) and Composite Tier-1 / Tier-2 from 0.80 / 0.10 to 1.00 / 0.70. Leetspeak/dot-splitting still degrades exact-word regexes (heuristics recall=0.60) cleanly without threshold tuning.
+- **Enumerated Homoglyph Scope:** Covers the 24 enumerated Cyrillic-to-Latin visual lookalikes only; does not cover Greek, Cherokee, mathematical, or arbitrary Unicode confusable blocks, and preserves natural pure-Cyrillic and bilingual prose untouched without heuristic flags.
+- **Contrastive Benign Control Precision:** On benign near-miss controls overlapping legal/tax/postal nouns, ML-only flags 20.0% (2/10: tax prep & jury duty controls) into Tier-1 review while heuristics trigger 0.0% FPR and Composite Tier-2 blocks 0.0%.
