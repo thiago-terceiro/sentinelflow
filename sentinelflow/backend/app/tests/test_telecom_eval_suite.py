@@ -2236,7 +2236,8 @@ def test_cyrillic_homoglyph_defense_and_multilingual_safety(
     assert isolated_norm == "Click to pay $50 now"
     assert isolated_tokens == ["\u0440\u0430\u0443"]
 
-    # Case + NFKC + ZWSP interaction on mixed-script fraud payload
+    # Case A: Mixed-script obfuscation + recognizable fraud lure (detection, normalization,
+    # downstream heuristic activation, and final Tier-2 BLOCK score/verdict).
     obfuscated = (
         "\uff23hase Bank \u0410lert: Account susp\u0435nded. "
         "Verify kyc\u200b/otp now at https://t.co/xyz"
@@ -2249,10 +2250,52 @@ def test_cyrillic_homoglyph_defense_and_multilingual_safety(
     homoglyph_norm, homoglyph_flag, _ = detect_and_normalize_cyrillic_homoglyphs(normalized_text)
     assert homoglyph_flag is True
     assert "\u0410" not in homoglyph_norm and "\u0435" not in homoglyph_norm
+    assert (
+        homoglyph_norm
+        == "Chase Bank Alert: Account suspended. Verify kyc/otp now at https://t.co/xyz"
+    )
     h_score, signals = evaluate_heuristics(obfuscated)
     assert HOMOGLYPH_OBFUSCATION_RULE in signals
     assert "RULE:URGENT_ACCOUNT_LOCKOUT" in signals
-    assert h_score >= 0.75
+    assert "HEURISTIC:COMPOUND_SIGNALS" in signals
+    assert h_score == pytest.approx(0.82)
+
+    engine = get_inference_engine()
+    obf_res = engine.predict(obfuscated)
+    assert HOMOGLYPH_OBFUSCATION_RULE in obf_res.signals
+    assert "RULE:URGENT_ACCOUNT_LOCKOUT" in obf_res.signals
+    assert "HEURISTIC:COMPOUND_SIGNALS" in obf_res.signals
+    assert obf_res.heuristic_score == pytest.approx(0.82)
+    assert obf_res.fraud_score == pytest.approx(1.0)
+    assert obf_res.verdict == "BLOCK"
+
+    # Case B: Heavy mixed-script obfuscation without any recognizable fraud lure —
+    # must detect HOMOGLYPH_OBFUSCATION without unjustified compound or Tier-2 BLOCK escalation.
+    no_lure_cases = [
+        (
+            "Pl\u0435\u0430s\u0435 \u0441\u043enf\u0456rm \u0430\u0441\u0441\u0435ss "
+            "c\u043ed\u0435 4812 \u0430t d\u0435sk 3",
+            "Please confirm access code 4812 at desk 3",
+        ),
+        (
+            "Qu\u0430rt\u0435rly r\u0435v\u0456\u0435w m\u0435\u0435t\u0456ng "
+            "m\u043ev\u0435d t\u043e r\u043e\u043em 204",
+            "Quarterly review meeting moved to room 204",
+        ),
+    ]
+    for no_lure_text, expected_clean in no_lure_cases:
+        norm_nl, flag_nl, _ = detect_and_normalize_cyrillic_homoglyphs(no_lure_text)
+        assert flag_nl is True
+        assert norm_nl == expected_clean
+        nl_res = engine.predict(no_lure_text)
+        assert HOMOGLYPH_OBFUSCATION_RULE in nl_res.signals
+        assert [
+            s for s in nl_res.signals if s.startswith("RULE:") and s != HOMOGLYPH_OBFUSCATION_RULE
+        ] == []
+        assert "HEURISTIC:COMPOUND_SIGNALS" not in nl_res.signals
+        assert nl_res.heuristic_score == pytest.approx(0.45)
+        assert nl_res.fraud_score < 0.75
+        assert nl_res.verdict != "BLOCK"
 
     # Pure Cyrillic & legitimate bilingual Russian+English brand prose remain untouched and unflagged
     multilingual_safe = [
@@ -2277,17 +2320,39 @@ def test_cyrillic_homoglyph_defense_and_multilingual_safety(
     assert tokens_en == []
     assert norm_en == "Team lunch moved to noon in conference room B."
 
-    # Single accidental homoglyph in benign delivery note stays below Tier-1 escalation (ALLOW < 0.40)
-    engine = get_inference_engine()
+    # Case C: Benign mixed-script typo without URL — no accidental fraud-lure transformation
+    # or unjustified BLOCK.
+    pure_typo = "Your r\u0435ceipt is r\u0435ady at the front desk."
+    typo_clean, typo_flag, _ = detect_and_normalize_cyrillic_homoglyphs(pure_typo)
+    assert typo_flag is True
+    assert typo_clean == "Your receipt is ready at the front desk."
+    pure_typo_res = engine.predict(pure_typo)
+    assert HOMOGLYPH_OBFUSCATION_RULE in pure_typo_res.signals
+    assert [
+        s
+        for s in pure_typo_res.signals
+        if s.startswith("RULE:") and s != HOMOGLYPH_OBFUSCATION_RULE
+    ] == []
+    assert "HEURISTIC:COMPOUND_SIGNALS" not in pure_typo_res.signals
+    assert pure_typo_res.heuristic_score == pytest.approx(0.45)
+    assert pure_typo_res.fraud_score < 0.40
+    assert pure_typo_res.verdict == "ALLOW"
+    assert pure_typo_res.verdict != "BLOCK"
+
+    # Case D: Benign ordinary URL + mixed-script text — even with URL/delivery signals active,
+    # has_high_risk remains False, compound escalation does not fire, and verdict stays ALLOW.
     benign_typo = (
         "Your package was d\u0435livered to the front porch; check tracking https://ups.com/track"
     )
     typo_res = engine.predict(benign_typo)
     assert HOMOGLYPH_OBFUSCATION_RULE in typo_res.signals
+    assert "RULE:STANDALONE_URL" in typo_res.signals
+    assert "RULE:GENERIC_DELIVERY_KEYWORD" in typo_res.signals
     assert "HEURISTIC:COMPOUND_SIGNALS" not in typo_res.signals
     assert typo_res.heuristic_score == pytest.approx(0.45)
     assert typo_res.fraud_score < 0.40
     assert typo_res.verdict == "ALLOW"
+    assert typo_res.verdict != "BLOCK"
 
     # Regression proof: disabling homoglyph defense fails on spoofed arrest threat
     spoofed = "IRS FINAL NOTICE: Federal \u0430rrest w\u0430rrant pending. Call 1-800-555-0199."
