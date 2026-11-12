@@ -117,6 +117,21 @@ class TelecomBatchResponse(BaseModel):
     results: list[TelecomClassifyResponse]
 
 
+class TelecomHealthResponse(BaseModel):
+    """Runtime reliability and telemetry state for the SentinelPulse telecom gateway."""
+
+    status: Literal["healthy", "degraded"]
+    model_sha256: str
+    model_version: str = "1.0.0"
+    velocity_backend: Literal["redis", "local_memory_fallback"]
+    velocity_degraded_mode: bool
+    circuit_cooldown_seconds: float
+    cooldown_remaining_seconds: float
+    intra_op_num_threads: int
+    inter_op_num_threads: int
+    graph_optimization_level: str
+
+
 async def _create_escalated_dispute(
     session: AsyncSession,
     *,
@@ -843,11 +858,42 @@ async def batch_classify_telecom_messages(
     )
 
 
+@router.get("/telecom/health", response_model=TelecomHealthResponse)
+async def get_telecom_health() -> TelecomHealthResponse:
+    """Returns ONNX session integrity/threading metadata and Redis circuit-breaker telemetry."""
+    engine = get_inference_engine()
+    velocity_status = get_velocity_store().get_status()
+    degraded = bool(velocity_status["velocity_degraded_mode"])
+    return TelecomHealthResponse(
+        status="degraded" if degraded else "healthy",
+        model_sha256=engine.model_sha256,
+        model_version="1.0.0",
+        velocity_backend=velocity_status["velocity_backend"],
+        velocity_degraded_mode=degraded,
+        circuit_cooldown_seconds=float(velocity_status["circuit_cooldown_seconds"]),
+        cooldown_remaining_seconds=float(velocity_status["cooldown_remaining_seconds"]),
+        intra_op_num_threads=engine.intra_op_num_threads,
+        inter_op_num_threads=engine.inter_op_num_threads,
+        graph_optimization_level=str(engine.graph_optimization_level),
+    )
+
+
 @router.get("/telecom/metrics/summary")
 async def get_telecom_metrics_summary() -> dict[str, Any]:
     """Returns rolling real-time telemetry: throughput (EPS), p50/p95/p99 latency, fraud rates."""
     seed_telecom_warmup()
-    return get_metrics_tracker().get_summary()
+    summary = get_metrics_tracker().get_summary()
+    engine = get_inference_engine()
+    velocity_status = get_velocity_store().get_status()
+    summary["model_sha256"] = engine.model_sha256
+    summary["velocity_backend"] = velocity_status["velocity_backend"]
+    summary["velocity_degraded_mode"] = velocity_status["velocity_degraded_mode"]
+    summary["onnx_session"] = {
+        "intra_op_num_threads": engine.intra_op_num_threads,
+        "inter_op_num_threads": engine.inter_op_num_threads,
+        "graph_optimization_level": str(engine.graph_optimization_level),
+    }
+    return summary
 
 
 @router.get("/telecom/drift")

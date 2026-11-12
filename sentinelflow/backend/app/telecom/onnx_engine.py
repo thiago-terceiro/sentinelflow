@@ -493,6 +493,12 @@ class OnnxInferenceEngine:
             self.metadata_path = Path(metadata_path)
         self.verify_sha256 = verify_sha256
         self._model_sha256: str = ""
+        self.session_options: ort.SessionOptions | None = None
+        self.intra_op_num_threads: int = 1
+        self.inter_op_num_threads: int = 1
+        self.graph_optimization_level: ort.GraphOptimizationLevel = (
+            ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        )
         self.session: ort.InferenceSession | None = None
         self._session: ort.InferenceSession | None = None
         self._input_name: str = "text"
@@ -540,19 +546,21 @@ class OnnxInferenceEngine:
     def _init_session(self) -> None:
         """Initializes optimized ONNX Runtime CPU session after verifying SHA-256 integrity."""
         if not self.model_path.exists():
-            logger.warning(
-                "ONNX model file not found at %s. Running in heuristic-only fallback mode.",
-                self.model_path,
-            )
-            return
+            raise FileNotFoundError(f"ONNX model file not found at {self.model_path}")
 
         self._verify_model_integrity()
 
         opts = ort.SessionOptions()
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        # 1 thread per session maximizes server throughput under concurrent workers
+        # Pin single intra/inter-op threads per session for throughput under concurrent workers
         opts.intra_op_num_threads = 1
+        opts.inter_op_num_threads = 1
         opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+
+        self.session_options = opts
+        self.intra_op_num_threads = int(opts.intra_op_num_threads)
+        self.inter_op_num_threads = int(opts.inter_op_num_threads)
+        self.graph_optimization_level = opts.graph_optimization_level
 
         try:
             self.session = ort.InferenceSession(
@@ -573,6 +581,9 @@ class OnnxInferenceEngine:
             logger.error("Failed to load ONNX model from %s: %s", self.model_path, err)
             self.session = None
             self._session = None
+            raise RuntimeError(
+                f"Failed to initialize ONNX Runtime session from {self.model_path}: {err}"
+            ) from err
 
     def evaluate_heuristics(self, text: str) -> tuple[float, list[str]]:
         """Fast regex pattern matching preceding the ML model.

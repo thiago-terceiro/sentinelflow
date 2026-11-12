@@ -397,6 +397,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/telecom/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Telecom Health
+         * @description Returns ONNX session integrity/threading metadata and Redis circuit-breaker telemetry.
+         */
+        get: operations["get_telecom_health_api_v1_telecom_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/telecom/metrics/summary": {
         parameters: {
             query?: never;
@@ -1442,6 +1462,41 @@ export interface components {
             /** Status */
             status: string;
         };
+        /**
+         * TelecomHealthResponse
+         * @description Runtime reliability and telemetry state for the SentinelPulse telecom gateway.
+         */
+        TelecomHealthResponse: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "healthy" | "degraded";
+            /** Model Sha256 */
+            model_sha256: string;
+            /**
+             * Model Version
+             * @default 1.0.0
+             */
+            model_version: string;
+            /**
+             * Velocity Backend
+             * @enum {string}
+             */
+            velocity_backend: "redis" | "local_memory_fallback";
+            /** Velocity Degraded Mode */
+            velocity_degraded_mode: boolean;
+            /** Circuit Cooldown Seconds */
+            circuit_cooldown_seconds: number;
+            /** Cooldown Remaining Seconds */
+            cooldown_remaining_seconds: number;
+            /** Intra Op Num Threads */
+            intra_op_num_threads: number;
+            /** Inter Op Num Threads */
+            inter_op_num_threads: number;
+            /** Graph Optimization Level */
+            graph_optimization_level: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2128,6 +2183,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_telecom_health_api_v1_telecom_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelecomHealthResponse"];
                 };
             };
         };

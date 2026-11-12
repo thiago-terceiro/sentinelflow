@@ -552,11 +552,7 @@ def test_composite_scoring_monotonic_non_decreasing_property() -> None:
 
 def test_single_rule_heuristic_short_circuit_invariant() -> None:
     """Verifies that RULE:TAX_ARREST_THREAT (0.80) is the only single rule reaching H >= 0.80."""
-    high_rules = [
-        (name, weight)
-        for name, _, weight in HEURISTIC_RULES
-        if weight >= 0.80
-    ]
+    high_rules = [(name, weight) for name, _, weight in HEURISTIC_RULES if weight >= 0.80]
     # Exactly one single rule should reach 0.80 independently
     assert len(high_rules) == 1
     assert high_rules[0][0] == "RULE:TAX_ARREST_THREAT"
@@ -564,9 +560,7 @@ def test_single_rule_heuristic_short_circuit_invariant() -> None:
 
     # All other rules must be strictly < 0.80
     lower_rules = [
-        (name, weight)
-        for name, _, weight in HEURISTIC_RULES
-        if name != "RULE:TAX_ARREST_THREAT"
+        (name, weight) for name, _, weight in HEURISTIC_RULES if name != "RULE:TAX_ARREST_THREAT"
     ]
     for name, weight in lower_rules:
         assert weight <= 0.75, f"Rule {name} has weight {weight} >= 0.80"
@@ -590,10 +584,14 @@ def test_template_family_group_leakage_prevention() -> None:
     ]
     toy_labels = [0, 0, 1, 1, 0, 0, 1, 1]
     toy_groups = [
-        "group_alpha", "group_alpha",
-        "group_beta", "group_beta",
-        "group_gamma", "group_gamma",
-        "group_delta", "group_delta",
+        "group_alpha",
+        "group_alpha",
+        "group_beta",
+        "group_beta",
+        "group_gamma",
+        "group_gamma",
+        "group_delta",
+        "group_delta",
     ]
 
     sgkf = StratifiedGroupKFold(n_splits=2, shuffle=True, random_state=42)
@@ -698,18 +696,20 @@ def test_calibrated_classifier_cv_platt_parity() -> None:
         cv=prod_splits,
         ensemble="auto",
     )
-    pipe = Pipeline([
-        (
-            "tfidf",
-            TfidfVectorizer(
-                ngram_range=(1, 2),
-                sublinear_tf=True,
-                max_features=2500,
-                token_pattern=r"\b[a-zA-Z0-9_]+\b",
+    pipe = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    sublinear_tf=True,
+                    max_features=2500,
+                    token_pattern=r"\b[a-zA-Z0-9_]+\b",
+                ),
             ),
-        ),
-        ("clf", calibrated_clf),
-    ])
+            ("clf", calibrated_clf),
+        ]
+    )
     pipe.fit(texts, labels)
     sk_probs = pipe.predict_proba(sample_texts)[:, 1].tolist()
 
@@ -740,23 +740,27 @@ def test_onnx_sklearn_full_benchmark_parity() -> None:
     texts, labels, groups = build_augmented_dataset()
     prod_splits = build_production_calibration_splits(texts, labels, groups, n_splits=5)
     calibrated_clf = CalibratedClassifierCV(
-        estimator=LogisticRegression(C=1.5, class_weight="balanced", max_iter=1000, random_state=42),
+        estimator=LogisticRegression(
+            C=1.5, class_weight="balanced", max_iter=1000, random_state=42
+        ),
         method="sigmoid",
         cv=prod_splits,
         ensemble="auto",
     )
-    pipe = Pipeline([
-        (
-            "tfidf",
-            TfidfVectorizer(
-                ngram_range=(1, 2),
-                sublinear_tf=True,
-                max_features=2500,
-                token_pattern=r"\b[a-zA-Z0-9_]+\b",
+    pipe = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    sublinear_tf=True,
+                    max_features=2500,
+                    token_pattern=r"\b[a-zA-Z0-9_]+\b",
+                ),
             ),
-        ),
-        ("clf", calibrated_clf),
-    ])
+            ("clf", calibrated_clf),
+        ]
+    )
     pipe.fit(texts, labels)
 
     sk_probs = pipe.predict_proba(benchmark_texts)[:, 1]
@@ -781,16 +785,22 @@ def test_onnx_sklearn_full_benchmark_parity() -> None:
     assert np.array_equal(sk_tier2, onnx_tier2), "Decision disparity at Tier 2 threshold 0.75"
 
     tier1_crossings = int(np.sum((sk_probs >= 0.40) != (onnx_probs >= 0.40)))
-    assert tier1_crossings == 0, f"Unexpected decision disparity at Tier 1 (0.40): {tier1_crossings} samples"
+    assert tier1_crossings == 0, (
+        f"Unexpected decision disparity at Tier 1 (0.40): {tier1_crossings} samples"
+    )
 
     # Verify canonical 400-row sample-level artifact exists and has 100% verdict parity
     pred_path = Path("app/telecom/benchmark_predictions_400.json")
     if not pred_path.exists():
         pred_path = Path("sentinelflow/backend/app/telecom/benchmark_predictions_400.json")
-    assert pred_path.exists(), "Canonical 400-row benchmark_predictions_400.json artifact must exist"
+    assert pred_path.exists(), (
+        "Canonical 400-row benchmark_predictions_400.json artifact must exist"
+    )
     rows = json.loads(pred_path.read_text(encoding="utf-8"))
     assert len(rows) == 400
-    assert all(r["verdict_match"] is True for r in rows), "Every sample in benchmark_predictions_400.json must match verdicts"
+    assert all(r["verdict_match"] is True for r in rows), (
+        "Every sample in benchmark_predictions_400.json must match verdicts"
+    )
     assert max(r["prob_abs_diff"] for r in rows) < 1e-5
 
 
@@ -824,7 +834,9 @@ def test_template_family_grouping_under_and_over_grouping() -> None:
         extract_template_family_id(msg_arrest, 1),
         extract_template_family_id(msg_flight, 0),
     }
-    assert len(fams) == 4, f"Over-grouping detected: distinct messages merged into {len(fams)} families"
+    assert len(fams) == 4, (
+        f"Over-grouping detected: distinct messages merged into {len(fams)} families"
+    )
 
 
 def test_template_family_grouping_cross_validation_disjointness() -> None:
@@ -835,16 +847,22 @@ def test_template_family_grouping_cross_validation_disjointness() -> None:
     texts, labels, template_family_ids = build_augmented_dataset()
     sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
 
-    for fold, (train_idx, val_idx) in enumerate(sgkf.split(texts, labels, groups=template_family_ids)):
+    for fold, (train_idx, val_idx) in enumerate(
+        sgkf.split(texts, labels, groups=template_family_ids)
+    ):
         train_groups = {template_family_ids[i] for i in train_idx}
         val_groups = {template_family_ids[i] for i in val_idx}
 
         overlap = train_groups.intersection(val_groups)
-        assert len(overlap) == 0, f"Fold {fold} has {len(overlap)} overlapping template families: {overlap}"
+        assert len(overlap) == 0, (
+            f"Fold {fold} has {len(overlap)} overlapping template families: {overlap}"
+        )
 
         y_train = [labels[i] for i in train_idx]
         y_val = [labels[i] for i in val_idx]
-        assert y_train.count(0) > 0 and y_train.count(1) > 0, f"Fold {fold} train split has empty class"
+        assert y_train.count(0) > 0 and y_train.count(1) > 0, (
+            f"Fold {fold} train split has empty class"
+        )
         assert y_val.count(0) > 0 and y_val.count(1) > 0, f"Fold {fold} val split has empty class"
 
 
@@ -925,20 +943,32 @@ def test_legitimate_bank_fraud_alerts_allow_verdict() -> None:
 def test_mathematical_monotonicity_and_h065_derivation() -> None:
     """Verifies composite scoring mathematical invariants and H=0.65 escalation threshold."""
     # 1. H=0.65 with P=0.0 MUST NOT trigger Tier 1 (0.40)
-    score_p0 = compute_composite_score(heuristic_score=0.65, onnx_probability=0.0, velocity_score=0.0)
+    score_p0 = compute_composite_score(
+        heuristic_score=0.65, onnx_probability=0.0, velocity_score=0.0
+    )
     assert score_p0 == 0.3325, f"Expected exactly 0.3325, got {score_p0}"
     assert score_p0 < 0.40, "H=0.65 alone must NOT escalate to Tier 1 without baseline ML suspicion"
 
     # 2. P required to reach 0.40 with H=0.65 is ~0.1012
-    score_p_just_below = compute_composite_score(heuristic_score=0.65, onnx_probability=0.10, velocity_score=0.0)
+    score_p_just_below = compute_composite_score(
+        heuristic_score=0.65, onnx_probability=0.10, velocity_score=0.0
+    )
     assert score_p_just_below < 0.40
 
-    score_p_reaches_tier1 = compute_composite_score(heuristic_score=0.65, onnx_probability=0.1012, velocity_score=0.0)
+    score_p_reaches_tier1 = compute_composite_score(
+        heuristic_score=0.65, onnx_probability=0.1012, velocity_score=0.0
+    )
     assert score_p_reaches_tier1 >= 0.40
 
     # 3. Authoritative override H >= 0.80 forces S=1.0 regardless of P
-    assert compute_composite_score(heuristic_score=0.80, onnx_probability=0.0, velocity_score=0.0) == 1.0
-    assert compute_composite_score(heuristic_score=0.85, onnx_probability=0.0, velocity_score=0.0) == 1.0
+    assert (
+        compute_composite_score(heuristic_score=0.80, onnx_probability=0.0, velocity_score=0.0)
+        == 1.0
+    )
+    assert (
+        compute_composite_score(heuristic_score=0.85, onnx_probability=0.0, velocity_score=0.0)
+        == 1.0
+    )
 
 
 @pytest.mark.asyncio
@@ -1084,26 +1114,30 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
     from sklearn.pipeline import Pipeline
 
     texts, labels, _ = build_augmented_dataset()
-    pipe = Pipeline([
-        (
-            "tfidf",
-            TfidfVectorizer(
-                ngram_range=(1, 2),
-                sublinear_tf=True,
-                max_features=2500,
-                min_df=1,
-                token_pattern=r"\b[a-zA-Z0-9_]+\b",
+    pipe = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    sublinear_tf=True,
+                    max_features=2500,
+                    min_df=1,
+                    token_pattern=r"\b[a-zA-Z0-9_]+\b",
+                ),
             ),
-        ),
-        (
-            "clf",
-            CalibratedClassifierCV(
-                estimator=LogisticRegression(C=1.5, class_weight="balanced", max_iter=1000, random_state=42),
-                method="sigmoid",
-                cv=5,
+            (
+                "clf",
+                CalibratedClassifierCV(
+                    estimator=LogisticRegression(
+                        C=1.5, class_weight="balanced", max_iter=1000, random_state=42
+                    ),
+                    method="sigmoid",
+                    cv=5,
+                ),
             ),
-        ),
-    ])
+        ]
+    )
     pipe.fit(texts, labels)
     tfidf_step = pipe.named_steps["tfidf"]
 
@@ -1114,7 +1148,9 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
     # 1. Verify second call on already-patched model is strictly idempotent
     patched_twice = patch_skl2onnx_tfidf_bugs(patched_once, tfidf_step)
     bytes_twice = patched_twice.SerializeToString()
-    assert bytes_once == bytes_twice, "patch_skl2onnx_tfidf_bugs must be byte-for-byte idempotent on second call"
+    assert bytes_once == bytes_twice, (
+        "patch_skl2onnx_tfidf_bugs must be byte-for-byte idempotent on second call"
+    )
 
     # 2. Verify structural pre-condition checks raise RuntimeError on invalid graphs
     empty_model = onnx.ModelProto()
@@ -1122,7 +1158,9 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
         patch_skl2onnx_tfidf_bugs(empty_model, tfidf_step)
 
     corrupted_model = onnx.ModelProto()
-    corrupted_model.CopyFrom(to_onnx(pipe, initial_types=[("text", StringTensorType([None, 1]))], target_opset=14))
+    corrupted_model.CopyFrom(
+        to_onnx(pipe, initial_types=[("text", StringTensorType([None, 1]))], target_opset=14)
+    )
     kept_nodes = [n for n in corrupted_model.graph.node if n.op_type != "Log"]
     del corrupted_model.graph.node[:]
     corrupted_model.graph.node.extend(kept_nodes)
@@ -1148,7 +1186,9 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
 
     def _build_session_with_tfidf_output(serialized_bytes: bytes) -> ort.InferenceSession:
         proto = onnx.load_from_string(serialized_bytes)
-        proto.graph.output.append(helper.make_tensor_value_info("tfidftr_norm", TensorProto.FLOAT, [None, None]))
+        proto.graph.output.append(
+            helper.make_tensor_value_info("tfidftr_norm", TensorProto.FLOAT, [None, None])
+        )
         return ort.InferenceSession(proto.SerializeToString(), providers=["CPUExecutionProvider"])
 
     sess_once = _build_session_with_tfidf_output(bytes_once)
@@ -1168,8 +1208,12 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
         ox_prob_2 = float(outs_twice[1][0][1])
         ox_vec_2 = outs_twice[2][0].astype(np.float64)
 
-        assert not np.isnan(ox_vec_1).any() and not np.isinf(ox_vec_1).any(), f"NaN/Inf in vector for {case_name}"
-        assert not np.isnan(ox_prob_1) and not np.isinf(ox_prob_1), f"NaN/Inf in prob for {case_name}"
+        assert not np.isnan(ox_vec_1).any() and not np.isinf(ox_vec_1).any(), (
+            f"NaN/Inf in vector for {case_name}"
+        )
+        assert not np.isnan(ox_prob_1) and not np.isinf(ox_prob_1), (
+            f"NaN/Inf in prob for {case_name}"
+        )
 
         # Idempotency: exact 0.0 difference between 1x and 2x patched models
         assert ox_prob_1 == ox_prob_2, f"Idempotency prob mismatch on {case_name}"
@@ -1182,14 +1226,27 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
         assert prob_diff < 1e-5, f"Probability diff {prob_diff} >= 1e-5 on {case_name}"
 
         h_score, _ = evaluate_heuristics(text)
-        sk_comp = compute_composite_score(heuristic_score=h_score, onnx_probability=sk_prob, velocity_score=0.0)
-        ox_comp = compute_composite_score(heuristic_score=h_score, onnx_probability=ox_prob_1, velocity_score=0.0)
+        sk_comp = compute_composite_score(
+            heuristic_score=h_score, onnx_probability=sk_prob, velocity_score=0.0
+        )
+        ox_comp = compute_composite_score(
+            heuristic_score=h_score, onnx_probability=ox_prob_1, velocity_score=0.0
+        )
         assert abs(sk_comp - ox_comp) < 1e-5, f"Composite score diff on {case_name}"
-        assert _compute_verdict(sk_comp) == _compute_verdict(ox_comp), f"Verdict mismatch on {case_name}"
+        assert _compute_verdict(sk_comp) == _compute_verdict(ox_comp), (
+            f"Verdict mismatch on {case_name}"
+        )
 
 
 @pytest.mark.parametrize(
-    ("case_id", "heuristic_score", "onnx_probability", "velocity_score", "expected_score", "expected_verdict"),
+    (
+        "case_id",
+        "heuristic_score",
+        "onnx_probability",
+        "velocity_score",
+        "expected_score",
+        "expected_verdict",
+    ),
     [
         # Category 1: Exact 4-decimal rounding & operational tier threshold boundaries
         ("round_t1_below_039994", 0.0, 0.39994, 0.0, 0.3999, "ALLOW"),
@@ -1252,7 +1309,9 @@ def test_composite_scoring_decision_matrix(
         velocity_score=velocity_score,
     )
 
-    assert not math.isnan(score) and not math.isinf(score), f"{case_id} yielded non-finite score {score}"
+    assert not math.isnan(score) and not math.isinf(score), (
+        f"{case_id} yielded non-finite score {score}"
+    )
     assert 0.0 <= score <= 1.0, f"{case_id} score {score} outside [0.0, 1.0]"
     assert score == expected_score, f"{case_id}: expected {expected_score}, got {score}"
 
@@ -1322,7 +1381,9 @@ def test_evaluate_heuristics_compound_escalation_matrix(
 
     assert round(score, 4) == expected_score, f"{case_id}: expected {expected_score}, got {score}"
     for expected_rule in expected_rules:
-        assert expected_rule in signals, f"{case_id}: missing expected rule {expected_rule} in {signals}"
+        assert expected_rule in signals, (
+            f"{case_id}: missing expected rule {expected_rule} in {signals}"
+        )
 
     has_compound = "HEURISTIC:COMPOUND_SIGNALS" in signals
     assert has_compound is expect_compound, (
@@ -1345,9 +1406,7 @@ async def test_api_classify_threshold_rounding_and_redis_outage_degraded_matrix(
 
         def predict(self, _text: str) -> InferenceResult:
             return InferenceResult(
-                verdict=_compute_verdict(
-                    compute_composite_score(self._h, self._p, 0.0)
-                ),
+                verdict=_compute_verdict(compute_composite_score(self._h, self._p, 0.0)),
                 fraud_score=compute_composite_score(self._h, self._p, 0.0),
                 latency_ms=0.1,
                 signals=["ML:TEST_STUB"],
@@ -1361,8 +1420,8 @@ async def test_api_classify_threshold_rounding_and_redis_outage_degraded_matrix(
         # 1. Verify /v1/classify applies exact 4-decimal rounding at 0.40 and 0.75 boundaries
         boundary_cases = [
             (0.20, 0.249925, 0.3999, "ALLOW"),  # 0.20 + 0.249925 * 0.80 = 0.39994 -> 0.3999
-            (0.20, 0.249950, 0.4000, "FLAG"),   # 0.20 + 0.249950 * 0.80 = 0.39996 -> 0.4000
-            (0.60, 0.374850, 0.7499, "FLAG"),   # 0.60 + 0.374850 * 0.40 = 0.74994 -> 0.7499
+            (0.20, 0.249950, 0.4000, "FLAG"),  # 0.20 + 0.249950 * 0.80 = 0.39996 -> 0.4000
+            (0.60, 0.374850, 0.7499, "FLAG"),  # 0.60 + 0.374850 * 0.40 = 0.74994 -> 0.7499
             (0.60, 0.374900, 0.7500, "BLOCK"),  # 0.60 + 0.374900 * 0.40 = 0.74996 -> 0.7500
         ]
 
@@ -1379,7 +1438,9 @@ async def test_api_classify_threshold_rounding_and_redis_outage_degraded_matrix(
                 risk_contribution=v_contrib,
             )
 
-            async def _fake_record(*_args: Any, _res: Any = boundary_metrics, **_kwargs: Any) -> Any:
+            async def _fake_record(
+                *_args: Any, _res: Any = boundary_metrics, **_kwargs: Any
+            ) -> Any:
                 return _res
 
             boundary_store.record_and_evaluate = _fake_record
@@ -1469,7 +1530,9 @@ def test_tax_arrest_threat_contrastive_precision() -> None:
         assert "RULE:TAX_ARREST_THREAT" not in h_signals
 
         res = engine.predict(msg)
-        assert res.verdict == "ALLOW", f"Expected ALLOW, got {res.verdict} (S={res.fraud_score}): {msg}"
+        assert res.verdict == "ALLOW", (
+            f"Expected ALLOW, got {res.verdict} (S={res.fraud_score}): {msg}"
+        )
         assert res.fraud_score < 0.40
         assert res.heuristic_score == 0.0
 
@@ -1485,8 +1548,12 @@ def test_tax_arrest_threat_contrastive_precision() -> None:
     ]
     for msg in coercive_extortion_scams:
         res = engine.predict(msg)
-        assert "RULE:TAX_ARREST_THREAT" in res.signals, f"Expected RULE:TAX_ARREST_THREAT on extortion: {msg}"
-        assert res.verdict == "BLOCK", f"Expected BLOCK, got {res.verdict} (S={res.fraud_score}): {msg}"
+        assert "RULE:TAX_ARREST_THREAT" in res.signals, (
+            f"Expected RULE:TAX_ARREST_THREAT on extortion: {msg}"
+        )
+        assert res.verdict == "BLOCK", (
+            f"Expected BLOCK, got {res.verdict} (S={res.fraud_score}): {msg}"
+        )
         assert res.fraud_score >= 0.75
 
     # 3. All 30 smish_legal_extortion benchmark samples (indices 260..289) -> 100% BLOCK recall
@@ -1504,13 +1571,17 @@ def test_tax_arrest_threat_contrastive_precision() -> None:
         assert res.fraud_score >= 0.75
 
     # 4. Worst-case 1600-char latency guard (verifying anchored O(N) scan stays << 15ms SLA)
-    long_benign = ("Lawyer confirmed court date scheduled with attorney and IRS refund check. " * 22)[:1600]
+    long_benign = (
+        "Lawyer confirmed court date scheduled with attorney and IRS refund check. " * 22
+    )[:1600]
     t0 = time.perf_counter()
     for _ in range(100):
         h_long, _ = evaluate_heuristics(long_benign)
         assert h_long == 0.0
     per_call_ms = ((time.perf_counter() - t0) * 1000.0) / 100.0
-    assert per_call_ms < 2.0, f"Heuristic scan latency regression on 1600-char input: {per_call_ms:.3f}ms"
+    assert per_call_ms < 2.0, (
+        f"Heuristic scan latency regression on 1600-char input: {per_call_ms:.3f}ms"
+    )
 
 
 def test_otp_2fa_benign_vs_phishing_contrastive() -> None:
@@ -1655,7 +1726,158 @@ def test_family_impersonation_three_tier_policy() -> None:
         assert "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE" in res.signals
 
 
+@pytest.mark.asyncio
+async def test_onnx_session_options_and_redis_circuit_breaker_lifecycle(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Any,
+) -> None:
+    """Verifies SF-014 ONNX single-thread session hardening, startup errors, and Redis circuit-breaker telemetry."""
+    import time
+    from contextlib import asynccontextmanager
 
+    import onnxruntime as ort
+    from app.telecom.onnx_engine import ONNXFraudEngine
+    from app.telecom.velocity_store import VelocityStore
 
+    # 1. Active ONNX session enforces single-thread intra/inter-op options and ORT_ENABLE_ALL
+    engine = get_inference_engine()
+    assert len(engine.model_sha256) == 64
+    assert engine.intra_op_num_threads == 1
+    assert engine.inter_op_num_threads == 1
+    assert engine.graph_optimization_level == ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    assert engine.session_options is not None
+    assert engine.session_options.intra_op_num_threads == 1
+    assert engine.session_options.inter_op_num_threads == 1
+    assert (
+        engine.session_options.graph_optimization_level == ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    )
+    assert engine.session_options.execution_mode == ort.ExecutionMode.ORT_SEQUENTIAL
 
+    # 2. Missing model fails fast with FileNotFoundError; corrupt binary fails fast with RuntimeError
+    missing_path = tmp_path / "missing_sms_fraud_model.onnx"
+    with pytest.raises(FileNotFoundError, match="ONNX model file not found"):
+        ONNXFraudEngine(model_path=missing_path)
 
+    corrupt_path = tmp_path / "corrupt_sms_fraud_model.onnx"
+    corrupt_path.write_bytes(b"not-a-valid-onnx-protobuf")
+    with pytest.raises(RuntimeError, match="Failed to initialize ONNX Runtime session"):
+        ONNXFraudEngine(model_path=corrupt_path, verify_sha256=False)
+
+    # 3. Redis circuit breaker healthy -> degraded fallback -> cooldown auto-recovery lifecycle
+    should_fail_redis = False
+
+    class _MockPipeline:
+        def __getattr__(self, _name: str) -> Any:
+            return lambda *_args, **_kwargs: None
+
+        async def execute(self) -> list[int]:
+            if should_fail_redis:
+                raise ConnectionError("Simulated Redis outage")
+            return [0, 1, 1, 1] * 6
+
+    class _MockRedisClient:
+        @asynccontextmanager
+        async def pipeline(self, transaction: bool = False) -> Any:
+            del transaction
+            yield _MockPipeline()
+
+    store = VelocityStore(redis_url="redis://127.0.0.1:59998/9")
+    monkeypatch.setattr(store, "_get_client", lambda: _MockRedisClient())
+    monkeypatch.setattr("app.api.telecom.get_velocity_store", lambda: store)
+    monkeypatch.setattr("app.api.telecom.get_inference_engine", lambda: engine)
+
+    try:
+        assert store.degraded_local_fallback is False
+        assert store.active_backend == "redis"
+
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            # Phase A: Healthy Redis
+            classify_ok = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15551110001",
+                    "recipient": "+14155551234",
+                    "message": "Your dentist appointment is confirmed for 3pm tomorrow.",
+                },
+            )
+            assert classify_ok.status_code == 200
+            assert store.degraded_local_fallback is False
+            assert store.active_backend == "redis"
+
+            health_ok = await client.get("/api/v1/telecom/health")
+            assert health_ok.status_code == 200
+            health_ok_json = health_ok.json()
+            assert health_ok_json["status"] == "healthy"
+            assert health_ok_json["model_sha256"] == engine.model_sha256
+            assert health_ok_json["velocity_backend"] == "redis"
+            assert health_ok_json["velocity_degraded_mode"] is False
+            assert health_ok_json["intra_op_num_threads"] == 1
+            assert health_ok_json["inter_op_num_threads"] == 1
+
+            summary_ok = await client.get("/api/v1/telecom/metrics/summary")
+            assert summary_ok.status_code == 200
+            summary_ok_json = summary_ok.json()
+            assert summary_ok_json["model_sha256"] == engine.model_sha256
+            assert summary_ok_json["velocity_backend"] == "redis"
+            assert summary_ok_json["velocity_degraded_mode"] is False
+
+            # Phase B: Redis outage trips circuit breaker -> local_memory_fallback
+            should_fail_redis = True
+            classify_degraded = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15551110002",
+                    "recipient": "+14155551234",
+                    "message": "Reminder: team standup starts in 10 minutes.",
+                },
+            )
+            assert classify_degraded.status_code == 200
+            assert store.degraded_local_fallback is True
+            assert store.active_backend == "local_memory_fallback"
+
+            health_deg = await client.get("/api/v1/telecom/health")
+            assert health_deg.status_code == 200
+            health_deg_json = health_deg.json()
+            assert health_deg_json["status"] == "degraded"
+            assert health_deg_json["model_sha256"] == engine.model_sha256
+            assert health_deg_json["velocity_backend"] == "local_memory_fallback"
+            assert health_deg_json["velocity_degraded_mode"] is True
+            assert health_deg_json["cooldown_remaining_seconds"] > 0.0
+
+            summary_deg = await client.get("/api/v1/telecom/metrics/summary")
+            assert summary_deg.status_code == 200
+            summary_deg_json = summary_deg.json()
+            assert summary_deg_json["velocity_backend"] == "local_memory_fallback"
+            assert summary_deg_json["velocity_degraded_mode"] is True
+
+            # Phase C: Cooldown expires and Redis recovers -> auto-reset to healthy redis
+            should_fail_redis = False
+            store._fallback_until = time.monotonic() - 1.0
+            classify_rec = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15551110003",
+                    "recipient": "+14155551234",
+                    "message": "Your grocery order is ready for curbside pickup.",
+                },
+            )
+            assert classify_rec.status_code == 200
+            assert store.degraded_local_fallback is False
+            assert store.active_backend == "redis"
+
+            health_rec = await client.get("/api/v1/telecom/health")
+            assert health_rec.status_code == 200
+            health_rec_json = health_rec.json()
+            assert health_rec_json["status"] == "healthy"
+            assert health_rec_json["velocity_backend"] == "redis"
+            assert health_rec_json["velocity_degraded_mode"] is False
+            assert health_rec_json["cooldown_remaining_seconds"] == 0.0
+
+            summary_rec = await client.get("/api/v1/telecom/metrics/summary")
+            assert summary_rec.status_code == 200
+            summary_rec_json = summary_rec.json()
+            assert summary_rec_json["velocity_backend"] == "redis"
+            assert summary_rec_json["velocity_degraded_mode"] is False
+    finally:
+        await store.close()

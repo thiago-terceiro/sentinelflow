@@ -1072,6 +1072,28 @@
         }
       }
     },
+    "/api/v1/telecom/health": {
+      "get": {
+        "tags": [
+          "telecom-intelligence"
+        ],
+        "summary": "Get Telecom Health",
+        "description": "Returns ONNX session integrity/threading metadata and Redis circuit-breaker telemetry.",
+        "operationId": "get_telecom_health_api_v1_telecom_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelecomHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/telecom/metrics/summary": {
       "get": {
         "tags": [
@@ -3140,6 +3162,73 @@
           "status"
         ],
         "title": "TelecomEscalateResponse"
+      },
+      "TelecomHealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded"
+            ],
+            "title": "Status"
+          },
+          "model_sha256": {
+            "type": "string",
+            "title": "Model Sha256"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "default": "1.0.0"
+          },
+          "velocity_backend": {
+            "type": "string",
+            "enum": [
+              "redis",
+              "local_memory_fallback"
+            ],
+            "title": "Velocity Backend"
+          },
+          "velocity_degraded_mode": {
+            "type": "boolean",
+            "title": "Velocity Degraded Mode"
+          },
+          "circuit_cooldown_seconds": {
+            "type": "number",
+            "title": "Circuit Cooldown Seconds"
+          },
+          "cooldown_remaining_seconds": {
+            "type": "number",
+            "title": "Cooldown Remaining Seconds"
+          },
+          "intra_op_num_threads": {
+            "type": "integer",
+            "title": "Intra Op Num Threads"
+          },
+          "inter_op_num_threads": {
+            "type": "integer",
+            "title": "Inter Op Num Threads"
+          },
+          "graph_optimization_level": {
+            "type": "string",
+            "title": "Graph Optimization Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "model_sha256",
+          "velocity_backend",
+          "velocity_degraded_mode",
+          "circuit_cooldown_seconds",
+          "cooldown_remaining_seconds",
+          "intra_op_num_threads",
+          "inter_op_num_threads",
+          "graph_optimization_level"
+        ],
+        "title": "TelecomHealthResponse",
+        "description": "Runtime reliability and telemetry state for the SentinelPulse telecom gateway."
       },
       "ValidationError": {
         "properties": {

@@ -31,6 +31,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
+from typing import Any, Literal
 from uuid import uuid4
 
 import redis.asyncio as aioredis
@@ -39,9 +40,7 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-URL_DOMAIN_PATTERN = re.compile(
-    r"https?://(?:www\.)?([a-zA-Z0-9\-\.]+)", re.IGNORECASE
-)
+URL_DOMAIN_PATTERN = re.compile(r"https?://(?:www\.)?([a-zA-Z0-9\-\.]+)", re.IGNORECASE)
 
 
 def extract_url_domain(text: str | None) -> str | None:
@@ -111,8 +110,8 @@ class RedisVelocityStore:
         self._in_memory_sender_history: dict[str, collections.deque[float]] = (
             collections.defaultdict(collections.deque)
         )
-        self._in_memory_ip_history: dict[str, collections.deque[float]] = (
-            collections.defaultdict(collections.deque)
+        self._in_memory_ip_history: dict[str, collections.deque[float]] = collections.defaultdict(
+            collections.deque
         )
         self._in_memory_domain_history: dict[str, collections.deque[float]] = (
             collections.defaultdict(collections.deque)
@@ -133,6 +132,26 @@ class RedisVelocityStore:
             self._fallback_until = time.monotonic() + self._circuit_cooldown_seconds
         else:
             self._fallback_until = 0.0
+
+    @property
+    def degraded_local_fallback(self) -> bool:
+        """Returns True while the Redis circuit breaker is open and using local memory."""
+        return self._use_in_memory_fallback
+
+    @property
+    def active_backend(self) -> Literal["redis", "local_memory_fallback"]:
+        """Returns the currently active velocity backend identifier."""
+        return "local_memory_fallback" if self.degraded_local_fallback else "redis"
+
+    def get_status(self) -> dict[str, Any]:
+        """Returns current Redis velocity store health and circuit-breaker telemetry."""
+        remaining = max(0.0, self._fallback_until - time.monotonic())
+        return {
+            "velocity_backend": self.active_backend,
+            "velocity_degraded_mode": remaining > 0.0,
+            "circuit_cooldown_seconds": self._circuit_cooldown_seconds,
+            "cooldown_remaining_seconds": round(remaining, 3),
+        }
 
     def _get_client(self) -> aioredis.Redis:
         if self._client is None:
@@ -408,6 +427,8 @@ class RedisVelocityStore:
             url_domain=effective_domain,
         )
 
+
+VelocityStore = RedisVelocityStore
 
 # Global singleton instance
 _velocity_store_instance: RedisVelocityStore | None = None
