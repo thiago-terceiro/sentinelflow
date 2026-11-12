@@ -160,11 +160,12 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
         re.compile(
             # Class B (SF-007 3-tier policy): Unverified kinship/relay + broken phone + P2P app,
             # strictly excluding repair confirmations and links/payment demands (Class C).
-            rf"^(?!.*{_FAMILY_REPAIR_EXCLUSION})"
-            rf"(?!.*{_FAMILY_ACTIONABLE_LURE})"
-            rf"(?=.*{_FAMILY_KINSHIP_OR_RELAY})"
+            # Positive lookaheads are ordered first at ^ for fast short-circuiting on benign text.
+            rf"^(?=.*{_FAMILY_KINSHIP_OR_RELAY})"
             rf"(?=.*{_FAMILY_BROKEN_PHONE})"
-            rf"(?=.*{_FAMILY_P2P_APP})",
+            rf"(?=.*{_FAMILY_P2P_APP})"
+            rf"(?!.*{_FAMILY_REPAIR_EXCLUSION})"
+            rf"(?!.*{_FAMILY_ACTIONABLE_LURE})",
             re.IGNORECASE | re.DOTALL,
         ),
         0.55,
@@ -175,10 +176,10 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
             # Class C (SF-007 3-tier policy): Actionable family-impersonation lure requiring
             # non-repair context, (broken phone + kinship/relay OR kinship + number-swap),
             # AND external link (wa.me/http/t.me) or financial/urgent bill demand.
-            rf"^(?!.*{_FAMILY_REPAIR_EXCLUSION})"
-            rf"(?:(?=.*{_FAMILY_KINSHIP_OR_RELAY})(?=.*{_FAMILY_BROKEN_PHONE})"
+            rf"^(?:(?=.*{_FAMILY_KINSHIP_OR_RELAY})(?=.*{_FAMILY_BROKEN_PHONE})"
             rf"|(?=.*{_FAMILY_KINSHIP_ONLY})(?=.*{_FAMILY_NUMBER_SWAP}))"
-            rf"(?=.*{_FAMILY_ACTIONABLE_LURE})",
+            rf"(?=.*{_FAMILY_ACTIONABLE_LURE})"
+            rf"(?!.*{_FAMILY_REPAIR_EXCLUSION})",
             re.IGNORECASE | re.DOTALL,
         ),
         0.75,
@@ -234,7 +235,6 @@ class InferenceResult:
 
 
 _INVISIBLE_FORMAT_CHAR_RE = re.compile(r"[\u00ad\u200b-\u200f\u202a-\u202e\u2060\ufeff]")
-_WHITESPACE_RUN_RE = re.compile(r"\s+")
 
 HOMOGLYPH_OBFUSCATION_RULE = "RULE:HOMOGLYPH_OBFUSCATION"
 HOMOGLYPH_OBFUSCATION_WEIGHT = 0.45
@@ -278,11 +278,16 @@ def normalize_heuristic_text(text: str) -> str:
 
     Strips zero-width/directional formatting code points used to split tokens, applies
     NFKC compatibility decomposition, and collapses consecutive whitespace runs to single
-    ASCII spaces while preserving word boundaries.
+    ASCII spaces while preserving word boundaries. Uses an equivalent ASCII fast path when
+    ``text.isascii()`` guarantees no invisible/NFKC transformations exist.
     """
+    if not text:
+        return ""
+    if text.isascii():
+        return " ".join(text.split())
     stripped = _INVISIBLE_FORMAT_CHAR_RE.sub("", text)
     nfkc = unicodedata.normalize("NFKC", stripped)
-    return _WHITESPACE_RUN_RE.sub(" ", nfkc).strip()
+    return " ".join(nfkc.split())
 
 
 def detect_and_normalize_cyrillic_homoglyphs(text: str) -> tuple[str, bool, list[str]]:
@@ -353,9 +358,13 @@ def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
     one is high-risk (>= 0.50) adds a +0.12 compound boost (capped at 0.95).
     """
     normalized_text = normalize_heuristic_text(text)
-    heuristic_text, homoglyph_detected, _ = detect_and_normalize_cyrillic_homoglyphs(
-        normalized_text
-    )
+    if normalized_text.isascii():
+        heuristic_text = normalized_text
+        homoglyph_detected = False
+    else:
+        heuristic_text, homoglyph_detected, _ = detect_and_normalize_cyrillic_homoglyphs(
+            normalized_text
+        )
     signals: list[str] = []
     max_heuristic = 0.0
 

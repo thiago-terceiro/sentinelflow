@@ -2295,6 +2295,7 @@ def test_cyrillic_homoglyph_defense_and_multilingual_safety(
         assert "HEURISTIC:COMPOUND_SIGNALS" not in nl_res.signals
         assert nl_res.heuristic_score == pytest.approx(0.45)
         assert nl_res.fraud_score < 0.75
+        assert nl_res.verdict == "ALLOW"
         assert nl_res.verdict != "BLOCK"
 
     # Pure Cyrillic & legitimate bilingual Russian+English brand prose remain untouched and unflagged
