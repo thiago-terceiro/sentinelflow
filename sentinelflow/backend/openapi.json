@@ -2931,11 +2931,15 @@
         "properties": {
           "sender": {
             "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
             "title": "Sender",
             "description": "Originating phone number (E.164 format, e.g. +15551234567)"
           },
           "recipient": {
             "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
             "title": "Recipient",
             "description": "Destination phone number (E.164 format)"
           },
@@ -2949,7 +2953,8 @@
           "ip": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 64
               },
               {
                 "type": "null"
@@ -2961,7 +2966,8 @@
           "carrier": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 64
               },
               {
                 "type": "null"
@@ -3058,23 +3064,30 @@
         "properties": {
           "sender": {
             "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
             "title": "Sender",
             "description": "Originating phone number"
           },
           "recipient": {
             "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
             "title": "Recipient",
             "description": "Destination phone number"
           },
           "message": {
             "type": "string",
+            "maxLength": 1600,
+            "minLength": 1,
             "title": "Message",
             "description": "SMS text content"
           },
           "carrier": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 64
               },
               {
                 "type": "null"
@@ -3115,7 +3128,8 @@
           "event_id": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 64
               },
               {
                 "type": "null"

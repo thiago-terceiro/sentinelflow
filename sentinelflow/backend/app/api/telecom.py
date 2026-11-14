@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import time
@@ -18,12 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import DisputeRecord
 from app.db.session import SessionLocal
 from app.services.investigations import get_redis_pool
-from app.services.trace_safety import redact_text
 from app.telecom.drift_monitor import get_drift_monitor
 from app.telecom.onnx_engine import (
     InferenceResult,
     compute_composite_score,
     get_inference_engine,
+    redact_sms_pii,
 )
 from app.telecom.telecom_metrics import export_prometheus_metrics, get_metrics_tracker
 from app.telecom.velocity_store import get_velocity_store
@@ -65,12 +66,27 @@ async def broadcast_telecom_event(event: dict[str, Any]) -> None:
 class TelecomClassifyRequest(BaseModel):
     sender: str = Field(
         ...,
+        min_length=1,
+        max_length=64,
         description="Originating phone number (E.164 format, e.g. +15551234567)",
     )
-    recipient: str = Field(..., description="Destination phone number (E.164 format)")
+    recipient: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Destination phone number (E.164 format)",
+    )
     message: str = Field(..., min_length=1, max_length=1600, description="SMS text content")
-    ip: str | None = Field(default=None, description="Originating client or carrier gateway IP")
-    carrier: str | None = Field(default=None, description="Originating network carrier")
+    ip: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Originating client or carrier gateway IP",
+    )
+    carrier: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Originating network carrier",
+    )
     escalate: bool = Field(
         default=False,
         description="Automatically escalate FLAG/BLOCK verdicts to a SentinelFlow dispute",
@@ -89,15 +105,15 @@ class TelecomClassifyResponse(BaseModel):
 
 
 class TelecomEscalateRequest(BaseModel):
-    sender: str = Field(..., description="Originating phone number")
-    recipient: str = Field(..., description="Destination phone number")
-    message: str = Field(..., description="SMS text content")
-    carrier: str | None = Field(default=None, description="Network carrier")
+    sender: str = Field(..., min_length=1, max_length=64, description="Originating phone number")
+    recipient: str = Field(..., min_length=1, max_length=64, description="Destination phone number")
+    message: str = Field(..., min_length=1, max_length=1600, description="SMS text content")
+    carrier: str | None = Field(default=None, max_length=64, description="Network carrier")
     verdict: Literal["ALLOW", "BLOCK", "FLAG"] = Field(..., description="Classification verdict")
     fraud_score: float = Field(..., description="Computed composite fraud score")
     signals: list[str] = Field(default_factory=list, description="Triggered fraud signals")
     velocity: dict[str, Any] = Field(default_factory=dict, description="Velocity signals")
-    event_id: str | None = Field(default=None, description="Telecom feed event ID")
+    event_id: str | None = Field(default=None, max_length=64, description="Telecom feed event ID")
 
 
 class TelecomEscalateResponse(BaseModel):
@@ -149,16 +165,20 @@ async def _create_escalated_dispute(
 ) -> DisputeRecord:
     assigned_code = case_code or f"TEL-{uuid4().hex[:8].upper()}"
     assigned_id = dispute_id or str(uuid4())
-    title = f"SMS Anomaly: {sender} -> {recipient} ({verdict})"
+    masked_sender = _mask_phone(sender)
+    masked_recipient = _mask_phone(recipient)
+    safe_message = redact_sms_pii(message)
+    sender_digest = hashlib.sha256(sender.encode("utf-8")).hexdigest()[:12]
+    title = f"SMS Anomaly: {masked_sender} -> {masked_recipient} ({verdict})"
     narrative = (
         f"SentinelPulse Telecom Gateway Anomaly Alert:\n"
         f"Verdict: {verdict}\n"
         f"Fraud Score: {fraud_score}\n"
-        f"Sender: {sender}\n"
-        f"Recipient: {recipient}\n"
+        f"Sender: {masked_sender}\n"
+        f"Recipient: {masked_recipient}\n"
         f"Carrier: {carrier or 'Unknown'}\n"
         f"Signals: {', '.join(signals) if signals else 'None'}\n"
-        f"Message Content: {message}\n"
+        f"Message Content: {safe_message}\n"
         f"Velocity Details: {json.dumps(velocity)}"
     )
     dispute = DisputeRecord(
@@ -166,7 +186,7 @@ async def _create_escalated_dispute(
         case_code=assigned_code,
         title=title,
         narrative=narrative,
-        customer_id=f"tel_{sender.replace('+', '')}",
+        customer_id=f"tel_{sender_digest}",
         merchant_id=(
             f"carrier_{carrier.lower().replace(' ', '_')}" if carrier else "carrier_unknown"
         ),
@@ -257,6 +277,9 @@ def _spawn_escalation_task(
     background_tasks: BackgroundTasks | None = None,
 ) -> asyncio.Task[None]:
     async def _durable_escalate_wrapper() -> None:
+        masked_sender = _mask_phone(sender)
+        masked_recipient = _mask_phone(recipient)
+        safe_message = redact_sms_pii(message)
         enqueued_durable = False
         try:
             pool = await get_redis_pool()
@@ -264,9 +287,9 @@ def _spawn_escalation_task(
                 payload = {
                     "dispute_id": dispute_id,
                     "case_code": case_code,
-                    "sender": sender,
-                    "recipient": recipient,
-                    "message": message,
+                    "sender": masked_sender,
+                    "recipient": masked_recipient,
+                    "message": safe_message,
                     "carrier": carrier,
                     "verdict": verdict,
                     "fraud_score": fraud_score,
@@ -363,10 +386,35 @@ async def _process_single_message(
     t_end = time.perf_counter()
     total_latency_ms = round((t_end - t_start) * 1000.0, 3)
 
-    # 5. Redact PII & mask phone numbers for telemetry and public live dashboard
-    safe_message, _ = redact_text(req.message)
+    # 5. Redact PII & mask phone numbers for telemetry, audit logging, and public live dashboard
+    safe_message = redact_sms_pii(req.message)
     masked_sender = _mask_phone(req.sender)
     masked_recipient = _mask_phone(req.recipient)
+    text_sha256 = hashlib.sha256(req.message.encode("utf-8")).hexdigest()
+    triggered_rules = [sig for sig in combined_signals if sig.startswith("RULE:")]
+    rounded_composite = round(composite_score, 4)
+
+    logger.info(
+        "telecom_decision_audit event_id=%s verdict=%s composite_score=%.4f text_sha256=%s",
+        eid,
+        verdict,
+        rounded_composite,
+        text_sha256,
+        extra={
+            "event": "telecom_decision_audit",
+            "event_id": eid,
+            "text_sha256": text_sha256,
+            "model_sha256": getattr(engine, "model_sha256", ""),
+            "onnx_probability": round(inference_result.onnx_probability, 4),
+            "heuristic_score": round(inference_result.heuristic_score, 4),
+            "triggered_rules": triggered_rules,
+            "velocity_score": round(velocity_metrics.risk_contribution, 4),
+            "composite_score": rounded_composite,
+            "verdict": verdict,
+            "latency_ms": total_latency_ms,
+            "redacted_preview": safe_message,
+        },
+    )
 
     metrics.record_event(
         event_id=eid,
@@ -790,7 +838,7 @@ def seed_telecom_warmup(force: bool = False) -> None:
         (sender, recipient, carrier, message, calibrated_score),
         inf_res,
     ) in enumerate(zip(_WARMUP_EVENTS, batch_results, strict=False)):
-        safe_message, _ = redact_text(message)
+        safe_message = redact_sms_pii(message)
         score = calibrated_score
         verdict: Literal["ALLOW", "BLOCK", "FLAG"] = (
             "BLOCK" if score >= 0.75 else ("FLAG" if score >= 0.40 else "ALLOW")
@@ -866,15 +914,15 @@ async def get_telecom_health() -> TelecomHealthResponse:
     degraded = bool(velocity_status["velocity_degraded_mode"])
     return TelecomHealthResponse(
         status="degraded" if degraded else "healthy",
-        model_sha256=engine.model_sha256,
+        model_sha256=getattr(engine, "model_sha256", ""),
         model_version="1.0.0",
         velocity_backend=velocity_status["velocity_backend"],
         velocity_degraded_mode=degraded,
         circuit_cooldown_seconds=float(velocity_status["circuit_cooldown_seconds"]),
         cooldown_remaining_seconds=float(velocity_status["cooldown_remaining_seconds"]),
-        intra_op_num_threads=engine.intra_op_num_threads,
-        inter_op_num_threads=engine.inter_op_num_threads,
-        graph_optimization_level=str(engine.graph_optimization_level),
+        intra_op_num_threads=getattr(engine, "intra_op_num_threads", 1),
+        inter_op_num_threads=getattr(engine, "inter_op_num_threads", 1),
+        graph_optimization_level=str(getattr(engine, "graph_optimization_level", "ORT_ENABLE_ALL")),
     )
 
 
@@ -885,13 +933,15 @@ async def get_telecom_metrics_summary() -> dict[str, Any]:
     summary = get_metrics_tracker().get_summary()
     engine = get_inference_engine()
     velocity_status = get_velocity_store().get_status()
-    summary["model_sha256"] = engine.model_sha256
+    summary["model_sha256"] = getattr(engine, "model_sha256", "")
     summary["velocity_backend"] = velocity_status["velocity_backend"]
     summary["velocity_degraded_mode"] = velocity_status["velocity_degraded_mode"]
     summary["onnx_session"] = {
-        "intra_op_num_threads": engine.intra_op_num_threads,
-        "inter_op_num_threads": engine.inter_op_num_threads,
-        "graph_optimization_level": str(engine.graph_optimization_level),
+        "intra_op_num_threads": getattr(engine, "intra_op_num_threads", 1),
+        "inter_op_num_threads": getattr(engine, "inter_op_num_threads", 1),
+        "graph_optimization_level": str(
+            getattr(engine, "graph_optimization_level", "ORT_ENABLE_ALL")
+        ),
     }
     return summary
 

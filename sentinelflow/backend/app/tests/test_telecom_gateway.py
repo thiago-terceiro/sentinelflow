@@ -1881,3 +1881,206 @@ async def test_onnx_session_options_and_redis_circuit_breaker_lifecycle(
             assert summary_rec_json["velocity_degraded_mode"] is False
     finally:
         await store.close()
+
+
+@pytest.mark.asyncio
+async def test_input_length_bounds_redos_and_log_pii_redaction(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    telecom_db_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """Verifies SF-015 input bounds (422 before inference), O(N) regex safety, PII redaction, and audit logs."""
+    import hashlib
+    import json
+    import logging
+    import time
+
+    from app.db.models import DisputeRecord
+    from app.logging import JsonFormatter
+    from app.telecom.onnx_engine import (
+        HEURISTIC_RULES,
+        evaluate_heuristics,
+        redact_sms_pii,
+    )
+    from sqlalchemy import select
+
+    engine = get_inference_engine()
+    rules_map = {name: pat for name, pat, _ in HEURISTIC_RULES}
+
+    # 1. Input bounds enforce HTTP 422 BEFORE hitting heuristics or ONNX inference
+    orig_predict = engine.predict
+    predict_calls = 0
+
+    def _spy_predict(text: str) -> Any:
+        nonlocal predict_calls
+        predict_calls += 1
+        return orig_predict(text)
+
+    monkeypatch.setattr(engine, "predict", _spy_predict)
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        oversize_payloads = [
+            {
+                "sender": "+15551110001",
+                "recipient": "+14155551234",
+                "message": "a" * 2500,
+            },
+            {
+                "sender": "+15551110001",
+                "recipient": "+14155551234",
+                "message": "a" * 1601,
+            },
+            {
+                "sender": "+15551110001",
+                "recipient": "+14155551234",
+                "message": "",
+            },
+            {
+                "sender": "1" * 65,
+                "recipient": "+14155551234",
+                "message": "Valid short text",
+            },
+            {
+                "sender": "+15551110001",
+                "recipient": "+14155551234",
+                "ip": "1" * 65,
+                "message": "Valid short text",
+            },
+        ]
+        for bad_body in oversize_payloads:
+            resp = await client.post("/v1/classify", json=bad_body)
+            assert resp.status_code == 422, f"Expected 422 for invalid bounds: {bad_body}"
+        assert predict_calls == 0, "Oversized/empty requests must fail 422 before hitting inference"
+
+    # 2. Inventory & individual linear-time scaling across all 6 previously unanchored rules
+    near_match_probes = {
+        "RULE:URGENT_ACCOUNT_LOCKOUT": "urgent immediately suspended locked compromised ",
+        "RULE:DELIVERY_FEE_SCAM": "usps fedex ups dhl parcel package ",
+        "RULE:UNPAID_TOLL_INVOICE": "toll sunpass ezpass turnpike ",
+        "RULE:TECH_SUPPORT_INVOICE_SCAM": "auto-renewal tech care mcafee norton geek squad ",
+        "RULE:WORK_FROM_HOME_SCAM": "work from home earn $500/day ",
+        "RULE:SIM_SWAP_OR_KYC_SCAM": "sim card activation sim card check ",
+        "RULE:GENERIC_DELIVERY_KEYWORD": "usps" + (" " * 200) + "parcel ",
+    }
+
+    for rule_name, base_phrase in near_match_probes.items():
+        pat = rules_map[rule_name]
+        timings: dict[int, float] = {}
+        for size in (400, 800, 1600, 2000, 3200):
+            sample_text = (base_phrase * (size // len(base_phrase) + 1))[:size]
+            best_ms = float("inf")
+            for _ in range(5):
+                t0 = time.perf_counter()
+                for _ in range(100):
+                    pat.search(sample_text)
+                elapsed_ms = ((time.perf_counter() - t0) * 1000.0) / 100
+                if elapsed_ms < best_ms:
+                    best_ms = elapsed_ms
+            timings[size] = best_ms
+        assert timings[1600] < 3.0, f"{rule_name} exceeded 3ms at 1600 chars: {timings}"
+        assert timings[2000] < 3.0, f"{rule_name} exceeded 3ms at 2000 chars: {timings}"
+        assert timings[3200] < 3.0, f"{rule_name} exceeded 3ms at 3200 chars: {timings}"
+        # Across an 8x jump (400 -> 3200), O(N) is ~8x whereas quadratic O(N^2) is ~64x.
+        ratio = timings[3200] / max(timings[400], 0.02)
+        assert ratio < 16.0, f"{rule_name} non-linear scaling 400->3200: {timings} ({ratio:.2f}x)"
+
+    # Full evaluate_heuristics() on pathological 2000-char lookahead strings must stay < 15 ms
+    for seed_phrase in (
+        "mom broken phone screen cracked whatsapp ",
+        "irs warrant process server ",
+        "urgent usps toll norton work from home sim card ",
+    ):
+        long_text = (seed_phrase * (2000 // len(seed_phrase) + 1))[:2000]
+        t0 = time.perf_counter()
+        evaluate_heuristics(long_text)
+        total_ms = (time.perf_counter() - t0) * 1000.0
+        assert total_ms < 15.0, f"Pathological 2000-char heuristic scan took {total_ms:.2f}ms"
+
+    # 3. redact_sms_pii() masks OTP codes, phones, emails, SSNs, card digits while keeping context
+    otp_sms = "Twitter/X: Confirmation code 918203 to verify +1-415-555-0199"
+    redacted_otp = redact_sms_pii(otp_sms)
+    assert "918203" not in redacted_otp
+    assert "415-555-0199" not in redacted_otp
+    assert "[REDACTED_CODE]" in redacted_otp
+    assert "[REDACTED_PHONE]" in redacted_otp
+    assert "Twitter/X: Confirmation code" in redacted_otp
+
+    mixed_pii = (
+        "Your PIN is 4829, G-492817 is your verification code, email alice@example.com, "
+        "SSN 123-45-6789, card 4532 1234 5678 9012, 2025 summary balance $1200.00"
+    )
+    redacted_mixed = redact_sms_pii(mixed_pii)
+    for sensitive in ("4829", "492817", "alice@example.com", "123-45-6789", "4532 1234 5678 9012"):
+        assert sensitive not in redacted_mixed
+    assert "2025" in redacted_mixed
+    assert "$1200.00" in redacted_mixed
+
+    # 4. Decision audit logs & escalated dispute narratives never leak raw PII/OTPs
+    monkeypatch.setattr("app.api.telecom.SessionLocal", telecom_db_session_factory)
+    formatter = JsonFormatter()
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            otp_resp = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15551230199",
+                    "recipient": "+14155550199",
+                    "message": otp_sms,
+                    "carrier": "Verizon Wireless",
+                    "escalate": False,
+                },
+            )
+            assert otp_resp.status_code == 200
+
+            esc_msg = (
+                "URGENT: Account locked! Use code 774120 at http://bit.ly/bank-fix "
+                "or call +1-415-555-0199 (alice@example.com)."
+            )
+            esc_resp = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15551238888",
+                    "recipient": "+14155550101",
+                    "message": esc_msg,
+                    "carrier": "TextNow",
+                    "escalate": True,
+                },
+            )
+            assert esc_resp.status_code == 200
+            dispute_id = esc_resp.json()["escalated_dispute_id"]
+            assert dispute_id is not None
+
+    audit_records = [
+        rec for rec in caplog.records if rec.__dict__.get("event") == "telecom_decision_audit"
+    ]
+    assert len(audit_records) >= 2
+    expected_sha = hashlib.sha256(otp_sms.encode("utf-8")).hexdigest()
+    otp_audit = next(
+        rec for rec in audit_records if rec.__dict__.get("text_sha256") == expected_sha
+    )
+    audit_fields = otp_audit.__dict__
+    assert audit_fields["model_sha256"] == engine.model_sha256
+    assert isinstance(audit_fields["onnx_probability"], float)
+    assert isinstance(audit_fields["heuristic_score"], float)
+    assert isinstance(audit_fields["triggered_rules"], list)
+    assert isinstance(audit_fields["velocity_score"], float)
+    assert isinstance(audit_fields["composite_score"], float)
+    assert audit_fields["verdict"] in {"ALLOW", "FLAG", "BLOCK"}
+    assert isinstance(audit_fields["latency_ms"], float)
+
+    for rec in caplog.records:
+        formatted = formatter.format(rec)
+        parsed = json.loads(formatted)
+        assert "text_sha256" in parsed or rec is not otp_audit
+        for leaked in ("918203", "774120", "415-555-0199", "alice@example.com"):
+            assert leaked not in formatted
+
+    async with telecom_db_session_factory() as db_session:
+        row = await db_session.scalar(select(DisputeRecord).where(DisputeRecord.id == dispute_id))
+        assert row is not None
+        for leaked in ("774120", "415-555-0199", "alice@example.com", "5551238888"):
+            assert leaked not in row.narrative
+            assert leaked not in row.title
+            assert leaked not in row.customer_id

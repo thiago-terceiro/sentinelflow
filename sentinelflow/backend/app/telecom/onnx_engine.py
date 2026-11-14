@@ -26,6 +26,7 @@ from pathlib import Path
 
 import numpy as np
 import onnxruntime as ort
+from app.services.trace_safety import redact_text
 
 logger = logging.getLogger(__name__)
 
@@ -77,19 +78,19 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:URGENT_ACCOUNT_LOCKOUT",
         re.compile(
-            r"\b(?:urgent|immediately|suspended|locked|temporarily disabled|"
-            r"unauthorized login|compromised)\b.*\b(?:verify|restore|reactivate|unlock)\b",
-            re.IGNORECASE,
+            r"^(?>.*?\b(?:urgent|immediately|suspended|locked|temporarily disabled|"
+            r"unauthorized login|compromised)\b).*?\b(?:verify|restore|reactivate|unlock)\b",
+            re.IGNORECASE | re.DOTALL,
         ),
         0.70,
     ),
     (
         "RULE:DELIVERY_FEE_SCAM",
         re.compile(
-            r"\b(?:usps|fedex|ups|dhl|parcel|package)\b.*"
+            r"^(?>.*?\b(?:usps|fedex|ups|dhl|parcel|package)\b).*?"
             r"\b(?:redelivery|customs fee|customs duty|unpaid (?:fee|duty|charge)|"
             r"incomplete address)\b",
-            re.IGNORECASE,
+            re.IGNORECASE | re.DOTALL,
         ),
         0.65,
     ),
@@ -140,18 +141,19 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:UNPAID_TOLL_INVOICE",
         re.compile(
-            r"\b(?:toll|sunpass|ezpass|turnpike)\b.*\b(?:unpaid|late fee|invoice)\b",
-            re.IGNORECASE,
+            r"^(?>.*?\b(?:toll|sunpass|ezpass|turnpike)\b)"
+            r".*?\b(?:unpaid|late fee|invoice)\b",
+            re.IGNORECASE | re.DOTALL,
         ),
         0.70,
     ),
     (
         "RULE:TECH_SUPPORT_INVOICE_SCAM",
         re.compile(
-            r"\b(?:auto-renewal|tech care|geek ?squad|mcafee|norton|life ?lock)\b.*"
-            r"\b(?:charged|cancellation|refund|subscription invoice|auto-debited|"
+            r"^(?>.*?\b(?:auto-renewal|tech care|geek ?squad|mcafee|norton|life ?lock)\b)"
+            r".*?\b(?:charged|cancellation|refund|subscription invoice|auto-debited|"
             r"debited|billing desk)\b",
-            re.IGNORECASE,
+            re.IGNORECASE | re.DOTALL,
         ),
         0.70,
     ),
@@ -187,16 +189,17 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:WORK_FROM_HOME_SCAM",
         re.compile(
-            r"\b(?:work from home|earn \$\d+/day)\b.*\b(?:telegram|reviewing|manager)\b",
-            re.IGNORECASE,
+            r"^(?>.*?\b(?:work from home|earn \$\d+/day)\b)"
+            r".*?\b(?:telegram|reviewing|manager)\b",
+            re.IGNORECASE | re.DOTALL,
         ),
         0.65,
     ),
     (
         "RULE:SIM_SWAP_OR_KYC_SCAM",
         re.compile(
-            r"\b(?:esim transfer|sim card.*deactivation|update kyc)\b",
-            re.IGNORECASE,
+            r"(?:^(?>.*?\bsim card).*?deactivation\b|\b(?:esim transfer|update kyc)\b)",
+            re.IGNORECASE | re.DOTALL,
         ),
         0.70,
     ),
@@ -212,9 +215,9 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:GENERIC_DELIVERY_KEYWORD",
         re.compile(
-            r"\b(?:usps|fedex|ups|dhl|parcel|package|delivery|shipment)\b"
-            r"(?!\s*.*(?:fee|customs|unpaid|redelivery|incomplete address))",
-            re.IGNORECASE,
+            r"^(?>.*\b(?:usps|fedex|ups|dhl|parcel|package|delivery|shipment)\b)"
+            r"(?!.*(?:fee|customs|unpaid|redelivery|incomplete address))",
+            re.IGNORECASE | re.DOTALL,
         ),
         0.20,
     ),
@@ -347,6 +350,79 @@ def detect_and_normalize_cyrillic_homoglyphs(text: str) -> tuple[str, bool, list
     return "".join(rebuilt), True, flagged_tokens
 
 
+_RULE_PREREQ_SUBSTRINGS: dict[str, tuple[str, ...]] = {
+    "RULE:HIGH_RISK_SHORTLINK": ("http",),
+    "RULE:SUSPICIOUS_TLD": ("http",),
+    "RULE:STANDALONE_URL": ("http",),
+    "RULE:URGENT_ACCOUNT_LOCKOUT": (
+        "urgent",
+        "immediately",
+        "suspended",
+        "locked",
+        "temporarily disabled",
+        "unauthorized login",
+        "compromised",
+    ),
+    "RULE:DELIVERY_FEE_SCAM": ("usps", "fedex", "ups", "dhl", "parcel", "package"),
+    "RULE:TAX_ARREST_THREAT": (
+        "irs",
+        "customs",
+        "magistrate",
+        "sheriff",
+        "police",
+        "court",
+        "judge",
+        "federal",
+        "tax",
+        "delinquent",
+        "warrant",
+        "process",
+        "lawsuit",
+        "enforcement",
+    ),
+    "RULE:CRYPTO_OR_GIVEAWAY_PROMISE": (
+        "guaranteed return",
+        "crypto signal",
+        "free bitcoin",
+        "claim",
+        "gift card winner",
+        "cash app giveaway",
+    ),
+    "RULE:UNPAID_TOLL_INVOICE": ("toll", "sunpass", "ezpass", "turnpike"),
+    "RULE:TECH_SUPPORT_INVOICE_SCAM": (
+        "auto-renewal",
+        "tech care",
+        "geek",
+        "mcafee",
+        "norton",
+        "life",
+    ),
+    "RULE:FAMILY_IMPERSONATION_AMBIGUOUS_P2P": ("phone", "screen", "sim", "mobile"),
+    "RULE:FAMILY_IMPERSONATION_MESSAGING_LURE": (
+        "mum",
+        "mom",
+        "dad",
+        "mama",
+        "papa",
+        "borrowing",
+        "temporary",
+        "new number",
+    ),
+    "RULE:WORK_FROM_HOME_SCAM": ("work from home", "earn $"),
+    "RULE:SIM_SWAP_OR_KYC_SCAM": ("esim transfer", "sim card", "update kyc"),
+    "RULE:GENERIC_DELIVERY_KEYWORD": (
+        "usps",
+        "fedex",
+        "ups",
+        "dhl",
+        "parcel",
+        "package",
+        "delivery",
+        "shipment",
+    ),
+}
+
+
 def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
     """Authoritative fast regex pattern matching and compound escalation for SMS text.
 
@@ -365,10 +441,14 @@ def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
         heuristic_text, homoglyph_detected, _ = detect_and_normalize_cyrillic_homoglyphs(
             normalized_text
         )
+    lowered_text = heuristic_text.lower()
     signals: list[str] = []
     max_heuristic = 0.0
 
     for rule_name, pattern, score in HEURISTIC_RULES:
+        prereqs = _RULE_PREREQ_SUBSTRINGS.get(rule_name)
+        if prereqs is not None and not any(tok in lowered_text for tok in prereqs):
+            continue
         if pattern.search(heuristic_text):
             signals.append(rule_name)
             if score > max_heuristic:
@@ -727,6 +807,30 @@ class OnnxInferenceEngine:
                 )
             )
         return results
+
+
+_OTP_CONTEXT_PREFIX_RE = re.compile(
+    r"(\b(?:code|otp|pin|passcode|token|2fa|mfa|verification|confirmation|confirm|"
+    r"auth(?:entication)?|security)\b(?:\s+(?:is|number|id))?\s*[:=#-]?\s*(?:[A-Za-z]-)?)"
+    r"(?<![$€£.\d])\d{4,8}\b(?![.\d])",
+    re.IGNORECASE,
+)
+_OTP_CONTEXT_SUFFIX_RE = re.compile(
+    r"(?<![$€£.\d])\b\d{4,8}\b(?![.\d])"
+    r"(\s+(?:is\s+(?:your|the)|for\b[^.\n]{0,32}\b(?:code|otp|pin|passcode|verification|login|auth)))",
+    re.IGNORECASE,
+)
+_STANDALONE_OTP_RE = re.compile(r"(?<![$€£.\d])\b\d{6,8}\b(?![.\d])")
+
+
+def redact_sms_pii(text: str) -> str:
+    """Masks SMS PII (phones, emails, SSNs, cards, OTP codes) while preserving triage words."""
+    if not text:
+        return text
+    redacted, _ = redact_text(text)
+    redacted = _OTP_CONTEXT_PREFIX_RE.sub(r"\1[REDACTED_CODE]", redacted)
+    redacted = _OTP_CONTEXT_SUFFIX_RE.sub(r"[REDACTED_CODE]\1", redacted)
+    return _STANDALONE_OTP_RE.sub("[REDACTED_CODE]", redacted)
 
 
 OnnxSmsInferenceEngine = OnnxInferenceEngine
