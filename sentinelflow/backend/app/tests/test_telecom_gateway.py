@@ -1889,12 +1889,19 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
     monkeypatch: pytest.MonkeyPatch,
     telecom_db_session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    """Verifies SF-015 input bounds (422 before inference), O(N) regex safety, PII redaction, and audit logs."""
+    """Verifies SF-015 2000-char bounds (422 before inference), ReDoS safety, PII redaction, and audit logs."""
+    import asyncio
     import hashlib
     import json
     import logging
     import time
 
+    from app.api.telecom import (
+        _mask_phone,
+        _subscribers,
+        _subscribers_lock,
+        seed_telecom_warmup,
+    )
     from app.db.models import DisputeRecord
     from app.logging import JsonFormatter
     from app.telecom.onnx_engine import (
@@ -1902,12 +1909,14 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
         evaluate_heuristics,
         redact_sms_pii,
     )
+    from app.telecom.telecom_metrics import get_metrics_tracker
     from sqlalchemy import select
 
     engine = get_inference_engine()
     rules_map = {name: pat for name, pat, _ in HEURISTIC_RULES}
 
     # 1. Input bounds enforce HTTP 422 BEFORE hitting heuristics or ONNX inference
+    # Boundary checks: 1999 (below max) -> 200, 2000 (at max) -> 200, 2001 (above max) -> 422, 2500 -> 422
     orig_predict = engine.predict
     predict_calls = 0
 
@@ -1920,16 +1929,29 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        for valid_len in (1999, 2000):
+            ok_resp = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15551110001",
+                    "recipient": "+14155551234",
+                    "message": "a" * valid_len,
+                },
+            )
+            assert ok_resp.status_code == 200, f"Expected 200 for length {valid_len}"
+        assert predict_calls == 2
+
+        predict_calls = 0
         oversize_payloads = [
             {
                 "sender": "+15551110001",
                 "recipient": "+14155551234",
-                "message": "a" * 2500,
+                "message": "a" * 2001,
             },
             {
                 "sender": "+15551110001",
                 "recipient": "+14155551234",
-                "message": "a" * 1601,
+                "message": "Code 918203 alice@example.com " + ("a" * 2470),
             },
             {
                 "sender": "+15551110001",
@@ -1943,17 +1965,59 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
             },
             {
                 "sender": "+15551110001",
+                "recipient": "1" * 65,
+                "message": "Valid short text",
+            },
+            {
+                "sender": "+15551110001",
                 "recipient": "+14155551234",
                 "ip": "1" * 65,
                 "message": "Valid short text",
             },
+            {
+                "sender": "+15551110001",
+                "recipient": "+14155551234",
+                "carrier": "c" * 65,
+                "message": "Valid short text",
+            },
         ]
-        for bad_body in oversize_payloads:
-            resp = await client.post("/v1/classify", json=bad_body)
-            assert resp.status_code == 422, f"Expected 422 for invalid bounds: {bad_body}"
+        caplog.clear()
+        with caplog.at_level(logging.INFO):
+            for bad_body in oversize_payloads:
+                resp = await client.post("/v1/classify", json=bad_body)
+                assert resp.status_code == 422, f"Expected 422 for invalid bounds: {bad_body}"
+            batch_bad = await client.post(
+                "/v1/events/batch",
+                json={
+                    "events": [
+                        {
+                            "sender": "+15551110001",
+                            "recipient": "+14155551234",
+                            "message": "a" * 2001,
+                        }
+                    ]
+                },
+            )
+            assert batch_bad.status_code == 422
+            esc_bad = await client.post(
+                "/api/v1/telecom/escalate",
+                json={
+                    "sender": "+15551110001",
+                    "recipient": "+14155551234",
+                    "message": "a" * 2001,
+                    "verdict": "BLOCK",
+                    "fraud_score": 0.91,
+                },
+            )
+            assert esc_bad.status_code == 422
         assert predict_calls == 0, "Oversized/empty requests must fail 422 before hitting inference"
+        formatter = JsonFormatter()
+        for rec in caplog.records:
+            formatted_422 = formatter.format(rec)
+            assert "918203" not in formatted_422
+            assert "alice@example.com" not in formatted_422
 
-    # 2. Inventory & individual linear-time scaling across all 6 previously unanchored rules
+    # 2. Inventory, structural check & individual scaling across all 7 rewritten regexes
     near_match_probes = {
         "RULE:URGENT_ACCOUNT_LOCKOUT": "urgent immediately suspended locked compromised ",
         "RULE:DELIVERY_FEE_SCAM": "usps fedex ups dhl parcel package ",
@@ -1966,9 +2030,14 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
 
     for rule_name, base_phrase in near_match_probes.items():
         pat = rules_map[rule_name]
+        assert "(?>" in pat.pattern, f"{rule_name} must use atomic grouping to prevent backtracking"
+        assert pat.flags & (2 | 16), f"{rule_name} must compile with IGNORECASE and DOTALL"
         timings: dict[int, float] = {}
         for size in (400, 800, 1600, 2000, 3200):
-            sample_text = (base_phrase * (size // len(base_phrase) + 1))[:size]
+            if rule_name == "RULE:GENERIC_DELIVERY_KEYWORD":
+                sample_text = "usps" + (" " * (size - 4))
+            else:
+                sample_text = (base_phrase * (size // len(base_phrase) + 1))[:size]
             best_ms = float("inf")
             for _ in range(5):
                 t0 = time.perf_counter()
@@ -1997,61 +2066,235 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
         total_ms = (time.perf_counter() - t0) * 1000.0
         assert total_ms < 15.0, f"Pathological 2000-char heuristic scan took {total_ms:.2f}ms"
 
-    # 3. redact_sms_pii() masks OTP codes, phones, emails, SSNs, card digits while keeping context
+    # 3. Complete PII category coverage, overlapping patterns, and negative controls
     otp_sms = "Twitter/X: Confirmation code 918203 to verify +1-415-555-0199"
     redacted_otp = redact_sms_pii(otp_sms)
+    assert redacted_otp == "Twitter/X: Confirmation code [REDACTED_CODE] to verify [REDACTED_PHONE]"
     assert "918203" not in redacted_otp
     assert "415-555-0199" not in redacted_otp
-    assert "[REDACTED_CODE]" in redacted_otp
-    assert "[REDACTED_PHONE]" in redacted_otp
-    assert "Twitter/X: Confirmation code" in redacted_otp
 
-    mixed_pii = (
-        "Your PIN is 4829, G-492817 is your verification code, email alice@example.com, "
-        "SSN 123-45-6789, card 4532 1234 5678 9012, 2025 summary balance $1200.00"
+    # Category A: 4-to-8 digit OTP/security codes (prefix, suffix, standalone, bracketed, hyphenated, period-terminated)
+    otp_cases = [
+        ("Your PIN is 4829.", "4829", "Your PIN is [REDACTED_CODE]."),
+        ("[4829] is your PIN", "4829", "[REDACTED_CODE] is your PIN"),
+        ("Use 4829 as your security code", "4829", "Use [REDACTED_CODE] as your security code"),
+        (
+            "Your verification code for login is 4829.",
+            "4829",
+            "Your verification code for login is [REDACTED_CODE].",
+        ),
+        ("Code: 12345 for portal access", "12345", "Code: [REDACTED_CODE] for portal access"),
+        (
+            "G-492817 is your verification code",
+            "492817",
+            "[REDACTED_CODE] is your verification code",
+        ),
+        (
+            "Cash App code: 928-103. Do not share.",
+            "928-103",
+            "Cash App code: [REDACTED_CODE]. Do not share.",
+        ),
+        ("Auth token: 1234567", "1234567", "Auth token: [REDACTED_CODE]"),
+        ("OTP 12345678 expires soon", "12345678", "OTP [REDACTED_CODE] expires soon"),
+        ("Backup code: 1928-3746.", "1928", "Backup code: [REDACTED_CODE]."),
+        ("Backup code: 1928-3746.", "3746", "Backup code: [REDACTED_CODE]."),
+    ]
+    for raw_text, secret_token, expected_redacted in otp_cases:
+        actual_redacted = redact_sms_pii(raw_text)
+        assert secret_token not in actual_redacted
+        assert actual_redacted == expected_redacted
+
+    # Category B: International and domestic phone numbers
+    phone_cases = [
+        ("Call 1-800-555-0199 immediately", "800-555-0199", "Call [REDACTED_PHONE] immediately"),
+        ("Call 1 (800) 555-0199 immediately", "800", "Call [REDACTED_PHONE] immediately"),
+        ("Call +1-800-555-0199 immediately", "800-555-0199", "Call [REDACTED_PHONE] immediately"),
+        ("Call +14155550199 immediately", "4155550199", "Call [REDACTED_PHONE] immediately"),
+        ("Call (415) 555-0199 or 415.555.0199", "415", "Call [REDACTED_PHONE] or [REDACTED_PHONE]"),
+        (
+            "Call 4155550199 or 18005550199 now",
+            "4155550199",
+            "Call [REDACTED_PHONE] or [REDACTED_PHONE] now",
+        ),
+        ("UK office +44 20 7946 0958", "7946", "UK office [REDACTED_PHONE]"),
+        ("UK mobile +44 7911 123456", "123456", "UK mobile [REDACTED_PHONE]"),
+        ("Brazil +55 (11) 99876-5432", "99876", "Brazil [REDACTED_PHONE]"),
+        ("Brazil +55 11 99876-5432", "99876", "Brazil [REDACTED_PHONE]"),
+        ("Germany +49 151 2345 6789", "2345", "Germany [REDACTED_PHONE]"),
+        ("China +86 138 0013 8000", "0013", "China [REDACTED_PHONE]"),
+    ]
+    for raw_text, secret_token, expected_redacted in phone_cases:
+        actual_redacted = redact_sms_pii(raw_text)
+        assert secret_token not in actual_redacted
+        assert actual_redacted == expected_redacted
+
+    # Category C: Email addresses (including embedded phone/OTP substrings)
+    email_cases = [
+        ("Contact alice@example.com now", "alice@example.com", "Contact [REDACTED_EMAIL] now"),
+        (
+            "Email support-415-555-0199@sub.bank.co.uk",
+            "415-555-0199",
+            "Email [REDACTED_EMAIL]",
+        ),
+        ("Email user.918203@example.com", "918203", "Email [REDACTED_EMAIL]"),
+    ]
+    for raw_text, secret_token, expected_redacted in email_cases:
+        actual_redacted = redact_sms_pii(raw_text)
+        assert secret_token not in actual_redacted
+        assert actual_redacted == expected_redacted
+
+    # Category D: SSN-like identifiers (hyphen, space, dot, and contextual 9-digit)
+    ssn_cases = [
+        ("SSN 123-45-6789.", "123-45-6789", "SSN [REDACTED_SSN]."),
+        ("SSN 123 45 6789", "123 45 6789", "SSN [REDACTED_SSN]"),
+        ("SSN 123.45.6789", "123.45.6789", "SSN [REDACTED_SSN]"),
+        ("SSN: 123456789.", "123456789", "SSN: [REDACTED_SSN]."),
+        ("social security number 987654321", "987654321", "social security number [REDACTED_SSN]"),
+        ("TIN 112233445", "112233445", "TIN [REDACTED_SSN]"),
+    ]
+    for raw_text, secret_token, expected_redacted in ssn_cases:
+        actual_redacted = redact_sms_pii(raw_text)
+        assert secret_token not in actual_redacted
+        assert actual_redacted == expected_redacted
+
+    # Category E: Payment-card-like digit sequences & overlapping card + OTP
+    card_cases = [
+        ("Card 4532 1234 5678 9012", "4532", "Card [REDACTED_CARDLIKE]"),
+        ("Card 4532-1234-5678-9012.", "9012", "Card [REDACTED_CARDLIKE]."),
+        ("Card 4532123456789012", "4532123456789012", "Card [REDACTED_CARDLIKE]"),
+        ("Amex 3782 822463 10005", "822463", "Amex [REDACTED_CARDLIKE]"),
+        ("Visa 4111111111111", "4111111111111", "Visa [REDACTED_CARDLIKE]"),
+        (
+            "Verification code for card 4532 1234 5678 9012 is 4829",
+            "4829",
+            "Verification code for card [REDACTED_CARDLIKE] is [REDACTED_CODE]",
+        ),
+    ]
+    for raw_text, secret_token, expected_redacted in card_cases:
+        actual_redacted = redact_sms_pii(raw_text)
+        assert secret_token not in actual_redacted
+        assert actual_redacted == expected_redacted
+
+    # Negative controls: years, currency amounts, order/flight/gate/seat numbers, and triage words preserved
+    negative_control = (
+        "URGENT 2025 summary: Order #412 for $1,840.00 and $1200.00 on Flight UA492 "
+        "at Gate B14, Seats 12-13 in 30 minutes. Verify USPS parcel status."
     )
-    redacted_mixed = redact_sms_pii(mixed_pii)
-    for sensitive in ("4829", "492817", "alice@example.com", "123-45-6789", "4532 1234 5678 9012"):
-        assert sensitive not in redacted_mixed
-    assert "2025" in redacted_mixed
-    assert "$1200.00" in redacted_mixed
+    assert redact_sms_pii(negative_control) == negative_control
 
-    # 4. Decision audit logs & escalated dispute narratives never leak raw PII/OTPs
+    # Short/medium phone masking checks
+    assert _mask_phone("+14155550199") == "+141***0199"
+    assert _mask_phone("555-0199") == "55***99"
+    assert _mask_phone("729104") == "72***04"
+    assert _mask_phone("alice@example.com") == "[REDACTED_EMAIL]"
+
+    # 4. Decision audit logs, SSE, telemetry, warmup, arq payload, escalate endpoint & error logs never leak PII
     monkeypatch.setattr("app.api.telecom.SessionLocal", telecom_db_session_factory)
-    formatter = JsonFormatter()
+    sse_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=10)
+    async with _subscribers_lock:
+        _subscribers.add(sse_queue)
+
     caplog.clear()
-    with caplog.at_level(logging.INFO):
-        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-            otp_resp = await client.post(
-                "/v1/classify",
-                json={
-                    "sender": "+15551230199",
-                    "recipient": "+14155550199",
-                    "message": otp_sms,
-                    "carrier": "Verizon Wireless",
-                    "escalate": False,
-                },
-            )
-            assert otp_resp.status_code == 200
+    try:
+        with caplog.at_level(logging.INFO):
+            seed_telecom_warmup(force=True)
+            warmup_feed = get_metrics_tracker().get_summary()["recent_feed"]
+            for feed_item in warmup_feed:
+                for raw_warmup_otp in (
+                    "492018",
+                    "773910",
+                    "918273",
+                    "661209",
+                    "309481",
+                    "558291",
+                    "882104",
+                ):
+                    assert raw_warmup_otp not in feed_item["message"]
 
-            esc_msg = (
-                "URGENT: Account locked! Use code 774120 at http://bit.ly/bank-fix "
-                "or call +1-415-555-0199 (alice@example.com)."
-            )
-            esc_resp = await client.post(
-                "/v1/classify",
-                json={
-                    "sender": "+15551238888",
-                    "recipient": "+14155550101",
-                    "message": esc_msg,
-                    "carrier": "TextNow",
-                    "escalate": True,
-                },
-            )
-            assert esc_resp.status_code == 200
-            dispute_id = esc_resp.json()["escalated_dispute_id"]
-            assert dispute_id is not None
+            async with httpx.AsyncClient(
+                transport=transport, base_url="http://testserver"
+            ) as client:
+                otp_resp = await client.post(
+                    "/v1/classify",
+                    json={
+                        "sender": "+15551230199",
+                        "recipient": "+14155550199",
+                        "message": otp_sms,
+                        "carrier": "Verizon Wireless",
+                        "escalate": False,
+                    },
+                )
+                assert otp_resp.status_code == 200
 
+                esc_msg = (
+                    "URGENT: Account locked! Use code 774120 at http://bit.ly/bank-fix "
+                    "or call +1-415-555-0199 (alice@example.com)."
+                )
+                esc_resp = await client.post(
+                    "/v1/classify",
+                    json={
+                        "sender": "+15551238888",
+                        "recipient": "+14155550101",
+                        "message": esc_msg,
+                        "carrier": "TextNow",
+                        "escalate": True,
+                    },
+                )
+                assert esc_resp.status_code == 200
+                dispute_id = esc_resp.json()["escalated_dispute_id"]
+                assert dispute_id is not None
+
+                direct_esc_resp = await client.post(
+                    "/api/v1/telecom/escalate",
+                    json={
+                        "sender": "+15559997777",
+                        "recipient": "+14155550102",
+                        "message": "SSN 123-45-6789 and PIN 4829 compromised; call 1-800-555-0199.",
+                        "carrier": "Verizon Wireless",
+                        "verdict": "BLOCK",
+                        "fraud_score": 0.92,
+                        "signals": ["RULE:URGENT_ACCOUNT_LOCKOUT", "note: alice@example.com"],
+                        "velocity": {
+                            "sender": "+15559997777",
+                            "raw_note": "OTP 918203 from 415-555-0199",
+                            "velocity_10s": 4,
+                        },
+                    },
+                )
+                assert direct_esc_resp.status_code == 200
+                direct_dispute_id = direct_esc_resp.json()["dispute_id"]
+    finally:
+        async with _subscribers_lock:
+            _subscribers.discard(sse_queue)
+
+    # Verify SSE streamed events contain only redacted message & masked phones
+    assert not sse_queue.empty()
+    while not sse_queue.empty():
+        ev = sse_queue.get_nowait()
+        ev_str = json.dumps(ev)
+        for leaked in (
+            "918203",
+            "774120",
+            "415-555-0199",
+            "alice@example.com",
+            "5551230199",
+            "5551238888",
+        ):
+            assert leaked not in ev_str
+
+    # Verify telemetry recent_feed contains only redacted message & masked phones
+    recent_feed_str = json.dumps(get_metrics_tracker().get_summary()["recent_feed"])
+    for leaked in (
+        "918203",
+        "774120",
+        "415-555-0199",
+        "alice@example.com",
+        "5551230199",
+        "5551238888",
+    ):
+        assert leaked not in recent_feed_str
+
+    # Verify structured decision audit logs
     audit_records = [
         rec for rec in caplog.records if rec.__dict__.get("event") == "telecom_decision_audit"
     ]
@@ -2069,14 +2312,27 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
     assert isinstance(audit_fields["composite_score"], float)
     assert audit_fields["verdict"] in {"ALLOW", "FLAG", "BLOCK"}
     assert isinstance(audit_fields["latency_ms"], float)
+    assert audit_fields["redacted_preview"] == (
+        "Twitter/X: Confirmation code [REDACTED_CODE] to verify [REDACTED_PHONE]"
+    )
 
     for rec in caplog.records:
         formatted = formatter.format(rec)
         parsed = json.loads(formatted)
         assert "text_sha256" in parsed or rec is not otp_audit
-        for leaked in ("918203", "774120", "415-555-0199", "alice@example.com"):
+        for leaked in (
+            "918203",
+            "774120",
+            "415-555-0199",
+            "alice@example.com",
+            "123-45-6789",
+            "4829",
+            "800-555-0199",
+            "5559997777",
+        ):
             assert leaked not in formatted
 
+    # Verify both background-escalated and direct-escalated DisputeRecords never store raw PII
     async with telecom_db_session_factory() as db_session:
         row = await db_session.scalar(select(DisputeRecord).where(DisputeRecord.id == dispute_id))
         assert row is not None
@@ -2084,3 +2340,45 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
             assert leaked not in row.narrative
             assert leaked not in row.title
             assert leaked not in row.customer_id
+            assert leaked not in json.dumps(row.attributes)
+
+        direct_row = await db_session.scalar(
+            select(DisputeRecord).where(DisputeRecord.id == direct_dispute_id)
+        )
+        assert direct_row is not None
+        for leaked in (
+            "123-45-6789",
+            "4829",
+            "800-555-0199",
+            "alice@example.com",
+            "918203",
+            "415-555-0199",
+            "5559997777",
+        ):
+            assert leaked not in direct_row.narrative
+            assert leaked not in direct_row.title
+            assert leaked not in direct_row.customer_id
+            assert leaked not in json.dumps(direct_row.attributes)
+
+    # Verify exception/error log sanitization when ONNX or Redis raises an error containing PII
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        orig_sess = engine._session
+        try:
+
+            class _FailingSession:
+                def run(self, *_args: Any, **_kwargs: Any) -> Any:
+                    raise RuntimeError(
+                        "Tensor error on PIN 4829 and +1-415-555-0199 (alice@example.com)"
+                    )
+
+            engine._session = _FailingSession()  # type: ignore[assignment]
+            engine.predict("Test message")
+            engine.predict_proba_batch(["Test batch message"])
+        finally:
+            engine._session = orig_sess
+
+    for rec in caplog.records:
+        formatted_err = formatter.format(rec)
+        for leaked in ("4829", "415-555-0199", "alice@example.com"):
+            assert leaked not in formatted_err

@@ -1,7 +1,7 @@
 # SentinelPulse Heuristic Security & Complexity Audit (`SF-005` Hardening)
 
 - **Audited Module**: [`sentinelflow/backend/app/telecom/onnx_engine.py`](../sentinelflow/backend/app/telecom/onnx_engine.py) (`HEURISTIC_RULES`, `normalize_heuristic_text`, `evaluate_heuristics`, `compute_composite_score`)
-- **Gateway Input Boundary**: [`TelecomClassifyRequest`](../sentinelflow/backend/app/api/telecom.py) (`message: min_length=1, max_length=1600`)
+- **Gateway Input Boundary**: [`TelecomClassifyRequest`](../sentinelflow/backend/app/api/telecom.py) (`message: min_length=1, max_length=2000`; raised from `1600` in `SF-015` after atomic-group ReDoS hardening)
 - **Benchmark Corpus (`Dev/Val`, N=400)**: 200 benign / 200 fraud (`benchmark_predictions_400.json`), strictly separated from synthetic adversarial fixtures.
 - **Notice on Evidence Scope**: Benchmark counts below reflect deterministic evaluation on the `Dev/Val N=400` corpus (**Evidence Class B**). Production carrier SMS generalization remains **Evidence Class D: None / Outstanding** pending external real-world logs.
 

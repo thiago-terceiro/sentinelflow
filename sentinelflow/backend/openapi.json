@@ -2945,7 +2945,7 @@
           },
           "message": {
             "type": "string",
-            "maxLength": 1600,
+            "maxLength": 2000,
             "minLength": 1,
             "title": "Message",
             "description": "SMS text content"
@@ -3078,7 +3078,7 @@
           },
           "message": {
             "type": "string",
-            "maxLength": 1600,
+            "maxLength": 2000,
             "minLength": 1,
             "title": "Message",
             "description": "SMS text content"

@@ -7,7 +7,7 @@ from typing import Any, cast
 
 PATTERNS: dict[str, re.Pattern[str]] = {
     "email": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
-    "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
+    "ssn": re.compile(r"(?<![+\d])(?<!\d\.)\b\d{3}([- .])\d{2}\1\d{4}\b(?![\d]|\.\d)"),
     "iban": re.compile(r"\b[A-Za-z]{2}\d{2}(?:[ -]?[A-Za-z0-9]){11,30}\b"),
     "ipv6": re.compile(
         r"\b(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}\b|\b(?:[A-Fa-f0-9]{1,4}:){1,7}:|:(?::[A-Fa-f0-9]{1,4}){1,7}\b"
@@ -15,9 +15,13 @@ PATTERNS: dict[str, re.Pattern[str]] = {
     "ipv4": re.compile(
         r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
     ),
-    "card": re.compile(r"(?<![.\d])\b(?:\d[ -]*?){13,19}\b(?![.\d])"),
+    "card": re.compile(r"(?<![+\d])(?<!\d\.)\b(?:\d[ -]*?){13,19}\b(?![\d]|\.\d)"),
     "phone": re.compile(
-        r"(?<![\w:+])(?:\+\d{1,3}[\s.-]?(?:\(\d{2,4}\)[\s.-]?|\d{2,4}[\s.-]?)\d{3,4}[\s.-]?\d{3,4}|(?:\(\d{3}\)[\s.-]?|\d{3}[\s.-])\d{3}[\s.-]\d{4})(?![\w:+])"
+        r"(?<![\w:+])(?:"
+        r"\+\d{1,3}(?:[\s.-]?\(\d{1,4}\)|[\s.-]?\d{1,5}){2,5}"
+        r"|\+\d{7,15}"
+        r"|(?:\+?1[\s.-])?(?:\(\d{3}\)[\s.-]?|\d{3}[\s.-])\d{3}[\s.-]\d{4}"
+        r")(?![\w:+])"
     ),
     "jwt": re.compile(r"\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b"),
     "api_key": re.compile(
@@ -31,7 +35,7 @@ REDACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "[REDACTED_EMAIL]",
     ),
     (
-        re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
+        re.compile(r"(?<![+\d])(?<!\d\.)\b\d{3}([- .])\d{2}\1\d{4}\b(?![\d]|\.\d)"),
         "[REDACTED_SSN]",
     ),
     (
@@ -51,12 +55,16 @@ REDACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "[REDACTED_IP]",
     ),
     (
-        re.compile(r"(?<![.\d])\b(?:\d[ -]*?){13,19}\b(?![.\d])"),
+        re.compile(r"(?<![+\d])(?<!\d\.)\b(?:\d[ -]*?){13,19}\b(?![\d]|\.\d)"),
         "[REDACTED_CARDLIKE]",
     ),
     (
         re.compile(
-            r"(?<![\w:+])(?:\+\d{1,3}[\s.-]?(?:\(\d{2,4}\)[\s.-]?|\d{2,4}[\s.-]?)\d{3,4}[\s.-]?\d{3,4}|(?:\(\d{3}\)[\s.-]?|\d{3}[\s.-])\d{3}[\s.-]\d{4})(?![\w:+])"
+            r"(?<![\w:+])(?:"
+            r"\+\d{1,3}(?:[\s.-]?\(\d{1,4}\)|[\s.-]?\d{1,5}){2,5}"
+            r"|\+\d{7,15}"
+            r"|(?:\+?1[\s.-])?(?:\(\d{3}\)[\s.-]?|\d{3}[\s.-])\d{3}[\s.-]\d{4}"
+            r")(?![\w:+])"
         ),
         "[REDACTED_PHONE]",
     ),

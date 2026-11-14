@@ -39,9 +39,33 @@ MAX_TELECOM_SUBSCRIBERS = 250
 
 def _mask_phone(phone: str) -> str:
     """Masks central digits of phone numbers for public dashboard display."""
-    if len(phone) <= 6:
-        return phone
-    return f"{phone[:4]}***{phone[-4:]}"
+    cleaned = phone.strip()
+    if not cleaned or "***" in cleaned or "[REDACTED" in cleaned:
+        return cleaned
+    if "@" in cleaned:
+        return redact_sms_pii(cleaned)
+    if len(cleaned) <= 4:
+        return "***"
+    if len(cleaned) <= 8:
+        return f"{cleaned[:2]}***{cleaned[-2:]}"
+    return f"{cleaned[:4]}***{cleaned[-4:]}"
+
+
+def _sanitize_velocity_dict(velocity: dict[str, Any]) -> dict[str, Any]:
+    """Redacts any sensitive identifiers inside velocity metadata before persistence or logging."""
+    sanitized: dict[str, Any] = {}
+    for key, val in velocity.items():
+        if key in ("sender", "recipient") and isinstance(val, str):
+            sanitized[key] = _mask_phone(val)
+        elif isinstance(val, str):
+            sanitized[key] = redact_sms_pii(val)
+        elif isinstance(val, list):
+            sanitized[key] = [
+                redact_sms_pii(item) if isinstance(item, str) else item for item in val
+            ]
+        else:
+            sanitized[key] = val
+    return sanitized
 
 
 # In-memory SSE subscriber queues for the real-time live dashboard
@@ -76,7 +100,7 @@ class TelecomClassifyRequest(BaseModel):
         max_length=64,
         description="Destination phone number (E.164 format)",
     )
-    message: str = Field(..., min_length=1, max_length=1600, description="SMS text content")
+    message: str = Field(..., min_length=1, max_length=2000, description="SMS text content")
     ip: str | None = Field(
         default=None,
         max_length=64,
@@ -107,7 +131,7 @@ class TelecomClassifyResponse(BaseModel):
 class TelecomEscalateRequest(BaseModel):
     sender: str = Field(..., min_length=1, max_length=64, description="Originating phone number")
     recipient: str = Field(..., min_length=1, max_length=64, description="Destination phone number")
-    message: str = Field(..., min_length=1, max_length=1600, description="SMS text content")
+    message: str = Field(..., min_length=1, max_length=2000, description="SMS text content")
     carrier: str | None = Field(default=None, max_length=64, description="Network carrier")
     verdict: Literal["ALLOW", "BLOCK", "FLAG"] = Field(..., description="Classification verdict")
     fraud_score: float = Field(..., description="Computed composite fraud score")
@@ -162,13 +186,19 @@ async def _create_escalated_dispute(
     signals: list[str],
     velocity: dict[str, Any],
     event_id: str | None = None,
+    customer_id: str | None = None,
 ) -> DisputeRecord:
     assigned_code = case_code or f"TEL-{uuid4().hex[:8].upper()}"
     assigned_id = dispute_id or str(uuid4())
     masked_sender = _mask_phone(sender)
     masked_recipient = _mask_phone(recipient)
     safe_message = redact_sms_pii(message)
-    sender_digest = hashlib.sha256(sender.encode("utf-8")).hexdigest()[:12]
+    safe_carrier = redact_sms_pii(carrier) if carrier else None
+    safe_signals = [redact_sms_pii(str(s)) for s in signals]
+    safe_velocity = _sanitize_velocity_dict(velocity)
+    resolved_customer_id = customer_id or (
+        f"tel_{hashlib.sha256(sender.encode('utf-8')).hexdigest()[:12]}"
+    )
     title = f"SMS Anomaly: {masked_sender} -> {masked_recipient} ({verdict})"
     narrative = (
         f"SentinelPulse Telecom Gateway Anomaly Alert:\n"
@@ -176,19 +206,21 @@ async def _create_escalated_dispute(
         f"Fraud Score: {fraud_score}\n"
         f"Sender: {masked_sender}\n"
         f"Recipient: {masked_recipient}\n"
-        f"Carrier: {carrier or 'Unknown'}\n"
-        f"Signals: {', '.join(signals) if signals else 'None'}\n"
+        f"Carrier: {safe_carrier or 'Unknown'}\n"
+        f"Signals: {', '.join(safe_signals) if safe_signals else 'None'}\n"
         f"Message Content: {safe_message}\n"
-        f"Velocity Details: {json.dumps(velocity)}"
+        f"Velocity Details: {json.dumps(safe_velocity)}"
     )
     dispute = DisputeRecord(
         id=assigned_id,
         case_code=assigned_code,
         title=title,
         narrative=narrative,
-        customer_id=f"tel_{sender_digest}",
+        customer_id=resolved_customer_id,
         merchant_id=(
-            f"carrier_{carrier.lower().replace(' ', '_')}" if carrier else "carrier_unknown"
+            f"carrier_{safe_carrier.lower().replace(' ', '_')}"
+            if safe_carrier
+            else "carrier_unknown"
         ),
         amount=0.0,
         currency="USD",
@@ -198,9 +230,9 @@ async def _create_escalated_dispute(
             "telecom_anomaly": True,
             "verdict": verdict,
             "fraud_score": fraud_score,
-            "signals": signals,
-            "carrier": carrier,
-            "velocity": velocity,
+            "signals": safe_signals,
+            "carrier": safe_carrier,
+            "velocity": safe_velocity,
             "event_id": event_id,
             "tags": ["telecom_anomaly", verdict.lower(), "sentinelpulse"],
         },
@@ -224,6 +256,7 @@ async def _persist_escalated_dispute(
     signals: list[str],
     velocity: dict[str, Any],
     event_id: str | None = None,
+    customer_id: str | None = None,
 ) -> None:
     """Background task to commit escalated dispute record with retry resilience."""
     async with _escalation_semaphore:
@@ -243,6 +276,7 @@ async def _persist_escalated_dispute(
                         signals=signals,
                         velocity=velocity,
                         event_id=event_id,
+                        customer_id=customer_id,
                     )
                 return
             except Exception as exc:
@@ -250,7 +284,7 @@ async def _persist_escalated_dispute(
                     logger.error(
                         "Failed to persist background escalated dispute %s after 3 attempts: %s",
                         dispute_id,
-                        exc,
+                        redact_sms_pii(str(exc)),
                     )
                 else:
                     await asyncio.sleep(0.05 * (attempt + 1))
@@ -276,10 +310,15 @@ def _spawn_escalation_task(
     event_id: str | None = None,
     background_tasks: BackgroundTasks | None = None,
 ) -> asyncio.Task[None]:
+    masked_sender = _mask_phone(sender)
+    masked_recipient = _mask_phone(recipient)
+    safe_message = redact_sms_pii(message)
+    safe_carrier = redact_sms_pii(carrier) if carrier else None
+    safe_signals = [redact_sms_pii(str(s)) for s in signals]
+    safe_velocity = _sanitize_velocity_dict(velocity)
+    customer_id = f"tel_{hashlib.sha256(sender.encode('utf-8')).hexdigest()[:12]}"
+
     async def _durable_escalate_wrapper() -> None:
-        masked_sender = _mask_phone(sender)
-        masked_recipient = _mask_phone(recipient)
-        safe_message = redact_sms_pii(message)
         enqueued_durable = False
         try:
             pool = await get_redis_pool()
@@ -290,12 +329,13 @@ def _spawn_escalation_task(
                     "sender": masked_sender,
                     "recipient": masked_recipient,
                     "message": safe_message,
-                    "carrier": carrier,
+                    "carrier": safe_carrier,
                     "verdict": verdict,
                     "fraud_score": fraud_score,
-                    "signals": signals,
-                    "velocity": velocity,
+                    "signals": safe_signals,
+                    "velocity": safe_velocity,
                     "event_id": event_id,
+                    "customer_id": customer_id,
                 }
                 job = await pool.enqueue_job(
                     "persist_escalated_dispute_job",
@@ -311,22 +351,23 @@ def _spawn_escalation_task(
                 "Redis pool enqueue failed for escalation job esc_%s (%s); "
                 "falling back to in-process execution",
                 dispute_id,
-                exc,
+                redact_sms_pii(str(exc)),
             )
 
         if not enqueued_durable:
             await _persist_escalated_dispute(
                 dispute_id=dispute_id,
                 case_code=case_code,
-                sender=sender,
-                recipient=recipient,
-                message=message,
-                carrier=carrier,
+                sender=masked_sender,
+                recipient=masked_recipient,
+                message=safe_message,
+                carrier=safe_carrier,
                 verdict=verdict,
                 fraud_score=fraud_score,
-                signals=signals,
-                velocity=velocity,
+                signals=safe_signals,
+                velocity=safe_velocity,
                 event_id=event_id,
+                customer_id=customer_id,
             )
 
     bg_task = asyncio.create_task(_durable_escalate_wrapper())
@@ -518,6 +559,23 @@ async def escalate_telecom_anomaly(request: TelecomEscalateRequest) -> TelecomEs
             signals=request.signals,
             velocity=request.velocity,
             event_id=request.event_id,
+        )
+        text_sha256 = hashlib.sha256(request.message.encode("utf-8")).hexdigest()
+        logger.info(
+            "telecom_escalation_audit dispute_id=%s case_code=%s verdict=%s text_sha256=%s",
+            dispute.id,
+            dispute.case_code,
+            request.verdict,
+            text_sha256,
+            extra={
+                "event": "telecom_escalation_audit",
+                "dispute_id": dispute.id,
+                "case_code": dispute.case_code,
+                "text_sha256": text_sha256,
+                "verdict": request.verdict,
+                "fraud_score": round(request.fraud_score, 4),
+                "redacted_preview": redact_sms_pii(request.message),
+            },
         )
         return TelecomEscalateResponse(
             dispute_id=dispute.id,

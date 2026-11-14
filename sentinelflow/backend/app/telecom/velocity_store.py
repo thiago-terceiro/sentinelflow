@@ -36,6 +36,7 @@ from uuid import uuid4
 
 import redis.asyncio as aioredis
 from app.config import get_settings
+from app.services.trace_safety import redact_text
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -356,9 +357,10 @@ class RedisVelocityStore:
                 # Fail-open architectural policy: when Redis blips or times out, activate a
                 # 30-second in-memory deque fallback cooldown. Falling open to local ML + regex
                 # heuristics prevents carrier traffic drops or 2FA login code failures.
+                safe_err, _ = redact_text(str(exc))
                 logger.warning(
                     "Redis velocity pipeline failed (%s). Activating in-memory cooldown (%.1fs).",
-                    exc,
+                    safe_err,
                     self._circuit_cooldown_seconds,
                 )
                 self._use_in_memory_fallback = True

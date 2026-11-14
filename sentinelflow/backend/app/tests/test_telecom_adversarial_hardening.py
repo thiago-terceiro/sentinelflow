@@ -363,7 +363,7 @@ def test_mutation_suite_kills_predicate_and_threshold_regressions(
 
 @pytest.mark.asyncio
 async def test_runtime_classify_matches_offline_engine_and_rejects_oversize() -> None:
-    """Verifies HTTP /v1/classify matches offline engine.predict() & enforces max_length=1600."""
+    """Verifies HTTP /v1/classify matches offline engine.predict() & enforces max_length=2000."""
     engine = get_inference_engine()
     samples = get_held_out_samples_with_metadata()
 
@@ -406,13 +406,25 @@ async def test_runtime_classify_matches_offline_engine_and_rejects_oversize() ->
             assert payload["verdict"] == offline_res.verdict, f"{label} verdict drift"
             assert payload["fraud_score"] == pytest.approx(offline_res.fraud_score, abs=1e-4)
 
-        # Verify API boundary enforces max_length=1600 with 422 Unprocessable Entity
+        # Verify API boundary enforces max_length=2000 (SF-015) with 422 Unprocessable Entity
+        at_limit_resp = await client.post(
+            "/v1/classify",
+            json={
+                "sender": "+15558889998",
+                "recipient": "+14155550101",
+                "message": "x" * 2000,
+                "carrier": "Verizon Wireless",
+                "escalate": False,
+            },
+        )
+        assert at_limit_resp.status_code == 200
+
         oversize_resp = await client.post(
             "/v1/classify",
             json={
                 "sender": "+15558889999",
                 "recipient": "+14155550101",
-                "message": "x" * 1601,
+                "message": "x" * 2001,
                 "carrier": "Verizon Wireless",
                 "escalate": False,
             },

@@ -699,7 +699,7 @@ class OnnxInferenceEngine:
                 prob_map = raw_outputs[1][0]  # {0: p_legit, 1: p_fraud}
                 onnx_prob = float(prob_map.get(1, 0.0))
             except Exception as err:
-                logger.error("ONNX inference failed: %s", err)
+                logger.error("ONNX inference failed: %s", redact_sms_pii(str(err)))
                 signals.append("ENGINE:ONNX_FALLBACK")
                 onnx_prob = heuristic_score
         else:
@@ -750,7 +750,7 @@ class OnnxInferenceEngine:
                 prob_maps = raw_outputs[1]
                 return [float(prob_map.get(1, 0.0)) for prob_map in prob_maps]
             except Exception as err:
-                logger.error("ONNX batch inference failed: %s", err)
+                logger.error("ONNX batch inference failed: %s", redact_sms_pii(str(err)))
         return [self.evaluate_heuristics(t)[0] for t in texts]
 
     def predict_batch(self, texts: list[str]) -> list[InferenceResult]:
@@ -809,18 +809,33 @@ class OnnxInferenceEngine:
         return results
 
 
+_SSN_CONTEXT_RE = re.compile(
+    r"(\b(?:ssn|social\s+security(?:\s+(?:number|no|num|id))?|tax\s*id|tin|itin)\b"
+    r"(?:\s*(?:is|number|no|num|id|#|:|=|-))*\s*)"
+    r"(?<![$€£\d])(?<!\d\.)\d{9}\b(?![\d]|\.\d)",
+    re.IGNORECASE,
+)
+_CONTIGUOUS_NANP_PHONE_RE = re.compile(
+    r"(?<![+\d$€£-])(?<!\d\.)\b(?:1[2-9]\d{2}[2-9]\d{6}|[2-9]\d{2}[2-9]\d{6})\b(?![\d-]|\.\d)"
+)
 _OTP_CONTEXT_PREFIX_RE = re.compile(
     r"(\b(?:code|otp|pin|passcode|token|2fa|mfa|verification|confirmation|confirm|"
-    r"auth(?:entication)?|security)\b(?:\s+(?:is|number|id))?\s*[:=#-]?\s*(?:[A-Za-z]-)?)"
-    r"(?<![$€£.\d])\d{4,8}\b(?![.\d])",
+    r"auth(?:entication)?|security)\b"
+    r"(?:(?:\s+for\b[^.:\n\d]{0,32})?\s+(?:is|number|id))?\s*[:=#-]?\s*)"
+    r"[\[\(\"']?(?:[A-Za-z]-)?(?<![$€£\d])(?<!\d\.)(?:\d{3,4}-\d{3,4}|\d{4,8})\b(?![-\d]|\.\d)[\]\)\"']?",
     re.IGNORECASE,
 )
 _OTP_CONTEXT_SUFFIX_RE = re.compile(
-    r"(?<![$€£.\d])\b\d{4,8}\b(?![.\d])"
-    r"(\s+(?:is\s+(?:your|the)|for\b[^.\n]{0,32}\b(?:code|otp|pin|passcode|verification|login|auth)))",
+    r"(?<![$€£\d-])(?<!\d\.)[\[\(\"']?\b(?:[A-Za-z]-)?(?:\d{3,4}-\d{3,4}|\d{4,8})\b(?![-\d]|\.\d)[\]\)\"']?"
+    r"(\s+(?:is\s+(?:your|the|a)|as\s+(?:your|the|a)|for\b|"
+    r"to\s+(?:verify|confirm|sign\s+in|log\s*in|authenticate|unlock))"
+    r"\b[^.\n]{0,40}\b(?:code|otp|pin|passcode|token|2fa|mfa|verification|login|"
+    r"auth(?:entication)?|account)\b)",
     re.IGNORECASE,
 )
-_STANDALONE_OTP_RE = re.compile(r"(?<![$€£.\d])\b\d{6,8}\b(?![.\d])")
+_STANDALONE_OTP_RE = re.compile(
+    r"(?<![$€£\d-])(?<!\d\.)\b(?:\d{3,4}-\d{3,4}|\d{6,8})\b(?![-\d]|\.\d)"
+)
 
 
 def redact_sms_pii(text: str) -> str:
@@ -828,6 +843,8 @@ def redact_sms_pii(text: str) -> str:
     if not text:
         return text
     redacted, _ = redact_text(text)
+    redacted = _SSN_CONTEXT_RE.sub(r"\1[REDACTED_SSN]", redacted)
+    redacted = _CONTIGUOUS_NANP_PHONE_RE.sub("[REDACTED_PHONE]", redacted)
     redacted = _OTP_CONTEXT_PREFIX_RE.sub(r"\1[REDACTED_CODE]", redacted)
     redacted = _OTP_CONTEXT_SUFFIX_RE.sub(r"[REDACTED_CODE]\1", redacted)
     return _STANDALONE_OTP_RE.sub("[REDACTED_CODE]", redacted)
