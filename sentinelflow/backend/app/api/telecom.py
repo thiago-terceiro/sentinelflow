@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import time
@@ -16,9 +15,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.db.models import DisputeRecord
 from app.db.session import SessionLocal
 from app.services.investigations import get_redis_pool
+from app.services.trace_safety import pseudonymize_telecom_identifier
 from app.telecom.drift_monitor import get_drift_monitor
 from app.telecom.onnx_engine import (
     InferenceResult,
@@ -49,6 +50,25 @@ def _mask_phone(phone: str) -> str:
     if len(cleaned) <= 8:
         return f"{cleaned[:2]}***{cleaned[-2:]}"
     return f"{cleaned[:4]}***{cleaned[-4:]}"
+
+
+def _bound_redacted_message(redacted: str, max_len: int = 2000) -> str:
+    """Bounds an already-redacted message to max_len without splitting a [REDACTED_*] token."""
+    if len(redacted) <= max_len:
+        return redacted
+    clipped = redacted[:max_len]
+    last_open = clipped.rfind("[")
+    last_close = clipped.rfind("]")
+    if last_open > last_close:
+        clipped = clipped[:last_open].rstrip()
+    return clipped
+
+
+def _derive_telecom_customer_id(sender: str) -> str:
+    """Derives a keyed HMAC-SHA256 pseudonymous customer_id for sender correlation."""
+    settings = get_settings()
+    digest = pseudonymize_telecom_identifier(sender, namespace="sender", length=12)
+    return f"tel_{settings.TELECOM_HMAC_KEY_ID}_{digest}"
 
 
 def _sanitize_velocity_dict(velocity: dict[str, Any]) -> dict[str, Any]:
@@ -100,7 +120,15 @@ class TelecomClassifyRequest(BaseModel):
         max_length=64,
         description="Destination phone number (E.164 format)",
     )
-    message: str = Field(..., min_length=1, max_length=2000, description="SMS text content")
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description=(
+            "Reassembled / provider-aggregated SMS or text classification payload "
+            "(application-level Unicode character limit; not a raw GSM-7/UCS-2 PDU segment cap)"
+        ),
+    )
     ip: str | None = Field(
         default=None,
         max_length=64,
@@ -131,7 +159,15 @@ class TelecomClassifyResponse(BaseModel):
 class TelecomEscalateRequest(BaseModel):
     sender: str = Field(..., min_length=1, max_length=64, description="Originating phone number")
     recipient: str = Field(..., min_length=1, max_length=64, description="Destination phone number")
-    message: str = Field(..., min_length=1, max_length=2000, description="SMS text content")
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description=(
+            "Reassembled / provider-aggregated SMS or text classification payload "
+            "(application-level Unicode character limit; not a raw GSM-7/UCS-2 PDU segment cap)"
+        ),
+    )
     carrier: str | None = Field(default=None, max_length=64, description="Network carrier")
     verdict: Literal["ALLOW", "BLOCK", "FLAG"] = Field(..., description="Classification verdict")
     fraud_score: float = Field(..., description="Computed composite fraud score")
@@ -192,13 +228,11 @@ async def _create_escalated_dispute(
     assigned_id = dispute_id or str(uuid4())
     masked_sender = _mask_phone(sender)
     masked_recipient = _mask_phone(recipient)
-    safe_message = redact_sms_pii(message)
+    safe_message = _bound_redacted_message(redact_sms_pii(message))
     safe_carrier = redact_sms_pii(carrier) if carrier else None
     safe_signals = [redact_sms_pii(str(s)) for s in signals]
     safe_velocity = _sanitize_velocity_dict(velocity)
-    resolved_customer_id = customer_id or (
-        f"tel_{hashlib.sha256(sender.encode('utf-8')).hexdigest()[:12]}"
-    )
+    resolved_customer_id = customer_id or _derive_telecom_customer_id(sender)
     title = f"SMS Anomaly: {masked_sender} -> {masked_recipient} ({verdict})"
     narrative = (
         f"SentinelPulse Telecom Gateway Anomaly Alert:\n"
@@ -312,11 +346,11 @@ def _spawn_escalation_task(
 ) -> asyncio.Task[None]:
     masked_sender = _mask_phone(sender)
     masked_recipient = _mask_phone(recipient)
-    safe_message = redact_sms_pii(message)
+    safe_message = _bound_redacted_message(redact_sms_pii(message))
     safe_carrier = redact_sms_pii(carrier) if carrier else None
     safe_signals = [redact_sms_pii(str(s)) for s in signals]
     safe_velocity = _sanitize_velocity_dict(velocity)
-    customer_id = f"tel_{hashlib.sha256(sender.encode('utf-8')).hexdigest()[:12]}"
+    customer_id = _derive_telecom_customer_id(sender)
 
     async def _durable_escalate_wrapper() -> None:
         enqueued_durable = False
@@ -424,27 +458,26 @@ async def _process_single_message(
     else:
         verdict = "ALLOW"
 
+    # 5. Redact PII & mask phone numbers for telemetry, audit logging, and public live dashboard
+    #    Executed synchronously inside the measured SLA boundary before recording t_end.
+    safe_message = _bound_redacted_message(redact_sms_pii(req.message))
+    masked_sender = _mask_phone(req.sender)
+    masked_recipient = _mask_phone(req.recipient)
+    triggered_rules = [sig for sig in combined_signals if sig.startswith("RULE:")]
+    rounded_composite = round(composite_score, 4)
+    drift.record_observation(req.message, composite_score)
+
     t_end = time.perf_counter()
     total_latency_ms = round((t_end - t_start) * 1000.0, 3)
 
-    # 5. Redact PII & mask phone numbers for telemetry, audit logging, and public live dashboard
-    safe_message = redact_sms_pii(req.message)
-    masked_sender = _mask_phone(req.sender)
-    masked_recipient = _mask_phone(req.recipient)
-    text_sha256 = hashlib.sha256(req.message.encode("utf-8")).hexdigest()
-    triggered_rules = [sig for sig in combined_signals if sig.startswith("RULE:")]
-    rounded_composite = round(composite_score, 4)
-
     logger.info(
-        "telecom_decision_audit event_id=%s verdict=%s composite_score=%.4f text_sha256=%s",
+        "telecom_decision_audit event_id=%s verdict=%s composite_score=%.4f",
         eid,
         verdict,
         rounded_composite,
-        text_sha256,
         extra={
             "event": "telecom_decision_audit",
             "event_id": eid,
-            "text_sha256": text_sha256,
             "model_sha256": getattr(engine, "model_sha256", ""),
             "onnx_probability": round(inference_result.onnx_probability, 4),
             "heuristic_score": round(inference_result.heuristic_score, 4),
@@ -469,7 +502,6 @@ async def _process_single_message(
         carrier=velocity_metrics.carrier,
         onnx_latency_ms=inference_result.latency_ms,
     )
-    drift.record_observation(req.message, composite_score)
 
     velocity_dict = {
         "velocity_10s": velocity_metrics.velocity_10s,
@@ -560,21 +592,20 @@ async def escalate_telecom_anomaly(request: TelecomEscalateRequest) -> TelecomEs
             velocity=request.velocity,
             event_id=request.event_id,
         )
-        text_sha256 = hashlib.sha256(request.message.encode("utf-8")).hexdigest()
+        safe_preview = _bound_redacted_message(redact_sms_pii(request.message))
         logger.info(
-            "telecom_escalation_audit dispute_id=%s case_code=%s verdict=%s text_sha256=%s",
+            "telecom_escalation_audit dispute_id=%s case_code=%s verdict=%s",
             dispute.id,
             dispute.case_code,
             request.verdict,
-            text_sha256,
             extra={
                 "event": "telecom_escalation_audit",
                 "dispute_id": dispute.id,
                 "case_code": dispute.case_code,
-                "text_sha256": text_sha256,
+                "event_id": request.event_id,
                 "verdict": request.verdict,
                 "fraud_score": round(request.fraud_score, 4),
-                "redacted_preview": redact_sms_pii(request.message),
+                "redacted_preview": safe_preview,
             },
         )
         return TelecomEscalateResponse(

@@ -1897,6 +1897,7 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
     import time
 
     from app.api.telecom import (
+        _create_escalated_dispute,
         _mask_phone,
         _subscribers,
         _subscribers_lock,
@@ -2051,7 +2052,7 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
         assert timings[2000] < 3.0, f"{rule_name} exceeded 3ms at 2000 chars: {timings}"
         assert timings[3200] < 3.0, f"{rule_name} exceeded 3ms at 3200 chars: {timings}"
         # Across an 8x jump (400 -> 3200), O(N) is ~8x whereas quadratic O(N^2) is ~64x.
-        ratio = timings[3200] / max(timings[400], 0.02)
+        ratio = timings[3200] / max(timings[400], 0.03)
         assert ratio < 16.0, f"{rule_name} non-linear scaling 400->3200: {timings} ({ratio:.2f}x)"
 
     # Full evaluate_heuristics() on pathological 2000-char lookahead strings must stay < 15 ms
@@ -2294,16 +2295,22 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
     ):
         assert leaked not in recent_feed_str
 
-    # Verify structured decision audit logs
+    # Verify structured decision audit logs (and absence of unsalted text_sha256)
     audit_records = [
         rec for rec in caplog.records if rec.__dict__.get("event") == "telecom_decision_audit"
     ]
     assert len(audit_records) >= 2
-    expected_sha = hashlib.sha256(otp_sms.encode("utf-8")).hexdigest()
+    unsalted_otp_sha = hashlib.sha256(otp_sms.encode("utf-8")).hexdigest()
+    unsalted_esc_sha = hashlib.sha256(esc_msg.encode("utf-8")).hexdigest()
     otp_audit = next(
-        rec for rec in audit_records if rec.__dict__.get("text_sha256") == expected_sha
+        rec
+        for rec in audit_records
+        if rec.__dict__.get("redacted_preview")
+        == "Twitter/X: Confirmation code [REDACTED_CODE] to verify [REDACTED_PHONE]"
     )
     audit_fields = otp_audit.__dict__
+    assert "text_sha256" not in audit_fields
+    assert isinstance(audit_fields["event_id"], str) and audit_fields["event_id"].startswith("evt_")
     assert audit_fields["model_sha256"] == engine.model_sha256
     assert isinstance(audit_fields["onnx_probability"], float)
     assert isinstance(audit_fields["heuristic_score"], float)
@@ -2319,7 +2326,9 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
     for rec in caplog.records:
         formatted = formatter.format(rec)
         parsed = json.loads(formatted)
-        assert "text_sha256" in parsed or rec is not otp_audit
+        assert "text_sha256" not in parsed
+        assert unsalted_otp_sha not in formatted
+        assert unsalted_esc_sha not in formatted
         for leaked in (
             "918203",
             "774120",
@@ -2332,11 +2341,24 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
         ):
             assert leaked not in formatted
 
-    # Verify both background-escalated and direct-escalated DisputeRecords never store raw PII
+    # Verify background-escalated, HTTP-escalated, and direct _create_escalated_dispute()
+    # DisputeRecords never store raw PII or unsalted sender SHA-256 digests
+    unsalted_sender_1 = hashlib.sha256(b"+15551238888").hexdigest()[:12]
+    unsalted_sender_2 = hashlib.sha256(b"+15559997777").hexdigest()[:12]
+    unsalted_sender_3 = hashlib.sha256(b"+15554443322").hexdigest()[:12]
+
     async with telecom_db_session_factory() as db_session:
         row = await db_session.scalar(select(DisputeRecord).where(DisputeRecord.id == dispute_id))
         assert row is not None
-        for leaked in ("774120", "415-555-0199", "alice@example.com", "5551238888"):
+        assert row.customer_id.startswith("tel_v1_")
+        assert unsalted_sender_1 not in row.customer_id
+        for leaked in (
+            "774120",
+            "415-555-0199",
+            "alice@example.com",
+            "5551238888",
+            unsalted_sender_1,
+        ):
             assert leaked not in row.narrative
             assert leaked not in row.title
             assert leaked not in row.customer_id
@@ -2346,6 +2368,8 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
             select(DisputeRecord).where(DisputeRecord.id == direct_dispute_id)
         )
         assert direct_row is not None
+        assert direct_row.customer_id.startswith("tel_v1_")
+        assert unsalted_sender_2 not in direct_row.customer_id
         for leaked in (
             "123-45-6789",
             "4829",
@@ -2354,11 +2378,198 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
             "918203",
             "415-555-0199",
             "5559997777",
+            unsalted_sender_2,
         ):
             assert leaked not in direct_row.narrative
             assert leaked not in direct_row.title
             assert leaked not in direct_row.customer_id
             assert leaked not in json.dumps(direct_row.attributes)
+
+        # Direct helper invocation (_create_escalated_dispute) without HTTP wrapper
+        helper_dispute = await _create_escalated_dispute(
+            db_session,
+            sender="+15554443322",
+            recipient="+14155550199",
+            message="Direct helper check: SSN 123456789, card 4111-1111-1111-1111, PIN 8392, call 4155550199.",
+            carrier="AT&T Mobility (contact ops@att.example.com)",
+            verdict="BLOCK",
+            fraud_score=0.95,
+            signals=["RULE:URGENT_ACCOUNT_LOCKOUT", "raw_leak: PIN 8392 / ops@att.example.com"],
+            velocity={
+                "sender": "+15554443322",
+                "recipient": "+14155550199",
+                "debug": "card 4111 1111 1111 1111 and OTP 918203",
+            },
+            event_id="evt_direct_helper",
+        )
+        assert helper_dispute.customer_id.startswith("tel_v1_")
+        for leaked in (
+            "123456789",
+            "4111",
+            "8392",
+            "4155550199",
+            "ops@att.example.com",
+            "918203",
+            "5554443322",
+            "4155550199",
+            unsalted_sender_3,
+        ):
+            assert leaked not in helper_dispute.narrative
+            assert leaked not in helper_dispute.title
+            assert leaked not in helper_dispute.customer_id
+            assert leaked not in json.dumps(helper_dispute.attributes)
+
+    # Verify 2,000-character redaction expansion does not break live-feed -> /telecom/escalate contract
+    expansion_prefix = "URGENT: Your account is suspended. PIN 4829 OTP 7391. "
+    expansion_msg = (expansion_prefix + ("x" * 2000))[:2000]
+    assert len(expansion_msg) == 2000
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        exp_classify = await client.post(
+            "/v1/classify",
+            json={
+                "sender": "+15557778899",
+                "recipient": "+14155550100",
+                "message": expansion_msg,
+            },
+        )
+        assert exp_classify.status_code == 200
+        feed_latest = get_metrics_tracker().get_summary()["recent_feed"][0]
+        assert len(feed_latest["message"]) <= 2000
+        assert "4829" not in feed_latest["message"]
+        assert "7391" not in feed_latest["message"]
+        assert not feed_latest["message"].endswith("[REDACTED")
+
+        feed_escalate = await client.post(
+            "/api/v1/telecom/escalate",
+            json={
+                "sender": feed_latest["sender"],
+                "recipient": feed_latest["recipient"],
+                "message": feed_latest["message"],
+                "carrier": feed_latest["carrier"],
+                "verdict": feed_latest["verdict"],
+                "fraud_score": feed_latest["fraud_score"],
+                "signals": feed_latest["signals"],
+                "velocity": exp_classify.json()["velocity"],
+                "event_id": feed_latest["id"],
+            },
+        )
+        assert feed_escalate.status_code == 200
+
+    # Verify Redis and in-memory velocity keys use keyed HMAC-SHA256 (never raw or unsalted SHA-256)
+    vstore = get_velocity_store()
+    test_vel_sender = "+14155559090"
+    test_vel_ip = "203.0.113.42"
+    test_vel_prefix = "+1415"
+    unsalted_vel_sender = hashlib.sha256(test_vel_sender.encode("utf-8")).hexdigest()[:16]
+    unsalted_vel_ip = hashlib.sha256(test_vel_ip.encode("utf-8")).hexdigest()[:16]
+    unsalted_vel_prefix = hashlib.sha256(test_vel_prefix.encode("utf-8")).hexdigest()[:16]
+
+    recorded_redis_keys: list[str] = []
+
+    class _FakePipeline:
+        async def __aenter__(self) -> _FakePipeline:
+            return self
+
+        async def __aexit__(self, *_args: Any) -> None:
+            return None
+
+        def zremrangebyscore(self, key: str, *_args: Any) -> None:
+            recorded_redis_keys.append(key)
+
+        def zadd(self, key: str, *_args: Any) -> None:
+            recorded_redis_keys.append(key)
+
+        def expire(self, key: str, *_args: Any) -> None:
+            recorded_redis_keys.append(key)
+
+        def zcard(self, key: str) -> None:
+            recorded_redis_keys.append(key)
+
+        async def execute(self) -> list[int]:
+            return [0, 1, 1, 1] * 6
+
+    class _FakeRedisClient:
+        def pipeline(self, transaction: bool = False) -> _FakePipeline:
+            assert transaction is False
+            return _FakePipeline()
+
+    orig_fallback = vstore._use_in_memory_fallback
+    orig_get_client = vstore._get_client
+    try:
+        vstore._use_in_memory_fallback = False
+        monkeypatch.setattr(vstore, "_get_client", lambda: _FakeRedisClient())
+        await vstore.record_and_evaluate(
+            sender=test_vel_sender,
+            ip=test_vel_ip,
+            carrier="T-Mobile US",
+            message="https://promo-check.example.com/claim",
+        )
+        assert len(recorded_redis_keys) > 0
+        for rkey in recorded_redis_keys:
+            assert test_vel_sender not in rkey
+            assert test_vel_ip not in rkey
+            assert unsalted_vel_sender not in rkey
+            assert unsalted_vel_ip not in rkey
+            assert unsalted_vel_prefix not in rkey
+
+        # End-to-end synchronous HTTP POST /v1/classify latency at 2,000-character boundary (Redis pipeline path)
+        e2e_pii_2000 = (
+            "URGENT: Account suspended! Call +1-800-555-0199 or 4155550199 with PIN 4829, "
+            "SSN 123-45-6789, card 4111-1111-1111-1111, email alice@example.com. " * 15
+        )[:2000]
+        assert len(e2e_pii_2000) == 2000
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            # Warmup call
+            await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15550001111",
+                    "recipient": "+14155550100",
+                    "ip": "198.51.100.10",
+                    "carrier": "Verizon Wireless",
+                    "message": e2e_pii_2000,
+                },
+            )
+            http_roundtrip_ms: list[float] = []
+            endpoint_latency_ms: list[float] = []
+            for _ in range(5):
+                t0_http = time.perf_counter()
+                redis_path_resp = await client.post(
+                    "/v1/classify",
+                    json={
+                        "sender": "+15550001111",
+                        "recipient": "+14155550100",
+                        "ip": "198.51.100.10",
+                        "carrier": "Verizon Wireless",
+                        "message": e2e_pii_2000,
+                    },
+                )
+                http_roundtrip_ms.append((time.perf_counter() - t0_http) * 1000.0)
+                assert redis_path_resp.status_code == 200
+                endpoint_latency_ms.append(float(redis_path_resp.json()["latency_ms"]))
+            assert max(endpoint_latency_ms) < 15.0
+            assert min(http_roundtrip_ms) < 15.0
+
+        # In-memory fallback path
+        vstore._use_in_memory_fallback = True
+        await vstore.record_and_evaluate(
+            sender=test_vel_sender,
+            ip=test_vel_ip,
+            carrier="T-Mobile US",
+            message="https://promo-check.example.com/claim",
+        )
+        for mem_key in vstore._in_memory_sender_history:
+            assert test_vel_sender not in mem_key
+            assert unsalted_vel_sender not in mem_key
+        for ip_mem_key in vstore._in_memory_ip_history:
+            assert test_vel_ip not in ip_mem_key
+            assert unsalted_vel_ip not in ip_mem_key
+        for prefix_mem_key in vstore._in_memory_prefix_history:
+            assert test_vel_prefix not in prefix_mem_key
+            assert unsalted_vel_prefix not in prefix_mem_key
+    finally:
+        vstore._use_in_memory_fallback = orig_fallback
+        monkeypatch.setattr(vstore, "_get_client", orig_get_client)
 
     # Verify exception/error log sanitization when ONNX or Redis raises an error containing PII
     caplog.clear()

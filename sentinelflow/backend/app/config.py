@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     AUDIT_ARTIFACT_KEY_ID: str = "v1"
     AUDIT_ARTIFACT_ENCRYPTION_KEY: str | None = None
 
+    TELECOM_HMAC_KEY_ID: str = "v1"
+    TELECOM_HMAC_SECRET: str | None = None
+
     AUTH_ISSUER: str = "sentinelflow-dev"
     AUTH_AUDIENCE: str = "sentinelflow-api"
     AUTH_JWT_SECRET: str | None = None
@@ -95,6 +98,8 @@ class Settings(BaseSettings):
                 missing.append("OTEL_EXPORTER_OTLP_ENDPOINT")
             if not self.LANGGRAPH_CHECKPOINT_URL:
                 missing.append("LANGGRAPH_CHECKPOINT_URL")
+            if self.TELECOM_HMAC_SECRET is not None and not self.TELECOM_HMAC_SECRET.strip():
+                missing.append("TELECOM_HMAC_SECRET")
             if missing:
                 raise ValueError(f"Missing required production settings: {', '.join(missing)}")
             if self.AUTH_ALLOW_DEV_TOKENS:

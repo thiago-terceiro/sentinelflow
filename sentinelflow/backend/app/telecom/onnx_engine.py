@@ -198,7 +198,7 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
     (
         "RULE:SIM_SWAP_OR_KYC_SCAM",
         re.compile(
-            r"(?:^(?>.*?\bsim card).*?deactivation\b|\b(?:esim transfer|update kyc)\b)",
+            r"^(?:(?>.*?\bsim card).*?deactivation\b|.*?\b(?:esim transfer|update kyc)\b)",
             re.IGNORECASE | re.DOTALL,
         ),
         0.70,
@@ -809,6 +809,20 @@ class OnnxInferenceEngine:
         return results
 
 
+_HAS_4DIGIT_OR_HYPHEN_OTP_RE = re.compile(r"\d{4}|\d{3}-\d{3}")
+_HAS_9DIGIT_RE = re.compile(r"\d{9}")
+_HAS_10DIGIT_RE = re.compile(r"\d{10}")
+_HAS_STANDALONE_OTP_CANDIDATE_RE = re.compile(r"\d{6}|\d{3,4}-\d{3,4}")
+_SSN_KEYWORD_RE = re.compile(r"\b(?:ssn|social|tax|tin|itin)\b", re.IGNORECASE)
+_OTP_KEYWORD_RE = re.compile(
+    r"\b(?:code|otp|pin|passcode|token|2fa|mfa|verification|confirmation|confirm|"
+    r"auth(?:entication)?|security|login|account)\b",
+    re.IGNORECASE,
+)
+_OTP_SUFFIX_TRIGGER_RE = re.compile(
+    r"\b(?:is|as)\s+(?:your|the|a)\b|\bto\s+(?:verify|confirm|sign\s+in|log\s*in|authenticate|unlock)\b|\d[\]\)\"']?\s+for\b",
+    re.IGNORECASE,
+)
 _SSN_CONTEXT_RE = re.compile(
     r"(\b(?:ssn|social\s+security(?:\s+(?:number|no|num|id))?|tax\s*id|tin|itin)\b"
     r"(?:\s*(?:is|number|no|num|id|#|:|=|-))*\s*)"
@@ -816,7 +830,8 @@ _SSN_CONTEXT_RE = re.compile(
     re.IGNORECASE,
 )
 _CONTIGUOUS_NANP_PHONE_RE = re.compile(
-    r"(?<![+\d$€£-])(?<!\d\.)\b(?:1[2-9]\d{2}[2-9]\d{6}|[2-9]\d{2}[2-9]\d{6})\b(?![\d-]|\.\d)"
+    r"[1-9](?<=\b[1-9])(?<![+\d$€£-]\d)(?<!\d\.\d)"
+    r"(?:(?<=1)[2-9]\d{2}[2-9]\d{6}|(?<=[2-9])\d{2}[2-9]\d{6})\b(?![\d-]|\.\d)"
 )
 _OTP_CONTEXT_PREFIX_RE = re.compile(
     r"(\b(?:code|otp|pin|passcode|token|2fa|mfa|verification|confirmation|confirm|"
@@ -834,7 +849,7 @@ _OTP_CONTEXT_SUFFIX_RE = re.compile(
     re.IGNORECASE,
 )
 _STANDALONE_OTP_RE = re.compile(
-    r"(?<![$€£\d-])(?<!\d\.)\b(?:\d{3,4}-\d{3,4}|\d{6,8})\b(?![-\d]|\.\d)"
+    r"\d(?<=\b\d)(?<![$€£\d-]\d)(?<!\d\.\d)(?:\d{2,3}-\d{3,4}|\d{5,7})\b(?![-\d]|\.\d)"
 )
 
 
@@ -843,10 +858,22 @@ def redact_sms_pii(text: str) -> str:
     if not text:
         return text
     redacted, _ = redact_text(text)
-    redacted = _SSN_CONTEXT_RE.sub(r"\1[REDACTED_SSN]", redacted)
-    redacted = _CONTIGUOUS_NANP_PHONE_RE.sub("[REDACTED_PHONE]", redacted)
-    redacted = _OTP_CONTEXT_PREFIX_RE.sub(r"\1[REDACTED_CODE]", redacted)
-    redacted = _OTP_CONTEXT_SUFFIX_RE.sub(r"[REDACTED_CODE]\1", redacted)
+    if not _HAS_4DIGIT_OR_HYPHEN_OTP_RE.search(redacted):
+        return redacted
+    if _HAS_9DIGIT_RE.search(redacted) and _SSN_KEYWORD_RE.search(redacted):
+        redacted = _SSN_CONTEXT_RE.sub(r"\1[REDACTED_SSN]", redacted)
+    if _HAS_10DIGIT_RE.search(redacted):
+        redacted = _CONTIGUOUS_NANP_PHONE_RE.sub("[REDACTED_PHONE]", redacted)
+    if not _HAS_4DIGIT_OR_HYPHEN_OTP_RE.search(redacted):
+        return redacted
+    if _OTP_KEYWORD_RE.search(redacted):
+        redacted = _OTP_CONTEXT_PREFIX_RE.sub(r"\1[REDACTED_CODE]", redacted)
+        if _HAS_4DIGIT_OR_HYPHEN_OTP_RE.search(redacted) and _OTP_SUFFIX_TRIGGER_RE.search(
+            redacted
+        ):
+            redacted = _OTP_CONTEXT_SUFFIX_RE.sub(r"[REDACTED_CODE]\1", redacted)
+    if not _HAS_STANDALONE_OTP_CANDIDATE_RE.search(redacted):
+        return redacted
     return _STANDALONE_OTP_RE.sub("[REDACTED_CODE]", redacted)
 
 

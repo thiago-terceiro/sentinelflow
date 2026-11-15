@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+
+import pytest
 from app.services.trace_safety import (
+    pseudonymize_telecom_identifier,
     redact_text,
     redact_value,
     sanitize_prompt_injection,
@@ -88,3 +92,41 @@ def test_sanitize_prompt_injection_neutralizes_vectors() -> None:
     assert changed is True
     assert "[FLAGGED_INJECTION_ATTEMPT]" in sanitized
     assert "prompt_injection_pattern_neutralized" in warnings
+
+
+def test_pseudonymize_telecom_identifier_keyed_hmac_and_fail_closed() -> None:
+    sender = "+14155550199"
+    unsalted_12 = hashlib.sha256(sender.encode("utf-8")).hexdigest()[:12]
+    unsalted_16 = hashlib.sha256(sender.encode("utf-8")).hexdigest()[:16]
+
+    id_sender_a = pseudonymize_telecom_identifier(
+        sender,
+        namespace="sender",
+        length=12,
+        secret="unit-test-hmac-key-alpha",
+    )
+    id_sender_b = pseudonymize_telecom_identifier(
+        sender,
+        namespace="sender",
+        length=12,
+        secret="unit-test-hmac-key-beta",
+    )
+    id_vel = pseudonymize_telecom_identifier(
+        sender,
+        namespace="vel_sender",
+        length=16,
+        secret="unit-test-hmac-key-alpha",
+    )
+
+    assert len(id_sender_a) == 12
+    assert len(id_vel) == 16
+    assert id_sender_a != unsalted_12
+    assert id_vel != unsalted_16
+    assert id_sender_a != id_sender_b
+    assert id_sender_a != id_vel[:12]
+
+    with pytest.raises(RuntimeError, match="TELECOM_HMAC_SECRET must be configured"):
+        pseudonymize_telecom_identifier(sender, namespace="sender", length=12, secret="")
+
+    with pytest.raises(RuntimeError, match="TELECOM_HMAC_SECRET must be configured"):
+        pseudonymize_telecom_identifier(sender, namespace="sender", length=12, secret="   ")

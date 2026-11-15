@@ -2948,7 +2948,7 @@
             "maxLength": 2000,
             "minLength": 1,
             "title": "Message",
-            "description": "SMS text content"
+            "description": "Reassembled / provider-aggregated SMS or text classification payload (application-level Unicode character limit; not a raw GSM-7/UCS-2 PDU segment cap)"
           },
           "ip": {
             "anyOf": [
@@ -3081,7 +3081,7 @@
             "maxLength": 2000,
             "minLength": 1,
             "title": "Message",
-            "description": "SMS text content"
+            "description": "Reassembled / provider-aggregated SMS or text classification payload (application-level Unicode character limit; not a raw GSM-7/UCS-2 PDU segment cap)"
           },
           "carrier": {
             "anyOf": [

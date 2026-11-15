@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import re
 from typing import Any, cast
 
+from app.config import get_settings
+
 PATTERNS: dict[str, re.Pattern[str]] = {
     "email": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
-    "ssn": re.compile(r"(?<![+\d])(?<!\d\.)\b\d{3}([- .])\d{2}\1\d{4}\b(?![\d]|\.\d)"),
+    "ssn": re.compile(r"\d(?<=\b\d)(?<![+\d]\d)(?<!\d\.\d)\d{2}([- .])\d{2}\1\d{4}\b(?![\d]|\.\d)"),
     "iban": re.compile(r"\b[A-Za-z]{2}\d{2}(?:[ -]?[A-Za-z0-9]){11,30}\b"),
     "ipv6": re.compile(
         r"\b(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}\b|\b(?:[A-Fa-f0-9]{1,4}:){1,7}:|:(?::[A-Fa-f0-9]{1,4}){1,7}\b"
@@ -15,7 +18,7 @@ PATTERNS: dict[str, re.Pattern[str]] = {
     "ipv4": re.compile(
         r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
     ),
-    "card": re.compile(r"(?<![+\d])(?<!\d\.)\b(?:\d[ -]*?){13,19}\b(?![\d]|\.\d)"),
+    "card": re.compile(r"\d(?<=\b\d)(?<![+\d]\d)(?<!\d\.\d)(?:[ -]*?\d){12,18}\b(?![\d]|\.\d)"),
     "phone": re.compile(
         r"(?<![\w:+])(?:"
         r"\+\d{1,3}(?:[\s.-]?\(\d{1,4}\)|[\s.-]?\d{1,5}){2,5}"
@@ -31,53 +34,53 @@ PATTERNS: dict[str, re.Pattern[str]] = {
 
 REDACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
-        re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
+        PATTERNS["email"],
         "[REDACTED_EMAIL]",
     ),
     (
-        re.compile(r"(?<![+\d])(?<!\d\.)\b\d{3}([- .])\d{2}\1\d{4}\b(?![\d]|\.\d)"),
+        PATTERNS["ssn"],
         "[REDACTED_SSN]",
     ),
     (
-        re.compile(r"\b[A-Za-z]{2}\d{2}(?:[ -]?[A-Za-z0-9]){11,30}\b"),
+        PATTERNS["iban"],
         "[REDACTED_IBAN]",
     ),
     (
-        re.compile(
-            r"\b(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}\b|\b(?:[A-Fa-f0-9]{1,4}:){1,7}:|:(?::[A-Fa-f0-9]{1,4}){1,7}\b"
-        ),
+        PATTERNS["ipv6"],
         "[REDACTED_IP]",
     ),
     (
-        re.compile(
-            r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
-        ),
+        PATTERNS["ipv4"],
         "[REDACTED_IP]",
     ),
     (
-        re.compile(r"(?<![+\d])(?<!\d\.)\b(?:\d[ -]*?){13,19}\b(?![\d]|\.\d)"),
+        PATTERNS["card"],
         "[REDACTED_CARDLIKE]",
     ),
     (
-        re.compile(
-            r"(?<![\w:+])(?:"
-            r"\+\d{1,3}(?:[\s.-]?\(\d{1,4}\)|[\s.-]?\d{1,5}){2,5}"
-            r"|\+\d{7,15}"
-            r"|(?:\+?1[\s.-])?(?:\(\d{3}\)[\s.-]?|\d{3}[\s.-])\d{3}[\s.-]\d{4}"
-            r")(?![\w:+])"
-        ),
+        PATTERNS["phone"],
         "[REDACTED_PHONE]",
     ),
     (
-        re.compile(r"\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b"),
+        PATTERNS["jwt"],
         "[REDACTED_JWT]",
     ),
     (
-        re.compile(
-            r"\b(?:sk|pk)[-_][A-Za-z0-9_-]{12,}\b|\b(?:sk-proj|sk-ant)-[A-Za-z0-9_-]{20,}\b|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{36}\b"
-        ),
+        PATTERNS["api_key"],
         "[REDACTED_API_KEY]",
     ),
+)
+
+_HAS_DIGIT_RE: re.Pattern[str] = re.compile(r"\d")
+_HAS_3DIGIT_RE: re.Pattern[str] = re.compile(r"\d{3}")
+_HAS_SSN_CANDIDATE_RE: re.Pattern[str] = re.compile(r"\d{3}[- .]\d{2}[- .]\d{4}")
+_HAS_CARD_CANDIDATE_RE: re.Pattern[str] = re.compile(r"(?:\d[ -]?){13}")
+_HAS_PHONE_CANDIDATE_RE: re.Pattern[str] = re.compile(r"\+\d|\(\d{3}\)|\d{3}[\s.-]\d{3}[\s.-]\d{4}")
+_HAS_IBAN_PREFIX_RE: re.Pattern[str] = re.compile(r"[A-Za-z]{2}\d{2}")
+_HAS_API_KEY_PREFIX_RE: re.Pattern[str] = re.compile(r"(?:sk|pk)[-_]|AKIA|gh[pousr]_")
+_HAS_INJECTION_KEYWORD_RE: re.Pattern[str] = re.compile(
+    r"system\s+override|ignore\s+|developer\s+mode|disregard\s+|admin\s+escalation",
+    re.IGNORECASE,
 )
 
 ZERO_WIDTH_PATTERN: re.Pattern[str] = re.compile(
@@ -110,17 +113,18 @@ def sanitize_prompt_injection(value: str) -> tuple[str, bool, list[str]]:
         changed = True
         warnings.append("zero_width_unicode_stripped")
 
-    if HIDDEN_DOM_TAG_PATTERN.search(sanitized):
-        sanitized = HIDDEN_DOM_TAG_PATTERN.sub(" [FLAGGED_HIDDEN_DOM_INJECTION] ", sanitized)
-        changed = True
-        warnings.append("hidden_dom_injection_stripped")
+    if "<" in sanitized:
+        if HIDDEN_DOM_TAG_PATTERN.search(sanitized):
+            sanitized = HIDDEN_DOM_TAG_PATTERN.sub(" [FLAGGED_HIDDEN_DOM_INJECTION] ", sanitized)
+            changed = True
+            warnings.append("hidden_dom_injection_stripped")
 
-    if DANGEROUS_DOM_TAG_PATTERN.search(sanitized):
-        sanitized = DANGEROUS_DOM_TAG_PATTERN.sub(" [FLAGGED_DANGEROUS_TAG] ", sanitized)
-        changed = True
-        warnings.append("dangerous_tag_stripped")
+        if DANGEROUS_DOM_TAG_PATTERN.search(sanitized):
+            sanitized = DANGEROUS_DOM_TAG_PATTERN.sub(" [FLAGGED_DANGEROUS_TAG] ", sanitized)
+            changed = True
+            warnings.append("dangerous_tag_stripped")
 
-    if PROMPT_INJECTION_PATTERN.search(sanitized):
+    if _HAS_INJECTION_KEYWORD_RE.search(sanitized) and PROMPT_INJECTION_PATTERN.search(sanitized):
         sanitized = PROMPT_INJECTION_PATTERN.sub("[FLAGGED_INJECTION_ATTEMPT]", sanitized)
         changed = True
         warnings.append("prompt_injection_pattern_neutralized")
@@ -130,6 +134,48 @@ def sanitize_prompt_injection(value: str) -> tuple[str, bool, list[str]]:
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def pseudonymize_telecom_identifier(
+    value: str,
+    *,
+    namespace: str,
+    length: int = 16,
+    secret: str | None = None,
+) -> str:
+    """Compute a domain-separated, keyed HMAC-SHA256 pseudonymous identifier.
+
+    NOTE: HMAC-derived identifiers are pseudonymous (linkable across records sharing
+    the same key and namespace), NOT anonymous. They prevent offline rainbow-table
+    and dictionary enumeration over small-domain telecom inputs (E.164 phone numbers,
+    NANP prefixes, and IP addresses) provided the secret key remains confidential.
+    Never silently falls back to unsalted SHA-256 if the secret is missing.
+    """
+    if secret is not None:
+        resolved_secret = secret
+    else:
+        cfg = get_settings()
+        if cfg.TELECOM_HMAC_SECRET:
+            resolved_secret = cfg.TELECOM_HMAC_SECRET
+        elif cfg.APP_ENV != "production":
+            resolved_secret = f"dev-hmac:{cfg.AUTH_ISSUER}:{cfg.TELECOM_HMAC_KEY_ID}"
+        else:
+            resolved_secret = ""
+    if not resolved_secret or not resolved_secret.strip():
+        raise RuntimeError(
+            "TELECOM_HMAC_SECRET must be configured for pseudonymous telecom identifier derivation."
+        )
+    if not namespace or not namespace.strip():
+        raise ValueError("namespace must be a non-empty string.")
+    if length < 8 or length > 64:
+        raise ValueError("length must be between 8 and 64 hex characters.")
+    canonical_payload = f"{namespace.strip()}:{value.strip()}".encode()
+    digest = hmac.new(
+        resolved_secret.encode("utf-8"),
+        canonical_payload,
+        hashlib.sha256,
+    ).hexdigest()
+    return digest[:length]
 
 
 def to_text(value: Any) -> str:
@@ -167,11 +213,62 @@ def redact_text(value: str) -> tuple[str, bool]:
     sanitized, inject_changed, _ = sanitize_prompt_injection(value)
     redacted = sanitized
     changed = inject_changed
-    for pattern, replacement in REDACTION_PATTERNS:
-        updated = pattern.sub(replacement, redacted)
+
+    if "@" in redacted:
+        updated = PATTERNS["email"].sub("[REDACTED_EMAIL]", redacted)
         if updated != redacted:
             changed = True
             redacted = updated
+
+    if ":" in redacted:
+        updated = PATTERNS["ipv6"].sub("[REDACTED_IP]", redacted)
+        if updated != redacted:
+            changed = True
+            redacted = updated
+
+    if _HAS_DIGIT_RE.search(redacted):
+        if _HAS_SSN_CANDIDATE_RE.search(redacted):
+            updated = PATTERNS["ssn"].sub("[REDACTED_SSN]", redacted)
+            if updated != redacted:
+                changed = True
+                redacted = updated
+
+        if _HAS_IBAN_PREFIX_RE.search(redacted):
+            updated = PATTERNS["iban"].sub("[REDACTED_IBAN]", redacted)
+            if updated != redacted:
+                changed = True
+                redacted = updated
+
+        if "." in redacted:
+            updated = PATTERNS["ipv4"].sub("[REDACTED_IP]", redacted)
+            if updated != redacted:
+                changed = True
+                redacted = updated
+
+        if _HAS_CARD_CANDIDATE_RE.search(redacted):
+            updated = PATTERNS["card"].sub("[REDACTED_CARDLIKE]", redacted)
+            if updated != redacted:
+                changed = True
+                redacted = updated
+
+        if _HAS_PHONE_CANDIDATE_RE.search(redacted):
+            updated = PATTERNS["phone"].sub("[REDACTED_PHONE]", redacted)
+            if updated != redacted:
+                changed = True
+                redacted = updated
+
+    if "eyJ" in redacted:
+        updated = PATTERNS["jwt"].sub("[REDACTED_JWT]", redacted)
+        if updated != redacted:
+            changed = True
+            redacted = updated
+
+    if _HAS_API_KEY_PREFIX_RE.search(redacted):
+        updated = PATTERNS["api_key"].sub("[REDACTED_API_KEY]", redacted)
+        if updated != redacted:
+            changed = True
+            redacted = updated
+
     return redacted, changed
 
 

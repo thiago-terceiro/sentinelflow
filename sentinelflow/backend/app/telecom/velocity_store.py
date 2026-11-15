@@ -26,7 +26,6 @@ until Redis recovers and the circuit breaker resets.
 from __future__ import annotations
 
 import collections
-import hashlib
 import logging
 import re
 import time
@@ -36,7 +35,8 @@ from uuid import uuid4
 
 import redis.asyncio as aioredis
 from app.config import get_settings
-from app.services.trace_safety import redact_text
+from app.services.trace_safety import pseudonymize_telecom_identifier
+from app.telecom.onnx_engine import redact_sms_pii
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -185,15 +185,18 @@ class RedisVelocityStore:
 
     def _record_in_memory(
         self,
-        sender: str,
-        ip: str | None,
-        url_domain: str | None,
-        prefix: str | None,
+        sender_key: str,
+        ip_key: str | None,
+        domain_key: str | None,
+        prefix_key: str | None,
         now: float,
     ) -> tuple[int, int, int, int, int, int]:
-        """In-memory sliding window fallback when Redis is unreachable."""
+        """In-memory sliding window fallback when Redis is unreachable.
+
+        Uses keyed HMAC-SHA256 pseudonymous keys rather than raw phone numbers or IPs.
+        """
         # Clean & record sender history
-        sender_deque = self._in_memory_sender_history[sender]
+        sender_deque = self._in_memory_sender_history[sender_key]
         while sender_deque and sender_deque[0] < now - 3600.0:
             sender_deque.popleft()
         sender_deque.append(now)
@@ -214,8 +217,8 @@ class RedisVelocityStore:
 
         # Clean & record IP history
         ip_count = 0
-        if ip:
-            ip_deque = self._in_memory_ip_history[ip]
+        if ip_key:
+            ip_deque = self._in_memory_ip_history[ip_key]
             while ip_deque and ip_deque[0] < now - 60.0:
                 ip_deque.popleft()
             ip_deque.append(now)
@@ -223,8 +226,8 @@ class RedisVelocityStore:
 
         # Clean & record domain history
         domain_count = 0
-        if url_domain:
-            domain_deque = self._in_memory_domain_history[url_domain]
+        if domain_key:
+            domain_deque = self._in_memory_domain_history[domain_key]
             while domain_deque and domain_deque[0] < now - 60.0:
                 domain_deque.popleft()
             domain_deque.append(now)
@@ -232,8 +235,8 @@ class RedisVelocityStore:
 
         # Clean & record prefix history
         prefix_count = 0
-        if prefix:
-            prefix_deque = self._in_memory_prefix_history[prefix]
+        if prefix_key:
+            prefix_deque = self._in_memory_prefix_history[prefix_key]
             while prefix_deque and prefix_deque[0] < now - 60.0:
                 prefix_deque.popleft()
             prefix_deque.append(now)
@@ -256,6 +259,20 @@ class RedisVelocityStore:
         effective_domain = url_domain or extract_url_domain(message)
         effective_prefix = extract_sender_prefix(sender)
 
+        # Derive domain-separated keyed HMAC-SHA256 pseudonymous keys before storage.
+        sender_hash = pseudonymize_telecom_identifier(sender, namespace="vel_sender", length=16)
+        ip_hash = pseudonymize_telecom_identifier(ip, namespace="vel_ip", length=16) if ip else None
+        domain_hash = (
+            pseudonymize_telecom_identifier(effective_domain, namespace="vel_domain", length=16)
+            if effective_domain
+            else None
+        )
+        prefix_hash = (
+            pseudonymize_telecom_identifier(effective_prefix, namespace="vel_prefix", length=16)
+            if effective_prefix
+            else None
+        )
+
         v10s = 1
         v60s = 1
         v1h = 1
@@ -273,26 +290,12 @@ class RedisVelocityStore:
                 # Note: IP ({ip_hash}), domain ({domain_hash}), and prefix ({prefix_hash}) keys
                 # use separate hash tags and do NOT share the sender slot. In standalone Redis
                 # (redis:7-alpine), all keys pipeline together in 1 RTT regardless of hash tags.
-                sender_hash = hashlib.sha256(sender.strip().encode()).hexdigest()[:16]
                 sender_10s_key = f"pulse:vel:{{{sender_hash}}}:10s"
                 sender_60s_key = f"pulse:vel:{{{sender_hash}}}:60s"
                 sender_3600s_key = f"pulse:vel:{{{sender_hash}}}:3600s"
 
-                ip_hash = hashlib.sha256(ip.strip().encode()).hexdigest()[:16] if ip else None
                 ip_key = f"pulse:vel:ip:{{{ip_hash}}}:60s" if ip_hash else None
-
-                domain_hash = (
-                    hashlib.sha256(effective_domain.encode()).hexdigest()[:16]
-                    if effective_domain
-                    else None
-                )
                 domain_key = f"pulse:vel:domain:{{{domain_hash}}}:60s" if domain_hash else None
-
-                prefix_hash = (
-                    hashlib.sha256(effective_prefix.encode()).hexdigest()[:16]
-                    if effective_prefix
-                    else None
-                )
                 prefix_key = f"pulse:vel:prefix:{{{prefix_hash}}}:60s" if prefix_hash else None
 
                 event_member = f"{uuid4().hex[:8]}:{now}".encode()
@@ -357,7 +360,7 @@ class RedisVelocityStore:
                 # Fail-open architectural policy: when Redis blips or times out, activate a
                 # 30-second in-memory deque fallback cooldown. Falling open to local ML + regex
                 # heuristics prevents carrier traffic drops or 2FA login code failures.
-                safe_err, _ = redact_text(str(exc))
+                safe_err = redact_sms_pii(str(exc))
                 logger.warning(
                     "Redis velocity pipeline failed (%s). Activating in-memory cooldown (%.1fs).",
                     safe_err,
@@ -365,11 +368,11 @@ class RedisVelocityStore:
                 )
                 self._use_in_memory_fallback = True
                 v10s, v60s, v1h, ip_count, domain_count, prefix_count = self._record_in_memory(
-                    sender, ip, effective_domain, effective_prefix, now
+                    sender_hash, ip_hash, domain_hash, prefix_hash, now
                 )
         else:
             v10s, v60s, v1h, ip_count, domain_count, prefix_count = self._record_in_memory(
-                sender, ip, effective_domain, effective_prefix, now
+                sender_hash, ip_hash, domain_hash, prefix_hash, now
             )
 
         # Anomaly signal evaluation
