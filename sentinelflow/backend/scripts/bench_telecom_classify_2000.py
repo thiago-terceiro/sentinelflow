@@ -8,8 +8,11 @@ contract boundary:
    Note: at N=100 per payload, p99 represents the 99th/100th ordered observation).
 2. Loopback TCP/HTTP Uvicorn server benchmark (N=300 samples per concurrency level
    across concurrency = 1, 4, 8 over http://127.0.0.1:<ephemeral_port>/v1/classify),
-   evaluating both the simulated Redis async pipeline path (24 ZSET ops/request) and
-   the local in-memory fallback path.
+   evaluating both the in-process fake-Redis pipeline simulation path (_FakeRedisClient,
+   24 ZSET ops/request, no external Redis server/network RTT) and the local in-memory
+   fallback path. Note: in this harness, httpx.AsyncClient and single-worker uvicorn.Server
+   share one local asyncio event loop, so client-side loopback_http_ms at concurrency > 1
+   includes single-loop scheduling and single-worker queueing.
 
 Usage:
     cd sentinelflow/backend
@@ -26,7 +29,7 @@ import socket
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import numpy as np
@@ -164,10 +167,10 @@ async def _run_inprocess_asgi_benchmark() -> dict[str, Any]:
         )
 
         for mode_idx, (mode, use_fallback) in enumerate(
-            [("redis_pipeline", False), ("local_memory_fallback", True)]
+            [("inprocess_fake_redis_pipeline", False), ("local_memory_fallback", True)]
         ):
             vstore._use_in_memory_fallback = use_fallback
-            vstore._get_client = lambda: _FakeRedisClient()  # type: ignore[method-assign]
+            cast(Any, vstore)._get_client = lambda: _FakeRedisClient()
             mode_results: dict[str, Any] = {}
             all_ep: list[float] = []
             all_http: list[float] = []
@@ -273,10 +276,10 @@ async def _run_uvicorn_loopback_benchmark() -> dict[str, Any]:
                 )
 
             for mode_idx, (mode, use_fallback) in enumerate(
-                [("redis_pipeline", False), ("local_memory_fallback", True)]
+                [("inprocess_fake_redis_pipeline", False), ("local_memory_fallback", True)]
             ):
                 vstore._use_in_memory_fallback = use_fallback
-                vstore._get_client = lambda: _FakeRedisClient()  # type: ignore[method-assign]
+                cast(Any, vstore)._get_client = lambda: _FakeRedisClient()
                 mode_summary: dict[str, Any] = {}
 
                 for conc in concurrency_levels:

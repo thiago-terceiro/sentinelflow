@@ -137,6 +137,45 @@ def sha256_text(value: str) -> str:
 
 
 _NONPROD_FALLBACK_HMAC_SEED = "sentinelflow-nonprod-fallback-hmac-key-not-for-production"
+_NONPROD_FALLBACK_HMAC_KEY_ID = "v1"
+
+
+def _validate_telecom_hmac_key_id(raw_key_id: str) -> str:
+    cleaned = raw_key_id.strip()
+    if (
+        not cleaned
+        or len(cleaned) > 16
+        or not cleaned.isascii()
+        or not cleaned.replace("-", "").replace("_", "").isalnum()
+    ):
+        raise ValueError(
+            "TELECOM_HMAC_KEY_ID must be 1..16 ASCII alphanumeric, "
+            "hyphen, or underscore characters."
+        )
+    return cleaned
+
+
+def resolve_telecom_hmac_key_id(key_id: str | None = None) -> str:
+    """Resolve and validate the active HMAC key version identifier.
+
+    In production (APP_ENV == 'production'), TELECOM_HMAC_KEY_ID must be explicitly
+    configured; the non-production default ('v1') is never used implicitly in production.
+    """
+    if key_id is not None:
+        return _validate_telecom_hmac_key_id(key_id)
+    cfg = get_settings()
+    configured = getattr(cfg, "TELECOM_HMAC_KEY_ID", None)
+    if configured is not None:
+        if cfg.APP_ENV == "production" and not configured.strip():
+            raise RuntimeError(
+                "TELECOM_HMAC_KEY_ID must be explicitly configured in production."
+            )
+        return _validate_telecom_hmac_key_id(configured)
+    if cfg.APP_ENV in ("development", "test"):
+        return _NONPROD_FALLBACK_HMAC_KEY_ID
+    raise RuntimeError(
+        "TELECOM_HMAC_KEY_ID must be explicitly configured in production."
+    )
 
 
 def pseudonymize_telecom_identifier(
@@ -155,12 +194,21 @@ def pseudonymize_telecom_identifier(
     NANP prefixes, and IP addresses) provided the secret key remains confidential.
     Outputs at least 32 hexadecimal characters (128 bits) to eliminate avoidable birthday
     collisions across persistent dispute records and high-throughput Redis velocity keys.
-    Fails closed in production if TELECOM_HMAC_SECRET is absent, empty, or whitespace.
+
+    Operational Key Lifecycle & Rotation Contract:
+    - Production requires both TELECOM_HMAC_SECRET and TELECOM_HMAC_KEY_ID to be
+      explicitly configured (fails closed if either is absent, empty, or whitespace;
+      never falls back to unsalted hashing or the non-production 'v1' default).
+    - TELECOM_HMAC_SECRET and TELECOM_HMAC_KEY_ID must be rotated atomically.
+    - Key rotation intentionally breaks historical customer correlation across
+      DisputeRecord.customer_id values and starts fresh Redis sliding-window velocity
+      histories under the new key_id prefix.
+    - Because the application does not persist the secret or a secret fingerprint,
+      it cannot automatically detect if an operator changes TELECOM_HMAC_SECRET
+      without also updating TELECOM_HMAC_KEY_ID.
     """
     cfg = get_settings()
-    resolved_key_id = (key_id if key_id is not None else cfg.TELECOM_HMAC_KEY_ID).strip()
-    if not resolved_key_id:
-        raise ValueError("key_id must be a non-empty string.")
+    resolved_key_id = resolve_telecom_hmac_key_id(key_id)
 
     if secret is not None:
         resolved_secret = secret

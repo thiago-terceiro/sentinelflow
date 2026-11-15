@@ -15,11 +15,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.db.models import DisputeRecord
 from app.db.session import SessionLocal
 from app.services.investigations import get_redis_pool
-from app.services.trace_safety import pseudonymize_telecom_identifier
+from app.services.trace_safety import (
+    pseudonymize_telecom_identifier,
+    resolve_telecom_hmac_key_id,
+)
 from app.telecom.drift_monitor import get_drift_monitor
 from app.telecom.onnx_engine import (
     InferenceResult,
@@ -69,8 +71,7 @@ def _bound_redacted_message(redacted: str, max_len: int = 2000) -> tuple[str, bo
 
 def _derive_telecom_customer_id(sender: str) -> str:
     """Derives a key-version-bound 128-bit (32-hex) HMAC-SHA256 pseudonymous customer_id."""
-    settings = get_settings()
-    key_id = settings.TELECOM_HMAC_KEY_ID.strip()
+    key_id = resolve_telecom_hmac_key_id()
     digest = pseudonymize_telecom_identifier(sender, namespace="sender", length=32, key_id=key_id)
     return f"tel_{key_id}_{digest}"
 

@@ -35,7 +35,10 @@ from uuid import uuid4
 
 import redis.asyncio as aioredis
 from app.config import get_settings
-from app.services.trace_safety import pseudonymize_telecom_identifier
+from app.services.trace_safety import (
+    pseudonymize_telecom_identifier,
+    resolve_telecom_hmac_key_id,
+)
 from app.telecom.onnx_engine import redact_sms_pii
 
 logger = logging.getLogger(__name__)
@@ -260,7 +263,7 @@ class RedisVelocityStore:
         effective_prefix = extract_sender_prefix(sender)
 
         # Derive domain-separated, key-version-bound 128-bit (32-hex) HMAC pseudonyms.
-        key_id = get_settings().TELECOM_HMAC_KEY_ID.strip()
+        key_id = resolve_telecom_hmac_key_id()
         sender_hash = pseudonymize_telecom_identifier(
             sender, namespace="vel_sender", length=32, key_id=key_id
         )
