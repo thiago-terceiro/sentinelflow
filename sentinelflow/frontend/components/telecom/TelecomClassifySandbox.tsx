@@ -143,6 +143,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           signals: classificationResult.signals,
           velocity: classificationResult.velocity || {},
           event_id: classificationResult.id,
+          message_truncated: Boolean(classificationResult.message_truncated),
         }),
       });
       if (res.ok) {
@@ -461,6 +462,21 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   {classificationResult.fraud_score}
                 </strong>
               </span>
+              {classificationResult.message_truncated ? (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: "var(--badge-flag-bg, #fef3c7)",
+                    color: "var(--badge-flag-color, #78350f)",
+                    border: "1px solid var(--badge-flag-border, #b45309)",
+                  }}
+                >
+                  TRUNCATED AFTER REDACTION
+                </span>
+              ) : null}
             </div>
 
             <span style={{ fontSize: 13, fontFamily: "monospace", color: "var(--telecom-good, #14532d)", fontWeight: 700 }}>

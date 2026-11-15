@@ -98,12 +98,28 @@ class Settings(BaseSettings):
                 missing.append("OTEL_EXPORTER_OTLP_ENDPOINT")
             if not self.LANGGRAPH_CHECKPOINT_URL:
                 missing.append("LANGGRAPH_CHECKPOINT_URL")
-            if self.TELECOM_HMAC_SECRET is not None and not self.TELECOM_HMAC_SECRET.strip():
+            if not self.TELECOM_HMAC_SECRET or not self.TELECOM_HMAC_SECRET.strip():
                 missing.append("TELECOM_HMAC_SECRET")
             if missing:
                 raise ValueError(f"Missing required production settings: {', '.join(missing)}")
+            if (
+                self.TELECOM_HMAC_SECRET is not None
+                and self.TELECOM_HMAC_SECRET.strip()
+                == "sentinelflow-nonprod-fallback-hmac-key-not-for-production"
+            ):
+                raise ValueError(
+                    "TELECOM_HMAC_SECRET cannot use the non-production fallback key in production."
+                )
             if self.AUTH_ALLOW_DEV_TOKENS:
                 raise ValueError("AUTH_ALLOW_DEV_TOKENS must be false in production.")
+        if self.TELECOM_HMAC_SECRET is not None and not self.TELECOM_HMAC_SECRET.strip():
+            raise ValueError("TELECOM_HMAC_SECRET cannot be empty or whitespace.")
+        key_id = self.TELECOM_HMAC_KEY_ID.strip() if self.TELECOM_HMAC_KEY_ID else ""
+        if not key_id or len(key_id) > 16 or not key_id.replace("-", "").replace("_", "").isalnum():
+            raise ValueError(
+                "TELECOM_HMAC_KEY_ID must be 1..16 ASCII alphanumeric, "
+                "hyphen, or underscore characters."
+            )
         if self.MODEL_PROVIDER != "openai_compatible":
             raise ValueError("Unsupported MODEL_PROVIDER. Expected 'openai_compatible'.")
         if self.MODEL_MAX_RETRIES < 0:

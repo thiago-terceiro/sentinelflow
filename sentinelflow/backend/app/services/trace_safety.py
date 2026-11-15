@@ -136,40 +136,54 @@ def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+_NONPROD_FALLBACK_HMAC_SEED = "sentinelflow-nonprod-fallback-hmac-key-not-for-production"
+
+
 def pseudonymize_telecom_identifier(
     value: str,
     *,
     namespace: str,
-    length: int = 16,
+    length: int = 32,
     secret: str | None = None,
+    key_id: str | None = None,
 ) -> str:
-    """Compute a domain-separated, keyed HMAC-SHA256 pseudonymous identifier.
+    """Compute a domain-separated, key-version-bound HMAC-SHA256 pseudonymous identifier.
 
     NOTE: HMAC-derived identifiers are pseudonymous (linkable across records sharing
-    the same key and namespace), NOT anonymous. They prevent offline rainbow-table
+    the same key, key_id, and namespace), NOT anonymous. They prevent offline rainbow-table
     and dictionary enumeration over small-domain telecom inputs (E.164 phone numbers,
     NANP prefixes, and IP addresses) provided the secret key remains confidential.
-    Never silently falls back to unsalted SHA-256 if the secret is missing.
+    Outputs at least 32 hexadecimal characters (128 bits) to eliminate avoidable birthday
+    collisions across persistent dispute records and high-throughput Redis velocity keys.
+    Fails closed in production if TELECOM_HMAC_SECRET is absent, empty, or whitespace.
     """
+    cfg = get_settings()
+    resolved_key_id = (key_id if key_id is not None else cfg.TELECOM_HMAC_KEY_ID).strip()
+    if not resolved_key_id:
+        raise ValueError("key_id must be a non-empty string.")
+
     if secret is not None:
         resolved_secret = secret
+    elif cfg.TELECOM_HMAC_SECRET is not None:
+        resolved_secret = cfg.TELECOM_HMAC_SECRET
+    elif cfg.APP_ENV in ("development", "test"):
+        resolved_secret = _NONPROD_FALLBACK_HMAC_SEED
     else:
-        cfg = get_settings()
-        if cfg.TELECOM_HMAC_SECRET:
-            resolved_secret = cfg.TELECOM_HMAC_SECRET
-        elif cfg.APP_ENV != "production":
-            resolved_secret = f"dev-hmac:{cfg.AUTH_ISSUER}:{cfg.TELECOM_HMAC_KEY_ID}"
-        else:
-            resolved_secret = ""
+        resolved_secret = ""
+
     if not resolved_secret or not resolved_secret.strip():
         raise RuntimeError(
             "TELECOM_HMAC_SECRET must be configured for pseudonymous telecom identifier derivation."
         )
+    if cfg.APP_ENV == "production" and resolved_secret.strip() == _NONPROD_FALLBACK_HMAC_SEED:
+        raise RuntimeError(
+            "TELECOM_HMAC_SECRET cannot use the non-production fallback key in production."
+        )
     if not namespace or not namespace.strip():
         raise ValueError("namespace must be a non-empty string.")
-    if length < 8 or length > 64:
-        raise ValueError("length must be between 8 and 64 hex characters.")
-    canonical_payload = f"{namespace.strip()}:{value.strip()}".encode()
+    if length < 32 or length > 64:
+        raise ValueError("length must be between 32 and 64 hex characters (at least 128 bits).")
+    canonical_payload = f"{resolved_key_id}:{namespace.strip()}:{value.strip()}".encode()
     digest = hmac.new(
         resolved_secret.encode("utf-8"),
         canonical_payload,

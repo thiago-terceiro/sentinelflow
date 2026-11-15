@@ -94,39 +94,167 @@ def test_sanitize_prompt_injection_neutralizes_vectors() -> None:
     assert "prompt_injection_pattern_neutralized" in warnings
 
 
-def test_pseudonymize_telecom_identifier_keyed_hmac_and_fail_closed() -> None:
+def test_pseudonymize_telecom_identifier_keyed_hmac_and_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.config import Settings, get_settings
+    from app.services.trace_safety import (
+        _NONPROD_FALLBACK_HMAC_SEED as _NONPROD_FALLBACK_HMAC_SECRET,
+    )
+
     sender = "+14155550199"
     unsalted_12 = hashlib.sha256(sender.encode("utf-8")).hexdigest()[:12]
     unsalted_16 = hashlib.sha256(sender.encode("utf-8")).hexdigest()[:16]
+    unsalted_32 = hashlib.sha256(sender.encode("utf-8")).hexdigest()[:32]
 
     id_sender_a = pseudonymize_telecom_identifier(
         sender,
         namespace="sender",
-        length=12,
+        length=32,
         secret="unit-test-hmac-key-alpha",
+        key_id="v1",
     )
     id_sender_b = pseudonymize_telecom_identifier(
         sender,
         namespace="sender",
-        length=12,
+        length=32,
         secret="unit-test-hmac-key-beta",
+        key_id="v1",
     )
-    id_vel = pseudonymize_telecom_identifier(
+    id_vel_sender = pseudonymize_telecom_identifier(
         sender,
         namespace="vel_sender",
-        length=16,
+        length=32,
         secret="unit-test-hmac-key-alpha",
+        key_id="v1",
+    )
+    id_vel_ip = pseudonymize_telecom_identifier(
+        sender,
+        namespace="vel_ip",
+        length=32,
+        secret="unit-test-hmac-key-alpha",
+        key_id="v1",
+    )
+    id_vel_domain = pseudonymize_telecom_identifier(
+        sender,
+        namespace="vel_domain",
+        length=32,
+        secret="unit-test-hmac-key-alpha",
+        key_id="v1",
+    )
+    id_vel_prefix = pseudonymize_telecom_identifier(
+        sender,
+        namespace="vel_prefix",
+        length=32,
+        secret="unit-test-hmac-key-alpha",
+        key_id="v1",
     )
 
-    assert len(id_sender_a) == 12
-    assert len(id_vel) == 16
-    assert id_sender_a != unsalted_12
-    assert id_vel != unsalted_16
+    # 1. Exact 32-hex-char (128-bit) output lengths and namespace separation
+    for derived in (
+        id_sender_a,
+        id_sender_b,
+        id_vel_sender,
+        id_vel_ip,
+        id_vel_domain,
+        id_vel_prefix,
+    ):
+        assert len(derived) == 32
+        int(derived, 16)  # valid hexadecimal
+        assert derived != unsalted_32
+        assert not derived.startswith(unsalted_12)
+        assert not derived.startswith(unsalted_16)
+
+    assert len({id_sender_a, id_vel_sender, id_vel_ip, id_vel_domain, id_vel_prefix}) == 5
     assert id_sender_a != id_sender_b
-    assert id_sender_a != id_vel[:12]
 
-    with pytest.raises(RuntimeError, match="TELECOM_HMAC_SECRET must be configured"):
-        pseudonymize_telecom_identifier(sender, namespace="sender", length=12, secret="")
+    # Reject short lengths (< 32 hex chars / 128 bits)
+    with pytest.raises(ValueError, match="between 32 and 64 hex characters"):
+        pseudonymize_telecom_identifier(
+            sender, namespace="sender", length=12, secret="unit-test-hmac-key-alpha"
+        )
+    with pytest.raises(ValueError, match="between 32 and 64 hex characters"):
+        pseudonymize_telecom_identifier(
+            sender, namespace="vel_sender", length=16, secret="unit-test-hmac-key-alpha"
+        )
 
+    # 2. Key Lifecycle States (1..8)
+    base_prod_kwargs: dict[str, object] = {
+        "APP_ENV": "production",
+        "OPENAI_API_KEY": "sk-prod-key",
+        "AUTH_JWT_SECRET": "prod-jwt-secret-key-with-32-bytes",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel:4318",
+        "LANGGRAPH_CHECKPOINT_URL": "postgresql://user:pass@localhost:5432/db",
+        "AUTH_ALLOW_DEV_TOKENS": False,
+    }
+
+    # State 1: APP_ENV=production and TELECOM_HMAC_SECRET is absent -> fails closed at startup & call time
+    with pytest.raises(ValueError, match="TELECOM_HMAC_SECRET"):
+        Settings(**base_prod_kwargs, TELECOM_HMAC_SECRET=None)  # type: ignore[arg-type]
+
+    cfg = get_settings()
+    monkeypatch.setattr(cfg, "APP_ENV", "production")
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", None)
     with pytest.raises(RuntimeError, match="TELECOM_HMAC_SECRET must be configured"):
-        pseudonymize_telecom_identifier(sender, namespace="sender", length=12, secret="   ")
+        pseudonymize_telecom_identifier(sender, namespace="sender")
+
+    # State 2: APP_ENV=production and TELECOM_HMAC_SECRET is empty or whitespace -> fails closed
+    for blank in ("", "   "):
+        with pytest.raises(ValueError, match="TELECOM_HMAC_SECRET"):
+            Settings(**base_prod_kwargs, TELECOM_HMAC_SECRET=blank)  # type: ignore[arg-type]
+        monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", blank)
+        with pytest.raises(RuntimeError, match="TELECOM_HMAC_SECRET must be configured"):
+            pseudonymize_telecom_identifier(sender, namespace="sender")
+        with pytest.raises(RuntimeError, match="TELECOM_HMAC_SECRET must be configured"):
+            pseudonymize_telecom_identifier(sender, namespace="sender", secret=blank)
+
+    # Also reject non-production fallback key if someone sets it in production
+    with pytest.raises(ValueError, match="non-production fallback key"):
+        Settings(**base_prod_kwargs, TELECOM_HMAC_SECRET=_NONPROD_FALLBACK_HMAC_SECRET)  # type: ignore[arg-type]
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", _NONPROD_FALLBACK_HMAC_SECRET)
+    with pytest.raises(RuntimeError, match="non-production fallback key"):
+        pseudonymize_telecom_identifier(sender, namespace="sender")
+
+    # State 3: APP_ENV=development and TELECOM_HMAC_SECRET is absent -> explicit non-prod fallback
+    monkeypatch.setattr(cfg, "APP_ENV", "development")
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", None)
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_KEY_ID", "v1")
+    dev_digest = pseudonymize_telecom_identifier(sender, namespace="sender")
+    assert len(dev_digest) == 32
+
+    # State 4: APP_ENV=test and TELECOM_HMAC_SECRET is absent -> explicit non-prod fallback
+    monkeypatch.setattr(cfg, "APP_ENV", "test")
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", None)
+    test_digest = pseudonymize_telecom_identifier(sender, namespace="sender")
+    assert len(test_digest) == 32
+    assert test_digest == dev_digest
+
+    # State 5: Valid TELECOM_HMAC_SECRET configured -> uses configured secret
+    monkeypatch.setattr(cfg, "APP_ENV", "production")
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", "prod-hmac-secret-key-generation-1")
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_KEY_ID", "v1")
+    v1_s1 = pseudonymize_telecom_identifier(sender, namespace="sender")
+    assert len(v1_s1) == 32
+    assert v1_s1 != dev_digest
+
+    # State 6: TELECOM_HMAC_KEY_ID changes with secret rotation -> both prefix and digest change
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", "prod-hmac-secret-key-generation-2")
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_KEY_ID", "v2")
+    v2_s2 = pseudonymize_telecom_identifier(sender, namespace="sender")
+    assert len(v2_s2) == 32
+    assert v2_s2 != v1_s1
+
+    # State 7: TELECOM_HMAC_SECRET changes while TELECOM_HMAC_KEY_ID remains unchanged -> digest changes
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", "prod-hmac-secret-key-generation-2")
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_KEY_ID", "v1")
+    v1_s2 = pseudonymize_telecom_identifier(sender, namespace="sender")
+    assert len(v1_s2) == 32
+    assert v1_s2 != v1_s1
+
+    # State 8: TELECOM_HMAC_KEY_ID changes while TELECOM_HMAC_SECRET remains unchanged -> digest changes
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_SECRET", "prod-hmac-secret-key-generation-1")
+    monkeypatch.setattr(cfg, "TELECOM_HMAC_KEY_ID", "v2")
+    v2_s1 = pseudonymize_telecom_identifier(sender, namespace="sender")
+    assert len(v2_s1) == 32
+    assert v2_s1 != v1_s1
+    assert v2_s1 != v2_s2

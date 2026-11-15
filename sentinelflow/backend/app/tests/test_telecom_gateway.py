@@ -2369,6 +2369,8 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
         )
         assert direct_row is not None
         assert direct_row.customer_id.startswith("tel_v1_")
+        assert len(direct_row.customer_id) == len("tel_v1_") + 32
+        assert len(direct_row.customer_id) <= 64
         assert unsalted_sender_2 not in direct_row.customer_id
         for leaked in (
             "123-45-6789",
@@ -2403,6 +2405,9 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
             event_id="evt_direct_helper",
         )
         assert helper_dispute.customer_id.startswith("tel_v1_")
+        assert len(helper_dispute.customer_id) == len("tel_v1_") + 32
+        assert helper_dispute.attributes.get("message_truncated") is False
+        assert "Message Truncated After Redaction: false" in helper_dispute.narrative
         for leaked in (
             "123456789",
             "4111",
@@ -2419,50 +2424,143 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
             assert leaked not in helper_dispute.customer_id
             assert leaked not in json.dumps(helper_dispute.attributes)
 
-    # Verify 2,000-character redaction expansion does not break live-feed -> /telecom/escalate contract
+    # Verify all 5 redaction-induced truncation boundary cases across classify, feed, SSE, audit, and escalate:
+    from app.api.telecom import _bound_redacted_message
+
+    # Case 1: Under 2,000 characters with no truncation
+    c1_text, c1_trunc = _bound_redacted_message(redact_sms_pii("Short alert PIN 4829."))
+    assert c1_trunc is False
+    assert c1_text == "Short alert PIN [REDACTED_CODE]."
+
+    # Case 2: 2,000-character message whose redacted length remains <= 2,000
+    # "Card 4111-1111-1111-1111 " (25 chars) -> "Card [REDACTED_CARD] " (21 chars)
+    c2_raw = ("Card 4111-1111-1111-1111 " + ("a" * 1975))[:2000]
+    assert len(c2_raw) == 2000
+    c2_redacted = redact_sms_pii(c2_raw)
+    assert len(c2_redacted) <= 2000
+    c2_text, c2_trunc = _bound_redacted_message(c2_redacted)
+    assert c2_trunc is False
+    assert len(c2_text) <= 2000
+
+    # Case 3: Near-2,000-character message where redaction expands [REDACTED_*] past 2,000 characters
     expansion_prefix = "URGENT: Your account is suspended. PIN 4829 OTP 7391. "
     expansion_msg = (expansion_prefix + ("x" * 2000))[:2000]
     assert len(expansion_msg) == 2000
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        exp_classify = await client.post(
-            "/v1/classify",
-            json={
-                "sender": "+15557778899",
-                "recipient": "+14155550100",
-                "message": expansion_msg,
-            },
-        )
-        assert exp_classify.status_code == 200
-        feed_latest = get_metrics_tracker().get_summary()["recent_feed"][0]
-        assert len(feed_latest["message"]) <= 2000
-        assert "4829" not in feed_latest["message"]
-        assert "7391" not in feed_latest["message"]
-        assert not feed_latest["message"].endswith("[REDACTED")
+    c3_redacted = redact_sms_pii(expansion_msg)
+    assert len(c3_redacted) > 2000
+    c3_text, c3_trunc = _bound_redacted_message(c3_redacted)
+    assert c3_trunc is True
+    assert len(c3_text) <= 2000
 
-        feed_escalate = await client.post(
-            "/api/v1/telecom/escalate",
-            json={
-                "sender": feed_latest["sender"],
-                "recipient": feed_latest["recipient"],
-                "message": feed_latest["message"],
-                "carrier": feed_latest["carrier"],
-                "verdict": feed_latest["verdict"],
-                "fraud_score": feed_latest["fraud_score"],
-                "signals": feed_latest["signals"],
-                "velocity": exp_classify.json()["velocity"],
-                "event_id": feed_latest["id"],
-            },
-        )
-        assert feed_escalate.status_code == 200
+    # Case 4: Message where a [REDACTED_*] placeholder falls across the 2,000-char boundary and is stripped cleanly
+    boundary_prefix = ("x" * 1989) + " PIN 4829"
+    assert len(boundary_prefix) == 1998
+    c4_redacted = redact_sms_pii(boundary_prefix)
+    # "x"*1989 + " PIN [REDACTED_CODE]" has length 2009; index 2000 falls inside "[REDACTED_CODE]"
+    assert len(c4_redacted) == 2009
+    c4_text, c4_trunc = _bound_redacted_message(c4_redacted)
+    assert c4_trunc is True
+    assert len(c4_text) <= 2000
+    assert "[" not in c4_text
+    assert "4829" not in c4_text
+    assert c4_text == ("x" * 1989) + " PIN"
 
-    # Verify Redis and in-memory velocity keys use keyed HMAC-SHA256 (never raw or unsalted SHA-256)
+    # Case 5: Full round-trip of Case 2 (non-truncated 2,000-char) and Case 3 (truncated 2,000-char)
+    # through /v1/classify, audit log, recent_feed, SSE stream, and /api/v1/telecom/escalate + DisputeRecord
+    trunc_sse_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=10)
+    _subscribers.add(trunc_sse_queue)
+    caplog.clear()
+    try:
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            # Non-truncated 2,000-char classify
+            c2_resp = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15557778800",
+                    "recipient": "+14155550100",
+                    "message": c2_raw,
+                },
+            )
+            assert c2_resp.status_code == 200
+            assert c2_resp.json()["message_truncated"] is False
+            c2_sse = trunc_sse_queue.get_nowait()
+            assert c2_sse["message_truncated"] is False
+            c2_feed = get_metrics_tracker().get_summary()["recent_feed"][0]
+            assert c2_feed["message_truncated"] is False
+
+            # Truncated 2,000-char classify
+            exp_classify = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15557778899",
+                    "recipient": "+14155550100",
+                    "message": expansion_msg,
+                },
+            )
+            assert exp_classify.status_code == 200
+            assert exp_classify.json()["message_truncated"] is True
+            c3_sse = trunc_sse_queue.get_nowait()
+            assert c3_sse["message_truncated"] is True
+            feed_latest = get_metrics_tracker().get_summary()["recent_feed"][0]
+            assert len(feed_latest["message"]) <= 2000
+            assert feed_latest["message_truncated"] is True
+            assert "4829" not in feed_latest["message"]
+            assert "7391" not in feed_latest["message"]
+            assert not feed_latest["message"].endswith("[REDACTED")
+
+            # Escalate truncated message from feed
+            feed_escalate = await client.post(
+                "/api/v1/telecom/escalate",
+                json={
+                    "sender": feed_latest["sender"],
+                    "recipient": feed_latest["recipient"],
+                    "message": feed_latest["message"],
+                    "carrier": feed_latest["carrier"],
+                    "verdict": feed_latest["verdict"],
+                    "fraud_score": feed_latest["fraud_score"],
+                    "signals": feed_latest["signals"],
+                    "velocity": exp_classify.json()["velocity"],
+                    "event_id": feed_latest["id"],
+                    "message_truncated": feed_latest["message_truncated"],
+                },
+            )
+            assert feed_escalate.status_code == 200
+            trunc_dispute_id = feed_escalate.json()["dispute_id"]
+    finally:
+        _subscribers.discard(trunc_sse_queue)
+
+    # Verify audit records and persisted DisputeRecord for the truncated message
+    decision_trunc_logs = [
+        r for r in caplog.records if getattr(r, "event", None) == "telecom_decision_audit"
+    ]
+    assert len(decision_trunc_logs) >= 2
+    assert getattr(decision_trunc_logs[-2], "message_truncated", None) is False
+    assert getattr(decision_trunc_logs[-1], "message_truncated", None) is True
+
+    escalation_trunc_logs = [
+        r for r in caplog.records if getattr(r, "event", None) == "telecom_escalation_audit"
+    ]
+    assert len(escalation_trunc_logs) >= 1
+    assert getattr(escalation_trunc_logs[-1], "message_truncated", None) is True
+
+    async with telecom_db_session_factory() as db_session:
+        trunc_row = await db_session.scalar(
+            select(DisputeRecord).where(DisputeRecord.id == trunc_dispute_id)
+        )
+        assert trunc_row is not None
+        assert trunc_row.attributes.get("message_truncated") is True
+        assert (
+            "Message Truncated After Redaction: true (bounded to 2000 chars)" in trunc_row.narrative
+        )
+
+    # Verify Redis and in-memory velocity keys use 128-bit (32-hex) keyed HMAC-SHA256 with key_id prefix
     vstore = get_velocity_store()
     test_vel_sender = "+14155559090"
     test_vel_ip = "203.0.113.42"
     test_vel_prefix = "+1415"
-    unsalted_vel_sender = hashlib.sha256(test_vel_sender.encode("utf-8")).hexdigest()[:16]
-    unsalted_vel_ip = hashlib.sha256(test_vel_ip.encode("utf-8")).hexdigest()[:16]
-    unsalted_vel_prefix = hashlib.sha256(test_vel_prefix.encode("utf-8")).hexdigest()[:16]
+    unsalted_vel_sender = hashlib.sha256(test_vel_sender.encode("utf-8")).hexdigest()[:32]
+    unsalted_vel_ip = hashlib.sha256(test_vel_ip.encode("utf-8")).hexdigest()[:32]
+    unsalted_vel_prefix = hashlib.sha256(test_vel_prefix.encode("utf-8")).hexdigest()[:32]
 
     recorded_redis_keys: list[str] = []
 
@@ -2511,6 +2609,12 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
             assert unsalted_vel_sender not in rkey
             assert unsalted_vel_ip not in rkey
             assert unsalted_vel_prefix not in rkey
+            tag_start = rkey.find("{")
+            tag_end = rkey.find("}")
+            assert tag_start != -1 and tag_end > tag_start
+            hash_tag = rkey[tag_start + 1 : tag_end]
+            assert len(hash_tag) == 32
+            int(hash_tag, 16)
 
         # End-to-end synchronous HTTP POST /v1/classify latency at 2,000-character boundary (Redis pipeline path)
         e2e_pii_2000 = (
@@ -2552,6 +2656,10 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
 
         # In-memory fallback path
         vstore._use_in_memory_fallback = True
+        vstore._in_memory_sender_history.clear()
+        vstore._in_memory_ip_history.clear()
+        vstore._in_memory_domain_history.clear()
+        vstore._in_memory_prefix_history.clear()
         await vstore.record_and_evaluate(
             sender=test_vel_sender,
             ip=test_vel_ip,
@@ -2561,12 +2669,17 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
         for mem_key in vstore._in_memory_sender_history:
             assert test_vel_sender not in mem_key
             assert unsalted_vel_sender not in mem_key
+            assert mem_key.startswith("v1:") and len(mem_key.split(":", 1)[1]) == 32
         for ip_mem_key in vstore._in_memory_ip_history:
             assert test_vel_ip not in ip_mem_key
             assert unsalted_vel_ip not in ip_mem_key
+            assert ip_mem_key.startswith("v1:") and len(ip_mem_key.split(":", 1)[1]) == 32
+        for dom_mem_key in vstore._in_memory_domain_history:
+            assert dom_mem_key.startswith("v1:") and len(dom_mem_key.split(":", 1)[1]) == 32
         for prefix_mem_key in vstore._in_memory_prefix_history:
             assert test_vel_prefix not in prefix_mem_key
             assert unsalted_vel_prefix not in prefix_mem_key
+            assert prefix_mem_key.startswith("v1:") and len(prefix_mem_key.split(":", 1)[1]) == 32
     finally:
         vstore._use_in_memory_fallback = orig_fallback
         monkeypatch.setattr(vstore, "_get_client", orig_get_client)

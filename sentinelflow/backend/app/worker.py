@@ -44,6 +44,7 @@ async def persist_escalated_dispute_job(_ctx: dict[str, Any], payload: dict[str,
         velocity=payload.get("velocity", {}),
         event_id=payload.get("event_id"),
         customer_id=payload.get("customer_id"),
+        message_truncated=bool(payload.get("message_truncated", False)),
     )
 
 

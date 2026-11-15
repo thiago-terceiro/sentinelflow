@@ -67,6 +67,7 @@ class InspectionEventRecord:
     latency_ms: float
     signals: list[str]
     carrier: str
+    message_truncated: bool = False
 
 
 class TelecomMetricsTracker:
@@ -100,6 +101,7 @@ class TelecomMetricsTracker:
         signals: list[str],
         carrier: str,
         onnx_latency_ms: float = 0.0,
+        message_truncated: bool = False,
     ) -> None:
         """Records a classification event into Prometheus and local rolling buffers."""
         now = time.time()
@@ -127,8 +129,15 @@ class TelecomMetricsTracker:
                 latency_ms=latency_ms,
                 signals=signals,
                 carrier=carrier,
+                message_truncated=message_truncated,
             )
         )
+
+    def is_event_truncated(self, event_id: str | None) -> bool:
+        """Returns True if a buffered recent event with event_id was truncated after redaction."""
+        if not event_id:
+            return False
+        return any(ev.id == event_id and ev.message_truncated for ev in self._recent_events)
 
     def get_summary(self) -> dict[str, Any]:
         """Calculates real-time stats: throughput (EPS), p50/p95/p99 latency, fraud rates."""
@@ -184,6 +193,7 @@ class TelecomMetricsTracker:
                     "latency_ms": ev.latency_ms,
                     "signals": ev.signals,
                     "carrier": ev.carrier,
+                    "message_truncated": ev.message_truncated,
                 }
                 for ev in list(self._recent_events)[:30]
             ],

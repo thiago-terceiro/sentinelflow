@@ -18,6 +18,7 @@ export type TelecomFeedItem = {
   };
   escalated_dispute_id?: string | null;
   escalated_dispute_url?: string | null;
+  message_truncated?: boolean;
 };
 
 export type MetricsSummary = {

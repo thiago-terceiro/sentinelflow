@@ -52,23 +52,27 @@ def _mask_phone(phone: str) -> str:
     return f"{cleaned[:4]}***{cleaned[-4:]}"
 
 
-def _bound_redacted_message(redacted: str, max_len: int = 2000) -> str:
-    """Bounds an already-redacted message to max_len without splitting a [REDACTED_*] token."""
+def _bound_redacted_message(redacted: str, max_len: int = 2000) -> tuple[str, bool]:
+    """Bounds an already-redacted message to max_len without splitting a [REDACTED_*] token.
+
+    Returns (bounded_text, message_truncated).
+    """
     if len(redacted) <= max_len:
-        return redacted
+        return redacted, False
     clipped = redacted[:max_len]
     last_open = clipped.rfind("[")
     last_close = clipped.rfind("]")
     if last_open > last_close:
         clipped = clipped[:last_open].rstrip()
-    return clipped
+    return clipped, True
 
 
 def _derive_telecom_customer_id(sender: str) -> str:
-    """Derives a keyed HMAC-SHA256 pseudonymous customer_id for sender correlation."""
+    """Derives a key-version-bound 128-bit (32-hex) HMAC-SHA256 pseudonymous customer_id."""
     settings = get_settings()
-    digest = pseudonymize_telecom_identifier(sender, namespace="sender", length=12)
-    return f"tel_{settings.TELECOM_HMAC_KEY_ID}_{digest}"
+    key_id = settings.TELECOM_HMAC_KEY_ID.strip()
+    digest = pseudonymize_telecom_identifier(sender, namespace="sender", length=32, key_id=key_id)
+    return f"tel_{key_id}_{digest}"
 
 
 def _sanitize_velocity_dict(velocity: dict[str, Any]) -> dict[str, Any]:
@@ -154,6 +158,13 @@ class TelecomClassifyResponse(BaseModel):
     model_version: str
     escalated_dispute_id: str | None = None
     escalated_dispute_url: str | None = None
+    message_truncated: bool = Field(
+        default=False,
+        description=(
+            "True when PII redaction expanded the message past 2000 characters "
+            "and trailing redacted text was bounded"
+        ),
+    )
 
 
 class TelecomEscalateRequest(BaseModel):
@@ -174,6 +185,10 @@ class TelecomEscalateRequest(BaseModel):
     signals: list[str] = Field(default_factory=list, description="Triggered fraud signals")
     velocity: dict[str, Any] = Field(default_factory=dict, description="Velocity signals")
     event_id: str | None = Field(default=None, max_length=64, description="Telecom feed event ID")
+    message_truncated: bool = Field(
+        default=False,
+        description="True if the message was truncated after PII redaction before escalation",
+    )
 
 
 class TelecomEscalateResponse(BaseModel):
@@ -223,17 +238,22 @@ async def _create_escalated_dispute(
     velocity: dict[str, Any],
     event_id: str | None = None,
     customer_id: str | None = None,
+    message_truncated: bool = False,
 ) -> DisputeRecord:
     assigned_code = case_code or f"TEL-{uuid4().hex[:8].upper()}"
     assigned_id = dispute_id or str(uuid4())
     masked_sender = _mask_phone(sender)
     masked_recipient = _mask_phone(recipient)
-    safe_message = _bound_redacted_message(redact_sms_pii(message))
+    safe_message, local_truncated = _bound_redacted_message(redact_sms_pii(message))
+    effective_truncated = bool(
+        message_truncated or local_truncated or get_metrics_tracker().is_event_truncated(event_id)
+    )
     safe_carrier = redact_sms_pii(carrier) if carrier else None
     safe_signals = [redact_sms_pii(str(s)) for s in signals]
     safe_velocity = _sanitize_velocity_dict(velocity)
     resolved_customer_id = customer_id or _derive_telecom_customer_id(sender)
     title = f"SMS Anomaly: {masked_sender} -> {masked_recipient} ({verdict})"
+    truncation_note = "true (bounded to 2000 chars)" if effective_truncated else "false"
     narrative = (
         f"SentinelPulse Telecom Gateway Anomaly Alert:\n"
         f"Verdict: {verdict}\n"
@@ -243,6 +263,7 @@ async def _create_escalated_dispute(
         f"Carrier: {safe_carrier or 'Unknown'}\n"
         f"Signals: {', '.join(safe_signals) if safe_signals else 'None'}\n"
         f"Message Content: {safe_message}\n"
+        f"Message Truncated After Redaction: {truncation_note}\n"
         f"Velocity Details: {json.dumps(safe_velocity)}"
     )
     dispute = DisputeRecord(
@@ -268,6 +289,7 @@ async def _create_escalated_dispute(
             "carrier": safe_carrier,
             "velocity": safe_velocity,
             "event_id": event_id,
+            "message_truncated": effective_truncated,
             "tags": ["telecom_anomaly", verdict.lower(), "sentinelpulse"],
         },
     )
@@ -291,6 +313,7 @@ async def _persist_escalated_dispute(
     velocity: dict[str, Any],
     event_id: str | None = None,
     customer_id: str | None = None,
+    message_truncated: bool = False,
 ) -> None:
     """Background task to commit escalated dispute record with retry resilience."""
     async with _escalation_semaphore:
@@ -311,6 +334,7 @@ async def _persist_escalated_dispute(
                         velocity=velocity,
                         event_id=event_id,
                         customer_id=customer_id,
+                        message_truncated=message_truncated,
                     )
                 return
             except Exception as exc:
@@ -343,10 +367,12 @@ def _spawn_escalation_task(
     velocity: dict[str, Any],
     event_id: str | None = None,
     background_tasks: BackgroundTasks | None = None,
+    message_truncated: bool = False,
 ) -> asyncio.Task[None]:
     masked_sender = _mask_phone(sender)
     masked_recipient = _mask_phone(recipient)
-    safe_message = _bound_redacted_message(redact_sms_pii(message))
+    safe_message, local_truncated = _bound_redacted_message(redact_sms_pii(message))
+    effective_truncated = bool(message_truncated or local_truncated)
     safe_carrier = redact_sms_pii(carrier) if carrier else None
     safe_signals = [redact_sms_pii(str(s)) for s in signals]
     safe_velocity = _sanitize_velocity_dict(velocity)
@@ -370,6 +396,7 @@ def _spawn_escalation_task(
                     "velocity": safe_velocity,
                     "event_id": event_id,
                     "customer_id": customer_id,
+                    "message_truncated": effective_truncated,
                 }
                 job = await pool.enqueue_job(
                     "persist_escalated_dispute_job",
@@ -402,6 +429,7 @@ def _spawn_escalation_task(
                 velocity=safe_velocity,
                 event_id=event_id,
                 customer_id=customer_id,
+                message_truncated=effective_truncated,
             )
 
     bg_task = asyncio.create_task(_durable_escalate_wrapper())
@@ -460,7 +488,7 @@ async def _process_single_message(
 
     # 5. Redact PII & mask phone numbers for telemetry, audit logging, and public live dashboard
     #    Executed synchronously inside the measured SLA boundary before recording t_end.
-    safe_message = _bound_redacted_message(redact_sms_pii(req.message))
+    safe_message, message_truncated = _bound_redacted_message(redact_sms_pii(req.message))
     masked_sender = _mask_phone(req.sender)
     masked_recipient = _mask_phone(req.recipient)
     triggered_rules = [sig for sig in combined_signals if sig.startswith("RULE:")]
@@ -487,6 +515,7 @@ async def _process_single_message(
             "verdict": verdict,
             "latency_ms": total_latency_ms,
             "redacted_preview": safe_message,
+            "message_truncated": message_truncated,
         },
     )
 
@@ -501,6 +530,7 @@ async def _process_single_message(
         signals=combined_signals,
         carrier=velocity_metrics.carrier,
         onnx_latency_ms=inference_result.latency_ms,
+        message_truncated=message_truncated,
     )
 
     velocity_dict = {
@@ -532,6 +562,7 @@ async def _process_single_message(
             velocity=velocity_dict,
             event_id=eid,
             background_tasks=background_tasks,
+            message_truncated=message_truncated,
         )
 
     response_payload = TelecomClassifyResponse(
@@ -543,6 +574,7 @@ async def _process_single_message(
         model_version=inference_result.model_version,
         escalated_dispute_id=escalated_dispute_id,
         escalated_dispute_url=escalated_dispute_url,
+        message_truncated=message_truncated,
     )
 
     # 6. Stream live event to connected frontend dashboard (with PII redacted) if subscribers active
@@ -561,6 +593,7 @@ async def _process_single_message(
             "velocity": velocity_dict,
             "escalated_dispute_id": escalated_dispute_id,
             "escalated_dispute_url": escalated_dispute_url,
+            "message_truncated": message_truncated,
         }
         await broadcast_telecom_event(stream_payload)
 
@@ -591,8 +624,10 @@ async def escalate_telecom_anomaly(request: TelecomEscalateRequest) -> TelecomEs
             signals=request.signals,
             velocity=request.velocity,
             event_id=request.event_id,
+            message_truncated=request.message_truncated,
         )
-        safe_preview = _bound_redacted_message(redact_sms_pii(request.message))
+        safe_preview, preview_truncated = _bound_redacted_message(redact_sms_pii(request.message))
+        effective_truncated = bool(dispute.attributes.get("message_truncated") or preview_truncated)
         logger.info(
             "telecom_escalation_audit dispute_id=%s case_code=%s verdict=%s",
             dispute.id,
@@ -606,6 +641,7 @@ async def escalate_telecom_anomaly(request: TelecomEscalateRequest) -> TelecomEs
                 "verdict": request.verdict,
                 "fraud_score": round(request.fraud_score, 4),
                 "redacted_preview": safe_preview,
+                "message_truncated": effective_truncated,
             },
         )
         return TelecomEscalateResponse(

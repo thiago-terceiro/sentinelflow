@@ -96,6 +96,7 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
           signals: item.signals,
           velocity: item.velocity || {},
           event_id: item.id,
+          message_truncated: Boolean(item.message_truncated),
         }),
       });
       if (res.ok) {
@@ -362,6 +363,23 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                   }}
                 >
                   {ev.message}
+                  {ev.message_truncated ? (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        marginLeft: 6,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "1px 5px",
+                        borderRadius: 4,
+                        background: "var(--badge-flag-bg, #fef3c7)",
+                        color: "var(--badge-flag-color, #78350f)",
+                        border: "1px solid var(--badge-flag-border, #b45309)",
+                      }}
+                    >
+                      TRUNCATED AFTER REDACTION
+                    </span>
+                  ) : null}
                 </p>
 
                 {ev.signals && ev.signals.length > 0 ? (

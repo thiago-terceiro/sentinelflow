@@ -259,19 +259,34 @@ class RedisVelocityStore:
         effective_domain = url_domain or extract_url_domain(message)
         effective_prefix = extract_sender_prefix(sender)
 
-        # Derive domain-separated keyed HMAC-SHA256 pseudonymous keys before storage.
-        sender_hash = pseudonymize_telecom_identifier(sender, namespace="vel_sender", length=16)
-        ip_hash = pseudonymize_telecom_identifier(ip, namespace="vel_ip", length=16) if ip else None
+        # Derive domain-separated, key-version-bound 128-bit (32-hex) HMAC pseudonyms.
+        key_id = get_settings().TELECOM_HMAC_KEY_ID.strip()
+        sender_hash = pseudonymize_telecom_identifier(
+            sender, namespace="vel_sender", length=32, key_id=key_id
+        )
+        ip_hash = (
+            pseudonymize_telecom_identifier(ip, namespace="vel_ip", length=32, key_id=key_id)
+            if ip
+            else None
+        )
         domain_hash = (
-            pseudonymize_telecom_identifier(effective_domain, namespace="vel_domain", length=16)
+            pseudonymize_telecom_identifier(
+                effective_domain, namespace="vel_domain", length=32, key_id=key_id
+            )
             if effective_domain
             else None
         )
         prefix_hash = (
-            pseudonymize_telecom_identifier(effective_prefix, namespace="vel_prefix", length=16)
+            pseudonymize_telecom_identifier(
+                effective_prefix, namespace="vel_prefix", length=32, key_id=key_id
+            )
             if effective_prefix
             else None
         )
+        mem_sender_key = f"{key_id}:{sender_hash}"
+        mem_ip_key = f"{key_id}:{ip_hash}" if ip_hash else None
+        mem_domain_key = f"{key_id}:{domain_hash}" if domain_hash else None
+        mem_prefix_key = f"{key_id}:{prefix_hash}" if prefix_hash else None
 
         v10s = 1
         v60s = 1
@@ -290,13 +305,17 @@ class RedisVelocityStore:
                 # Note: IP ({ip_hash}), domain ({domain_hash}), and prefix ({prefix_hash}) keys
                 # use separate hash tags and do NOT share the sender slot. In standalone Redis
                 # (redis:7-alpine), all keys pipeline together in 1 RTT regardless of hash tags.
-                sender_10s_key = f"pulse:vel:{{{sender_hash}}}:10s"
-                sender_60s_key = f"pulse:vel:{{{sender_hash}}}:60s"
-                sender_3600s_key = f"pulse:vel:{{{sender_hash}}}:3600s"
+                sender_10s_key = f"pulse:vel:{key_id}:{{{sender_hash}}}:10s"
+                sender_60s_key = f"pulse:vel:{key_id}:{{{sender_hash}}}:60s"
+                sender_3600s_key = f"pulse:vel:{key_id}:{{{sender_hash}}}:3600s"
 
-                ip_key = f"pulse:vel:ip:{{{ip_hash}}}:60s" if ip_hash else None
-                domain_key = f"pulse:vel:domain:{{{domain_hash}}}:60s" if domain_hash else None
-                prefix_key = f"pulse:vel:prefix:{{{prefix_hash}}}:60s" if prefix_hash else None
+                ip_key = f"pulse:vel:ip:{key_id}:{{{ip_hash}}}:60s" if ip_hash else None
+                domain_key = (
+                    f"pulse:vel:domain:{key_id}:{{{domain_hash}}}:60s" if domain_hash else None
+                )
+                prefix_key = (
+                    f"pulse:vel:prefix:{key_id}:{{{prefix_hash}}}:60s" if prefix_hash else None
+                )
 
                 event_member = f"{uuid4().hex[:8]}:{now}".encode()
 
@@ -368,11 +387,11 @@ class RedisVelocityStore:
                 )
                 self._use_in_memory_fallback = True
                 v10s, v60s, v1h, ip_count, domain_count, prefix_count = self._record_in_memory(
-                    sender_hash, ip_hash, domain_hash, prefix_hash, now
+                    mem_sender_key, mem_ip_key, mem_domain_key, mem_prefix_key, now
                 )
         else:
             v10s, v60s, v1h, ip_count, domain_count, prefix_count = self._record_in_memory(
-                sender_hash, ip_hash, domain_hash, prefix_hash, now
+                mem_sender_key, mem_ip_key, mem_domain_key, mem_prefix_key, now
             )
 
         # Anomaly signal evaluation
