@@ -161,13 +161,21 @@ const HomePage = () => {
             SentinelPulse: Real-Time Telecom Ingress
           </h1>
 
-          <p style={{ maxWidth: 740, margin: "0 0 16px", color: "var(--muted)", lineHeight: 1.6, fontSize: 14 }}>
+          <p
+            style={{
+              maxWidth: 740,
+              margin: "0 0 16px",
+              color: "var(--muted)",
+              lineHeight: 1.6,
+              fontSize: 14,
+            }}
+          >
             Synchronous carrier fraud &amp; smishing inspection gateway powered by an ONNX Runtime
             CPU model and Redis sliding-window velocity counters. Combines the AI-18 bounded
-            heuristics ReDoS guard (&lt;15ms at 2,000 chars) with internal processing telemetry, while
-            the architectural &lt;15ms end-to-end HTTP latency target remains unestablished across
-            caller-observed HTTP runs. High-risk anomalies escalate to SentinelFlow (Stage 2) for
-            autonomous multi-agent dispute investigation.
+            heuristics ReDoS guard (&lt;15ms at 2,000 chars) with internal processing telemetry,
+            while the architectural &lt;15ms end-to-end HTTP latency target remains unestablished
+            across caller-observed HTTP runs. High-risk anomalies escalate to SentinelFlow (Stage 2)
+            for autonomous multi-agent dispute investigation.
           </p>
 
           {/* Left-Aligned SLA Card */}

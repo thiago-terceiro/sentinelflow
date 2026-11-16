@@ -109,9 +109,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
         setClassificationError(`Classification failed with HTTP ${res.status}.`);
       }
     } catch (err) {
-      setClassificationError(
-        err instanceof Error ? err.message : "Classification request failed."
-      );
+      setClassificationError(err instanceof Error ? err.message : "Classification request failed.");
     } finally {
       isClassifyingRef.current = false;
       setIsClassifying(false);
@@ -226,7 +224,9 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   minHeight: 44,
                   padding: "10px 16px",
                   borderRadius: 6,
-                  border: isSelected ? "2px solid var(--accent, #1e40af)" : "1px solid var(--panel-border)",
+                  border: isSelected
+                    ? "2px solid var(--accent, #1e40af)"
+                    : "1px solid var(--panel-border)",
                   background: isSelected ? "var(--accent-soft, #dbeafe)" : "transparent",
                   color: isSelected ? "var(--accent, #1e3a8a)" : "var(--foreground)",
                   cursor: "pointer",
@@ -379,13 +379,22 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
           />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, minHeight: 44 }}>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, minHeight: 44 }}
+        >
           <input
             id={`${formId}-auto-escalate`}
             type="checkbox"
             checked={autoEscalate}
             onChange={(e) => setAutoEscalate(e.target.checked)}
-            style={{ accentColor: "var(--accent)", cursor: "pointer", width: 20, height: 20, minWidth: 44, minHeight: 44 }}
+            style={{
+              accentColor: "var(--accent)",
+              cursor: "pointer",
+              width: 20,
+              height: 20,
+              minWidth: 44,
+              minHeight: 44,
+            }}
           />
           <label
             htmlFor={`${formId}-auto-escalate`}
@@ -481,7 +490,12 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
 
             <span
               title="Internal _process_single_message() processing time (excludes caller-observed HTTP framing, FastAPI/Pydantic I/O, and network RTT)"
-              style={{ fontSize: 13, fontFamily: "monospace", color: "var(--telecom-good, #14532d)", fontWeight: 700 }}
+              style={{
+                fontSize: 13,
+                fontFamily: "monospace",
+                color: "var(--telecom-good, #14532d)",
+                fontWeight: 700,
+              }}
             >
               <span className="page-icon">⏱ </span>
               {classificationResult.latency_ms} ms internal
@@ -510,9 +524,15 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                       fontWeight: 700,
                       padding: "3px 8px",
                       borderRadius: 4,
-                      background: sig.startsWith("RULE:") ? "var(--badge-block-bg, #fee2e2)" : "var(--accent-soft, #dbeafe)",
-                      color: sig.startsWith("RULE:") ? "var(--badge-block-color, #991b1b)" : "var(--accent, #1e3a8a)",
-                      border: sig.startsWith("RULE:") ? "1px solid var(--badge-block-border, #b91c1c)" : "1px solid var(--panel-border, #93c5fd)",
+                      background: sig.startsWith("RULE:")
+                        ? "var(--badge-block-bg, #fee2e2)"
+                        : "var(--accent-soft, #dbeafe)",
+                      color: sig.startsWith("RULE:")
+                        ? "var(--badge-block-color, #991b1b)"
+                        : "var(--accent, #1e3a8a)",
+                      border: sig.startsWith("RULE:")
+                        ? "1px solid var(--badge-block-border, #b91c1c)"
+                        : "1px solid var(--panel-border, #93c5fd)",
                     }}
                   >
                     {sig}
@@ -560,7 +580,10 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   ⚡ Two-Tier Anomaly Escalation
                 </strong>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                  Synchronous inline ingress (architectural &lt;15ms HTTP target not established; reported timer measures internal processing and AI-18 heuristics) flagged this anomaly ({classificationResult.verdict}). Escalate to Stage 2 for autonomous multi-agent dispute investigation.
+                  Synchronous inline ingress (architectural &lt;15ms HTTP target not established;
+                  reported timer measures internal processing and AI-18 heuristics) flagged this
+                  anomaly ({classificationResult.verdict}). Escalate to Stage 2 for autonomous
+                  multi-agent dispute investigation.
                 </span>
               </div>
 
@@ -585,7 +608,10 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                     }}
                     className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                   >
-                    <span>→ Investigate in SentinelFlow {escalatedDispute.case_code ? `(${escalatedDispute.case_code})` : ""}</span>
+                    <span>
+                      → Investigate in SentinelFlow{" "}
+                      {escalatedDispute.case_code ? `(${escalatedDispute.case_code})` : ""}
+                    </span>
                   </Link>
                   <span style={{ fontSize: 12, color: "var(--muted)" }}>
                     Dispute record created. Ready for LangGraph investigation.
