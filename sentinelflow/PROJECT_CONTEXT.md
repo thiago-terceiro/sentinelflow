@@ -11,9 +11,9 @@
 1. **SentinelFlow (Asynchronous Complex Reasoning)**: An autonomous AI dispute investigation copilot built on **LangGraph**. It coordinates LLMs, deterministic risk engines, compliance rules, and native human-in-the-loop approval workflows with cryptographic auditability.
 2. **SentinelPulse (Real-Time Synchronous Gateway)**: An ultra-low-latency traffic intelligence gateway designed to inspect inbound messaging (SMS/events) for fraud, pumping attacks, and spam toward an architectural **$< 15\text{ ms}$** p95 target using an **ONNX Runtime** CPU model and **Redis sorted-set sliding-window velocity counters** *(at `SF-015` 2,000-character max payload locally, `AI-18` `evaluate_heuristics()` and internal `_process_single_message()` pass `<15ms` across runs, whereas the **end-to-end HTTP `<15ms` target is NOT ESTABLISHED**—passing `conc=1` in `e12734d` [`6.228–7.633 ms`] after failing in `cb64ff2` [`17.259–17.793 ms`], and exceeding `15 ms` on shared-loop `conc=4, 8`; live Redis RTT and multi-worker load remain **UNVERIFIED**)*.
 
-### Architectural Tenet: 100% Free & Open-Source Stack
+### Architectural Tenet: 100% Free, Open-Source & Local-First Stack
 - **Zero Paid SaaS Dependencies**: No paid LangSmith, Datadog, Snyk, or commercial vendor lock-in.
-- **Local/Self-Hosted Execution**: Docker Compose spins up PostgreSQL 16, Redis 7, Backend (FastAPI), Frontend (Next.js 16), Nginx, Prometheus, and Jaeger with one command.
+- **Local/Self-Hosted Execution (No Demonstrated Production Deployment)**: Docker Compose spins up PostgreSQL 16, standalone Redis 7, Backend (FastAPI), Frontend (Next.js 16), Nginx, Prometheus, and Jaeger locally. The repository has **no demonstrated production deployment**; real Redis network behavior, production Redis deployment, production-scale load, and independent multi-worker container throughput have **not** been validated.
 
 ---
 
@@ -71,17 +71,18 @@ The investigation copilot manages autonomous research and synthesis over complex
   - W3C `traceparent` / `tracestate` context is injected when enqueueing `arq` jobs in FastAPI and extracted by the worker (`run_investigation_job` / `run_resume_investigation_job`), linking HTTP ingress spans and background LangGraph node spans into a single distributed trace in Jaeger.
 
 ### 3.2 SentinelPulse High-Throughput Gateway
-Architectural target for telecom and CPaaS messaging anti-abuse (design capacity target: e.g., 5,000+ RPS across horizontally scaled containers; multi-worker throughput **UNVERIFIED** locally).
+Architectural target for telecom and CPaaS messaging anti-abuse (historical ~5,000+ req/s came from single-loop ~73-char in-process ASGI microbenchmarks only; production-scale load and independent multi-worker container throughput are **NOT ESTABLISHED** locally, and there is no demonstrated production deployment).
 
 - **Inference Pipeline**:
   - Input: `{ sender, recipient, message, carrier, ip_address }`.
-  - Step 1: Pre-compiled regex heuristics engine evaluates blocklists and common smishing patterns (`< 0.05 ms` on short SMS; `AI-18` Step 3 ReDoS guard verified `< 15 ms` on 2,000-char pathological inputs).
-  - Step 2: High-throughput Redis sliding-window velocity aggregation tracking messages sent in the last 10s, 60s, and 1h via pipelined `ZSET` commands in a single network roundtrip (design budget $< 2\text{ ms}$; live Redis network RTT is **UNVERIFIED** locally).
-  - Step 3: Lightweight classification model exported to **ONNX Runtime (CPU)** (`< 0.1 ms` measured on short SMS; `~1.0–5.5 ms` p99 on 2,000-char padded inputs).
+  - Step 1: Pre-compiled regex heuristics engine evaluates blocklists and common smishing patterns (`< 0.05 ms` on short SMS; `AI-18` Step 3 ReDoS guard verified `< 15 ms` specifically on `evaluate_heuristics()` with 2,000-char pathological inputs).
+  - Step 2: Standalone Redis (`redis:7-alpine`) sliding-window velocity aggregation tracking messages sent in the last 10s, 60s, and 1h via pipelined `ZSET` commands in a single network roundtrip (design budget $< 2\text{ ms}$; real Redis network latency and production Redis deployment remain **unmeasured / unvalidated**, and Redis Cluster remains future scope with `{sender_hash}` vs. separate IP/domain/prefix slot tags).
+  - Step 3: Lightweight classification model exported to **ONNX Runtime (CPU)** (`< 0.1 ms` measured on short SMS; `~1.0–5.5 ms` p99 on 2,000-char padded inputs). Existing local loopback and single-loop results do not represent independent clients, multiple OS workers, or production traffic; the architectural end-to-end HTTP `< 15 ms` target (Boundary B) is **NOT ESTABLISHED**.
   - Composite Verdict: Evaluates combined risk signals to return `ALLOW`, `FLAG`, or `BLOCK` with execution latency tracking.
-- **Fail-Open Circuit Breakers**:
-  - If Redis or ONNX latencies breach 15ms or error rates exceed 2%, circuit breakers open.
-  - Critical traffic (2FA/OTP tokens) is **Fail-Open** (`ALLOW`) to prevent user lockout; unverified international bulk traffic is **Fail-Closed** (`BLOCK`) or quarantined.
+  - PII & HMAC Pseudonymization: `redact_sms_pii()` redacts sensitive patterns prior to logging/escalation, and `TELECOM_HMAC_KEY_ID` / `TELECOM_HMAC_SECRET` derive 128-bit versioned pseudonyms (key/key-ID rotation requires coordinated operational handling; no automatic rotation or mismatch detection is implemented).
+- **Degraded-Mode & Circuit Breakers (`SF-017`)**:
+  - `VelocityFeatureStore` trips a 30s local deque fallback on Redis errors/timeouts (`socket_timeout=0.015s`); while ONNX remains valid (`ml_signal_status == "valid"`), low-risk 2FA/OTP messages continue returning `ALLOW`.
+  - When ONNX ML signals are `"invalid"`, `"unavailable"`, or `"degraded"` (`_circuit_open` or runtime exception), `onnx_probability` is `None` (`ml_signal_valid=False`) and `DEGRADED_REVIEW_FLOOR = 0.40` (`FLAG`) applies across `/v1/classify` (including OTP-like traffic—no `ALLOW` bypass exists in degraded ML), while `H >= 0.80` or `V >= 0.75` still escalates to `BLOCK`.
 
 ### 3.3 Cryptographic Audit Ledger & PII Governance
 - **Tamper-Evident SHA-256 Ledger**:
@@ -127,7 +128,7 @@ The project enforces a strict 7-stage automated verification pipeline:
 | :---: | :--- | :--- | :--- |
 | **1** | **Security & Supply Chain** | `gitleaks` (zero secret leaks), `trivy` (filesystem/container SCA), `pip-audit`, `pnpm audit`, `security_compliance_scan.py` | 11/11 controls passed (100% OWASP Top 10 & CWE compliance) |
 | **2** | **Static Analysis & Guardrails** | `ruff check --select S`, `bandit`, `mypy app` (strict mode across 82 files), `eslint 10` + `sonarjs`, `check-rules.js` (AST guardrails) | 0 type errors, 0 linter warnings, 100% arrow function & try/catch compliance |
-| **3** | **Deterministic Testing** | `pytest --cov=app --cov-fail-under=80`, `node --test`, Playwright E2E & visual pixel diff | **233 backend tests passed** (**80%+ coverage floor**), **39 tracked frontend unit tests passed** |
+| **3** | **Deterministic Testing & Bounded Checks** | `pytest --cov=app --cov-fail-under=80`, `node --test`, Playwright E2E/visual, `test-a11y-aaa.mjs` | **233 backend tests passed** (**80%+ coverage floor**); **39 tracked frontend unit tests** in clean checkout (**45** locally including 6 local-only Learning Hub tests); `test-a11y-aaa.mjs` reported `0` violations strictly on tested routes/states (`1440×900` & `375×812`, `light`/`dark`, configured automated rules only—not a full-app WCAG AAA certification or manual audit) |
 | **4** | **API Contract Drift Gate** | `openapi.json` $\leftrightarrow$ `generate-types.js` $\leftrightarrow$ `api.generated.ts` verified via `git diff --exit-code` | 0 contract drift |
 | **5** | **AI Eval-Driven Development** | `app.evals.run` benchmark evaluating decision accuracy, evidence grounding, risk calibration, and zero PII leakage | 100% accuracy, 100% grounding, 100% PII safety |
 | **6** | **Sandbox Container Smoke** | `docker compose up -d --build --wait`, live `/v1/classify` transaction smoke test, traffic simulator run, `down -v` | End-to-end container stack passes in clean isolated environment |
@@ -186,7 +187,7 @@ sentinelflow/
 ## 7. Common Technical & Interview Inquiries
 
 ### Q: Why ONNX Runtime on CPU instead of a larger Transformer on GPU for the gateway?
-At gateway ingress, telecom architectures target sub-15ms p95 response times. As an illustrative capacity comparison, an 8-core CPU node running compiled linear ONNX targets high throughput (>12,000 raw short-SMS inferences/sec projection with `p99 < 0.1 ms` and low CPU compute cost; not measured in CI), whereas a 12-layer Transformer on GPU typically bottlenecks at lower throughput with higher tail latency and GPU cost. *(Measured local status at 2,000 chars: `AI-18` `evaluate_heuristics()` and internal `_process_single_message()` pass `<15ms`, whereas the **end-to-end HTTP `<15ms` target is NOT ESTABLISHED** [`conc=1` `6.228–7.633 ms` in `e12734d` vs `17.259–17.793 ms` in `cb64ff2`; shared-loop `conc=4` `25.280–26.094 ms`, `conc=8` `54.984–63.106 ms`]; multi-worker container throughput and live Redis RTT are UNVERIFIED.)*
+At gateway ingress, telecom architectures target sub-15ms p95 response times. As an illustrative capacity comparison, an 8-core CPU node running compiled linear ONNX targets high throughput (>12,000 raw short-SMS inferences/sec projection with `p99 < 0.1 ms` and low CPU compute cost; not measured in CI), whereas a 12-layer Transformer on GPU typically bottlenecks at lower throughput with higher tail latency and GPU cost. *(Measured local status at 2,000 chars: `evaluate_heuristics()` ReDoS guard and Boundary A internal `_process_single_message()` pass `<15ms`, whereas the **end-to-end HTTP `<15ms` target (Boundary B) is NOT ESTABLISHED** [`conc=1` `6.228–7.633 ms` in `e12734d` vs `17.259–17.793 ms` in `cb64ff2`; shared-loop `conc=4` `25.280–26.094 ms`, `conc=8` `54.984–63.106 ms`]. Existing local loopback benchmarks do not represent independent clients, multiple workers, or production traffic; real Redis network latency, production-scale load, and independent multi-worker behavior remain unmeasured/unverified, and there is no demonstrated production deployment.)*
 
 ### Q: How is state maintained safely across human approval pauses in LangGraph?
 When the risk engine flags a dispute for human oversight, LangGraph executes `interrupt()`. The state is serialized and persisted to PostgreSQL by `AsyncPostgresSaver` keyed by `thread_id`, and `persist_graph_state()` writes the mid-run snapshot and `approval_required` timeline event to `InvestigationRecord`. The HTTP worker returns immediately. When a reviewer submits their decision via `POST /investigations/{id}/resume`, the graph resumes from its exact checkpoint using `Command(resume=...)`.

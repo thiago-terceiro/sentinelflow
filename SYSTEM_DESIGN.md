@@ -37,9 +37,9 @@ flowchart TD
 
 | Readiness Tier | Components & Capabilities |
 | :--- | :--- |
-| **Implemented & Verified in Repo** | `<1ms` ONNX CPU inference (`sms_fraud_model.onnx`, `d330466e...`, single-thread pinned `SessionOptions`); patched `skl2onnx` `<1e-6` parity (`max_prob_abs_diff = 1.04e-07`, `400/400` verdict parity); continuous gated composite scoring (monotonic non-decreasing, 13 linear-time regex heuristics + Cyrillic mixed-script homoglyph normalization); standalone Redis (`redis:7-alpine`) ZSET sliding-window velocity + 30s in-memory deque fail-open circuit breaker; pre-inference/logging PII redaction (`redact_sms_pii`, 128-bit versioned HMAC pseudonyms, 2,000-char contract); 3-tier evaluation governance (`OOF CV N=703` across 56 families, `Dev/Val N=400`, `Quarantined Class C Holdout: UNAVAILABLE / BLOCKED` with `UCI #228` `N=5,574` quarantined separately); LangGraph multi-agent triage workbench (`interrupt()`), `arq` worker, SHA-256 append-only audit ledger, Next.js 16 console. |
-| **Simulated / Benchmarked in Dev** | In-process `httpx.ASGITransport` microbenchmarks & local loopback Uvicorn 2,000-char benchmarks (`scripts/benchmark_pulse.py`, `scripts/bench_telecom_classify_2000.py`: Boundary A internal passes `<15ms` locally; Boundary B end-to-end HTTP `<15ms` target is **NOT ESTABLISHED**; live Redis RTT and multi-worker load are unverified); synthetic + public-advisory SMS corpora (`Train N=703`, `Dev/Val N=400`, `SF-013` perturbation suite `N=70`); Locust & `telecom_simulator.py` traffic generation; heuristic fallback / mock LLM mode in dev & CI (`app.evals.run`). |
-| **Future Production / Enterprise Scope (Not Implemented)** | Live carrier SS7 / Diameter / SMPP / optical-tap ingestion (`Class D` telemetry: `0` records in repo); multi-node Redis Cluster state synchronization & distributed Kafka event bus (`telecom.sms.inbound`); automated closed-loop active-learning retraining pipelines (retraining is manual/offline via `train_onnx_model.py`). |
+| **Implemented & Verified in Repo** | `<1ms` ONNX CPU inference (`sms_fraud_model.onnx`, `d330466e...`, single-thread pinned `SessionOptions`); patched `skl2onnx` `<1e-6` parity (`max_prob_abs_diff = 1.04e-07`, `400/400` verdict parity); continuous gated composite scoring (monotonic non-decreasing, 13 linear-time regex heuristics with `<15ms` `evaluate_heuristics()` ReDoS guard + Cyrillic mixed-script homoglyph normalization); standalone Redis (`redis:7-alpine`) ZSET sliding-window velocity + 30s in-memory deque fail-open circuit breaker (standalone Redis is the validated local architecture; real Redis network behavior and production Redis deployment remain unvalidated); pre-inference/logging PII redaction (`redact_sms_pii`, 2,000-char contract) and 128-bit versioned HMAC pseudonymization (**HMAC secret and `TELECOM_HMAC_KEY_ID` rotation require coordinated operational handling—no automatic rotation or mismatch detection is implemented**); 3-tier evaluation governance (`Train OOF CV N=703` across 56 families; `Dev/Val N=400` previously inspected/tuned, **not** an untouched independent holdout; `Class C External Holdout: UNAVAILABLE / BLOCKED` with `UCI #228` `N=5,574` quarantined separately; `Class D: 0 records`—results do not establish production generalization or real-world fraud effectiveness); LangGraph multi-agent triage workbench (`interrupt()`), `arq` worker, SHA-256 append-only audit ledger, Next.js 16 console (`39` tracked frontend unit tests in clean checkout vs. `45` locally including 6 local-only Learning Hub tests; `test-a11y-aaa.mjs` automated checks reported `0` violations strictly on the tested routes/states at Desktop `1440×900` and Mobile `375×812` in `light` and `dark` modes under the script's configured rules—not a full-app WCAG AAA certification or manual audit). |
+| **Simulated / Benchmarked in Dev** | In-process `httpx.ASGITransport` microbenchmarks & local loopback Uvicorn 2,000-char benchmarks (`scripts/benchmark_pulse.py`, `scripts/bench_telecom_classify_2000.py`): `evaluate_heuristics()` `<15ms` ReDoS guard and Boundary A internal `_process_single_message()` (`latency_ms`) pass `<15ms` locally, whereas Boundary B caller-observed HTTP `<15ms` target is **NOT ESTABLISHED**; **existing single-loop/loopback results do not represent independent clients, multiple workers, or production traffic, and real Redis network latency remains unmeasured**; synthetic + public-advisory SMS corpora (`Train N=703`, `Dev/Val N=400`, `SF-013` perturbation suite `N=70`); Locust & `telecom_simulator.py` traffic generation; heuristic fallback / mock LLM mode in dev & CI (`app.evals.run`). |
+| **Future Production / Enterprise Scope (Not Implemented)** | **No demonstrated production deployment** exists in this repository; production-scale load and independent multi-worker behavior have **not** been established; live carrier SS7 / Diameter / SMPP / optical-tap ingestion (`Class D` telemetry: `0` records in repo); multi-node **Redis Cluster** state synchronization (only `{sender_hash}` slot tags are prepared; IP/domain/prefix keys use distinct tags and route to separate slots) & distributed Kafka event bus (`telecom.sms.inbound`); automated closed-loop active-learning retraining pipelines (retraining is manual/offline via `train_onnx_model.py`). |
 
 ---
 
@@ -56,7 +56,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 * **Guarantee:** Messages from the same sender always land on the same partition in strict chronological sequence, preventing race conditions in distributed velocity aggregation.
 
 ### 2.3 Redis Feature Store Architecture & Deployment Model
-* **Deployment Topology (Standalone Redis):** SentinelPulse deploys a dedicated standalone Redis instance (`redis:7-alpine`) via Docker Compose / container infrastructure rather than a sharded Redis Cluster. Standalone Redis simplifies operational overhead and guarantees that all 10s, 60s, and 1h sliding windows across senders, IP velocities, URL domain frequencies, and prefix counters pipeline together over an asynchronous connection in 1 network RTT (<2ms).
+* **Deployment Topology (Standalone Redis):** SentinelPulse is built and validated for a dedicated standalone Redis instance (`redis:7-alpine` in Docker Compose) rather than a sharded Redis Cluster (real Redis network behavior and production Redis deployment have not been validated). Standalone Redis simplifies operational overhead and allows 10s, 60s, and 1h sender windows plus IP, URL domain, and prefix counters to pipeline together over an asynchronous connection in 1 RTT (design budget `<2ms`; real Redis network latency remains unmeasured).
 * **Slot Tagging (`{sender_hash}`):**
   To support potential future migration to a sharded Redis Cluster topology, all 3 sender sliding-window ZSET keys share the identical hash tag:
   ```python
@@ -67,7 +67,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
   ```
   In Redis Cluster, the CRC16 hash slot is computed exclusively on the substring inside `{...}`, guaranteeing that sender sliding-window keys map to the same slot.
 * **Cross-Dimension Slot Independence (IP, Domain, Prefix):**
-  Multi-dimensional counters for IP (`{ip_hash}`), URL domain (`{domain_hash}`), and prefix (`{prefix_hash}`) use distinct hash tags and do NOT share the sender slot. In a Redis Cluster deployment, cross-dimension keys route to separate hash slots and do not execute in a single-slot pipeline. In the production standalone Redis deployment, all operations pipeline cleanly across all keys in 1 RTT.
+  Multi-dimensional counters for IP (`{ip_hash}`), URL domain (`{domain_hash}`), and prefix (`{prefix_hash}`) use distinct hash tags and do NOT share the sender slot. In a future Redis Cluster deployment, cross-dimension keys route to separate hash slots and do not execute in a single-slot pipeline. In the configured standalone Redis architecture, all operations pipeline across all keys in 1 RTT.
 
 * **Multi-Dimensional Velocity Tracking (SIM-Farm & Phishing Defense):**
   Distributed smishing campaigns rotate originating phone numbers using automated SIM banks while reusing identical phishing domains or carrier prefixes.
@@ -79,7 +79,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 
 * **Multi-Worker Local Fallback & Process Isolation:**
   When Redis is unreachable or socket timeouts trigger the 30-second circuit breaker, the gateway falls back open to per-worker in-memory sliding-window deques.
-  * *Trade-Off & Isolation Analysis:* In a multi-worker deployment ($W$ Uvicorn worker processes behind an Envoy/Nginx load balancer), each worker process maintains an isolated in-memory deque. Under uniform round-robin distribution, an attacker generating $N$ requests/sec divides traffic across workers, so each worker observes $N/W$ requests/sec (dividing effective global detection threshold by $W$). Once Redis connectivity heals and the 30-second circuit breaker cooldown expires, the workers resynchronize to the standalone Redis state. *(Note: multi-worker OS process concurrency and multi-node Redis Cluster state sync are **UNVERIFIED** / **not implemented** in the current repository.)*
+  * *Trade-Off & Isolation Analysis:* In a multi-worker deployment ($W$ Uvicorn worker processes behind an Envoy/Nginx load balancer), each worker process maintains an isolated in-memory deque. Under uniform round-robin distribution, an attacker generating $N$ requests/sec divides traffic across workers, so each worker observes $N/W$ requests/sec (dividing effective global detection threshold by $W$). Once Redis connectivity heals and the 30-second circuit breaker cooldown expires, the workers resynchronize to the standalone Redis state. *(Note: multi-worker OS process concurrency, real Redis network behavior, production Redis deployment, and multi-node Redis Cluster state sync are **unverified / not implemented** in the current repository.)*
 
 * **Non-Transactional Sliding-Window Pipeline (`ZSET`):**
   ```python
@@ -102,15 +102,15 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
       pipe.zcard(key_3600s)
       results = await pipe.execute()
   ```
-* **Network Budget:** Pipeline reduces network roundtrips from 6 down to 1 RTT (design estimate $\approx 0.8\text{ ms}$ over AWS VPC / local network; live Redis server network RTT is **UNVERIFIED** in the current local environment).
+* **Network Budget:** Pipeline reduces network roundtrips from 6 down to 1 RTT (design estimate $\approx 0.8\text{ ms}$ over AWS VPC / local network; real Redis network latency and production Redis deployment remain **unmeasured / unvalidated**).
 * **L1 In-Process Memory Cache:** For viral spam spikes (>50 RPS from one number), a local thread-safe LRU cache (2-second TTL) short-circuits Redis reads, protecting the database from single-key hotspotting.
 
 ---
 
 ### 2.4 Performance Benchmarks & Concurrency Testing
 * **Benchmark Architecture & Methodology:**
-  Concurrency benchmarks are executed as *"In-process ASGI endpoint microbenchmarks (100 requests per concurrency level, single Uvicorn event loop)"* using `httpx.ASGITransport` on a single Python event loop.
-  - *Measurement Scope:* Tests synchronous internal gateway execution (`latency_ms` / Boundary A: ONNX Runtime CPU + compiled regex heuristics + in-memory sliding-window velocity + continuous gated blend + policy decision) without raw NIC socket overhead, virtualization hops, live Redis network RTT, or multi-process IPC.
+  Concurrency benchmarks are executed as *"In-process ASGI endpoint microbenchmarks (100 requests per concurrency level, single Uvicorn event loop)"* using `httpx.ASGITransport` on a single Python event loop (plus local single-process loopback Uvicorn checks in `bench_telecom_classify_2000.py`).
+  - *Measurement Scope:* Boundary A (`latency_ms` inside `_process_single_message()`) measures synchronous internal gateway execution (ONNX Runtime CPU + compiled regex heuristics + in-memory/fake-Redis sliding-window velocity + continuous gated blend + policy decision) without raw NIC socket overhead, virtualization hops, real Redis network RTT, or multi-process IPC.
   - *Historical Short-Message (~73-char) In-Process Internal `latency_ms` (Boundary A, Local In-Memory Fallback):*
     - Concurrency = 1: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, internal `latency_ms` < 15ms: PASS)
     - Concurrency = 4: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, internal `latency_ms` < 15ms: PASS)
@@ -119,7 +119,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
     - **Linear `AI-18` (`SF-015`) Step 3 ReDoS Guard (`evaluate_heuristics()` < 15 ms on 2,000-char pathological strings):** **PASS** (`p95 <= 3.477 ms`, `p99 <= 4.068 ms`, `max <= 4.163 ms`).
     - **Boundary A — Internal `_process_single_message()` Processing (`endpoint_latency_ms` / response `latency_ms`):** **PASS** (`< 15 ms` in tested local modes across both comparable runs under identical harness boundaries: `e12734d` in-process ASGI aggregate `p95 = 1.937 ms` fake-Redis / `2.129 ms` in-memory, loopback Uvicorn `p95 = 1.748–3.725 ms`, `p99 = 2.213–5.800 ms`; `cb64ff2` in-process ASGI aggregate `p95 = 6.254 ms` / `7.128 ms`, loopback Uvicorn `p95 = 5.488–8.815 ms`, `p99 = 5.994–9.343 ms`; the unchanged measurement boundary and similar shifts across CPU-bound components [`redact_sms_pii`, `evaluate_heuristics`, `engine.predict`] on fixed inputs are consistent with host-execution variability, though the precise cause is unknown).
     - **Boundary B — Caller-Observed Synchronous HTTP Ingress (`<15ms` end-to-end HTTP target, measured as `asgi_roundtrip_ms` / `loopback_http_ms`):** **NOT ESTABLISHED** at 2,000 characters: local loopback Uvicorn `concurrency = 1` passed in `e12734d` (`p95 = 6.228–7.633 ms`) after failing in `cb64ff2` (`p95 = 17.259–17.793 ms`), while shared-event-loop `concurrency = 4` (`25.280–26.094 ms` in `e12734d`; `60.852–61.257 ms` in `cb64ff2`) and `concurrency = 8` (`54.984–63.106 ms` in `e12734d`; `121.061–124.160 ms` in `cb64ff2`) exceed 15 ms (`in-process asgi_roundtrip_ms` agg `p95 = 5.920–6.499 ms` in `e12734d` vs `18.164–19.744 ms` in `cb64ff2`). The caller-visible gap outside `_process_single_message()` reflects HTTP/FastAPI middleware, Pydantic validation/serialization, and post-`t_end` synchronous `JsonFormatter` audit logging, plus single-process/same-event-loop client/server queuing at `concurrency = 4, 8`.
-    - **Unverified Scope:** Live Redis server network RTT (`redis:7-alpine`) and independent-process / multi-worker HTTP concurrency are **UNVERIFIED** (do not infer multi-worker production concurrency from single-worker shared-loop benchmarks).
+    - **Unverified Scope:** Existing local loopback and single-loop benchmark results must **not** be presented as representative of independent clients, multiple OS workers, or production traffic. Real Redis network latency, production Redis deployment, production-scale load, and independent multi-worker HTTP concurrency remain **unmeasured / unverified**, and there is **no demonstrated production deployment** in this repository.
 
 ---
 
@@ -133,13 +133,13 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 ### 3.2 Noisy Neighbor Isolation
 * **Tenant Partitioning:** High-volume automated marketing senders are assigned dedicated Redis key prefixes and token-bucket rate quotas.
 * **Traffic Class Prioritization:**
-  1. **Tier 1 (High Priority):** 2FA/OTP tokens, banking authorization alerts. Guaranteed low-latency queue with strict fail-open policy.
+  1. **Tier 1 (High Priority):** 2FA/OTP tokens, banking authorization alerts. Receives `ALLOW` only under healthy ML classification (`ml_signal_status == "valid"`, low score `< 0.40`, including under Redis-only outages via local deque fallback). Note: under degraded/invalid/unavailable ONNX ML (`ml_signal_status != "valid"`), no OTP bypass exists; clean OTP-like messages evaluate to `FLAG` (`0.40`) under `DEGRADED_REVIEW_FLOOR`.
   2. **Tier 2 (Normal):** Conversational P2P, appointment reminders.
   3. **Tier 3 (Bulk):** Promotional A2P broadcasts. Rate-limited and throttled under cluster congestion.
 
 ### 3.3 Self-Healing Redis Circuit Breaker, Fail-Open In-Memory Fallback & Durable Escalation Queue
 * **Trade-Off Rationale (Fail-Open vs. Fail-Closed on Cache Outages):** If Redis experiences a transient network disconnect, cluster failover, or socket timeout (`socket_timeout=0.015s`), `VelocityFeatureStore` trips a **30-second self-healing circuit breaker** (`_fallback_until = time.monotonic() + 30.0`), immediately routing lookups to an in-memory sliding-window `deque` fallback (`_in_memory_sender_history`) and failing open to local ONNX ML + regex heuristics rather than dropping carrier traffic.
-  - *Why Fail-Open:* Dropping carrier traffic or failing closed on transient Redis blips blocks authentic user 2FA codes and causes unacceptable carrier customer churn. Local ONNX CPU classification combined with compiled regex heuristics still catches >95% of smishing content during cache blips without dropping a single packet.
+  - *Why Fail-Open:* Dropping carrier traffic or failing closed on transient Redis blips blocks authentic user 2FA codes and causes unacceptable carrier customer churn. Local ONNX CPU classification combined with compiled regex heuristics catches `100.00%` of Tier-1 / `89.50%` of Tier-2 fraud samples on the internal `Dev/Val N=400` benchmark during simulated cache fallback without dropping a packet (real-world carrier recall remains unverified without Class C/D telemetry).
 * **Durable Multi-Tier Escalation Architecture (`arq` Redis Queue + In-Process Fallback):**
   Instead of relying exclusively on volatile in-process `BackgroundTasks` (which silently drop queued disputes if a worker pod crashes, terminates, or restarts during rolling deployment), SentinelPulse implements a **two-tier durable escalation pipeline**:
   1. **Primary Distributed Queue (`arq` on Redis):** When Redis is available, `_spawn_escalation_task` enqueues an asynchronous durable task (`persist_escalated_dispute_job`) to the Redis `arq` queue. This guarantees at-least-once persistence across worker restarts, auto-scaling events, and node evictions.
@@ -160,7 +160,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 ### Why ONNX CPU Outperforms Large Transformers for Synchronous Gateway Ingress:
 1. **Throughput Density & Tail Latency (Architectural Order-of-Magnitude Projection):** In illustrative capacity planning, an 8-core CPU node running compiled linear ONNX is designed for >12,000 raw model inferences/sec (at `p99 < 0.1 ms` on short inputs), whereas a local 12-layer Transformer on GPU typically bottlenecks at ~150 inferences/sec with high tail latency. *(Note: the >12,000 ONNX inferences/sec multi-core figure is an illustrative capacity projection, not a verified local CI measurement.)*
 2. **Exact Model Graph & Quantization Accuracy (No "INT8 Neural Net" Buzzwords):**
-   * The deployed model (`sms_fraud_model.onnx`) is a compiled Scikit-Learn pipeline (`TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True)` + `LogisticRegression(class_weight='balanced')`), exported via `skl2onnx` (`to_onnx`) into native ONNX runtime operators (`Tokenizer`, `Normalizer`, `TfIdfVectorizer`, `LinearClassifier`).
+   * The packaged model artifact (`sms_fraud_model.onnx`) is a compiled Scikit-Learn pipeline (`TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True)` + `LogisticRegression(class_weight='balanced')`), exported via `skl2onnx` (`to_onnx`) into native ONNX runtime operators (`Tokenizer`, `Normalizer`, `TfIdfVectorizer`, `LinearClassifier`).
    * **Sigmoid Calibration:** Raw linear logits $z = w^T x + b$ are mapped directly into calibrated fraud probabilities via the logistic sigmoid function $\sigma(z) = \frac{1}{1 + e^{-z}}$ inside the ONNX compute graph.
    * **Why INT8 Quantization is Unnecessary:** The FP32 graph weighs under 3MB and executes in ~32 µs under AVX-512 vectorization. INT8 quantization is neither present nor needed; claiming an "INT8 quantized neural network" would be factually incorrect and misrepresent the actual linear ML pipeline.
 3. **Deterministic Continuous Gated Composite Scoring Math (`compute_composite_score`):**
@@ -227,8 +227,9 @@ SentinelPulse separates **threshold sensitivity analysis** (exploring score cuto
    * **Base-Rate PPV Uncertainty ($\pi \in \{0.2\%, 0.5\%, 1.0\%, 5.0\%\}$):** Actual deployment prevalence $\pi$ is unknown. Modeled point PPV (`100%` when `FPR=0`) collapses sharply under non-zero FPR uncertainty (e.g., at `tau=0.85`, `TPR=56.88%`, `pi=0.5%`, even descriptive row Wilson upper `0.70%` implies `28.92%` PPV, or `13.46%` paired with conditional cluster 2.5% TPR `21.74%`). Modeled PPV is illustrative sensitivity, not observed live precision.
 3. **Assumed Cost Model, 72-Pair Orthogonal Ratio Grid & Structural Objective Caveat:**
    * The `10:1:50` weights ($C_{\text{FN, Escape}}=10.0$, $C_{\text{FP, Tier1\_Flag}}=1.0$, $C_{\text{FP, Tier2\_Block}}=50.0$) are an **illustrative assumed cost model**, not measured financial/churn expenses. Across `12` named scenarios and an orthogonal `72`-pair normalized ratio grid (`C_FN/C_T1 in 0.5..250`, `C_T2/C_T1 in 2..500`, `576` cells across `8` prevalences), single-threshold optima vary even at low prevalence (`pi=0.5%`: `[0.30, 0.50, 0.85]`; `pi=1.0%`: `[0.30, 0.40, 0.50, 0.75, 0.85]`), exposing that smaller `9`-scenario subsets gave a false impression of `tau=0.85` uniformity at `pi <= 1%`. Furthermore, `compute_dual_tier_cost_per_1000` assigns zero fraud-benefit term to Tier-2 blocking over Tier-1 flagging, mechanically pinning `tau_block=0.85` whenever `FPR(0.85)=0.0` (under hypothetical `2.0%` floor FPR, baseline `(10,1,50)` at `pi=0.5%` flips top single/dual policies to `0.80` / `(0.75, 0.80)`).
-4. **Degraded-Mode Fail-Open vs. Fail-Closed Behavior:**
-   * Under Redis timeouts (`VelocityFeatureStore` 30s circuit breaker) or ONNX session unavailability, **2FA/authentication SMS and benign traffic fail open (`ALLOW`)** via fast-path heuristics-only inspection to avoid blocking OTPs; unverified bulk/suspicious messages quarantine to **`FLAG`** unless deterministic high-confidence threat patterns ($H \ge 0.80$) trigger `BLOCK`.
+4. **Explicit ML Signal Validation & Degraded-State Policy (`SF-017`):**
+   * **Strict Signal Classification:** Runtime (`OnnxInferenceEngine`, `/v1/classify`) explicitly separates valid ML probabilities (`ml_signal_status="valid"`, `ml_signal_valid=True`, low-risk `< 0.40` `ML:BENIGN_CLASSIFICATION` vs. elevated/high `>= 0.40`) from **`"invalid"`** (`NaN`, `±inf`, `< 0.0` or `> 1.0`, `bool`, `None`, non-numeric, missing output tensor, batch-length mismatch, malformed map, or missing class `1` key -> `ML:SIGNAL_INVALID`, `ENGINE:ONNX_FALLBACK`), **`"unavailable"`** (`_session` and `session` both `None` -> `ML:ENGINE_UNAVAILABLE`, `ENGINE:HEURISTIC_ONLY`), and **`"degraded"`** (`_circuit_open=True` or runtime `session.run()` exception -> `ML:DEGRADED_MODE`).
+   * **No Silent `0.0` / `ALLOW` Fallback:** When `ml_signal_status != "valid"`, `onnx_probability` is recorded as `None` (never defaulted to `0.0`), `ML:BENIGN_CLASSIFICATION` is never emitted, and runtime composite scoring applies `max(compute_composite_score(H, 0.0, V), 0.40)` (`DEGRADED_REVIEW_FLOOR = 0.40`). Traffic without deterministic high-risk triggers evaluates to Tier-1 `FLAG` (`0.40`, and creates an escalated dispute when `escalate=True`) so degraded ML cannot silently appear as low-risk `ALLOW`. **Operational Trade-Off (OTP / Clean-Traffic Behavior):** `/v1/classify` does **not** exempt 2FA/OTP-like messages from `DEGRADED_REVIEW_FLOOR`; clean OTP-like messages return `FLAG` (`0.40`) during invalid/unavailable/degraded ML (not `ALLOW`) and are only passed through if downstream carrier policy treats `FLAG` as non-blocking async review. Deterministic `H >= 0.80` or high velocity (`V >= 0.75`) still escalates to `BLOCK`. Offline evaluation (`evaluate_model.py`) validates ONNX outputs strictly via `extract_onnx_probabilities()` / `validate_ml_probability()` and fails fast with `InvalidMLSignalError`. Under Redis cache timeouts alone (`ml_signal_status="valid"`), `VelocityFeatureStore` fails over to its 30s local deque while ML + heuristics remain active.
 
 ---
 
@@ -236,21 +237,19 @@ SentinelPulse separates **threshold sensitivity analysis** (exploring score cuto
 
 ```mermaid
 flowchart LR
-    Request["Inbound Message"] --> CB{"Circuit Breaker<br/>Latency > 15ms or Err > 2%?"}
-    CB -->|Normal (Closed)| Full["Dual-Layer Engine<br/>Redis + ONNX + Heuristics"]
-    CB -->|Degraded (Open)| FastPath["Bypass ONNX/Redis<br/>Compiled Regex Only (< 0.05ms)"]
-    FastPath --> Policy{"Traffic Type?"}
-    Policy -->|2FA / Auth| FailOpen["Verdict: ALLOW<br/>(Never block legit OTP)"]
-    Policy -->|Bulk / Unknown| FlagReview["Verdict: FLAG<br/>(Route to Async Queue)"]
+    Request["Inbound Message"] --> MLCheck{"ONNX Signal State<br/>(ml_signal_status)"}
+    MLCheck -->|valid| Full["Composite Score S(H, P, V)<br/>(ALLOW / FLAG / BLOCK)"]
+    MLCheck -->|invalid / unavailable / degraded| Fallback["onnx_probability = None<br/>S = max(S(H, 0, V), 0.40)"]
+    Fallback -->|H >= 0.80 or high V| Block["Verdict: BLOCK (>= 0.75)<br/>+ ML degraded telemetry"]
+    Fallback -->|Otherwise| FlagReview["Verdict: FLAG (>= 0.40)<br/>(Async Review; never silent ALLOW)"]
 ```
 
-1. **Circuit Breakers (Resilience4j / In-Memory Token Bucket):**
-   * If Redis or ONNX latency exceeds 15ms across a rolling 100-request window, the circuit breaker opens.
-2. **Deterministic Fast-Path Fallback:**
-   * Traffic bypasses ML and runs exclusively through pre-compiled regex heuristics in under 50 microseconds.
-3. **Fail-Open vs. Fail-Closed Decisions:**
-   * **Authentication / 2FA SMS:** Always **Fail-Open** (`ALLOW`). Dropping an authentic user's login code causes catastrophic customer churn.
-   * **Unverified International Bulk:** **Fail-Closed** (`BLOCK`) or **Quarantine** (`FLAG`), routing to delayed review.
+1. **Redis Velocity Circuit Breaker:**
+   * Under Redis errors or socket timeouts (`socket_timeout=0.015s`), `VelocityFeatureStore` trips a 30s self-healing local deque fallback (`local_memory_fallback`), surfacing `velocity_degraded_mode=True` on `/api/v1/telecom/health` and `/api/v1/telecom/metrics/summary`.
+2. **ONNX Invalid / Unavailable / Degraded Policy (`SF-017`):**
+   * Non-valid ML inference sets `onnx_probability = None`, records `telecom_ml_signal_events_total{status=...}`, emits sanitized warning logs (`telecom_ml_signal_degraded`, zero PII), surfaces `ml_engine_status` / `ml_circuit_open` on `/api/v1/telecom/health`, and enforces the `0.40` Tier-1 `FLAG` review floor (`DEGRADED_REVIEW_FLOOR`) rather than silently defaulting to `0.0` / `ALLOW`.
+3. **Authentication / 2FA OTP Trade-Off vs. Threat Escalation:**
+   * Under Redis outages alone (when ONNX is healthy, `ml_signal_status="valid"`), low-risk 2FA/OTP messages continue evaluating to `ALLOW`. Under degraded/invalid/unavailable ML (`ml_signal_status != "valid"`), there is **no OTP pass-through guarantee** in the gateway: clean OTP-like messages evaluate to `FLAG` (`0.40` floor, non-`BLOCK` advisory review unless `H >= 0.80` or `V >= 0.75` reaches `BLOCK`), shifting false-positive review load onto downstream `FLAG` handling rather than risking silent `ALLOW` on unverified traffic.
 
 ---
 
@@ -310,4 +309,4 @@ To prevent SciPy statistical evaluations from blocking the asyncio event loop on
   > *"Implemented automated continuous data drift detection using two-sample Kolmogorov-Smirnov (KS) tests and Population Stability Index (PSI) to detect vocabulary shifts and SMS text distribution anomalies in high-throughput telecom streams."*
 
 * **Backend & Distributed Systems Architect:**
-  > *"Designed high-throughput Redis sorted-set feature store with async connection pooling, reducing velocity lookups to a single network roundtrip (<2ms RTT) and implementing multi-tiered fail-open circuit breakers for carrier 2FA traffic."*
+  > *"Designed high-throughput standalone Redis sorted-set feature store with async non-transactional pipelining (1-RTT `<2ms` design budget; real Redis network latency unmeasured locally), `{sender_hash}` cluster-migration slot tagging, and multi-tiered fail-open circuit breakers for carrier 2FA traffic."*
