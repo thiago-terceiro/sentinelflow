@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/start-server.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format:check": "prettier --check .",
