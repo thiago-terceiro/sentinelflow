@@ -9,7 +9,7 @@
 **SentinelFlow** is an enterprise-grade AI copilot and real-time intelligence gateway designed for mission-critical fintech and telecommunications trust-and-safety environments. It solves two complementary challenges:
 
 1. **SentinelFlow (Asynchronous Complex Reasoning)**: An autonomous AI dispute investigation copilot built on **LangGraph**. It coordinates LLMs, deterministic risk engines, compliance rules, and native human-in-the-loop approval workflows with cryptographic auditability.
-2. **SentinelPulse (Real-Time Synchronous Gateway)**: An ultra-low-latency traffic intelligence gateway designed to inspect inbound messaging (SMS/events) for fraud, pumping attacks, and spam toward an architectural **$< 15\text{ ms}$** p95 target using an **ONNX Runtime** CPU model and **Redis sorted-set sliding-window velocity counters** *(at `SF-015` 2,000-character max payload locally, internal `_process_single_message()` passes `<15ms` while caller-observed full HTTP p95 currently fails `<15ms`; live Redis RTT and multi-worker load remain **UNVERIFIED**)*.
+2. **SentinelPulse (Real-Time Synchronous Gateway)**: An ultra-low-latency traffic intelligence gateway designed to inspect inbound messaging (SMS/events) for fraud, pumping attacks, and spam toward an architectural **$< 15\text{ ms}$** p95 target using an **ONNX Runtime** CPU model and **Redis sorted-set sliding-window velocity counters** *(at `SF-015` 2,000-character max payload locally, `AI-18` `evaluate_heuristics()` and internal `_process_single_message()` pass `<15ms` across runs, whereas the **end-to-end HTTP `<15ms` target is NOT ESTABLISHED**—passing `conc=1` in `e12734d` [`6.228–7.633 ms`] after failing in `cb64ff2` [`17.259–17.793 ms`], and exceeding `15 ms` on shared-loop `conc=4, 8`; live Redis RTT and multi-worker load remain **UNVERIFIED**)*.
 
 ### Architectural Tenet: 100% Free & Open-Source Stack
 - **Zero Paid SaaS Dependencies**: No paid LangSmith, Datadog, Snyk, or commercial vendor lock-in.
@@ -23,7 +23,7 @@
 flowchart TD
     Client["Client / User Browser / Webhook Ingress"] --> Nginx["Nginx Reverse Proxy (Port 8080)"]
     
-    subgraph "Fast Path: SentinelPulse Gateway (< 15ms SLA)"
+    subgraph "Fast Path: SentinelPulse Gateway (< 15ms Target)"
         Nginx -->|POST /v1/classify| FastGateway["Telecom Gateway (FastAPI)"]
         FastGateway -->|1. Sliding Window RTT < 2ms| RedisStore[("Redis Velocity Store<br/>10s / 60s / 1h ZSETs")]
         FastGateway -->|2. Pre-filter < 0.05ms| RegexEngine["Compiled Regex Heuristics"]
@@ -186,7 +186,7 @@ sentinelflow/
 ## 7. Common Technical & Interview Inquiries
 
 ### Q: Why ONNX Runtime on CPU instead of a larger Transformer on GPU for the gateway?
-At gateway ingress, telecom architectures target sub-15ms p95 response times. As an illustrative capacity comparison, an 8-core CPU node running compiled linear ONNX targets high throughput (>12,000 raw short-SMS inferences/sec projection with `p99 < 0.1 ms` and low CPU compute cost; not measured in CI), whereas a 12-layer Transformer on GPU typically bottlenecks at lower throughput with higher tail latency and GPU cost. *(Measured local status at 2,000 chars: internal `_process_single_message()` passes `<15ms`, whereas full HTTP round-trip currently exceeds `15ms` p95 locally; multi-worker container throughput and live Redis RTT are UNVERIFIED.)*
+At gateway ingress, telecom architectures target sub-15ms p95 response times. As an illustrative capacity comparison, an 8-core CPU node running compiled linear ONNX targets high throughput (>12,000 raw short-SMS inferences/sec projection with `p99 < 0.1 ms` and low CPU compute cost; not measured in CI), whereas a 12-layer Transformer on GPU typically bottlenecks at lower throughput with higher tail latency and GPU cost. *(Measured local status at 2,000 chars: `AI-18` `evaluate_heuristics()` and internal `_process_single_message()` pass `<15ms`, whereas the **end-to-end HTTP `<15ms` target is NOT ESTABLISHED** [`conc=1` `6.228–7.633 ms` in `e12734d` vs `17.259–17.793 ms` in `cb64ff2`; shared-loop `conc=4` `25.280–26.094 ms`, `conc=8` `54.984–63.106 ms`]; multi-worker container throughput and live Redis RTT are UNVERIFIED.)*
 
 ### Q: How is state maintained safely across human approval pauses in LangGraph?
 When the risk engine flags a dispute for human oversight, LangGraph executes `interrupt()`. The state is serialized and persisted to PostgreSQL by `AsyncPostgresSaver` keyed by `thread_id`, and `persist_graph_state()` writes the mid-run snapshot and `approval_required` timeline event to `InvestigationRecord`. The HTTP worker returns immediately. When a reviewer submits their decision via `POST /investigations/{id}/resume`, the graph resumes from its exact checkpoint using `Command(resume=...)`.

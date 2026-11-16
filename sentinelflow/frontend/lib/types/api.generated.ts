@@ -348,7 +348,14 @@ export interface paths {
         put?: never;
         /**
          * Classify Telecom Message
-         * @description Real-time synchronous classification gateway with <15ms p95 latency SLA.
+         * @description Synchronous telecom fraud/smishing classification gateway.
+         *
+         *     Original route documentation stated an architectural ``<15ms p95`` latency
+         *     target; end-to-end HTTP ``<15ms`` performance is not yet consistently
+         *     demonstrated under caller-observed HTTP timing. Response ``latency_ms``
+         *     measures internal ``_process_single_message()`` execution (including the
+         *     AI-18 ``evaluate_heuristics()`` ``<15ms`` ReDoS guard at 2,000 characters),
+         *     excluding HTTP transport, FastAPI/Pydantic I/O, and live Redis network RTT.
          */
         post: operations["classify_telecom_message_api_v1_telecom_classify_post"];
         delete?: never;
@@ -768,7 +775,14 @@ export interface paths {
         put?: never;
         /**
          * Classify Telecom Message
-         * @description Real-time synchronous classification gateway with <15ms p95 latency SLA.
+         * @description Synchronous telecom fraud/smishing classification gateway.
+         *
+         *     Original route documentation stated an architectural ``<15ms p95`` latency
+         *     target; end-to-end HTTP ``<15ms`` performance is not yet consistently
+         *     demonstrated under caller-observed HTTP timing. Response ``latency_ms``
+         *     measures internal ``_process_single_message()`` execution (including the
+         *     AI-18 ``evaluate_heuristics()`` ``<15ms`` ReDoS guard at 2,000 characters),
+         *     excluding HTTP transport, FastAPI/Pydantic I/O, and live Redis network RTT.
          */
         post: operations["classify_telecom_message_v1_classify_post"];
         delete?: never;
@@ -1356,7 +1370,7 @@ export interface components {
             recipient: string;
             /**
              * Message
-             * @description SMS text content
+             * @description Reassembled / provider-aggregated SMS or text classification payload (application-level Unicode character limit; not a raw GSM-7/UCS-2 PDU segment cap)
              */
             message: string;
             /**
@@ -1399,6 +1413,12 @@ export interface components {
             escalated_dispute_id?: string | null;
             /** Escalated Dispute Url */
             escalated_dispute_url?: string | null;
+            /**
+             * Message Truncated
+             * @description True when PII redaction expanded the message past 2000 characters and trailing redacted text was bounded
+             * @default false
+             */
+            message_truncated: boolean;
         };
         /** TelecomEscalateRequest */
         TelecomEscalateRequest: {
@@ -1414,7 +1434,7 @@ export interface components {
             recipient: string;
             /**
              * Message
-             * @description SMS text content
+             * @description Reassembled / provider-aggregated SMS or text classification payload (application-level Unicode character limit; not a raw GSM-7/UCS-2 PDU segment cap)
              */
             message: string;
             /**
@@ -1450,6 +1470,12 @@ export interface components {
              * @description Telecom feed event ID
              */
             event_id?: string | null;
+            /**
+             * Message Truncated
+             * @description True if the message was truncated after PII redaction before escalation
+             * @default false
+             */
+            message_truncated: boolean;
         };
         /** TelecomEscalateResponse */
         TelecomEscalateResponse: {

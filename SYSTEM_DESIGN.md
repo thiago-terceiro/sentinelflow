@@ -2,7 +2,7 @@
 ## System Design & Distributed Architecture Deep Dive (1,000 → 100,000+ RPS)
 
 > **Role Focus:** Traffic Intelligence, Messaging Anti-Abuse, Communications ML Systems (Tier-1 Telecom / Global CPaaS Messaging Infrastructure)  
-> **Key Architectural Target (Unachieved on 2,000-Char Caller HTTP Locally):** Synchronous inline ingress (`<15ms p95 end-to-end HTTP` design target, `<0.1ms` warm in-graph ONNX C++ execution on short SMS; Decision SLA $p95 < 15\text{ ms}$, $p99 < 25\text{ ms}$). *Measured Boundary Status:* Internal `_process_single_message()` (`latency_ms`, Boundary A) and `AI-18` Step 3 (`evaluate_heuristics()`) pass `< 15 ms` on 2,000-char payloads locally, whereas caller-observed HTTP round-trip (`loopback_http_ms`, Boundary B) fails `< 15 ms` p95 at 2,000 chars locally (see Section 2.4). Live Redis network RTT and multi-worker concurrency remain **UNVERIFIED**.
+> **Key Architectural Target (HTTP `<15ms` Target NOT ESTABLISHED on 2,000-Char Traffic):** Synchronous inline ingress (`<15ms p95 end-to-end HTTP` design target, `<0.1ms` warm in-graph ONNX C++ execution on short SMS; Decision SLA target $p95 < 15\text{ ms}$, $p99 < 25\text{ ms}$). *Measured Boundary Status:* Internal `_process_single_message()` (`latency_ms`, Boundary A) and `AI-18` Step 3 (`evaluate_heuristics()`) pass `< 15 ms` on 2,000-char payloads locally, whereas the **end-to-end HTTP `< 15 ms` target is NOT ESTABLISHED** (local loopback `conc=1` passed in `e12734d` [`6.228–7.633 ms`] after failing in `cb64ff2` [`17.259–17.793 ms`], and shared-loop `conc=4, 8` exceed `15 ms`; see Section 2.4). Live Redis network RTT and multi-worker concurrency remain **UNVERIFIED**.
 
 ---
 
@@ -15,7 +15,7 @@ flowchart TD
     Client[("Telecom Inbound Traffic<br/>(SMPP / HTTP Webhooks)")] -->|TLS Termination| Edge["Edge Proxy / Envoy Gateway"]
     Edge --> Gateway["SentinelPulse Gateway (FastAPI)"]
     
-    subgraph "Real-Time Fast Path (< 15ms SLA)"
+    subgraph "Real-Time Fast Path (< 15ms Target)"
         Gateway -->|1. Sliding Window RTT < 2ms| Redis[("Feature Store<br/>Redis Sorted Sets")]
         Gateway -->|2. Pre-Filter < 0.05ms| Regex["Compiled Regex Heuristics Engine<br/>(Single 0.20-0.40, Compound >= 0.85)"]
         Gateway -->|3. CPU Inference < 0.1ms| ONNX["ONNX Runtime CPU Engine<br/>(In-Graph TF-IDF + Sigmoid-Calibrated Linear Classifier)"]
@@ -109,8 +109,8 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
     - Concurrency = 8: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, internal `latency_ms` < 15ms: PASS)
   - *SF-015 Maximum-Length (`2,000`-Character) Contract & Boundary Correction (`scripts/bench_telecom_classify_2000.py`):*
     - **Linear `AI-18` (`SF-015`) Step 3 ReDoS Guard (`evaluate_heuristics()` < 15 ms on 2,000-char pathological strings):** **PASS** (`p95 <= 3.477 ms`, `p99 <= 4.068 ms`, `max <= 4.163 ms`).
-    - **Boundary A — Internal `_process_single_message()` Processing (`endpoint_latency_ms` / response `latency_ms`):** **PASS** (`< 15 ms` in tested local modes: in-process ASGI aggregate `p95 = 6.254 ms` fake-Redis simulation / `7.128 ms` in-memory fallback; loopback Uvicorn `p95 = 5.488–8.815 ms`, `p99 = 5.994–9.343 ms`).
-    - **Boundary B — Caller-Observed Synchronous HTTP Ingress (`<15ms p95 end-to-end HTTP` target, measured as `asgi_roundtrip_ms` / `loopback_http_ms`):** **FAIL / NOT DEMONSTRATED** at 2,000 characters (`asgi_roundtrip_ms` aggregate `p95 = 18.164–19.744 ms`; `loopback_http_ms` at `concurrency = 1` `p95 = 17.259–17.793 ms`, `concurrency = 4` `p95 = 60.852–61.257 ms`, `concurrency = 8` `p95 = 121.061–124.160 ms`). The ~9–12 ms gap at `concurrency = 1` comes from HTTP/FastAPI middleware, Pydantic validation/serialization, and post-`t_end` synchronous `JsonFormatter` audit logging outside `_process_single_message()`; higher concurrency figures also include single-process/same-event-loop client/server queuing.
+    - **Boundary A — Internal `_process_single_message()` Processing (`endpoint_latency_ms` / response `latency_ms`):** **PASS** (`< 15 ms` in tested local modes across both comparable runs under identical harness boundaries: `e12734d` in-process ASGI aggregate `p95 = 1.937 ms` fake-Redis / `2.129 ms` in-memory, loopback Uvicorn `p95 = 1.748–3.725 ms`, `p99 = 2.213–5.800 ms`; `cb64ff2` in-process ASGI aggregate `p95 = 6.254 ms` / `7.128 ms`, loopback Uvicorn `p95 = 5.488–8.815 ms`, `p99 = 5.994–9.343 ms`; uniform `~3x–4x` shift in isolated `redact_sms_pii`/`evaluate_heuristics`/`engine.predict` CPU timings on fixed inputs reflects unpinned host execution/load variance rather than a code or timing-boundary change).
+    - **Boundary B — Caller-Observed Synchronous HTTP Ingress (`<15ms` end-to-end HTTP target, measured as `asgi_roundtrip_ms` / `loopback_http_ms`):** **NOT ESTABLISHED** at 2,000 characters: local loopback Uvicorn `concurrency = 1` passed in `e12734d` (`p95 = 6.228–7.633 ms`) after failing in `cb64ff2` (`p95 = 17.259–17.793 ms`), while shared-event-loop `concurrency = 4` (`25.280–26.094 ms` in `e12734d`; `60.852–61.257 ms` in `cb64ff2`) and `concurrency = 8` (`54.984–63.106 ms` in `e12734d`; `121.061–124.160 ms` in `cb64ff2`) exceed 15 ms (`in-process asgi_roundtrip_ms` agg `p95 = 5.920–6.499 ms` in `e12734d` vs `18.164–19.744 ms` in `cb64ff2`). The caller-visible gap outside `_process_single_message()` reflects HTTP/FastAPI middleware, Pydantic validation/serialization, and post-`t_end` synchronous `JsonFormatter` audit logging, plus single-process/same-event-loop client/server queuing at `concurrency = 4, 8`.
     - **Unverified Scope:** Live Redis server network RTT (`redis:7-alpine`) and independent-process / multi-worker HTTP concurrency are **UNVERIFIED** (do not infer multi-worker production concurrency from single-worker shared-loop benchmarks).
 
 ---
@@ -143,7 +143,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 
 | Dimension | Real-Time Online Gateway (SentinelPulse) | Offline / Nearline Batch Stream |
 | :--- | :--- | :--- |
-| **Ingress Mode & Latency** | **Architectural target: `<15ms p95 end-to-end HTTP`, `<0.1ms` warm ONNX on short SMS** *(at 2,000 chars locally, Boundary A internal passes `<15ms`, caller HTTP Boundary B fails `<15ms` p95)* | Offline / Nearline asynchronous batch stream (minutes to hours) |
+| **Ingress Mode & Latency** | **Architectural target: `<15ms p95 end-to-end HTTP`, `<0.1ms` warm ONNX on short SMS** *(at 2,000 chars locally, Boundary A internal passes `<15ms`, while the end-to-end HTTP `<15ms` target is **NOT ESTABLISHED**)* | Offline / Nearline asynchronous batch stream (minutes to hours) |
 | **Model Architecture** | In-graph TF-IDF + Sigmoid-Calibrated Linear Classifier in **ONNX** (`TfidfVectorizer` + `LogisticRegression`) | DistilBERT / RoBERTa / GNN (Graph Neural Network) |
 | **Hardware Execution** | **CPU Only (AVX-512)** (Zero GPU reliance; `0.032ms` warm inference measured on short SMS) | GPU Clusters (T4 / A10G) |
 | **Decision Scope** | Single message text + 10s/60s/1h velocity counters + compound regex | Multi-hop SIM farm graph clustering, global billing correlation |
@@ -297,7 +297,7 @@ To prevent SciPy statistical evaluations from blocking the asyncio event loop on
 ## 7. Resume Bullet-Point Templates (Tailored for Telecom Traffic Intelligence)
 
 * **Staff / Senior ML Systems Engineer (Evidence-Qualified Summary):**
-  > *"Architected SentinelPulse, an SMS fraud & smishing intelligence gateway deploying an ONNX Runtime model preceded by linear-time compiled regex heuristics (`<15ms` on 2,000-char pathological inputs) and pipelined Redis sliding-window velocity architecture; achieved `<15ms` p95/p99 internal processing latency (`_process_single_message()`) up to 2,000 characters in local fake-Redis/in-memory testing (caller-observed 2,000-char HTTP p95 currently fails `<15ms` locally, and live Redis RTT / multi-worker load remain to be benchmarked)."*
+  > *"Architected SentinelPulse, an SMS fraud & smishing intelligence gateway deploying an ONNX Runtime model preceded by linear-time compiled regex heuristics (`<15ms` on 2,000-char pathological inputs) and pipelined Redis sliding-window velocity architecture; achieved `<15ms` p95/p99 internal processing latency (`_process_single_message()`) up to 2,000 characters in local fake-Redis/in-memory testing (end-to-end HTTP `<15ms` remains not established—passing `conc=1` in one local run while failing `conc=1` in the prior run and `conc=4, 8` on the shared-loop harness—and live Redis RTT / multi-worker load remain to be benchmarked)."*
 
 * **MLOps & Reliability Engineer:**
   > *"Implemented automated continuous data drift detection using two-sample Kolmogorov-Smirnov (KS) tests and Population Stability Index (PSI) to detect vocabulary shifts and SMS text distribution anomalies in high-throughput telecom streams."*

@@ -10,7 +10,7 @@ This skill provides step-by-step procedures for measuring, profiling, and optimi
 
 ## Latency Budgets & Target SLAs
 
-The synchronous SentinelPulse telecom gateway targets an architectural $< 15\text{ ms}$ p95 end-to-end latency budget on short SMS payloads *(note: `app/api/telecom.py` `latency_ms` measures only Boundary A internal `_process_single_message()` execution; at `2,000` characters locally, Boundary A passes `<15ms` while caller-observed full HTTP round-trip `loopback_http_ms` [Boundary B] currently **fails** `<15ms` p95 due to FastAPI middleware, Pydantic validation/serialization, and post-timer `JsonFormatter` audit logging, and live Redis network RTT / multi-worker concurrency remain **UNVERIFIED**)*:
+The synchronous SentinelPulse telecom gateway targets an architectural $< 15\text{ ms}$ p95 end-to-end latency budget on short SMS payloads *(note: `app/api/telecom.py` `latency_ms` measures only Boundary A internal `_process_single_message()` execution; at `2,000` characters locally, `AI-18` `evaluate_heuristics()` and Boundary A pass `<15ms` across both `cb64ff2` and `e12734d` runs, whereas the **end-to-end HTTP `<15ms` target (Boundary B) is NOT ESTABLISHED**—passing local loopback `conc=1` in `e12734d` [`6.228–7.633 ms`] after failing in `cb64ff2` [`17.259–17.793 ms`], while shared-loop `conc=4, 8` exceed `15 ms`; live Redis network RTT and independent-process multi-worker concurrency remain **UNVERIFIED**)*:
 
 ```
 Architectural Target Ingress SLA (Short-SMS Design Budget): < 15.0 ms

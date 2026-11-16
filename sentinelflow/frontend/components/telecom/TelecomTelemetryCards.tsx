@@ -86,7 +86,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
       {/* Latency Percentiles Card */}
       <div
         className="shell-card"
-        title="End-to-end synchronous gateway latency including Redis velocity pipeline and ONNX CPU inference (<15ms p95 SLA)"
+        title="Internal _process_single_message() processing latency (AI-18 evaluate_heuristics() ReDoS guard + PII redaction + ONNX + Redis store). End-to-end HTTP <15ms target is not established."
         style={{
           padding: "20px 22px",
           minHeight: 170,
@@ -105,7 +105,7 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
               textTransform: "uppercase",
             }}
           >
-            Inference Latency SLA (&lt;15ms p95)
+            Internal Gateway Latency (Target &lt;15ms p95)
           </span>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
             <div style={{ display: "flex", gap: 24 }}>
@@ -138,8 +138,8 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 8, fontSize: 12, color: "var(--telecom-good, #14532d)", fontWeight: 700 }}>
-          ✓ Within 15ms target envelope (ONNX + Redis)
+        <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>
+          Internal processing timer only; end-to-end HTTP &lt;15ms target not established
         </div>
       </div>
 

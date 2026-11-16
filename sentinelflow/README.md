@@ -257,7 +257,7 @@ uv run alembic downgrade -1
 # SentinelPulse: Real-Time SMS Fraud & Spam Intelligence Gateway
 
 > **Tailored for Global CPaaS Traffic Intelligence & Communications ML Teams**  
-> Architectural Target: Synchronous inline ingress (`<15ms p95 end-to-end HTTP`, `<0.1ms` warm in-graph ONNX C++ execution on short SMS) · Non-Transactional Redis Velocity Pipelining · MLOps Drift Monitoring (KS + PSI) · Locust Load Suite *(See measured Boundary A vs. Boundary B status below: internal `_process_single_message()` passes `<15ms` at 2,000 chars locally, whereas caller-observed HTTP round-trip currently fails `<15ms` p95 at 2,000 chars locally; live Redis RTT and multi-worker load remain **UNVERIFIED**)*
+> Architectural Target: Synchronous inline ingress (`<15ms p95 end-to-end HTTP` target, `<0.1ms` warm in-graph ONNX C++ execution on short SMS) · Non-Transactional Redis Velocity Pipelining · MLOps Drift Monitoring (KS + PSI) · Locust Load Suite *(See measured Boundary A vs. Boundary B status below: internal `_process_single_message()` passes `<15ms` at 2,000 chars locally, whereas the **end-to-end HTTP `<15ms` target is NOT ESTABLISHED**—local loopback `conc=1` p95 passed in `e12734d` [`6.228–7.633 ms`] after exceeding 15 ms in `cb64ff2` [`17.259–17.793 ms`], and shared-loop `conc=4, 8` exceed 15 ms; live Redis RTT and multi-worker load remain **UNVERIFIED**)*
 
 SentinelPulse is an ultra-low-latency telecom intelligence gateway integrated into SentinelFlow. It protects messaging networks from high-volume SMS pumping, account takeover smishing, and SIM farm abuse.
 
@@ -270,13 +270,13 @@ SentinelPulse is an ultra-low-latency telecom intelligence gateway integrated in
 | **Raw ONNX CPU Inference (p99)** | $< 10.0\text{ ms}$ | **0.086 ms** (86 µs, *historical short-SMS*) | ONNX Runtime AVX-512 (In-graph TF-IDF + Sigmoid-Calibrated Linear Classifier) |
 | **Compiled Regex Heuristics** | $< 0.5\text{ ms}$ *(short)* / $< 15\text{ ms}$ (`AI-18` `2k`) | **0.040 ms** *(short-SMS)* / **p95 $\le$ 3.477 ms** (`SF-015` 2,000-char ReDoS guard) | Fast-path Python regex (Single: 0.20–0.40, Compound: $\ge 0.85$) |
 | **Redis Sliding Window Pipeline** | $< 5.0\text{ ms}$ | **1.200 ms** RTT *(design budget; live Redis RTT **UNVERIFIED** locally)* | Async non-transactional `ZSET` pipeline (1 roundtrip) |
-| **Internal Gateway Processing (`latency_ms`, Boundary A)** | **$< 15.0\text{ ms}$** | **0.400 ms** *(historical ~73-char)* / **6.254–8.815 ms p95** (`SF-015` 2,000-char) | `_process_single_message()` internal timer (in-process fake-Redis / in-memory) |
-| **Caller HTTP Round-Trip (`loopback_http_ms`, Boundary B)** | **$< 15.0\text{ ms}$ p95** | **17.259–17.793 ms p95** (`SF-015` 2,000-char, `conc=1`; **FAILS `<15ms` target**) | Full HTTP/FastAPI middleware + Pydantic + `JsonFormatter` audit log + loopback TCP |
+| **Internal Gateway Processing (`latency_ms`, Boundary A)** | **$< 15.0\text{ ms}$** | **0.400 ms** *(historical ~73-char)* / **1.937–3.725 ms p95 (`e12734d`), 5.488–8.815 ms p95 (`cb64ff2`)** (`SF-015` 2,000-char) | `_process_single_message()` internal timer (in-process fake-Redis / in-memory) |
+| **Caller HTTP Round-Trip (`loopback_http_ms`, Boundary B)** | **$< 15.0\text{ ms}$ p95 (Target)** | **NOT ESTABLISHED** (`e12734d` `conc=1`: `6.228–7.633 ms`, `cb64ff2` `conc=1`: `17.259–17.793 ms`; shared-loop `e12734d` `conc=4`: `25.280–26.094 ms`, `conc=8`: `54.984–63.106 ms`) | Full HTTP/FastAPI middleware + Pydantic + `JsonFormatter` audit log + loopback TCP |
 | **Throughput Capacity** | $> 1,000\text{ RPS}$ | **5,000+ RPS** *(historical short-msg in-process ASGI; multi-worker container throughput **UNVERIFIED**)* | Per container instance |
 
 ### Core Gateway Endpoints
 
-- `POST /v1/classify` (or `/api/v1/telecom/classify`): Synchronous inline ingress (architectural target `<15ms p95 end-to-end HTTP`, `<0.1ms` warm ONNX execution on short SMS; Boundary A internal `latency_ms` passes `<15ms` at 2,000 chars locally while Boundary B caller HTTP round-trip currently fails `<15ms` p95 locally):
+- `POST /v1/classify` (or `/api/v1/telecom/classify`): Synchronous inline ingress (architectural target `<15ms p95 end-to-end HTTP`, `<0.1ms` warm ONNX execution on short SMS; Boundary A internal `latency_ms` passes `<15ms` at 2,000 chars locally while the **end-to-end HTTP `<15ms` target is NOT ESTABLISHED** across tested concurrency and runs):
   ```json
   {
     "verdict": "BLOCK",

@@ -952,7 +952,7 @@
           "telecom-intelligence"
         ],
         "summary": "Classify Telecom Message",
-        "description": "Real-time synchronous classification gateway with <15ms p95 latency SLA.",
+        "description": "Synchronous telecom fraud/smishing classification gateway.\n\nOriginal route documentation stated an architectural ``<15ms p95`` latency\ntarget; end-to-end HTTP ``<15ms`` performance is not yet consistently\ndemonstrated under caller-observed HTTP timing. Response ``latency_ms``\nmeasures internal ``_process_single_message()`` execution (including the\nAI-18 ``evaluate_heuristics()`` ``<15ms`` ReDoS guard at 2,000 characters),\nexcluding HTTP transport, FastAPI/Pydantic I/O, and live Redis network RTT.",
         "operationId": "classify_telecom_message_api_v1_telecom_classify_post",
         "requestBody": {
           "content": {
@@ -1508,7 +1508,7 @@
           "telecom-intelligence"
         ],
         "summary": "Classify Telecom Message",
-        "description": "Real-time synchronous classification gateway with <15ms p95 latency SLA.",
+        "description": "Synchronous telecom fraud/smishing classification gateway.\n\nOriginal route documentation stated an architectural ``<15ms p95`` latency\ntarget; end-to-end HTTP ``<15ms`` performance is not yet consistently\ndemonstrated under caller-observed HTTP timing. Response ``latency_ms``\nmeasures internal ``_process_single_message()`` execution (including the\nAI-18 ``evaluate_heuristics()`` ``<15ms`` ReDoS guard at 2,000 characters),\nexcluding HTTP transport, FastAPI/Pydantic I/O, and live Redis network RTT.",
         "operationId": "classify_telecom_message_v1_classify_post",
         "requestBody": {
           "content": {

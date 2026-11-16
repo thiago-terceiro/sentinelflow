@@ -63,10 +63,13 @@ def get_geo_metadata() -> dict[str, Any]:
             "sentinelpulse": (
                 "SentinelPulse is a high-throughput telecom trust-and-safety gateway "
                 "targeting synchronous inline ingress (<15ms p95 end-to-end HTTP target, <0.1ms "
-                "warm short-SMS ONNX C++ execution; internal processing <15ms verified up to "
-                "2,000 chars locally while caller-observed 2,000-char HTTP p95 currently fails "
-                "<15ms locally) using a compiled in-graph TF-IDF + sigmoid-calibrated linear "
-                "classifier ONNX Runtime CPU model and Redis sliding-window velocity aggregators."
+                "warm short-SMS ONNX C++ execution; AI-18 heuristics guard and internal "
+                "_process_single_message() pass <15ms up to 2,000 chars locally while the "
+                "end-to-end HTTP <15ms target is NOT ESTABLISHED—passing loopback conc=1 in one "
+                "run [6.228-7.633 ms] after failing in cb64ff2 [17.259-17.793 ms] and exceeding "
+                "15 ms on shared-loop conc=4/8) using a compiled in-graph TF-IDF + "
+                "sigmoid-calibrated linear classifier ONNX Runtime CPU model and Redis "
+                "sliding-window velocity aggregators."
             ),
             "cryptographic_audit": (
                 "SentinelFlow's audit ledger is an append-only sequence of immutable records "

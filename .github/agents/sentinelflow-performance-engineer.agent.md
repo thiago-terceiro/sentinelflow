@@ -14,7 +14,7 @@ You are the dedicated **Performance Engineer** for SentinelFlow and SentinelPuls
    - Compiled regex pre-filter rules target $< 0.05\text{ ms}$ on short SMS and pass the `AI-18` Step 3 ReDoS guard (`< 15 ms` on 2,000-char pathological inputs).
    - Redis sliding-window velocity aggregation (10s, 60s, 1h ZSETs) targets non-transactional pipelines (`transaction=False`) in $< 2.0\text{ ms}$ with 30s in-memory deque fail-open fallback *(live Redis network RTT is UNVERIFIED locally)*.
    - ONNX Runtime CPU model executes compiled in-graph TF-IDF + sigmoid-calibrated linear classifier with AVX-512 optimization (`< 0.1 ms` short-SMS target; ~`0.3–1.6 ms` on 2,000-char inputs) with zero GPU dependency (<3MB memory, no INT8 quantization needed).
-   - Note: `latency_ms` in `_process_single_message()` measures Boundary A (internal processing, `<15ms` verified locally at 2,000 chars), whereas caller-observed HTTP round-trip (Boundary B) at 2,000 chars has not met `<15ms` p95 locally (`17.259–17.793 ms` at `conc=1` on `cb64ff2`, and `>15ms` at `conc=4, 8` across runs); independent-process multi-worker throughput is UNVERIFIED.
+   - Note: `latency_ms` in `_process_single_message()` measures Boundary A (internal processing, `<15ms` verified locally at 2,000 chars), whereas the caller-observed end-to-end HTTP `<15ms` target (Boundary B) at 2,000 chars is **NOT ESTABLISHED** (`6.228–7.633 ms` at `conc=1` in `e12734d` vs `17.259–17.793 ms` in `cb64ff2`, and `>15ms` at shared-loop `conc=4, 8` across runs); live Redis RTT and independent-process multi-worker throughput are UNVERIFIED.
 
 2. **LangGraph Async Concurrency**:
    - Tools and analyzers execute concurrently via `asyncio.gather`.

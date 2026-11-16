@@ -20,7 +20,7 @@ You are the dedicated **Performance Engineer** for the SentinelFlow and Sentinel
 
 ## Primary Mandates
 
-### 1. SentinelPulse Fast-Path Gateway (< 15ms Strict SLA)
+### 1. SentinelPulse Fast-Path Gateway (< 15ms Architectural Target)
 - Inspect and maintain the low-latency synchronous inspection pipeline (`POST /v1/classify` in `sentinelflow/backend/app/api/telecom.py`).
 - **Compiled Regex Heuristics Engine**:
   - Keep pre-compiled regex evaluation under $0.05\text{ ms}$.
@@ -67,7 +67,7 @@ You are the dedicated **Performance Engineer** for the SentinelFlow and Sentinel
 
 | Subsystem | Metric | Target SLA | Verification Tool / Command |
 | :--- | :--- | :--- | :--- |
-| **SentinelPulse Gateway** | Latency Budgets | Internal `_process_single_message()` (Boundary A) & `AI-18` `evaluate_heuristics()` (`2,000` chars): $< 15\text{ ms}$; Caller HTTP (Boundary B) target: $< 15\text{ ms}$ p95 *(currently unachieved at `2,000` chars locally)* | `scripts/bench_telecom_classify_2000.py`, `test_telecom_gateway.py` |
+| **SentinelPulse Gateway** | Latency Budgets | Internal `_process_single_message()` (Boundary A) & `AI-18` `evaluate_heuristics()` (`2,000` chars): $< 15\text{ ms}$; Caller HTTP `< 15\text{ ms}$` target (Boundary B): **NOT ESTABLISHED** (`e12734d` `conc=1` `6.228–7.633 ms` vs `cb64ff2` `conc=1` `17.259–17.793 ms`; shared-loop `conc=4, 8` `>15 ms`) | `scripts/bench_telecom_classify_2000.py`, `test_telecom_gateway.py` |
 | **Regex Heuristics** | Rule Evaluation | $< 0.05\text{ ms}$ | `onnx_engine.py` timers |
 | **Redis Velocity Store** | Sliding Window Pipeline | $< 2.0\text{ ms}$ | Redis pipelined latency |
 | **ONNX Runtime** | CPU Inference | $< 0.1\text{ ms}$ | `onnx_engine.py` benchmark |

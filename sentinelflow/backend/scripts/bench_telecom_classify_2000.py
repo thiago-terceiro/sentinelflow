@@ -17,15 +17,16 @@ Timing Boundaries & Contractual Status (2,000-Character Payloads):
 - Linear AI-18 (SF-015) Step 3 ReDoS Guard: evaluate_heuristics() < 15 ms on 2,000-char
   pathological strings -> PASS.
 - Boundary A (Internal server-side processing: _process_single_message() t_start..t_end,
-  returned as response latency_ms / endpoint_latency_ms) -> PASS (< 15 ms in tested
-  local modes).
-- Boundary B (Synchronous HTTP ingress response: <15ms p95 end-to-end HTTP architectural
-  target in README.md / docs/architecture.md / SYSTEM_DESIGN.md, measured as
-  asgi_roundtrip_ms and loopback_http_ms) -> NOT DEMONSTRATED / FAILS locally across
-  tested concurrency & baseline runs (loopback_http_ms p95 = 17.259-17.793 ms at conc=1
-  on the cb64ff2 baseline run, and concurrency=4, 8 exceed 15 ms p95 due to HTTP/FastAPI
-  middleware, Pydantic validation/serialization, post-t_end JsonFormatter audit logging,
-  and same-event-loop client/server queuing).
+  returned as response latency_ms / endpoint_latency_ms) -> PASS (< 15 ms across both
+  cb64ff2 [in-process agg p95 6.254-7.128 ms; loopback p95 5.488-8.815 ms] and e12734d
+  [in-process agg p95 1.937-2.129 ms; loopback p95 1.748-3.725 ms] local runs).
+- Boundary B (Architectural end-to-end HTTP <15 ms target, measured as asgi_roundtrip_ms
+  and loopback_http_ms) -> NOT ESTABLISHED: local loopback conc=1 p95 passed in the
+  e12734d run (6.228-7.633 ms) but exceeded 15 ms in the cb64ff2 run (17.259-17.793 ms),
+  while shared-event-loop conc=4 (25.280-26.094 ms in e12734d; 60.852-61.257 ms in
+  cb64ff2) and conc=8 (54.984-63.106 ms in e12734d; 121.061-124.160 ms in cb64ff2)
+  reflect HTTP/FastAPI/Pydantic/post-t_end JsonFormatter overhead plus non-representative
+  same-event-loop client/server queuing.
 - Unverified Scope: Live Redis server network RTT and independent-process / multi-worker
   concurrency are UNVERIFIED in this single-process, fake-Redis/in-memory harness.
 
@@ -416,7 +417,7 @@ async def main() -> None:
             "boundary_b_local_loopback_all_tested_conc_p95_lt_15ms": (
                 "PASS_LOCAL_ONLY" if max_boundary_b_all_p95 < 15.0 else "FAIL"
             ),
-            "boundary_b_end_to_end_http_p95_lt_15ms_sla_overall": "NOT_DEMONSTRATED_FAIL",
+            "boundary_b_end_to_end_http_lt_15ms_target": "NOT_ESTABLISHED",
             "live_redis_network_rtt": "UNVERIFIED",
             "independent_process_multi_worker_concurrency": "UNVERIFIED",
         },

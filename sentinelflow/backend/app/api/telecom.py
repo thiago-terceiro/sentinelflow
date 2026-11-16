@@ -608,7 +608,15 @@ async def classify_telecom_message(
     request: TelecomClassifyRequest,
     background_tasks: BackgroundTasks,
 ) -> TelecomClassifyResponse:
-    """Real-time synchronous classification gateway with <15ms p95 latency SLA."""
+    """Synchronous telecom fraud/smishing classification gateway.
+
+    Original route documentation stated an architectural ``<15ms p95`` latency
+    target; end-to-end HTTP ``<15ms`` performance is not yet consistently
+    demonstrated under caller-observed HTTP timing. Response ``latency_ms``
+    measures internal ``_process_single_message()`` execution (including the
+    AI-18 ``evaluate_heuristics()`` ``<15ms`` ReDoS guard at 2,000 characters),
+    excluding HTTP transport, FastAPI/Pydantic I/O, and live Redis network RTT.
+    """
     return await _process_single_message(request, background_tasks=background_tasks)
 
 

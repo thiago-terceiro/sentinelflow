@@ -19,7 +19,7 @@ export const getStructuredDataGraph = (): StructuredDataGraph => {
           priceCurrency: "USD",
         },
         description:
-          "SentinelFlow is an autonomous AI dispute investigation copilot built on LangGraph. SentinelPulse is a synchronous telecom fraud and spam intelligence gateway powered by ONNX Runtime CPU (sub-15ms internal processing target; full 2,000-char HTTP p95 currently fails <15ms locally).",
+          "SentinelFlow is an autonomous AI dispute investigation copilot built on LangGraph. SentinelPulse is a synchronous telecom fraud and spam intelligence gateway powered by ONNX Runtime CPU (sub-15ms internal processing verified locally; end-to-end HTTP <15ms target is NOT ESTABLISHED).",
         featureList: [
           "LangGraph multi-agent dispute investigation lifecycle",
           "Append-only SHA-256 cryptographic audit ledger",
@@ -58,7 +58,7 @@ export const getStructuredDataGraph = (): StructuredDataGraph => {
             name: "What is SentinelPulse?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "SentinelPulse is a high-throughput telecom trust-and-safety gateway targeting synchronous inline ingress (<15ms p95 end-to-end HTTP target, <0.1ms warm short-SMS ONNX C++ execution; internal processing <15ms verified up to 2,000 chars locally while caller-observed 2,000-char HTTP p95 currently fails <15ms locally) using a compiled in-graph TF-IDF + sigmoid-calibrated linear classifier ONNX Runtime CPU model and Redis sliding-window velocity aggregators.",
+              text: "SentinelPulse is a high-throughput telecom trust-and-safety gateway targeting synchronous inline ingress (<15ms p95 end-to-end HTTP target, <0.1ms warm short-SMS ONNX C++ execution; AI-18 heuristics guard and internal _process_single_message() pass <15ms up to 2,000 chars locally while the end-to-end HTTP <15ms target is NOT ESTABLISHED) using a compiled in-graph TF-IDF + sigmoid-calibrated linear classifier ONNX Runtime CPU model and Redis sliding-window velocity aggregators.",
             },
           },
           {

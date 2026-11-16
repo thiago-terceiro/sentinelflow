@@ -417,7 +417,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
             "Classifying..."
           ) : (
             <>
-              <span className="page-icon">⚡ </span>Run Real-Time Classification (&lt;15ms)
+              <span className="page-icon">⚡ </span>Run Real-Time Classification
             </>
           )}
         </button>
@@ -479,9 +479,12 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
               ) : null}
             </div>
 
-            <span style={{ fontSize: 13, fontFamily: "monospace", color: "var(--telecom-good, #14532d)", fontWeight: 700 }}>
+            <span
+              title="Internal _process_single_message() processing time (excludes caller-observed HTTP framing, FastAPI/Pydantic I/O, and network RTT)"
+              style={{ fontSize: 13, fontFamily: "monospace", color: "var(--telecom-good, #14532d)", fontWeight: 700 }}
+            >
               <span className="page-icon">⏱ </span>
-              {classificationResult.latency_ms} ms
+              {classificationResult.latency_ms} ms internal
             </span>
           </div>
 
@@ -557,7 +560,7 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
                   ⚡ Two-Tier Anomaly Escalation
                 </strong>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                  Synchronous inline ingress (&lt;15ms SLA) flagged this anomaly ({classificationResult.verdict}). Escalate to Stage 2 for autonomous multi-agent dispute investigation.
+                  Synchronous inline ingress (architectural &lt;15ms HTTP target not established; reported timer measures internal processing and AI-18 heuristics) flagged this anomaly ({classificationResult.verdict}). Escalate to Stage 2 for autonomous multi-agent dispute investigation.
                 </span>
               </div>
 

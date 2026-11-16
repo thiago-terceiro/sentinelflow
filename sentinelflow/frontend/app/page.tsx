@@ -162,9 +162,12 @@ const HomePage = () => {
           </h1>
 
           <p style={{ maxWidth: 740, margin: "0 0 16px", color: "var(--muted)", lineHeight: 1.6, fontSize: 14 }}>
-            Production-grade, sub-15ms carrier fraud &amp; smishing inspection gateway powered by
-            an optimized ONNX Runtime CPU model and Redis sliding-window velocity counters. High-risk
-            anomalies escalate seamlessly to SentinelFlow (Stage 2) for autonomous multi-agent dispute investigation.
+            Synchronous carrier fraud &amp; smishing inspection gateway powered by an ONNX Runtime
+            CPU model and Redis sliding-window velocity counters. Combines the AI-18 bounded
+            heuristics ReDoS guard (&lt;15ms at 2,000 chars) with internal processing telemetry, while
+            the architectural &lt;15ms end-to-end HTTP latency target remains unestablished across
+            caller-observed HTTP runs. High-risk anomalies escalate to SentinelFlow (Stage 2) for
+            autonomous multi-agent dispute investigation.
           </p>
 
           {/* Left-Aligned SLA Card */}
@@ -182,7 +185,7 @@ const HomePage = () => {
                 fontFamily: "monospace",
               }}
             >
-              SLA: &lt;15ms p95 | Ops: 5k RPS
+              Internal Target: &lt;15ms p95 | HTTP Target (&lt;15ms): Not Established
             </span>
           </div>
         </div>
