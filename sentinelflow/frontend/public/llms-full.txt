@@ -1,16 +1,16 @@
 # SentinelFlow & SentinelPulse — Full Technical Knowledge Base
-> SentinelFlow is an enterprise autonomous AI dispute investigation copilot built on LangGraph that orchestrates multi-agent evidence collection, deterministic risk evaluation, and human-in-the-loop steering. SentinelPulse is a high-throughput telecom trust-and-safety gateway delivering synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm in-graph ONNX C++ execution) using a compiled in-graph TF-IDF + sigmoid-calibrated linear classifier ONNX Runtime CPU model and Redis sliding-window velocity aggregators.
+> SentinelFlow is an enterprise autonomous AI dispute investigation copilot built on LangGraph that orchestrates multi-agent evidence collection, deterministic risk evaluation, and human-in-the-loop steering. SentinelPulse is a high-throughput telecom trust-and-safety gateway targeting synchronous inline ingress (<15ms p95 end-to-end HTTP target, <0.1ms warm short-SMS ONNX C++ execution; internal processing <15ms verified up to 2,000 chars locally while caller-observed 2,000-char HTTP p95 currently fails <15ms locally) using a compiled in-graph TF-IDF + sigmoid-calibrated linear classifier ONNX Runtime CPU model and Redis sliding-window velocity aggregators.
 
 ---
 
 ## 1. System Overview & Core Capabilities
 
-SentinelFlow coordinates an autonomous multi-agent dispute investigation lifecycle. SentinelPulse enforces real-time telecom trust-and-safety with strict sub-15ms ingress SLAs.
+SentinelFlow coordinates an autonomous multi-agent dispute investigation lifecycle. SentinelPulse targets real-time telecom trust-and-safety toward sub-15ms ingress latency budgets.
 
 ### Core Architecture Pillars:
 - **LangGraph Multi-Agent Engine**: Intake -> Investigate -> Collect (Parallel async tool execution via asyncio.gather) -> Synthesize -> Approval (Human-in-the-Loop interrupt) -> Finalize.
 - **Cryptographic Audit Ledger**: Every investigation step is recorded in an append-only ledger linked by SHA-256 row hashes (sequence_no, prev_hash, row_hash), providing verifiable non-repudiation.
-- **SentinelPulse Real-Time Gateway**: Sub-15ms synchronous SMS inspection using ONNX Runtime CPU (TF-IDF + calibrated classifier) and Redis sliding-window velocity aggregation (10s, 60s, 1h).
+- **SentinelPulse Real-Time Gateway**: Synchronous SMS inspection targeting sub-15ms latency (internal processing <15ms verified at 2,000 chars locally; 2,000-char caller HTTP p95 currently fails <15ms locally) using ONNX Runtime CPU (TF-IDF + calibrated classifier) and Redis sliding-window velocity aggregation (10s, 60s, 1h).
 - **Explainable AI Workbench**: Next.js 16 console with client-side Time-Travel State Scrubbing (<0.03ms per step), semantic iteration diffs (?diff=1), and sticky cross-panel evidence citation pinning (?evidence=EVD-xxx).
 
 ---
@@ -20,7 +20,7 @@ SentinelFlow coordinates an autonomous multi-agent dispute investigation lifecyc
 | Capability / Dimension | Legacy Rules Engine (2020) | SentinelFlow Dispute Copilot | SentinelPulse Telecom Gateway |
 | :--- | :--- | :--- | :--- |
 | **Primary Architecture** | Static If-Else & Hardcoded Rules | LangGraph Multi-Agent State Machine | In-Graph TF-IDF + Calibrated Linear ONNX CPU Pipeline |
-| **Latency SLA** | 50ms – 500ms (Database bound) | Asynchronous Multi-Step (Background Workers) | **<15ms Synchronous** (p99 < 8ms) |
+| **Latency SLA** | 50ms – 500ms (Database bound) | Asynchronous Multi-Step (Background Workers) | **<15ms Target** (Boundary A internal <15ms verified; caller 2,000-char HTTP p95 >15ms locally) |
 | **Decision Grounding** | Static Thresholds & Heuristics | Parallel Async Evidence Retrieval (`asyncio.gather`) | Multi-Window Velocity Aggregation (10s, 60s, 1h) |
 | **Human-in-the-Loop** | Offline Ticketing Queue | Native LangGraph `interrupt()` at Risk >= 0.70 | Real-Time Inline `FLAG` Verdict & Feedback Loop |
 | **Iterative Steering** | No Live Loop (Ticket Reassigned) | Re-investigation with Human Reviewer Guidance | Dynamic Velocity Threshold & Calibration Tuning |
@@ -54,7 +54,7 @@ SentinelFlow exposes public tools for autonomous AI agents over standard MCP (20
 1. `list_disputes(status?: str, limit?: int)`: Query and filter disputes with risk levels and customer details.
 2. `get_investigation(dispute_id: str)`: Retrieve full multi-agent investigation timeline, hypotheses, and evidence.
 3. `submit_review(dispute_id: str, investigation_id: str, decision: str, guidance?: str)`: Submit human reviewer decision (approve, reject, or request_revision with steering instructions).
-4. `classify_telecom(sender_phone: str, message_body: str, client_ip?: str)`: Run real-time ONNX fraud classification (<15ms).
+4. `classify_telecom(sender_phone: str, message_body: str, client_ip?: str)`: Run real-time ONNX fraud classification (Boundary A internal <15ms verified; architectural <15ms HTTP target).
 
 ---
 

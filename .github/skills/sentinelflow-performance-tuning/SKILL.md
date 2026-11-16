@@ -7,7 +7,7 @@ argument-hint: "gateway, onnx, redis, concurrency, or scrubber"
 # SentinelFlow Performance Tuning Skill
 
 ## When To Use
-- Ensuring SentinelPulse synchronous gateway satisfies its $< 15\text{ ms}$ SLA
+- Profiling SentinelPulse toward its architectural $< 15\text{ ms}$ p95 HTTP target (distinguishing internal `_process_single_message()` Boundary A from caller-observed HTTP Boundary B, where 2,000-char local loopback HTTP p95 currently fails $< 15\text{ ms}$)
 - Profiling ONNX CPU AVX-512 inference latency ($< 0.1\text{ ms}$)
 - Verifying Redis sliding-window velocity aggregation in a single pipeline ($< 2.0\text{ ms}$)
 - Benchmarking frontend state scrubber time-travel derivation ($< 0.03\text{ ms}$ per step)

@@ -2,7 +2,7 @@
 ## System Design & Distributed Architecture Deep Dive (1,000 → 100,000+ RPS)
 
 > **Role Focus:** Traffic Intelligence, Messaging Anti-Abuse, Communications ML Systems (Tier-1 Telecom / Global CPaaS Messaging Infrastructure)  
-> **Key SLA:** Synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm in-graph ONNX C++ execution); Decision SLA $p95 < 15\text{ ms}$, $p99 < 25\text{ ms}$.
+> **Key Architectural Target (Unachieved on 2,000-Char Caller HTTP Locally):** Synchronous inline ingress (`<15ms p95 end-to-end HTTP` design target, `<0.1ms` warm in-graph ONNX C++ execution on short SMS; Decision SLA $p95 < 15\text{ ms}$, $p99 < 25\text{ ms}$). *Measured Boundary Status:* Internal `_process_single_message()` (`latency_ms`, Boundary A) and `AI-18` Step 3 (`evaluate_heuristics()`) pass `< 15 ms` on 2,000-char payloads locally, whereas caller-observed HTTP round-trip (`loopback_http_ms`, Boundary B) fails `< 15 ms` p95 at 2,000 chars locally (see Section 2.4). Live Redis network RTT and multi-worker concurrency remain **UNVERIFIED**.
 
 ---
 
@@ -71,7 +71,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 
 * **Multi-Worker Local Fallback & Process Isolation:**
   When Redis is unreachable or socket timeouts trigger the 30-second circuit breaker, the gateway falls back open to per-worker in-memory sliding-window deques.
-  * *Trade-Off & Isolation Analysis:* In a multi-worker deployment ($W$ Uvicorn worker processes behind an Envoy/Nginx load balancer), each worker process maintains an isolated in-memory deque. Under uniform round-robin distribution, an attacker generating $N$ requests/sec divides traffic across workers, so each worker observes $N/W$ requests/sec (dividing effective global detection threshold by $W$). Once Redis connectivity heals and the 30-second circuit breaker cooldown expires, the cluster automatically resynchronizes to the unified global Redis state.
+  * *Trade-Off & Isolation Analysis:* In a multi-worker deployment ($W$ Uvicorn worker processes behind an Envoy/Nginx load balancer), each worker process maintains an isolated in-memory deque. Under uniform round-robin distribution, an attacker generating $N$ requests/sec divides traffic across workers, so each worker observes $N/W$ requests/sec (dividing effective global detection threshold by $W$). Once Redis connectivity heals and the 30-second circuit breaker cooldown expires, the cluster would resynchronize to the unified global Redis state. *(Note: multi-worker OS process concurrency and live Redis cluster behavior are **UNVERIFIED** in local single-worker benchmarks.)*
 
 * **Non-Transactional Sliding-Window Pipeline (`ZSET`):**
   ```python
@@ -94,7 +94,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
       pipe.zcard(key_3600s)
       results = await pipe.execute()
   ```
-* **Network Budget:** Pipeline reduces network roundtrips from 6 down to 1 RTT ($\approx 0.8\text{ ms}$ over AWS VPC / local network).
+* **Network Budget:** Pipeline reduces network roundtrips from 6 down to 1 RTT (design estimate $\approx 0.8\text{ ms}$ over AWS VPC / local network; live Redis server network RTT is **UNVERIFIED** in the current local environment).
 * **L1 In-Process Memory Cache:** For viral spam spikes (>50 RPS from one number), a local thread-safe LRU cache (2-second TTL) short-circuits Redis reads, protecting the database from single-key hotspotting.
 
 ---
@@ -102,11 +102,16 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 ### 2.4 Performance Benchmarks & Concurrency Testing
 * **Benchmark Architecture & Methodology:**
   Concurrency benchmarks are executed as *"In-process ASGI endpoint microbenchmarks (100 requests per concurrency level, single Uvicorn event loop)"* using `httpx.ASGITransport` on a single Python event loop.
-  - *Measurement Scope:* Tests synchronous gateway execution path (`latency_ms`: ONNX Runtime CPU + compiled regex heuristics + in-memory sliding-window velocity + continuous gated blend + policy decision) without raw NIC socket overhead, virtualization hops, or multi-process IPC.
-  - *Measured Performance:*
-    - Concurrency = 1: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, SLA < 15ms: PASS)
-    - Concurrency = 4: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, SLA < 15ms: PASS)
-    - Concurrency = 8: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, SLA < 15ms: PASS)
+  - *Measurement Scope:* Tests synchronous internal gateway execution (`latency_ms` / Boundary A: ONNX Runtime CPU + compiled regex heuristics + in-memory sliding-window velocity + continuous gated blend + policy decision) without raw NIC socket overhead, virtualization hops, live Redis network RTT, or multi-process IPC.
+  - *Historical Short-Message (~73-char) In-Process Internal `latency_ms` (Boundary A, Local In-Memory Fallback):*
+    - Concurrency = 1: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, internal `latency_ms` < 15ms: PASS)
+    - Concurrency = 4: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, internal `latency_ms` < 15ms: PASS)
+    - Concurrency = 8: p50 = 0.20 ms, p95 = 0.40 ms (~5,000 req/s, internal `latency_ms` < 15ms: PASS)
+  - *SF-015 Maximum-Length (`2,000`-Character) Contract & Boundary Correction (`scripts/bench_telecom_classify_2000.py`):*
+    - **Linear `AI-18` (`SF-015`) Step 3 ReDoS Guard (`evaluate_heuristics()` < 15 ms on 2,000-char pathological strings):** **PASS** (`p95 <= 3.477 ms`, `p99 <= 4.068 ms`, `max <= 4.163 ms`).
+    - **Boundary A — Internal `_process_single_message()` Processing (`endpoint_latency_ms` / response `latency_ms`):** **PASS** (`< 15 ms` in tested local modes: in-process ASGI aggregate `p95 = 6.254 ms` fake-Redis simulation / `7.128 ms` in-memory fallback; loopback Uvicorn `p95 = 5.488–8.815 ms`, `p99 = 5.994–9.343 ms`).
+    - **Boundary B — Caller-Observed Synchronous HTTP Ingress (`<15ms p95 end-to-end HTTP` target, measured as `asgi_roundtrip_ms` / `loopback_http_ms`):** **FAIL / NOT DEMONSTRATED** at 2,000 characters (`asgi_roundtrip_ms` aggregate `p95 = 18.164–19.744 ms`; `loopback_http_ms` at `concurrency = 1` `p95 = 17.259–17.793 ms`, `concurrency = 4` `p95 = 60.852–61.257 ms`, `concurrency = 8` `p95 = 121.061–124.160 ms`). The ~9–12 ms gap at `concurrency = 1` comes from HTTP/FastAPI middleware, Pydantic validation/serialization, and post-`t_end` synchronous `JsonFormatter` audit logging outside `_process_single_message()`; higher concurrency figures also include single-process/same-event-loop client/server queuing.
+    - **Unverified Scope:** Live Redis server network RTT (`redis:7-alpine`) and independent-process / multi-worker HTTP concurrency are **UNVERIFIED** (do not infer multi-worker production concurrency from single-worker shared-loop benchmarks).
 
 ---
 
@@ -130,7 +135,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 * **Durable Multi-Tier Escalation Architecture (`arq` Redis Queue + In-Process Fallback):**
   Instead of relying exclusively on volatile in-process `BackgroundTasks` (which silently drop queued disputes if a worker pod crashes, terminates, or restarts during rolling deployment), SentinelPulse implements a **two-tier durable escalation pipeline**:
   1. **Primary Distributed Queue (`arq` on Redis):** When Redis is available, `_spawn_escalation_task` enqueues an asynchronous durable task (`persist_escalated_dispute_job`) to the Redis `arq` queue. This guarantees at-least-once persistence across worker restarts, auto-scaling events, and node evictions.
-  2. **Tracked In-Process Fallback (`_background_tasks` Set):** In standalone development or during full Redis outages, `_spawn_escalation_task` falls back to an in-process `asyncio.create_task` registered in a strong reference set (`_background_tasks.add(task)` / `task.add_done_callback(_background_tasks.discard)`) and bounded by `asyncio.Semaphore(16)` (`_escalation_semaphore`). This prevents Python runtime garbage collection of in-flight coroutines and protects the PostgreSQL pool from connection exhaustion while preserving the synchronous `<15ms` HTTP ingress SLA.
+  2. **Tracked In-Process Fallback (`_background_tasks` Set):** In standalone development or during full Redis outages, `_spawn_escalation_task` falls back to an in-process `asyncio.create_task` registered in a strong reference set (`_background_tasks.add(task)` / `task.add_done_callback(_background_tasks.discard)`) and bounded by `asyncio.Semaphore(16)` (`_escalation_semaphore`). This prevents Python runtime garbage collection of in-flight coroutines and protects the PostgreSQL pool from connection exhaustion while avoiding synchronous database writes on the fast-path handler.
 
 ---
 
@@ -138,14 +143,14 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 
 | Dimension | Real-Time Online Gateway (SentinelPulse) | Offline / Nearline Batch Stream |
 | :--- | :--- | :--- |
-| **Ingress Mode & Latency** | **Synchronous inline ingress (<15ms p95 end-to-end HTTP, <0.1ms warm in-graph ONNX C++ execution)** | Offline / Nearline asynchronous batch stream (minutes to hours) |
+| **Ingress Mode & Latency** | **Architectural target: `<15ms p95 end-to-end HTTP`, `<0.1ms` warm ONNX on short SMS** *(at 2,000 chars locally, Boundary A internal passes `<15ms`, caller HTTP Boundary B fails `<15ms` p95)* | Offline / Nearline asynchronous batch stream (minutes to hours) |
 | **Model Architecture** | In-graph TF-IDF + Sigmoid-Calibrated Linear Classifier in **ONNX** (`TfidfVectorizer` + `LogisticRegression`) | DistilBERT / RoBERTa / GNN (Graph Neural Network) |
-| **Hardware Execution** | **CPU Only (AVX-512)** (Zero GPU reliance, 0.032ms warm inference) | GPU Clusters (T4 / A10G) |
+| **Hardware Execution** | **CPU Only (AVX-512)** (Zero GPU reliance; `0.032ms` warm inference measured on short SMS) | GPU Clusters (T4 / A10G) |
 | **Decision Scope** | Single message text + 10s/60s/1h velocity counters + compound regex | Multi-hop SIM farm graph clustering, global billing correlation |
 | **Cost per 1M SMS** | **\$0.08** (Standard CPU compute) | **\$14.50** (Transformer GPU inference) |
 
 ### Why ONNX CPU Outperforms Large Transformers for Synchronous Gateway Ingress:
-1. **Throughput Density & Tail Latency:** An 8-core CPU node serves >12,000 ONNX inferences/sec with $p99 < 0.1\text{ ms}$. The same node running a local 12-layer Transformer tops out at ~150 inferences/sec with $p99 > 85\text{ ms}$, breaching telecom carrier SLAs.
+1. **Throughput Density & Tail Latency (Architectural Order-of-Magnitude Projection):** In illustrative capacity planning, an 8-core CPU node running compiled linear ONNX is designed for >12,000 raw model inferences/sec (at `p99 < 0.1 ms` on short inputs), whereas a local 12-layer Transformer on GPU typically bottlenecks at ~150 inferences/sec with high tail latency. *(Note: the >12,000 ONNX inferences/sec multi-core figure is an illustrative capacity projection, not a verified local CI measurement.)*
 2. **Exact Model Graph & Quantization Accuracy (No "INT8 Neural Net" Buzzwords):**
    * The deployed model (`sms_fraud_model.onnx`) is a compiled Scikit-Learn pipeline (`TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True)` + `LogisticRegression(class_weight='balanced')`), exported via `skl2onnx` (`to_onnx`) into native ONNX runtime operators (`Tokenizer`, `Normalizer`, `TfIdfVectorizer`, `LinearClassifier`).
    * **Sigmoid Calibration:** Raw linear logits $z = w^T x + b$ are mapped directly into calibrated fraud probabilities via the logistic sigmoid function $\sigma(z) = \frac{1}{1 + e^{-z}}$ inside the ONNX compute graph.
@@ -247,7 +252,7 @@ To prevent SciPy statistical evaluations from blocking the asyncio event loop on
 
 ### 6.1 Architectural Trade-Off: Unsupervised Early-Warning Triggers & Delayed Ground Truth
 * **The Delayed Ground-Truth Dilemma in Telecom:**
-  At synchronous gateway ingress (<15ms), true fraud labels do not exist. Telecom carriers only learn of fraudulent messages days or weeks later when end-users report spam or file bank chargebacks (typically 30–90 day dispute windows). Consequently, supervised metrics (real-time precision, recall, F1, accuracy) cannot be evaluated online.
+  At synchronous gateway ingress (internal sub-15ms budget), true fraud labels do not exist. Telecom carriers only learn of fraudulent messages days or weeks later when end-users report spam or file bank chargebacks (typically 30–90 day dispute windows). Consequently, supervised metrics (real-time precision, recall, F1, accuracy) cannot be evaluated online.
 * **Unsupervised Dual Early-Warning Telemetry:**
   To detect distribution shifts without ground-truth labels, SentinelPulse computes continuous statistical divergence metrics:
   1. **Feature Drift (Two-Sample Kolmogorov-Smirnov Test + Lexical Telemetry):**
@@ -291,8 +296,8 @@ To prevent SciPy statistical evaluations from blocking the asyncio event loop on
 
 ## 7. Resume Bullet-Point Templates (Tailored for Telecom Traffic Intelligence)
 
-* **Staff / Senior ML Systems Engineer:**
-  > *"Architected SentinelPulse, a real-time SMS fraud & smishing intelligence gateway handling 5,000+ RPS with p95 latency under 15ms, deploying an optimized ONNX Runtime model preceded by compiled regex heuristics and Redis sliding-window velocity counters."*
+* **Staff / Senior ML Systems Engineer (Evidence-Qualified Summary):**
+  > *"Architected SentinelPulse, an SMS fraud & smishing intelligence gateway deploying an ONNX Runtime model preceded by linear-time compiled regex heuristics (`<15ms` on 2,000-char pathological inputs) and pipelined Redis sliding-window velocity architecture; achieved `<15ms` p95/p99 internal processing latency (`_process_single_message()`) up to 2,000 characters in local fake-Redis/in-memory testing (caller-observed 2,000-char HTTP p95 currently fails `<15ms` locally, and live Redis RTT / multi-worker load remain to be benchmarked)."*
 
 * **MLOps & Reliability Engineer:**
   > *"Implemented automated continuous data drift detection using two-sample Kolmogorov-Smirnov (KS) tests and Population Stability Index (PSI) to detect vocabulary shifts and SMS text distribution anomalies in high-throughput telecom streams."*

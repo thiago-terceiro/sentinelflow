@@ -9,7 +9,7 @@
 **SentinelFlow** is an enterprise-grade AI copilot and real-time intelligence gateway designed for mission-critical fintech and telecommunications trust-and-safety environments. It solves two complementary challenges:
 
 1. **SentinelFlow (Asynchronous Complex Reasoning)**: An autonomous AI dispute investigation copilot built on **LangGraph**. It coordinates LLMs, deterministic risk engines, compliance rules, and native human-in-the-loop approval workflows with cryptographic auditability.
-2. **SentinelPulse (Real-Time Synchronous Gateway)**: An ultra-low-latency traffic intelligence gateway that inspects high-throughput inbound messaging (SMS/events) for fraud, pumping attacks, and spam under a strict **$< 15\text{ ms}$** SLA using an optimized **ONNX Runtime** CPU model and **Redis sorted-set sliding-window velocity counters**.
+2. **SentinelPulse (Real-Time Synchronous Gateway)**: An ultra-low-latency traffic intelligence gateway designed to inspect inbound messaging (SMS/events) for fraud, pumping attacks, and spam toward an architectural **$< 15\text{ ms}$** p95 target using an **ONNX Runtime** CPU model and **Redis sorted-set sliding-window velocity counters** *(at `SF-015` 2,000-character max payload locally, internal `_process_single_message()` passes `<15ms` while caller-observed full HTTP p95 currently fails `<15ms`; live Redis RTT and multi-worker load remain **UNVERIFIED**)*.
 
 ### Architectural Tenet: 100% Free & Open-Source Stack
 - **Zero Paid SaaS Dependencies**: No paid LangSmith, Datadog, Snyk, or commercial vendor lock-in.
@@ -71,13 +71,13 @@ The investigation copilot manages autonomous research and synthesis over complex
   - W3C `traceparent` / `tracestate` context is injected when enqueueing `arq` jobs in FastAPI and extracted by the worker (`run_investigation_job` / `run_resume_investigation_job`), linking HTTP ingress spans and background LangGraph node spans into a single distributed trace in Jaeger.
 
 ### 3.2 SentinelPulse High-Throughput Gateway
-Designed for telecom and CPaaS messaging anti-abuse (e.g., 5,000+ RPS).
+Architectural target for telecom and CPaaS messaging anti-abuse (design capacity target: e.g., 5,000+ RPS across horizontally scaled containers; multi-worker throughput **UNVERIFIED** locally).
 
 - **Inference Pipeline**:
   - Input: `{ sender, recipient, message, carrier, ip_address }`.
-  - Step 1: Pre-compiled regex heuristics engine evaluates blocklists and common smishing patterns in $< 0.05\text{ ms}$.
-  - Step 2: High-throughput Redis sliding-window velocity aggregation tracking messages sent in the last 10s, 60s, and 1h via pipelined `ZSET` commands in a single network roundtrip ($< 2\text{ ms}$).
-  - Step 3: Lightweight classification model exported to **ONNX Runtime (CPU)** with AVX-512 optimization, running inferences in $< 0.1\text{ ms}$.
+  - Step 1: Pre-compiled regex heuristics engine evaluates blocklists and common smishing patterns (`< 0.05 ms` on short SMS; `AI-18` Step 3 ReDoS guard verified `< 15 ms` on 2,000-char pathological inputs).
+  - Step 2: High-throughput Redis sliding-window velocity aggregation tracking messages sent in the last 10s, 60s, and 1h via pipelined `ZSET` commands in a single network roundtrip (design budget $< 2\text{ ms}$; live Redis network RTT is **UNVERIFIED** locally).
+  - Step 3: Lightweight classification model exported to **ONNX Runtime (CPU)** (`< 0.1 ms` measured on short SMS; `~1.0–5.5 ms` p99 on 2,000-char padded inputs).
   - Composite Verdict: Evaluates combined risk signals to return `ALLOW`, `FLAG`, or `BLOCK` with execution latency tracking.
 - **Fail-Open Circuit Breakers**:
   - If Redis or ONNX latencies breach 15ms or error rates exceed 2%, circuit breakers open.
@@ -186,7 +186,7 @@ sentinelflow/
 ## 7. Common Technical & Interview Inquiries
 
 ### Q: Why ONNX Runtime on CPU instead of a larger Transformer on GPU for the gateway?
-At gateway ingress, telecom SLAs mandate end-to-end response times under 15ms. An 8-core CPU node serves $> 12,000$ ONNX inferences/second with $p99 < 0.1\text{ ms}$ at \$0.08 per million messages with zero GPU infrastructure complexity. A 12-layer Transformer on GPU achieves ~150 RPS with $p99 > 85\text{ ms}$ at \$14.50 per million messages, breaching latency SLAs and increasing operational cost by 180x.
+At gateway ingress, telecom architectures target sub-15ms p95 response times. As an illustrative capacity comparison, an 8-core CPU node running compiled linear ONNX targets high throughput (>12,000 raw short-SMS inferences/sec projection with `p99 < 0.1 ms` and low CPU compute cost; not measured in CI), whereas a 12-layer Transformer on GPU typically bottlenecks at lower throughput with higher tail latency and GPU cost. *(Measured local status at 2,000 chars: internal `_process_single_message()` passes `<15ms`, whereas full HTTP round-trip currently exceeds `15ms` p95 locally; multi-worker container throughput and live Redis RTT are UNVERIFIED.)*
 
 ### Q: How is state maintained safely across human approval pauses in LangGraph?
 When the risk engine flags a dispute for human oversight, LangGraph executes `interrupt()`. The state is serialized and persisted to PostgreSQL by `AsyncPostgresSaver` keyed by `thread_id`, and `persist_graph_state()` writes the mid-run snapshot and `approval_required` timeline event to `InvestigationRecord`. The HTTP worker returns immediately. When a reviewer submits their decision via `POST /investigations/{id}/resume`, the graph resumes from its exact checkpoint using `Command(resume=...)`.

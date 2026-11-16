@@ -67,7 +67,7 @@ You are the dedicated **Performance Engineer** for the SentinelFlow and Sentinel
 
 | Subsystem | Metric | Target SLA | Verification Tool / Command |
 | :--- | :--- | :--- | :--- |
-| **SentinelPulse Gateway** | End-to-End Latency | $< 15\text{ ms}$ (p99) | `POST /v1/classify` benchmark |
+| **SentinelPulse Gateway** | Latency Budgets | Internal `_process_single_message()` (Boundary A) & `AI-18` `evaluate_heuristics()` (`2,000` chars): $< 15\text{ ms}$; Caller HTTP (Boundary B) target: $< 15\text{ ms}$ p95 *(currently unachieved at `2,000` chars locally)* | `scripts/bench_telecom_classify_2000.py`, `test_telecom_gateway.py` |
 | **Regex Heuristics** | Rule Evaluation | $< 0.05\text{ ms}$ | `onnx_engine.py` timers |
 | **Redis Velocity Store** | Sliding Window Pipeline | $< 2.0\text{ ms}$ | Redis pipelined latency |
 | **ONNX Runtime** | CPU Inference | $< 0.1\text{ ms}$ | `onnx_engine.py` benchmark |

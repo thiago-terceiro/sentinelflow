@@ -487,8 +487,10 @@ async def _process_single_message(
     else:
         verdict = "ALLOW"
 
-    # 5. Redact PII & mask phone numbers for telemetry, audit logging, and public live dashboard
-    #    Executed synchronously inside the measured SLA boundary before recording t_end.
+    # 5. Redact PII & mask phone numbers for telemetry, audit logging, and public live dashboard.
+    #    Executed synchronously inside _process_single_message() internal timer (t_start..t_end,
+    #    returned as response latency_ms; Boundary A internal processing, excluding HTTP/FastAPI
+    #    middleware, Pydantic validation/serialization, and post-t_end JsonFormatter audit logging).
     safe_message, message_truncated = _bound_redacted_message(redact_sms_pii(req.message))
     masked_sender = _mask_phone(req.sender)
     masked_recipient = _mask_phone(req.recipient)

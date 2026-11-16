@@ -1,7 +1,8 @@
 """Reproducible 2,000-character latency benchmark for SentinelPulse (/v1/classify).
 
 Measures two distinct execution harnesses at the 2,000-character application-level
-contract boundary:
+contract boundary and separates internal processing (Boundary A) from caller-observed
+HTTP round-trip latency (Boundary B):
 
 1. In-process ASGI + component microbenchmark (N=100 sequential samples per payload
    across 11 benign, fraud, homoglyph, multilingual, and high-PII-density payloads;
@@ -10,9 +11,23 @@ contract boundary:
    across concurrency = 1, 4, 8 over http://127.0.0.1:<ephemeral_port>/v1/classify),
    evaluating both the in-process fake-Redis pipeline simulation path (_FakeRedisClient,
    24 ZSET ops/request, no external Redis server/network RTT) and the local in-memory
-   fallback path. Note: in this harness, httpx.AsyncClient and single-worker uvicorn.Server
-   share one local asyncio event loop, so client-side loopback_http_ms at concurrency > 1
-   includes single-loop scheduling and single-worker queueing.
+   fallback path.
+
+Timing Boundaries & Contractual Status (2,000-Character Payloads):
+- Linear AI-18 (SF-015) Step 3 ReDoS Guard: evaluate_heuristics() < 15 ms on 2,000-char
+  pathological strings -> PASS.
+- Boundary A (Internal server-side processing: _process_single_message() t_start..t_end,
+  returned as response latency_ms / endpoint_latency_ms) -> PASS (< 15 ms in tested
+  local modes).
+- Boundary B (Synchronous HTTP ingress response: <15ms p95 end-to-end HTTP architectural
+  target in README.md / docs/architecture.md / SYSTEM_DESIGN.md, measured as
+  asgi_roundtrip_ms and loopback_http_ms) -> NOT DEMONSTRATED / FAILS locally across
+  tested concurrency & baseline runs (loopback_http_ms p95 = 17.259-17.793 ms at conc=1
+  on the cb64ff2 baseline run, and concurrency=4, 8 exceed 15 ms p95 due to HTTP/FastAPI
+  middleware, Pydantic validation/serialization, post-t_end JsonFormatter audit logging,
+  and same-event-loop client/server queuing).
+- Unverified Scope: Live Redis server network RTT and independent-process / multi-worker
+  concurrency are UNVERIFIED in this single-process, fake-Redis/in-memory harness.
 
 Usage:
     cd sentinelflow/backend
@@ -360,6 +375,26 @@ async def main() -> None:
 
     asgi_res = await _run_inprocess_asgi_benchmark()
     uvicorn_res = await _run_uvicorn_loopback_benchmark()
+    max_heur_p95 = max(
+        float(payload_stats["heuristics_ms"]["p95"])
+        for mode_stats in asgi_res.values()
+        for key, payload_stats in mode_stats.items()
+        if key != "AGGREGATE_ALL_1100"
+    )
+    max_boundary_a_p95 = max(
+        float(conc_stats["endpoint_latency_ms"]["p95"])
+        for mode_stats in uvicorn_res.values()
+        for conc_stats in mode_stats.values()
+    )
+    max_boundary_b_conc1_p95 = max(
+        float(mode_stats["concurrency_1"]["loopback_http_ms"]["p95"])
+        for mode_stats in uvicorn_res.values()
+    )
+    max_boundary_b_all_p95 = max(
+        float(conc_stats["loopback_http_ms"]["p95"])
+        for mode_stats in uvicorn_res.values()
+        for conc_stats in mode_stats.values()
+    )
     report = {
         "environment": {
             "platform": platform.platform(),
@@ -367,6 +402,23 @@ async def main() -> None:
             "cpu_count": os.cpu_count(),
             "payload_length_chars": 2000,
             "audit_records_json_formatted": mem_handler.formatted_count,
+        },
+        "contract_and_evidence_classification": {
+            "sf015_ai18_heuristics_redos_guard_lt_15ms": (
+                "PASS" if max_heur_p95 < 15.0 else "FAIL"
+            ),
+            "boundary_a_internal_process_single_message_lt_15ms": (
+                "PASS" if max_boundary_a_p95 < 15.0 else "FAIL"
+            ),
+            "boundary_b_local_loopback_conc1_p95_lt_15ms_this_run": (
+                "PASS_LOCAL_ONLY" if max_boundary_b_conc1_p95 < 15.0 else "FAIL"
+            ),
+            "boundary_b_local_loopback_all_tested_conc_p95_lt_15ms": (
+                "PASS_LOCAL_ONLY" if max_boundary_b_all_p95 < 15.0 else "FAIL"
+            ),
+            "boundary_b_end_to_end_http_p95_lt_15ms_sla_overall": "NOT_DEMONSTRATED_FAIL",
+            "live_redis_network_rtt": "UNVERIFIED",
+            "independent_process_multi_worker_concurrency": "UNVERIFIED",
         },
         "inprocess_asgi_n100_per_payload": asgi_res,
         "loopback_uvicorn_tcp_n300_per_concurrency": uvicorn_res,

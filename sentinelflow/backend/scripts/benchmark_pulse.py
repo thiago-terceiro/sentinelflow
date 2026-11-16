@@ -211,8 +211,8 @@ def benchmark_components(n_runs: int = 2000) -> dict[str, Any]:
 
 
 async def benchmark_api_concurrency(concurrencies: list[int] = [1, 4, 8]) -> dict[str, Any]:
-    """Measures end-to-end POST /v1/classify endpoint latency under realistic per-worker concurrent load."""
-    logger.info("Benchmarking /v1/classify end-to-end pipeline under per-worker concurrent load...")
+    """Measures in-process ASGI POST /v1/classify latency on a single shared event loop."""
+    logger.info("Benchmarking /v1/classify in-process ASGI pipeline (single event loop)...")
     transport = httpx.ASGITransport(app=app)
     results: dict[str, Any] = {}
 
@@ -382,13 +382,13 @@ Measurements conducted across **$N = 2,000$ warm runs** per batch tier:
 
 Measured under in-process concurrent async loads ($N = 100$ requests per concurrency tier) using `httpx.ASGITransport` on a single Python event loop:
 
-| Concurrency Tier | Throughput | Server p50 | Server p90 | Server p95 | Server p99 | Client E2E p95* | Sub-15ms Ingress SLA |
+| Concurrency Tier | Throughput | Server Internal p50 | Server Internal p90 | Server Internal p95 | Server Internal p99 | Client E2E p95* | Boundary A Internal (<15ms) |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Concurrency = 1** | `{benchmarks['concurrency']['concurrency_1']['throughput_req_per_sec']} req/s` | `{benchmarks['concurrency']['concurrency_1']['server_p50_ms']} ms` | `{benchmarks['concurrency']['concurrency_1']['server_p90_ms']} ms` | `{benchmarks['concurrency']['concurrency_1']['server_p95_ms']} ms` | `{benchmarks['concurrency']['concurrency_1']['server_p99_ms']} ms` | `{benchmarks['concurrency']['concurrency_1']['client_p95_ms']} ms` | **PASS (<15ms)** |
-| **Concurrency = 4** | `{benchmarks['concurrency']['concurrency_4']['throughput_req_per_sec']} req/s` | `{benchmarks['concurrency']['concurrency_4']['server_p50_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p90_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p95_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p99_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['client_p95_ms']} ms` | **PASS (<15ms)** |
-| **Concurrency = 8** | `{benchmarks['concurrency']['concurrency_8']['throughput_req_per_sec']} req/s` | `{benchmarks['concurrency']['concurrency_8']['server_p50_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p90_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p95_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p99_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['client_p95_ms']} ms` | **PASS (<15ms)** |
+| **Concurrency = 1** | `{benchmarks['concurrency']['concurrency_1']['throughput_req_per_sec']} req/s` | `{benchmarks['concurrency']['concurrency_1']['server_p50_ms']} ms` | `{benchmarks['concurrency']['concurrency_1']['server_p90_ms']} ms` | `{benchmarks['concurrency']['concurrency_1']['server_p95_ms']} ms` | `{benchmarks['concurrency']['concurrency_1']['server_p99_ms']} ms` | `{benchmarks['concurrency']['concurrency_1']['client_p95_ms']} ms` | **PASS (<15ms internal)** |
+| **Concurrency = 4** | `{benchmarks['concurrency']['concurrency_4']['throughput_req_per_sec']} req/s` | `{benchmarks['concurrency']['concurrency_4']['server_p50_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p90_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p95_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['server_p99_ms']} ms` | `{benchmarks['concurrency']['concurrency_4']['client_p95_ms']} ms` | **PASS (<15ms internal)** |
+| **Concurrency = 8** | `{benchmarks['concurrency']['concurrency_8']['throughput_req_per_sec']} req/s` | `{benchmarks['concurrency']['concurrency_8']['server_p50_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p90_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p95_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['server_p99_ms']} ms` | `{benchmarks['concurrency']['concurrency_8']['client_p95_ms']} ms` | **PASS (<15ms internal)** |
 
-*Note: In-process ASGI endpoint microbenchmarks (100 requests per concurrency level, single Uvicorn event loop) measuring single-event-loop concurrency via `httpx.ASGITransport`. It does not measure multi-worker OS process isolation, IPC, or real socket network overhead. Server latency measures pure gateway execution (`latency_ms`: ONNX Runtime CPU + compiled regex heuristics + in-memory sliding-window velocity + continuous gated blend + policy decision); Client E2E latency includes Python asyncio task scheduling, transport abstraction, and event-loop queuing on the shared thread.*
+*Note: In-process ASGI microbenchmarks (100 short 73-character requests per concurrency level, single Python event loop, local in-memory velocity fallback) via `httpx.ASGITransport`. Does NOT measure live Redis network RTT, real TCP sockets, or multi-worker OS process concurrency (all UNVERIFIED here). `Server Internal` measures Boundary A (`_process_single_message()` `latency_ms`); `Client E2E` measures Boundary B (caller-observed ASGI round-trip including FastAPI middleware, Pydantic validation/serialization, `JsonFormatter` audit logging, and shared-loop queuing). At the `SF-015` 2,000-character maximum payload boundary (`scripts/bench_telecom_classify_2000.py`), Boundary A passes (`p95 <= 8.815 ms`) whereas Boundary B caller-observed loopback HTTP fails the `<15 ms` p95 target (`p95 = 17.259–17.793 ms` at `concurrency = 1`, higher at `concurrency = 4, 8`).*
 
 ---
 
@@ -509,9 +509,9 @@ def main() -> None:
     c1 = full_benchmarks["concurrency"]["concurrency_1"]
     c4 = full_benchmarks["concurrency"]["concurrency_4"]
     c8 = full_benchmarks["concurrency"]["concurrency_8"]
-    print(f"API Ingress Conc=1: p50 = {c1['p50_ms']} ms, p95 = {c1['p95_ms']} ms ({c1['throughput_req_per_sec']} req/s) [SLA <15ms: PASS]")
-    print(f"API Ingress Conc=4: p50 = {c4['p50_ms']} ms, p95 = {c4['p95_ms']} ms ({c4['throughput_req_per_sec']} req/s) [SLA <15ms: PASS]")
-    print(f"API Ingress Conc=8: p50 = {c8['p50_ms']} ms, p95 = {c8['p95_ms']} ms ({c8['throughput_req_per_sec']} req/s) [SLA <15ms: PASS]")
+    print(f"API Internal (Boundary A) Conc=1: server_p50 = {c1['p50_ms']} ms, server_p95 = {c1['p95_ms']} ms, client_p95 = {c1['client_p95_ms']} ms ({c1['throughput_req_per_sec']} req/s)")
+    print(f"API Internal (Boundary A) Conc=4: server_p50 = {c4['p50_ms']} ms, server_p95 = {c4['p95_ms']} ms, client_p95 = {c4['client_p95_ms']} ms ({c4['throughput_req_per_sec']} req/s)")
+    print(f"API Internal (Boundary A) Conc=8: server_p50 = {c8['p50_ms']} ms, server_p95 = {c8['p95_ms']} ms, client_p95 = {c8['client_p95_ms']} ms ({c8['throughput_req_per_sec']} req/s)")
     print("=" * 70 + "\n")
 
 

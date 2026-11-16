@@ -10,17 +10,17 @@ This skill provides step-by-step procedures for measuring, profiling, and optimi
 
 ## Latency Budgets & Target SLAs
 
-The synchronous SentinelPulse telecom gateway operates under a strict $< 15\text{ ms}$ end-to-end latency budget:
+The synchronous SentinelPulse telecom gateway targets an architectural $< 15\text{ ms}$ p95 end-to-end latency budget on short SMS payloads *(note: `app/api/telecom.py` `latency_ms` measures only Boundary A internal `_process_single_message()` execution; at `2,000` characters locally, Boundary A passes `<15ms` while caller-observed full HTTP round-trip `loopback_http_ms` [Boundary B] currently **fails** `<15ms` p95 due to FastAPI middleware, Pydantic validation/serialization, and post-timer `JsonFormatter` audit logging, and live Redis network RTT / multi-worker concurrency remain **UNVERIFIED**)*:
 
 ```
-Total Ingress SLA: < 15.0 ms
-├── Nginx Proxy Handshake:        < 0.5 ms
-├── Pre-filter Regex Rules:       < 0.05 ms
-├── Redis Sliding-Window (ZSETs): < 2.0 ms
-├── ONNX CPU Model Inference:     < 0.1 ms
+Architectural Target Ingress SLA (Short-SMS Design Budget): < 15.0 ms
+├── Nginx Proxy Handshake:        < 0.5 ms   (target)
+├── Pre-filter Regex Rules:       < 0.05 ms  (short-SMS; <15ms AI-18 guard at 2k chars)
+├── Redis Sliding-Window (ZSETs): < 2.0 ms   (target; live Redis RTT UNVERIFIED locally)
+├── ONNX CPU Model Inference:     < 0.1 ms   (short-SMS; ~1-5ms on 2k chars)
 ├── Verdict & Drift Update:       < 0.2 ms
-└── Network Buffer / Response:    < 1.0 ms
-Total Core Processing Time:       < 3.85 ms (Headroom > 11 ms)
+└── Network Buffer / Response:    < 1.0 ms   (target; 2k-char HTTP middleware/audit > 9ms)
+Total Short-SMS Design Core:      < 3.85 ms
 ```
 
 ---
