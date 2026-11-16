@@ -274,6 +274,14 @@ SentinelPulse is an ultra-low-latency telecom intelligence gateway integrated in
 | **Caller HTTP Round-Trip (`loopback_http_ms`, Boundary B)** | **$< 15.0\text{ ms}$ p95 (Target)** | **NOT ESTABLISHED** (`e12734d` `conc=1`: `6.228–7.633 ms`, `cb64ff2` `conc=1`: `17.259–17.793 ms`; shared-loop `e12734d` `conc=4`: `25.280–26.094 ms`, `conc=8`: `54.984–63.106 ms`) | Full HTTP/FastAPI middleware + Pydantic + `JsonFormatter` audit log + loopback TCP |
 | **Throughput Capacity** | $> 1,000\text{ RPS}$ | **5,000+ RPS** *(historical short-msg in-process ASGI; multi-worker container throughput **UNVERIFIED**)* | Per container instance |
 
+### System Capability & Readiness Matrix
+
+| Readiness Tier | Components & Capabilities |
+| :--- | :--- |
+| **Implemented & Verified in Repo** | `<1ms` ONNX CPU inference (`sms_fraud_model.onnx`, `d330466e...`, single-thread pinned `SessionOptions`); patched `skl2onnx` `<1e-6` parity (`max_prob_abs_diff = 1.04e-07`, `400/400` verdict parity); continuous gated composite scoring (monotonic non-decreasing, 13 linear-time regex heuristics + Cyrillic mixed-script homoglyph normalization); standalone Redis (`redis:7-alpine`) ZSET sliding-window velocity + 30s in-memory deque fail-open circuit breaker; pre-inference/logging PII redaction (`redact_sms_pii`, 128-bit versioned HMAC pseudonyms, 2,000-char contract); 3-tier evaluation governance (`OOF CV N=703` across 56 families, `Dev/Val N=400`, `Quarantined Class C Holdout: UNAVAILABLE / BLOCKED` with `UCI #228` `N=5,574` quarantined separately); LangGraph multi-agent triage workbench (`interrupt()`), `arq` worker, SHA-256 append-only audit ledger, Next.js 16 console. |
+| **Simulated / Benchmarked in Dev** | In-process `httpx.ASGITransport` microbenchmarks & local loopback Uvicorn 2,000-char benchmarks (`scripts/benchmark_pulse.py`, `scripts/bench_telecom_classify_2000.py`: Boundary A internal passes `<15ms` locally; Boundary B end-to-end HTTP `<15ms` target is **NOT ESTABLISHED**; live Redis RTT and multi-worker load are unverified); synthetic + public-advisory SMS corpora (`Train N=703`, `Dev/Val N=400`, `SF-013` perturbation suite `N=70`); Locust & `telecom_simulator.py` traffic generation; heuristic fallback / mock LLM mode in dev & CI (`app.evals.run`). |
+| **Future Production / Enterprise Scope (Not Implemented)** | Live carrier SS7 / Diameter / SMPP / optical-tap ingestion (`Class D` telemetry: `0` records in repo); multi-node Redis Cluster state synchronization & distributed Kafka event bus (`telecom.sms.inbound`); automated closed-loop active-learning retraining pipelines (retraining is manual/offline via `train_onnx_model.py`). |
+
 ### Core Gateway Endpoints
 
 - `POST /v1/classify` (or `/api/v1/telecom/classify`): Synchronous inline ingress (architectural target `<15ms p95 end-to-end HTTP`, `<0.1ms` warm ONNX execution on short SMS; Boundary A internal `latency_ms` passes `<15ms` at 2,000 chars locally while the **end-to-end HTTP `<15ms` target is NOT ESTABLISHED** across tested concurrency and runs):
@@ -295,7 +303,7 @@ SentinelPulse is an ultra-low-latency telecom intelligence gateway integrated in
 ### Quickstart & Load Testing Commands
 
 ```bash
-# 1. Run the Pytest verification suite (126 passing tests across the full backend suite, plus 32 frontend Node tests)
+# 1. Run the Pytest verification suite (233 passing tests across the full backend suite, plus 39 tracked frontend Node tests)
 cd backend
 uv run pytest app/tests/test_telecom_gateway.py
 
@@ -320,5 +328,5 @@ Navigate to `http://localhost:3000/telecom` (or `http://localhost:8080/telecom` 
 
 ### Architectural Deep Dive
 
-For interview preparation, 100k RPS Kafka partitioning, cold-start mitigation, and degraded ML fail-open policies, see [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md).
+For future-scale enterprise architecture notes (Kafka partitioning design, Redis Cluster slot-tagging compatibility), cold-start mitigation, and degraded ML fail-open policies, see [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md).
 

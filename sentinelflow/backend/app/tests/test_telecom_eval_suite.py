@@ -2409,3 +2409,72 @@ def test_whitespace_normalization_and_word_boundary_preservation() -> None:
     for benign_text, forbidden_rule in merged_word_controls:
         _, signals = evaluate_heuristics(benign_text)
         assert forbidden_rule not in signals
+
+
+def test_documentation_metric_and_mirror_synchronization() -> None:
+    """Verifies SF-016 doc-mirror parity, ml_metrics SHA-256 sync, readiness table, and forbidden claims."""
+    canonical = get_canonical_artifact_paths()
+    workspace_root = canonical["report_root"].parents[1]
+    project_root = workspace_root / "sentinelflow"
+
+    # 1. All root <-> sentinelflow/ mirrored docs must be byte-for-byte identical
+    mirrored_pairs = [
+        ("OVERVIEW.md", "OVERVIEW.md"),
+        ("PROJECT_CONTEXT.md", "PROJECT_CONTEXT.md"),
+        ("SYSTEM_DESIGN.md", "SYSTEM_DESIGN.md"),
+        ("docs/ml_evaluation_report.md", "docs/ml_evaluation_report.md"),
+        ("docs/dataset_provenance_and_governance.md", "docs/dataset_provenance_and_governance.md"),
+        (
+            "docs/sf011_class_c_acquisition_and_qualification.md",
+            "docs/sf011_class_c_acquisition_and_qualification.md",
+        ),
+    ]
+    for root_rel, mirror_rel in mirrored_pairs:
+        root_bytes = (workspace_root / root_rel).read_bytes()
+        mirror_bytes = (project_root / mirror_rel).read_bytes()
+        assert root_bytes == mirror_bytes, (
+            f"Mirrored documentation out of sync: {root_rel} vs sentinelflow/{mirror_rel}"
+        )
+
+    # 2. Active ml_metrics.json digests must appear in docs/ml_evaluation_report.md
+    metrics = json.loads(canonical["metrics"].read_text(encoding="utf-8"))
+    report_text = canonical["report_root"].read_text(encoding="utf-8")
+    for key in ("model_sha256", "evaluation_dataset_sha256", "benchmark_predictions_sha256"):
+        digest = str(metrics[key])
+        assert digest in report_text, f"docs/ml_evaluation_report.md missing active {key}: {digest}"
+
+    # 3. Forbidden claims must not appear in primary documentation
+    forbidden_phrases = (
+        "strictly monotonic",
+        "untouched 400-message",
+        "400-sample external holdout",
+    )
+    audited_docs = [
+        "README.md",
+        "sentinelflow/README.md",
+        "OVERVIEW.md",
+        "PROJECT_CONTEXT.md",
+        "SYSTEM_DESIGN.md",
+        "docs/architecture.md",
+        "docs/ml_evaluation_report.md",
+    ]
+    for rel_path in audited_docs:
+        doc_lower = (workspace_root / rel_path).read_text(encoding="utf-8").lower()
+        for phrase in forbidden_phrases:
+            assert phrase not in doc_lower, (
+                f"Forbidden historical phrase {phrase!r} found in {rel_path}"
+            )
+
+    # 4. System Capability & Readiness Matrix must appear in README.md, sentinelflow/README.md, and SYSTEM_DESIGN.md
+    required_tiers = (
+        "Implemented & Verified in Repo",
+        "Simulated / Benchmarked in Dev",
+        "Future Production / Enterprise Scope (Not Implemented)",
+    )
+    for rel_path in ("README.md", "sentinelflow/README.md", "SYSTEM_DESIGN.md"):
+        doc_text = (workspace_root / rel_path).read_text(encoding="utf-8")
+        assert "System Capability & Readiness Matrix" in doc_text, (
+            f"{rel_path} missing System Capability & Readiness Matrix"
+        )
+        for tier in required_tiers:
+            assert tier in doc_text, f"{rel_path} missing readiness tier {tier!r}"

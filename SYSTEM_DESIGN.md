@@ -29,19 +29,27 @@ flowchart TD
         Decider -.->|asyncio.to_thread| Drift["Data Drift Monitor<br/>(KS-Test + PSI)"]
         Decider -.->|SSE Channel| Dashboard["Live Ops Dashboard<br/>(Next.js / React)"]
         Decider -.->|BackgroundTasks + Semaphore| Escalation["SentinelFlow Bridge<br/>Auto-Create Dispute & LangGraph Run"]
-        Decider -.->|Buffered Events| Kafka[("Kafka Event Bus<br/>telecom.sms.events")]
+        Decider -.->|Future Enterprise Scope| Kafka[("Kafka Event Bus (Planned)<br/>telecom.sms.events")]
     end
 ```
 
+## 1.1 System Capability & Readiness Matrix
+
+| Readiness Tier | Components & Capabilities |
+| :--- | :--- |
+| **Implemented & Verified in Repo** | `<1ms` ONNX CPU inference (`sms_fraud_model.onnx`, `d330466e...`, single-thread pinned `SessionOptions`); patched `skl2onnx` `<1e-6` parity (`max_prob_abs_diff = 1.04e-07`, `400/400` verdict parity); continuous gated composite scoring (monotonic non-decreasing, 13 linear-time regex heuristics + Cyrillic mixed-script homoglyph normalization); standalone Redis (`redis:7-alpine`) ZSET sliding-window velocity + 30s in-memory deque fail-open circuit breaker; pre-inference/logging PII redaction (`redact_sms_pii`, 128-bit versioned HMAC pseudonyms, 2,000-char contract); 3-tier evaluation governance (`OOF CV N=703` across 56 families, `Dev/Val N=400`, `Quarantined Class C Holdout: UNAVAILABLE / BLOCKED` with `UCI #228` `N=5,574` quarantined separately); LangGraph multi-agent triage workbench (`interrupt()`), `arq` worker, SHA-256 append-only audit ledger, Next.js 16 console. |
+| **Simulated / Benchmarked in Dev** | In-process `httpx.ASGITransport` microbenchmarks & local loopback Uvicorn 2,000-char benchmarks (`scripts/benchmark_pulse.py`, `scripts/bench_telecom_classify_2000.py`: Boundary A internal passes `<15ms` locally; Boundary B end-to-end HTTP `<15ms` target is **NOT ESTABLISHED**; live Redis RTT and multi-worker load are unverified); synthetic + public-advisory SMS corpora (`Train N=703`, `Dev/Val N=400`, `SF-013` perturbation suite `N=70`); Locust & `telecom_simulator.py` traffic generation; heuristic fallback / mock LLM mode in dev & CI (`app.evals.run`). |
+| **Future Production / Enterprise Scope (Not Implemented)** | Live carrier SS7 / Diameter / SMPP / optical-tap ingestion (`Class D` telemetry: `0` records in repo); multi-node Redis Cluster state synchronization & distributed Kafka event bus (`telecom.sms.inbound`); automated closed-loop active-learning retraining pipelines (retraining is manual/offline via `train_onnx_model.py`). |
+
 ---
 
-## 2. Scaling from 1,000 RPS to 100,000 RPS
+## 2. Scaling from 1,000 RPS to 100,000 RPS *(Future Enterprise Architecture)*
 
-### 2.1 Edge & Ingestion Tier
+### 2.1 Edge & Ingestion Tier *(Planned Production Topology — Not Implemented in Repo)*
 * **Horizontal Gateway Scaling:** Gateway pods run statelessly behind an Envoy load balancer with HTTP/2 and gRPC keep-alive connection pooling.
 * **CPU Sizing & Pinning:** Each gateway replica handles ~2,500 RPS on 2 vCPUs. At 100,000 RPS, the cluster autoscales to 40 replicas with Kubernetes Horizontal Pod Autoscaler (HPA) triggered on CPU utilization (>65%) and request queue latency.
 
-### 2.2 Kafka Partitioning Strategy
+### 2.2 Kafka Partitioning Strategy *(Planned Enterprise Bus — Not Implemented in Repo)*
 For asynchronous offline audit logging, model retraining ingestion, and campaign clustering:
 * **Topic:** `telecom.sms.inbound` with 128 partitions.
 * **Partition Key:** `hash(sender_phone)`.
@@ -71,14 +79,14 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
 
 * **Multi-Worker Local Fallback & Process Isolation:**
   When Redis is unreachable or socket timeouts trigger the 30-second circuit breaker, the gateway falls back open to per-worker in-memory sliding-window deques.
-  * *Trade-Off & Isolation Analysis:* In a multi-worker deployment ($W$ Uvicorn worker processes behind an Envoy/Nginx load balancer), each worker process maintains an isolated in-memory deque. Under uniform round-robin distribution, an attacker generating $N$ requests/sec divides traffic across workers, so each worker observes $N/W$ requests/sec (dividing effective global detection threshold by $W$). Once Redis connectivity heals and the 30-second circuit breaker cooldown expires, the cluster would resynchronize to the unified global Redis state. *(Note: multi-worker OS process concurrency and live Redis cluster behavior are **UNVERIFIED** in local single-worker benchmarks.)*
+  * *Trade-Off & Isolation Analysis:* In a multi-worker deployment ($W$ Uvicorn worker processes behind an Envoy/Nginx load balancer), each worker process maintains an isolated in-memory deque. Under uniform round-robin distribution, an attacker generating $N$ requests/sec divides traffic across workers, so each worker observes $N/W$ requests/sec (dividing effective global detection threshold by $W$). Once Redis connectivity heals and the 30-second circuit breaker cooldown expires, the workers resynchronize to the standalone Redis state. *(Note: multi-worker OS process concurrency and multi-node Redis Cluster state sync are **UNVERIFIED** / **not implemented** in the current repository.)*
 
 * **Non-Transactional Sliding-Window Pipeline (`ZSET`):**
   ```python
   # Non-transactional pipelining (transaction=False):
-  # In Redis Cluster, MULTI/EXEC transactions require all keys to hash to the identical slot
-  # and introduce atomic locking overhead. Non-transactional pipelining batches commands over
-  # the TCP socket in a single round-trip without cross-slot multi-key transaction constraints.
+  # In a future Redis Cluster migration, MULTI/EXEC transactions require all keys to hash to
+  # the identical slot and introduce atomic locking overhead. Non-transactional pipelining batches
+  # commands over the TCP socket in 1 RTT without cross-slot multi-key transaction constraints.
   async with redis.pipeline(transaction=False) as pipe:
       pipe.zremrangebyscore(key_10s, 0, now - 10.0)
       pipe.zadd(key_10s, {event_member: now})
@@ -176,7 +184,7 @@ For asynchronous offline audit logging, model retraining ingestion, and campaign
      - **Tier 2 — `BLOCK` ($S_{\text{composite}} \ge 0.75$):** Immediate Carrier Wire Drop. Design target is high precision ($\ge 98.5\%$) and minimal benign blocking (`0 / 200` on `Dev/Val N=400`, vs. exploratory `SF-009 OOF N=703` `2.39%` FPR concentrated in `1 / 37` benign families; external carrier FPR remains unverified).
      - **`ALLOW` ($S_{\text{composite}} < 0.40$):** Immediate pass-through with zero latency overhead.
    * **Mathematical Invariants & False-Positive Prevention:**
-     - **Monotonic Non-Decreasing Property:** $\frac{\partial S_{\text{composite}}}{\partial P} \ge 0$, $\frac{\partial S_{\text{composite}}}{\partial H} \ge 0$, and $\frac{\partial S_{\text{composite}}}{\partial V} \ge 0$ everywhere on $[0, 1]^3$. Bounded within $[0.0, 1.0]$ with zero non-monotonic dips or threshold discontinuities. Terminology note: the formulation is mathematically monotonic non-decreasing rather than strictly monotonic due to flat boundary plateaus where $H \ge 0.80$ forces $S_{\text{composite}} = 1.0$.
+     - **Monotonic Non-Decreasing Property:** $\frac{\partial S_{\text{composite}}}{\partial P} \ge 0$, $\frac{\partial S_{\text{composite}}}{\partial H} \ge 0$, and $\frac{\partial S_{\text{composite}}}{\partial V} \ge 0$ everywhere on $[0, 1]^3$. Bounded within $[0.0, 1.0]$ with zero non-monotonic dips or threshold discontinuities. Terminology note: the formulation is mathematically monotonic non-decreasing rather than strictly increasing everywhere due to flat boundary plateaus where $H \ge 0.80$ forces $S_{\text{composite}} = 1.0$.
      - **Benign Indicator Suppression:** When a message contains a single benign URL ($H \le 0.25$) or delivery phrase ($H = 0.20$) and calibrated $P < 0.30$, $\alpha(P, H) = 0.0$, yielding $S_{\text{content}} = P < 0.30 < 0.40$. This mathematically guarantees an unambiguous `ALLOW` verdict under normal traffic ($V = 0.0$).
      - **Authoritative High-Risk Override ($H \ge 0.80$):** When high-risk threat indicators reach $H \ge 0.80$, $S_{\text{composite}} = 1.0$ (`BLOCK`). `RULE:TAX_ARREST_THREAT` ($H = 0.80$) is the explicit rule capable of triggering an immediate standalone override block. Compound rule escalation (+0.12 boost) elevates high-severity combinations (e.g. `URGENT_ACCOUNT_LOCKOUT` 0.70 + shortlink) to $\ge 0.82$, triggering immediate wire drops.
 
@@ -267,22 +275,21 @@ To prevent SciPy statistical evaluations from blocking the asyncio event loop on
      * $0.10 \le \text{PSI} < 0.25$: Moderate drift (surfaces telemetry alert on carrier operations dashboard).
      * $\text{PSI} \ge 0.25$: Critical drift (unsupervised alert triggering offline retraining investigation).
 
-### 6.2 Provenance-Gated Active Learning Loop & Ground-Truth Governance
+### 6.2 Human-Review Escalation & Future Active-Learning Governance
+* **Current Scope vs. Future Automation:** Escalation of `FLAG` (`0.40–0.75`) and high-risk traffic into `SentinelFlow` for human-in-the-loop review (`interrupt()`) is **implemented in the repo**, whereas automated closed-loop active-learning retraining pipelines are **future enterprise scope (not implemented)**. Model retraining is currently performed manually offline via `train_onnx_model.py` and `evaluate_model.py`.
 * **The Danger of Naive Feedback Loops:**
   Directly appending single-analyst decisions or unverified flagged messages into training sets creates catastrophic risks: single-annotator bias, label drift, and adversarial data poisoning (where an attacker crafts borderline messages to intentionally corrupt future decision boundaries).
-* **Three-Tier Ground-Truth Governance Architecture:**
-  1. **Staging Candidate Quarantine Dataset:**
-     * Messages scoring in the `FLAG` range ($0.40 \le S_{\text{composite}} < 0.75$) or high-confidence `BLOCK` are durably escalated via the `arq` queue to `SentinelFlow`.
-     * Analyst decisions (`Approved` vs. `Rejected`) are recorded into an append-only, SHA-256 tamper-evident staging database with complete analyst provenance and timestamping.
-  2. **Consensus & Reconciliation Requirement:**
-     * Staged samples are never used for model training based on a single review.
-     * A candidate sample qualifies for the retraining candidate corpus only upon achieving:
-       - **Multi-Reviewer Consensus:** Independent confirmation by $\ge 2$ senior fraud analysts, OR
-       - **External Chargeback Reconciliation:** Carrier-confirmed smishing report or downstream cardholder chargeback notice.
-  3. **Strict Offline Evaluation Gate (`evaluate_model.py`):**
-     * Before any retrained `.onnx` artifact is promoted to production, it must execute `evaluate_model.py` against a deduplicated, adversarial development & validation benchmark suite (N = 400) containing hard-negative benign transactional templates (OTP, delivery alerts, shortlinks) and adversarial smishing attacks.
-     * *Evaluation Integrity Note:* The 400-message benchmark suite served iteratively during engineering to tune heuristics and verify calibration. Unbiased production promotion requires single-shot evaluation against quarantined telecom optical-tap telemetry.
-     * **Promotion Acceptance Criteria:**
+* **Three-Tier Ground-Truth & Evaluation Governance Architecture:**
+  1. **Implemented Human-Review Escalation (`SentinelFlow` Dispute Queue):**
+     * Messages scoring in the `FLAG` range ($0.40 \le S_{\text{composite}} < 0.75$) or escalated via `BLOCK` are durably queued via `arq` (or tracked in-process fallback) to `SentinelFlow`, where analyst decisions (`Approved` vs. `Rejected`) are recorded in the append-only SHA-256 audit ledger.
+  2. **Future Consensus & Reconciliation Gate *(Planned Enterprise Governance — Not Implemented)*:**
+     * In a future production active-learning pipeline, staged samples would never trigger automated retraining from a single review, requiring either **multi-reviewer consensus** ($\ge 2$ senior fraud analysts) or **external chargeback / carrier CDR reconciliation**.
+  3. **Implemented 3-Tier Offline Evaluation & Governance Gate (`evaluate_model.py` + `build_quarantine_artifacts.py`):**
+     * Any manually retrained `.onnx` artifact must be verified across the repository's 3-tier evaluation taxonomy:
+       1. **Class A — Train OOF CV (`N = 703`, `56` semantic families):** Zero-leakage nested 5-fold cross-validation (`SF-009`).
+       2. **Class B — Dev/Val Benchmark (`N = 400`):** Deduplicated internal benchmark suite (`200` hard benign, `200` adversarial smishing; `ml_metrics.json`).
+       3. **Class C — Quarantined External Holdout:** Currently **`UNAVAILABLE / BLOCKED`** per `SF-010`/`SF-011` (`quarantined_test_holdout.json` absent; no primary external holdout or optical-tap telemetry exists yet; legacy `UCI #228` `N = 5,574` is quarantined separately for non-fraud ham/spam transfer checks only).
+     * **Dev/Val (`N = 400`) Regression Acceptance Criteria:**
        - Precision $\ge 88.0\%$
        - Recall $\ge 90.0\%$
        - F1-Score $\ge 0.900$
@@ -290,7 +297,7 @@ To prevent SciPy statistical evaluations from blocking the asyncio event loop on
        - PR-AUC $\ge 0.950$
        - Calibrated Validation Brier Score $\le 0.100$ (Benchmark Suite $\le 0.160$)
        - False Positive Rate $\le 12.0\%$ (Zero regression on hard-negative 2FA templates)
-     * If all gates pass, the compiled pipeline is exported via `skl2onnx`, validated with test inferences, and atomically swapped into the live ONNX inference engine without service interruption.
+     * Once all offline gates pass, the compiled pipeline is exported via `skl2onnx` with deterministic SHA-256 verification and loaded by `OnnxInferenceEngine`.
 
 ---
 

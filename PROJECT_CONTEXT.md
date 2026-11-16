@@ -126,8 +126,8 @@ The project enforces a strict 7-stage automated verification pipeline:
 | Stage | Name | Key Tools & Rules | Verification Metric |
 | :---: | :--- | :--- | :--- |
 | **1** | **Security & Supply Chain** | `gitleaks` (zero secret leaks), `trivy` (filesystem/container SCA), `pip-audit`, `pnpm audit`, `security_compliance_scan.py` | 11/11 controls passed (100% OWASP Top 10 & CWE compliance) |
-| **2** | **Static Analysis & Guardrails** | `ruff check --select S`, `bandit`, `mypy app` (strict mode across 73 files), `eslint 10` + `sonarjs`, `check-rules.js` (AST guardrails) | 0 type errors, 0 linter warnings, 100% arrow function & try/catch compliance |
-| **3** | **Deterministic Testing** | `pytest --cov=app --cov-fail-under=80`, `node --test`, Playwright E2E & visual pixel diff | **109 backend tests passed** (**86%+ coverage** across 4,949+ statements), **31 frontend unit tests passed** |
+| **2** | **Static Analysis & Guardrails** | `ruff check --select S`, `bandit`, `mypy app` (strict mode across 82 files), `eslint 10` + `sonarjs`, `check-rules.js` (AST guardrails) | 0 type errors, 0 linter warnings, 100% arrow function & try/catch compliance |
+| **3** | **Deterministic Testing** | `pytest --cov=app --cov-fail-under=80`, `node --test`, Playwright E2E & visual pixel diff | **233 backend tests passed** (**80%+ coverage floor**), **39 tracked frontend unit tests passed** |
 | **4** | **API Contract Drift Gate** | `openapi.json` $\leftrightarrow$ `generate-types.js` $\leftrightarrow$ `api.generated.ts` verified via `git diff --exit-code` | 0 contract drift |
 | **5** | **AI Eval-Driven Development** | `app.evals.run` benchmark evaluating decision accuracy, evidence grounding, risk calibration, and zero PII leakage | 100% accuracy, 100% grounding, 100% PII safety |
 | **6** | **Sandbox Container Smoke** | `docker compose up -d --build --wait`, live `/v1/classify` transaction smoke test, traffic simulator run, `down -v` | End-to-end container stack passes in clean isolated environment |
@@ -141,7 +141,7 @@ The project enforces a strict 7-stage automated verification pipeline:
 | :--- | :--- |
 | **Backend** | Python 3.12+, FastAPI, LangGraph, LangChain Core, Pydantic v2, SQLAlchemy 2.0 (asyncio), Alembic, arq |
 | **Machine Learning** | ONNX Runtime (CPU AVX-512), Scikit-learn, SciPy (KS-test), NumPy |
-| **Data Stores** | PostgreSQL 16 (pgvector-ready), Redis 7.2 (ZSET sliding windows, job queue, pub/sub) |
+| **Data Stores** | PostgreSQL 16 (pgvector-ready), Standalone Redis 7 (`redis:7-alpine` ZSET sliding windows, `arq` job queue, pub/sub) |
 | **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5.9, Tailwind CSS, Lucide Icons |
 | **Security & Auditing**| Cryptographic SHA-256 hash chains, Fernet symmetric encryption, Gitleaks, Bandit, Trivy, SonarJS |
 | **Telemetry & Observability**| OpenTelemetry (OTel SDK + W3C TraceContext), Prometheus metrics exporter, Jaeger distributed tracing |

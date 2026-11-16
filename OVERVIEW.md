@@ -9,7 +9,7 @@ An evolving technical reference detailing SentinelFlow and SentinelPulse's conti
 ```mermaid
 flowchart LR
     A["1. Security & Supply Chain\n(Trivy, Gitleaks, Bandit, SonarJS)"] --> B["2. Static Analysis & Guardrails\n(Mypy Strict, ESLint 10, Ruff)"]
-    B --> C["3. Deterministic Testing\n(114 Pytest @ 86% Cov, 32 Node Tests)"]
+    B --> C["3. Deterministic Testing\n(233 Pytest @ 80%+ Cov Floor, 39 Node Tests)"]
     C --> D["4. Contract Integrity\n(OpenAPI ↔ TypeScript Drift Check)"]
     D --> E["5. MLOps & AI Evals\n(8 Golden Cases, Guardrails, Drift PSI)"]
     E --> F["6. Sandbox Container Smoke\n(Docker Compose Live E2E Stack)"]
@@ -33,7 +33,7 @@ flowchart LR
 - **Python Quality & Types**:
   - `ruff check app` and `ruff format --check app` enforce style guidelines and Bandit security AST rules (`--select S`).
   - `bandit -c pyproject.toml -x app/tests -r app -q` executes deep abstract syntax tree security analysis.
-  - `mypy app` performs strict static type checking across 73 backend source files.
+  - `mypy app` performs strict static type checking across 82 backend source files.
 - **TypeScript & Frontend Quality**:
   - ESLint 10 coupled with `eslint-plugin-sonarjs` inspects cognitive complexity and JavaScript/TypeScript security hotspots.
   - `prettier --check .` verifies deterministic code formatting.
@@ -45,11 +45,11 @@ flowchart LR
 
 ### 3. Test Coverage & Deterministic Verification
 - **Backend Test Suite**:
-  - **126 tests** execute via `pytest`.
-  - **Coverage Floor**: Integrated `pytest-cov` strictly enforces a **minimum 80% coverage threshold** (`--cov-fail-under=80`). Current measured codebase coverage is **86% across 4,949+ statements**.
+  - **233 tests** execute via `pytest`.
+  - **Coverage Floor**: Integrated `pytest-cov` strictly enforces a **minimum 80% coverage threshold** (`--cov-fail-under=80`).
   - Covers API contracts, state graph node transitions, parallel tool execution with isolated `AsyncSession(bind=bind)` (`AsyncEngine`) and `session_lock` fallback, human-in-the-loop approvals, mid-run PostgreSQL checkpoint hydration (`to_run` / `persist_graph_state`), W3C `traceparent` context propagation across Redis/arq, `ModelGateway` streaming schema coercion (`reasoning_delta`), backpressure-safe SSE terminal delivery, vectorized ONNX batch inference (`predict_proba_batch`), non-transactional Redis pipelining with self-healing 30s in-memory fail-open circuit breakers, and cryptographic ledger hash-chains linearized via PostgreSQL `SELECT ... FOR UPDATE` + `uq_audit_records_investigation_sequence`.
 - **Frontend Test Suite**:
-  - **32 unit tests** run in native Node.js (`node --experimental-strip-types --test`) in under 300ms.
+  - **39 tracked unit tests** run in native Node.js (`node --experimental-strip-types --test`) in under 500ms.
   - Validates authentication routes, BFF SSE proxy (`signal` abort propagation, `Last-Event-ID`, `Cache-Control: no-cache, no-transform`, `X-Accel-Buffering: no`), PKCE challenge generation, cold-hydration state reducers, SSE chunk parsing, reconnection backoff, deterministic time-travel state reconstruction (`deriveConsoleStateAtStep` benchmark: 100 derivations in <2.8ms), sticky evidence citation pinning (`resolveActiveEvidenceId` / `togglePinnedEvidenceId`), transient streaming delta deduplication (`mergeUniqueEvents`), iteration diff computation, selector isolation, and stream lifecycle cleanup.
 - **End-to-End & Visual Regression**:
   - Headless Chromium tests via Playwright ([`app.spec.ts`](frontend/e2e/app.spec.ts)) verify unauthenticated redirect gates, login flows, Time-Travel State Scrubber (`?step=`), Iteration Diff View (`?diff=1`), Sticky Evidence Citation Pinning (`?evidence=`), Telecom SMS Classification Sandbox (`POST /v1/classify`), and visual pixel diff snapshots (`maxDiffPixelRatio: 0.1`).
@@ -72,10 +72,10 @@ flowchart LR
   - **Evidence Groundedness (`grounding_rate`)**: $\ge 90.0\%$
   - **Risk Calibration Accuracy (`risk_calibration_accuracy`)**: $\ge 85.0\%$
   - **Safety Guardrail & PII Pass Rate (`pii_safety_rate`)**: $100.0\%$ (verifying pre-execution prompt injection defense, active stripping of fabricated `evidence_ids`, and zero unredacted PII/SSN tokens).
-- **MLOps Real-Time Drift Telemetry & Closed-Loop Active Learning**:
+- **MLOps Real-Time Drift Telemetry & Human-Review Escalation**:
   - Background monitor evaluates incoming production traffic using Kolmogorov-Smirnov ($p$-value on message lengths for feature drift) and Population Stability Index (PSI on model confidence deciles for prediction drift) against the training baseline.
   - Automatically exported to Prometheus gauges (`telecom_drift_psi`, `telecom_drift_ks_pvalue`, `telecom_drift_status`).
-  - **Active Learning Feedback Loop:** Ambiguous `FLAG` events (`0.40–0.75`) are escalated asynchronously into SentinelFlow for multi-agent LangGraph investigation and human approval (`interrupt()`), creating verified ground-truth labels that retrain the ONNX pipeline and heal drift.
+  - **Escalation & Offline Retraining Boundary:** Ambiguous `FLAG` events (`0.40–0.75`) are escalated asynchronously via Redis `arq` (or tracked in-process fallback) into SentinelFlow for multi-agent LangGraph investigation and human approval (`interrupt()`). Model retraining remains manual and offline via `train_onnx_model.py` and `evaluate_model.py`; automated closed-loop active-learning retraining is future enterprise scope (not implemented).
 
 ---
 
@@ -104,6 +104,6 @@ flowchart LR
 | :--- | :--- | :--- |
 | **Micro-Benchmark / Latency Budget** | *How is a latency regression prevented from breaching the 15ms p95 target?* | Unit/API tests in `test_telecom_gateway.py` assert `res_legit.latency_ms < 15.0` (short-SMS `predict()`), `data["latency_ms"] < 25.0` (internal `_process_single_message()` timer `latency_ms`, Boundary A), and `evaluate_heuristics() < 15.0 ms` on pathological 2,000-character inputs (`AI-18` Step 3). Note: at the 2,000-char max contract (`scripts/bench_telecom_classify_2000.py`), Boundary A (`latency_ms`) passes `<15ms` locally (`p95 = 1.937–3.725 ms` in `e12734d`, `5.488–8.815 ms` in `cb64ff2`), whereas the **end-to-end HTTP `<15ms` target (Boundary B) is NOT ESTABLISHED** (`conc=1` `loopback_http_ms` p95 = `6.228–7.633 ms` in `e12734d` vs `17.259–17.793 ms` in `cb64ff2`; shared-loop `conc=4` = `25.280–26.094 ms` and `conc=8` = `54.984–63.106 ms` in `e12734d`), and live Redis RTT / multi-worker throughput remain **UNVERIFIED**. |
 | **Model Architecture & Quantization Accuracy** | *Why an in-graph TF-IDF + Calibrated Linear Classifier on ONNX CPU instead of INT8 Transformer?* | Toward the `<15ms` synchronous ingress target, GPU batching introduces higher tail latency. The compiled ONNX graph (`TfidfVectorizer` + `LogisticRegression`) ran in `0.032 ms` (p95) on short SMS (`~1.0–5.5 ms` p99 on 2,000-char padded inputs). The graph weighs <3MB, rendering INT8 quantization unnecessary and factually inaccurate. |
-| **Redis Pipelining vs Transactions** | *Why non-transactional pipelining and fail-open in-memory fallback?* | In Redis Cluster, `MULTI`/`EXEC` transactions cannot span multiple hash slots without explicit hashtagging and introduce server-side locking overhead. Non-transactional pipelining batches `ZREMRANGEBYSCORE` + `ZADD` + `ZCARD` + `EXPIRE` in 1 RTT (design budget `<2ms`; live Redis RTT is **UNVERIFIED** locally). If Redis blips, the gateway fails open to local ML + heuristics via a 30s in-memory deque, preventing dropped carrier traffic or blocked 2FA codes. |
+| **Redis Pipelining vs Transactions** | *Why non-transactional pipelining and fail-open in-memory fallback?* | SentinelPulse runs against a standalone Redis instance (`redis:7-alpine`) with a 30s in-memory deque fail-open fallback. Non-transactional pipelining (`transaction=False`) batches `ZREMRANGEBYSCORE` + `ZADD` + `EXPIRE` + `ZCARD` in 1 RTT (design budget `<2ms`; live Redis RTT is **UNVERIFIED** locally). Sender keys use `{sender_hash}` slot tags so sender windows remain single-slot compatible if ever migrated to a future multi-node Redis Cluster (whereas cross-dimension IP/domain/prefix keys use separate hash tags). If Redis blips, the gateway fails open to local ML + heuristics via the 30s in-memory deque, preventing dropped carrier traffic or blocked 2FA codes. |
 | **Progressive Canary Deployments** | *How are zero-downtime rollouts handled without dropping live SSE streams?* | The Nginx reverse proxy disables buffering (`X-Accel-Buffering: no`), and active investigation stream events are bridged through Redis Pub/Sub, allowing backend instances to restart or roll over without losing state. |
 | **Branch / Ephemeral Previews** | *How are feature branches tested prior to merging?* | The entire stack is containerized and defined in `docker-compose.yml` and `render.yaml`, allowing automated per-PR preview environments to spin up and tear down cleanly. |
