@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   deploymentId: process.env.DEPLOYMENT_VERSION,
   generateBuildId: async () => process.env.DEPLOYMENT_VERSION ?? "local-dev",
+  experimental: {
+    agentUpgrade: "security",
+  },
   async headers() {
     return [
       {
