@@ -220,6 +220,10 @@ jobs:
         working-directory: sentinelflow/frontend
         run: pnpm install
 
+      - name: Build frontend production bundle
+        working-directory: sentinelflow/frontend
+        run: pnpm build
+
       - name: Install Playwright Browsers
         working-directory: sentinelflow/frontend
         run: npx playwright install --with-deps chromium
