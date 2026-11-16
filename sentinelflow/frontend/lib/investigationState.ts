@@ -131,6 +131,31 @@ export const initialConsoleState: ConsoleState = {
   streamingReasoningDelta: null,
 };
 
+const resolveBaseTimeline = (
+  state: ConsoleState,
+  isSameInvestigation: boolean,
+  nextStatus: ConsoleState["status"]
+): StreamEvent[] => {
+  if (!isSameInvestigation) {
+    return [];
+  }
+  if (nextStatus === "RUNNING") {
+    return state.timeline.filter((evt) => evt.type !== "approval_required");
+  }
+  return state.timeline;
+};
+
+const resolveHydratedCollection = <T>(
+  incoming: T[] | undefined,
+  existing: T[],
+  isSameInvestigation: boolean
+): T[] => {
+  if (Array.isArray(incoming) && incoming.length > 0) {
+    return incoming;
+  }
+  return isSameInvestigation ? existing : [];
+};
+
 export const applyRunToConsoleState = (
   state: ConsoleState,
   run: InvestigationRun
@@ -140,33 +165,23 @@ export const applyRunToConsoleState = (
   const runEvents = Array.isArray(run.timeline_events)
     ? (run.timeline_events as unknown as StreamEvent[])
     : [];
-  const baseTimeline = isSameInvestigation
-    ? nextStatus === "RUNNING"
-      ? state.timeline.filter((evt) => evt.type !== "approval_required")
-      : state.timeline
-    : [];
+  const baseTimeline = resolveBaseTimeline(state, isSameInvestigation, nextStatus);
   const mergedTimeline =
     runEvents.length > 0 ? mergeUniqueEvents(baseTimeline, runEvents) : baseTimeline;
 
-  const runEvidence =
-    Array.isArray(run.evidence) && run.evidence.length > 0
-      ? run.evidence
-      : isSameInvestigation
-        ? state.evidence
-        : [];
-  const runAnalyzers =
-    Array.isArray(run.analyzer_summaries) && run.analyzer_summaries.length > 0
-      ? (run.analyzer_summaries as ConsoleState["analyzerSummaries"])
-      : isSameInvestigation
-        ? state.analyzerSummaries
-        : [];
+  const runEvidence = resolveHydratedCollection(run.evidence, state.evidence, isSameInvestigation);
+  const runAnalyzers = resolveHydratedCollection(
+    run.analyzer_summaries as ConsoleState["analyzerSummaries"] | undefined,
+    state.analyzerSummaries,
+    isSameInvestigation
+  );
   const runHypotheses =
     run.report?.hypotheses ??
-    (Array.isArray(run.hypotheses) && run.hypotheses.length > 0
-      ? (run.hypotheses as ConsoleState["hypotheses"])
-      : isSameInvestigation
-        ? state.hypotheses
-        : []);
+    resolveHydratedCollection(
+      run.hypotheses as ConsoleState["hypotheses"] | undefined,
+      state.hypotheses,
+      isSameInvestigation
+    );
 
   let hydratedState: ConsoleState = {
     ...state,
@@ -196,8 +211,7 @@ export const applyRunToConsoleState = (
     hydratedState = {
       ...hydratedState,
       evidence: runEvidence.length > 0 ? runEvidence : hydratedState.evidence,
-      analyzerSummaries:
-        runAnalyzers.length > 0 ? runAnalyzers : hydratedState.analyzerSummaries,
+      analyzerSummaries: runAnalyzers.length > 0 ? runAnalyzers : hydratedState.analyzerSummaries,
       hypotheses: runHypotheses.length > 0 ? runHypotheses : hydratedState.hypotheses,
       riskAssessment: run.risk_assessment ?? hydratedState.riskAssessment,
       report: run.report ?? hydratedState.report,
@@ -219,9 +233,7 @@ export const applyStreamEventToConsoleState = (
 ): ConsoleState => {
   if (event.type === "reasoning_delta" || event.type === "synthesis_delta") {
     const deltaText =
-      typeof event.data.delta === "string"
-        ? event.data.delta
-        : state.streamingReasoningDelta;
+      typeof event.data.delta === "string" ? event.data.delta : state.streamingReasoningDelta;
     return {
       ...state,
       streamingReasoningDelta: deltaText ?? null,
@@ -499,24 +511,17 @@ export const deriveConsoleStateAtStep = (
   selectedEventIndex?: number | null
 ): ConsoleState => {
   if (events.length === 0) {
-    return baseRun
-      ? applyRunToConsoleState(initialConsoleState, baseRun)
-      : initialConsoleState;
+    return baseRun ? applyRunToConsoleState(initialConsoleState, baseRun) : initialConsoleState;
   }
 
   const cleanStepZeroState: ConsoleState = {
     ...initialConsoleState,
-    investigationId:
-      baseRun?.id ?? String(events[0]?.data?.investigation_id ?? ""),
+    investigationId: baseRun?.id ?? String(events[0]?.data?.investigation_id ?? ""),
     status: "RUNNING",
     streamConnection: "idle",
   };
 
-  if (
-    selectedEventIndex !== null &&
-    selectedEventIndex !== undefined &&
-    selectedEventIndex < 0
-  ) {
+  if (selectedEventIndex !== null && selectedEventIndex !== undefined && selectedEventIndex < 0) {
     return cleanStepZeroState;
   }
 
@@ -536,6 +541,41 @@ export const deriveConsoleStateAtStep = (
   return state;
 };
 
+const buildHypothesisSnapshot = (
+  event: StreamEvent,
+  iterNum: number,
+  activeGuidance: string | null,
+  existing: IterationSnapshot | undefined
+): IterationSnapshot => {
+  const rawHypotheses = Array.isArray(event.data.hypotheses)
+    ? (event.data.hypotheses as InvestigationHypothesis[])
+    : [];
+  const questions = Array.isArray(event.data.unresolved_questions)
+    ? (event.data.unresolved_questions as string[])
+    : [];
+  const thought =
+    typeof event.data.thought_process === "string" ? event.data.thought_process : null;
+  const steps = Array.isArray(event.data.reasoning_steps)
+    ? (event.data.reasoning_steps as string[])
+    : [];
+  const inferredSource: IterationSnapshot["source"] = activeGuidance
+    ? "Human Reviewer Steering"
+    : "AI Investigator";
+
+  return {
+    iteration: iterNum,
+    source: existing?.source ?? inferredSource,
+    timestamp: event.timestamp,
+    hypotheses: rawHypotheses,
+    unresolvedQuestions: questions,
+    riskAssessment: existing?.riskAssessment ?? null,
+    report: existing?.report ?? null,
+    thoughtProcess: thought,
+    reasoningSteps: steps,
+    reviewerGuidance: activeGuidance ?? existing?.reviewerGuidance,
+  };
+};
+
 export const extractIterationSnapshots = (events: StreamEvent[]): IterationSnapshot[] => {
   const snapshotsMap = new Map<number, IterationSnapshot>();
   let activeGuidance: string | null = null;
@@ -544,50 +584,23 @@ export const extractIterationSnapshots = (events: StreamEvent[]): IterationSnaps
   for (const event of events) {
     if (event.type === "agent_message" && typeof event.data.guidance === "string") {
       activeGuidance = event.data.guidance;
-    }
-    if (event.type === "hypothesis_updated") {
+    } else if (event.type === "hypothesis_updated") {
       const iterNum = Number(event.data.iteration ?? currentIteration);
       currentIteration = iterNum;
-      const rawHypotheses = Array.isArray(event.data.hypotheses)
-        ? (event.data.hypotheses as InvestigationHypothesis[])
-        : [];
-      const questions = Array.isArray(event.data.unresolved_questions)
-        ? (event.data.unresolved_questions as string[])
-        : [];
-      const thought =
-        typeof event.data.thought_process === "string" ? event.data.thought_process : null;
-      const steps = Array.isArray(event.data.reasoning_steps)
-        ? (event.data.reasoning_steps as string[])
-        : [];
-
-      const source: IterationSnapshot["source"] = activeGuidance
-        ? "Human Reviewer Steering"
-        : "AI Investigator";
-
-      const existing = snapshotsMap.get(iterNum);
-      snapshotsMap.set(iterNum, {
-        iteration: iterNum,
-        source: existing?.source ?? source,
-        timestamp: event.timestamp,
-        hypotheses: rawHypotheses,
-        unresolvedQuestions: questions,
-        riskAssessment: existing?.riskAssessment ?? null,
-        report: existing?.report ?? null,
-        thoughtProcess: thought,
-        reasoningSteps: steps,
-        reviewerGuidance: activeGuidance ?? existing?.reviewerGuidance,
-      });
-
+      const snapshot = buildHypothesisSnapshot(
+        event,
+        iterNum,
+        activeGuidance,
+        snapshotsMap.get(iterNum)
+      );
+      snapshotsMap.set(iterNum, snapshot);
       activeGuidance = null;
-    }
-    if (event.type === "risk_updated") {
-      const risk = event.data as ConsoleState["riskAssessment"];
+    } else if (event.type === "risk_updated") {
       const existing = snapshotsMap.get(currentIteration);
       if (existing) {
-        existing.riskAssessment = risk;
+        existing.riskAssessment = event.data as ConsoleState["riskAssessment"];
       }
-    }
-    if (event.type === "final_report_ready" || event.type === "run_completed") {
+    } else if (event.type === "final_report_ready" || event.type === "run_completed") {
       const reportPayload = (event.data.report ?? event.data) as ConsoleState["report"];
       const existing = snapshotsMap.get(currentIteration);
       if (existing && reportPayload) {
@@ -648,9 +661,7 @@ export const computeIterationDiff = (
     const prevScore = fromSnapshot.riskAssessment?.score ?? null;
     const currScore = toSnapshot.riskAssessment?.score ?? null;
     const scoreDelta =
-      prevScore !== null && currScore !== null
-        ? Number((currScore - prevScore).toFixed(2))
-        : null;
+      prevScore !== null && currScore !== null ? Number((currScore - prevScore).toFixed(2)) : null;
 
     riskDelta = {
       previousScore: prevScore,

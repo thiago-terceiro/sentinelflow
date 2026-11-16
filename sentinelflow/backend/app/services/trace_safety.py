@@ -167,15 +167,11 @@ def resolve_telecom_hmac_key_id(key_id: str | None = None) -> str:
     configured = getattr(cfg, "TELECOM_HMAC_KEY_ID", None)
     if configured is not None:
         if cfg.APP_ENV == "production" and not configured.strip():
-            raise RuntimeError(
-                "TELECOM_HMAC_KEY_ID must be explicitly configured in production."
-            )
+            raise RuntimeError("TELECOM_HMAC_KEY_ID must be explicitly configured in production.")
         return _validate_telecom_hmac_key_id(configured)
     if cfg.APP_ENV in ("development", "test"):
         return _NONPROD_FALLBACK_HMAC_KEY_ID
-    raise RuntimeError(
-        "TELECOM_HMAC_KEY_ID must be explicitly configured in production."
-    )
+    raise RuntimeError("TELECOM_HMAC_KEY_ID must be explicitly configured in production.")
 
 
 def pseudonymize_telecom_identifier(
@@ -217,7 +213,9 @@ def pseudonymize_telecom_identifier(
     elif cfg.APP_ENV in ("development", "test"):
         resolved_secret = _NONPROD_FALLBACK_HMAC_SEED
     else:
-        resolved_secret = ""
+        raise RuntimeError(
+            "TELECOM_HMAC_SECRET must be configured for pseudonymous telecom identifier derivation."
+        )
 
     if not resolved_secret or not resolved_secret.strip():
         raise RuntimeError(

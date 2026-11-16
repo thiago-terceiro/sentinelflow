@@ -194,7 +194,11 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
           <button
             type="button"
             aria-pressed={isPaused}
-            aria-label={isPaused ? "Resume real-time telecom message stream" : "Pause real-time telecom message stream"}
+            aria-label={
+              isPaused
+                ? "Resume real-time telecom message stream"
+                : "Pause real-time telecom message stream"
+            }
             onClick={() => setIsPaused((prev) => !prev)}
             style={{
               fontSize: 13,
@@ -202,7 +206,9 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
               minHeight: 44,
               padding: "10px 16px",
               borderRadius: "var(--card-radius, 6px)",
-              border: isPaused ? "1px solid var(--badge-block-border, #7f1d1d)" : "1px solid var(--panel-border)",
+              border: isPaused
+                ? "1px solid var(--badge-block-border, #7f1d1d)"
+                : "1px solid var(--panel-border)",
               background: isPaused ? "var(--badge-block-bg, #991b1b)" : "transparent",
               color: isPaused ? "var(--badge-block-color, #ffffff)" : "var(--foreground)",
               cursor: "pointer",
@@ -290,7 +296,9 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
           filteredFeed.map((ev) => {
             const itemKey = ev.id || `${ev.sender}-${ev.timestamp}`;
             const rawUrl = ev.escalated_dispute_url || `/disputes/${ev.escalated_dispute_id}`;
-            const pulseDisputeUrl = rawUrl.includes("?") ? `${rawUrl}&from=pulse` : `${rawUrl}?from=pulse`;
+            const pulseDisputeUrl = rawUrl.includes("?")
+              ? `${rawUrl}&from=pulse`
+              : `${rawUrl}?from=pulse`;
             const escalated =
               escalatedDisputes[itemKey] ||
               (ev.escalated_dispute_id
@@ -347,7 +355,14 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                     <span style={{ color: "var(--muted)", fontSize: 11 }}>
                       score: {ev.fraud_score}
                     </span>
-                    <span style={{ color: "var(--telecom-good, #14532d)", fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>
+                    <span
+                      style={{
+                        color: "var(--telecom-good, #14532d)",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
                       {ev.latency_ms}ms
                     </span>
                   </div>
@@ -392,9 +407,15 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                           fontWeight: 700,
                           padding: "2px 6px",
                           borderRadius: 4,
-                          background: sig.startsWith("RULE:") ? "var(--badge-block-bg, #fee2e2)" : "var(--accent-soft, #dbeafe)",
-                          color: sig.startsWith("RULE:") ? "var(--badge-block-color, #7f1d1d)" : "var(--accent, #1e3a8a)",
-                          border: sig.startsWith("RULE:") ? "1px solid var(--badge-block-border, #991b1b)" : "1px solid var(--panel-border, #93c5fd)",
+                          background: sig.startsWith("RULE:")
+                            ? "var(--badge-block-bg, #fee2e2)"
+                            : "var(--accent-soft, #dbeafe)",
+                          color: sig.startsWith("RULE:")
+                            ? "var(--badge-block-color, #7f1d1d)"
+                            : "var(--accent, #1e3a8a)",
+                          border: sig.startsWith("RULE:")
+                            ? "1px solid var(--badge-block-border, #991b1b)"
+                            : "1px solid var(--panel-border, #93c5fd)",
                         }}
                       >
                         {sig}
@@ -441,7 +462,10 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                         }}
                         className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                       >
-                        <span>→ Investigate in SentinelFlow {escalated.case_code ? `(${escalated.case_code})` : ""}</span>
+                        <span>
+                          → Investigate in SentinelFlow{" "}
+                          {escalated.case_code ? `(${escalated.case_code})` : ""}
+                        </span>
                       </Link>
                     ) : (
                       <button

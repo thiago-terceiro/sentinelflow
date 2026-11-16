@@ -2974,9 +2974,7 @@ async def test_sf017_api_observability_health_metrics_and_degraded_boundary(
             assert 'telecom_ml_signal_events_total{status="invalid"}' in prom_resp.text
 
     degraded_warnings = [
-        rec
-        for rec in caplog.records
-        if rec.__dict__.get("event") == "telecom_ml_signal_degraded"
+        rec for rec in caplog.records if rec.__dict__.get("event") == "telecom_ml_signal_degraded"
     ]
     assert len(degraded_warnings) >= 1
     for rec in caplog.records:

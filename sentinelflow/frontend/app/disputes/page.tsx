@@ -5,11 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
 import { useSentinelPulse } from "@/components/SentinelPulseProvider";
-import {
-  getDisputesCached,
-  invalidateDisputesCache,
-  peekDisputesCache,
-} from "@/lib/disputesCache";
+import { getDisputesCached, invalidateDisputesCache, peekDisputesCache } from "@/lib/disputesCache";
 import type { DisputeSummary } from "@/lib/types";
 
 const AuthErrorAlert = () => {
@@ -191,21 +187,36 @@ const DisputesPage = () => {
           </span>
         </div>
 
-        <h1 style={{ margin: "4px 0 12px", fontSize: "clamp(1.85rem, 4.5vw, 3.4rem)", letterSpacing: "-0.03em" }}>
-          <span data-testid="hero-title-icon" aria-hidden="true" style={{ display: "inline-block", marginRight: 10 }}>
+        <h1
+          style={{
+            margin: "4px 0 12px",
+            fontSize: "clamp(1.85rem, 4.5vw, 3.4rem)",
+            letterSpacing: "-0.03em",
+          }}
+        >
+          <span
+            data-testid="hero-title-icon"
+            aria-hidden="true"
+            style={{ display: "inline-block", marginRight: 10 }}
+          >
             ⚡
           </span>
           SentinelFlow: Seeded Disputes Workbench
         </h1>
 
-        <p style={{ maxWidth: 820, margin: 0, color: "var(--muted)", fontSize: 15, lineHeight: 1.6 }}>
+        <p
+          style={{ maxWidth: 820, margin: 0, color: "var(--muted)", fontSize: 15, lineHeight: 1.6 }}
+        >
           SentinelFlow coordinates parallel agent evidence gathering, deterministic risk scoring,
           and human-in-the-loop steering. All decisions and time-travel revisions are securely
           anchored to a SHA-256 tamper-proof ledger.
         </p>
       </section>
 
-      <div id="seeded-disputes-section" style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
+      <div
+        id="seeded-disputes-section"
+        style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}
+      >
         <Suspense fallback={null}>
           <AuthErrorAlert />
         </Suspense>
@@ -237,10 +248,18 @@ const DisputesPage = () => {
               <h2 style={{ margin: "6px 0 8px", fontSize: 22 }}>
                 Sign in to inspect seeded disputes &amp; live LangGraph investigations
               </h2>
-              <p style={{ margin: 0, color: "var(--muted)", fontSize: 14, maxWidth: 680, lineHeight: 1.6 }}>
+              <p
+                style={{
+                  margin: 0,
+                  color: "var(--muted)",
+                  fontSize: 14,
+                  maxWidth: 680,
+                  lineHeight: 1.6,
+                }}
+              >
                 Access the 5 showcase dispute archetypes (including pre-hydrated multi-iteration
-                time-travel runs and human-in-the-loop interrupt checkpoints) using a role-based test
-                account, or inspect real-time SMS traffic in SentinelPulse.
+                time-travel runs and human-in-the-loop interrupt checkpoints) using a role-based
+                test account, or inspect real-time SMS traffic in SentinelPulse.
               </p>
             </div>
 
@@ -299,7 +318,10 @@ const DisputesPage = () => {
               </section>
             ) : null}
 
-            <section className="shell-card" style={{ padding: "24px 28px", width: "100%", margin: 0 }}>
+            <section
+              className="shell-card"
+              style={{ padding: "24px 28px", width: "100%", margin: 0 }}
+            >
               <div
                 style={{
                   display: "flex",

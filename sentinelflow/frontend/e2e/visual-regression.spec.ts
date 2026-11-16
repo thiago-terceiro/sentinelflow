@@ -16,8 +16,7 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
       const actions = document.querySelector(".app-header-actions")!;
       return {
         headerHeight: header.getBoundingClientRect().height,
-        brandMidY:
-          (brand.getBoundingClientRect().top + brand.getBoundingClientRect().bottom) / 2,
+        brandMidY: (brand.getBoundingClientRect().top + brand.getBoundingClientRect().bottom) / 2,
         navMidY: (nav.getBoundingClientRect().top + nav.getBoundingClientRect().bottom) / 2,
         actionsMidY:
           (actions.getBoundingClientRect().top + actions.getBoundingClientRect().bottom) / 2,
@@ -42,8 +41,7 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
       return {
         brandBottom: brand.getBoundingClientRect().bottom,
         navTop: nav.getBoundingClientRect().top,
-        brandMidY:
-          (brand.getBoundingClientRect().top + brand.getBoundingClientRect().bottom) / 2,
+        brandMidY: (brand.getBoundingClientRect().top + brand.getBoundingClientRect().bottom) / 2,
         actionsMidY:
           (actions.getBoundingClientRect().top + actions.getBoundingClientRect().bottom) / 2,
         links,
@@ -66,9 +64,7 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
 
-    const toggleBtn = page.locator(
-      'button[aria-label="Appearance and accessibility preferences"]'
-    );
+    const toggleBtn = page.locator('button[aria-label="Appearance and accessibility preferences"]');
     await expect(toggleBtn).toBeVisible();
     await toggleBtn.click();
 
@@ -97,12 +93,19 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.context().addCookies([
       { name: "sentinelflow_access_token", value: "dev-reviewer", domain: "localhost", path: "/" },
-      { name: "sentinelflow_test_user", value: "reviewer:reviewer", domain: "localhost", path: "/" },
+      {
+        name: "sentinelflow_test_user",
+        value: "reviewer:reviewer",
+        domain: "localhost",
+        path: "/",
+      },
     ]);
 
     for (const route of ["/", "/disputes"]) {
       await page.goto(route);
-      await expect(page.locator('main .shell-card h1 [data-testid="hero-title-icon"]').first()).toBeVisible();
+      await expect(
+        page.locator('main .shell-card h1 [data-testid="hero-title-icon"]').first()
+      ).toBeVisible();
 
       const layout = await page.evaluate(() => {
         const heroCard = document.querySelector("main .shell-card")!;
@@ -169,7 +172,12 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     // 2. Authenticated Reviewer arriving from SentinelPulse (?from=pulse) sees "← To Disputes"
     await page.context().addCookies([
       { name: "sentinelflow_access_token", value: "dev-reviewer", domain: "localhost", path: "/" },
-      { name: "sentinelflow_test_user", value: "reviewer:reviewer", domain: "localhost", path: "/" },
+      {
+        name: "sentinelflow_test_user",
+        value: "reviewer:reviewer",
+        domain: "localhost",
+        path: "/",
+      },
     ]);
 
     await page.goto("/disputes/5683eeae-b598-40c7-8d0f-a222dd137065?from=pulse");
@@ -187,7 +195,12 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
   }) => {
     await page.context().addCookies([
       { name: "sentinelflow_access_token", value: "dev-reviewer", domain: "localhost", path: "/" },
-      { name: "sentinelflow_test_user", value: "reviewer:reviewer", domain: "localhost", path: "/" },
+      {
+        name: "sentinelflow_test_user",
+        value: "reviewer:reviewer",
+        domain: "localhost",
+        path: "/",
+      },
     ]);
 
     let disputesApiFetchCount = 0;

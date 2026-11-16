@@ -2524,7 +2524,17 @@ def test_sf017_offline_evaluation_rejects_invalid_onnx_outputs() -> None:
             y_prob=[float("nan"), 0.8],
             texts=["Appointment confirmed", "IRS tax arrest warrant now"],
             samples=[
-                {"category_id": "benign", "category_name": "Benign", "label": 0, "text": "Appointment confirmed"},
-                {"category_id": "fraud", "category_name": "Fraud", "label": 1, "text": "IRS tax arrest warrant now"},
+                {
+                    "category_id": "benign",
+                    "category_name": "Benign",
+                    "label": 0,
+                    "text": "Appointment confirmed",
+                },
+                {
+                    "category_id": "fraud",
+                    "category_name": "Fraud",
+                    "label": 1,
+                    "text": "IRS tax arrest warrant now",
+                },
             ],
         )

@@ -14,7 +14,10 @@ type Props = {
 
 const getEventBadgeColor = (type: StreamEvent["type"]): { bg: string; text: string } => {
   if (type === "evidence_added") {
-    return { bg: "var(--badge-allow-bg, rgba(34,197,94,0.15))", text: "var(--telecom-good, #22c55e)" };
+    return {
+      bg: "var(--badge-allow-bg, rgba(34,197,94,0.15))",
+      text: "var(--telecom-good, #22c55e)",
+    };
   }
   if (type === "tool_started" || type === "tool_completed") {
     return { bg: "var(--accent-soft)", text: "var(--accent)" };
@@ -23,30 +26,32 @@ const getEventBadgeColor = (type: StreamEvent["type"]): { bg: string; text: stri
     return { bg: "var(--accent-soft)", text: "var(--accent)" };
   }
   if (type === "hypothesis_updated" || type === "risk_updated") {
-    return { bg: "var(--badge-flag-bg, rgba(234,179,8,0.15))", text: "var(--telecom-warning, #fde047)" };
+    return {
+      bg: "var(--badge-flag-bg, rgba(234,179,8,0.15))",
+      text: "var(--telecom-warning, #fde047)",
+    };
   }
   if (type === "approval_required" || type === "final_report_ready") {
     return { bg: "var(--accent-soft)", text: "var(--accent)" };
   }
   if (type === "run_failed") {
-    return { bg: "var(--badge-block-bg, rgba(239,68,68,0.15))", text: "var(--telecom-danger, #fee2e2)" };
+    return {
+      bg: "var(--badge-block-bg, rgba(239,68,68,0.15))",
+      text: "var(--telecom-danger, #fee2e2)",
+    };
   }
   return { bg: "var(--card-subtle-bg, rgba(255,255,255,0.08))", text: "var(--muted)" };
 };
 
 export const TimeTravelScrubber = memo(
-  ({
-    rawEvents,
-    selectedEventIndex,
-    onSelectIndex,
-    onPrevious,
-    onNext,
-    onReturnToLive,
-  }: Props) => {
+  ({ rawEvents, selectedEventIndex, onSelectIndex, onPrevious, onNext, onReturnToLive }: Props) => {
     const hasEvents = rawEvents.length > 0;
     const totalSteps = hasEvents ? rawEvents.length : 1;
     const isLive = selectedEventIndex === null;
-    const currentStep = hasEvents ? (isLive ? totalSteps - 1 : selectedEventIndex) : 0;
+    let currentStep = 0;
+    if (hasEvents) {
+      currentStep = isLive ? totalSteps - 1 : selectedEventIndex;
+    }
     const activeEvent = hasEvents
       ? rawEvents[currentStep] || rawEvents[rawEvents.length - 1]
       : null;
@@ -66,8 +71,12 @@ export const TimeTravelScrubber = memo(
           display: "flex",
           flexDirection: "column",
           gap: 12,
-          border: isLive ? "1px solid var(--panel-border)" : "1px solid var(--badge-flag-border, rgba(234,179,8,0.4))",
-          background: isLive ? "var(--card-subtle-bg, rgba(255,255,255,0.01))" : "var(--badge-flag-bg, rgba(234,179,8,0.03))",
+          border: isLive
+            ? "1px solid var(--panel-border)"
+            : "1px solid var(--badge-flag-border, rgba(234,179,8,0.4))",
+          background: isLive
+            ? "var(--card-subtle-bg, rgba(255,255,255,0.01))"
+            : "var(--badge-flag-bg, rgba(234,179,8,0.03))",
           transition: "border 0.2s, background 0.2s",
         }}
       >
@@ -113,7 +122,8 @@ export const TimeTravelScrubber = memo(
                   minHeight: 44,
                   padding: 0,
                   borderRadius: 4,
-                  background: !hasEvents || currentStep <= 0 ? "transparent" : "rgba(255, 255, 255, 0.06)",
+                  background:
+                    !hasEvents || currentStep <= 0 ? "transparent" : "rgba(255, 255, 255, 0.06)",
                   border: 0,
                   color: !hasEvents || currentStep <= 0 ? "var(--muted)" : "var(--foreground)",
                   cursor: !hasEvents || currentStep <= 0 ? "not-allowed" : "pointer",
@@ -151,7 +161,9 @@ export const TimeTravelScrubber = memo(
                       ? "var(--muted)"
                       : "var(--foreground)",
                   cursor:
-                    !hasEvents || isLive || currentStep >= totalSteps - 1 ? "not-allowed" : "pointer",
+                    !hasEvents || isLive || currentStep >= totalSteps - 1
+                      ? "not-allowed"
+                      : "pointer",
                   fontSize: 12,
                   lineHeight: 1,
                   opacity: !hasEvents || isLive || currentStep >= totalSteps - 1 ? 0.35 : 1,
@@ -183,7 +195,37 @@ export const TimeTravelScrubber = memo(
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 11, color: "var(--muted)" }}>
-              Keys: <kbd style={{ padding: "2px 5px", borderRadius: 4, background: "rgba(255,255,255,0.08)" }}>[</kbd> / <kbd style={{ padding: "2px 5px", borderRadius: 4, background: "rgba(255,255,255,0.08)" }}>]</kbd> scrub, <kbd style={{ padding: "2px 5px", borderRadius: 4, background: "rgba(255,255,255,0.08)" }}>L</kbd> live
+              Keys:{" "}
+              <kbd
+                style={{
+                  padding: "2px 5px",
+                  borderRadius: 4,
+                  background: "rgba(255,255,255,0.08)",
+                }}
+              >
+                [
+              </kbd>{" "}
+              /{" "}
+              <kbd
+                style={{
+                  padding: "2px 5px",
+                  borderRadius: 4,
+                  background: "rgba(255,255,255,0.08)",
+                }}
+              >
+                ]
+              </kbd>{" "}
+              scrub,{" "}
+              <kbd
+                style={{
+                  padding: "2px 5px",
+                  borderRadius: 4,
+                  background: "rgba(255,255,255,0.08)",
+                }}
+              >
+                L
+              </kbd>{" "}
+              live
             </span>
             {isLive ? (
               <span

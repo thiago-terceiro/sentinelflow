@@ -352,8 +352,18 @@ test("mergeUniqueEvents deduplicates events and strips transient streaming delta
   ];
   const incoming = [
     { id: "evt_1", type: "run_started", timestamp: "2026-09-03T00:00:01Z", data: {} },
-    { id: "delta_1", type: "reasoning_delta", timestamp: "2026-09-03T00:00:02Z", data: { delta: "thinking..." } },
-    { id: "evt_2", type: "hypothesis_updated", timestamp: "2026-09-03T00:00:03Z", data: { iteration: 1 } },
+    {
+      id: "delta_1",
+      type: "reasoning_delta",
+      timestamp: "2026-09-03T00:00:02Z",
+      data: { delta: "thinking..." },
+    },
+    {
+      id: "evt_2",
+      type: "hypothesis_updated",
+      timestamp: "2026-09-03T00:00:03Z",
+      data: { iteration: 1 },
+    },
   ];
 
   const merged = mergeUniqueEvents(existing, incoming);
@@ -405,8 +415,18 @@ test("extractIterationSnapshots and computeIterationDiff track state mutations a
       data: {
         iteration: 1,
         hypotheses: [
-          { statement: "Friendly fraud by family member", confidence: 0.6, supporting_evidence_ids: [], contradicting_evidence_ids: [] },
-          { statement: "Merchant billing error", confidence: 0.4, supporting_evidence_ids: [], contradicting_evidence_ids: [] },
+          {
+            statement: "Friendly fraud by family member",
+            confidence: 0.6,
+            supporting_evidence_ids: [],
+            contradicting_evidence_ids: [],
+          },
+          {
+            statement: "Merchant billing error",
+            confidence: 0.4,
+            supporting_evidence_ids: [],
+            contradicting_evidence_ids: [],
+          },
         ],
         unresolved_questions: ["Has cardholder used device before?"],
       },
@@ -421,7 +441,9 @@ test("extractIterationSnapshots and computeIterationDiff track state mutations a
       id: "evt_guidance",
       type: "agent_message",
       timestamp: "2026-09-03T00:00:03Z",
-      data: { guidance: "Reviewer steering: Disregard family member, IP belongs to VPN proxy datacenter" },
+      data: {
+        guidance: "Reviewer steering: Disregard family member, IP belongs to VPN proxy datacenter",
+      },
     },
     {
       id: "evt_h2",
@@ -430,8 +452,18 @@ test("extractIterationSnapshots and computeIterationDiff track state mutations a
       data: {
         iteration: 2,
         hypotheses: [
-          { statement: "Friendly fraud by family member", confidence: 0.15, supporting_evidence_ids: [], contradicting_evidence_ids: [] },
-          { statement: "Automated credential stuffing via proxy", confidence: 0.92, supporting_evidence_ids: [], contradicting_evidence_ids: [] },
+          {
+            statement: "Friendly fraud by family member",
+            confidence: 0.15,
+            supporting_evidence_ids: [],
+            contradicting_evidence_ids: [],
+          },
+          {
+            statement: "Automated credential stuffing via proxy",
+            confidence: 0.92,
+            supporting_evidence_ids: [],
+            contradicting_evidence_ids: [],
+          },
         ],
         unresolved_questions: [],
       },
@@ -440,7 +472,12 @@ test("extractIterationSnapshots and computeIterationDiff track state mutations a
       id: "evt_r2",
       type: "risk_updated",
       timestamp: "2026-09-03T00:00:05Z",
-      data: { score: 0.88, level: "high", explanation: "Confirmed high-confidence proxy compromise", factors: [] },
+      data: {
+        score: 0.88,
+        level: "high",
+        explanation: "Confirmed high-confidence proxy compromise",
+        factors: [],
+      },
     },
   ];
 

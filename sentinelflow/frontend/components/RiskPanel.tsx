@@ -58,7 +58,9 @@ export const RiskPanel = memo(({ risk }: Props) => {
       >
         Risk assessment
       </p>
-      <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>Risk Scoring & Evaluation</h2>
+      <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>
+        Risk Scoring & Evaluation
+      </h2>
       <div
         style={{
           height: 12,

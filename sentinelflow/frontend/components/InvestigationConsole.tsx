@@ -127,9 +127,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
           params.delete("evidence");
         }
         const query = params.toString();
-        const nextUrl = query
-          ? `${window.location.pathname}?${query}`
-          : window.location.pathname;
+        const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
         window.history.replaceState(null, "", nextUrl);
       } catch {
         // Ignore history API errors in restricted environments
@@ -265,7 +263,9 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
           >
             Final Synthesis & Verdict
           </p>
-          <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>Recommendation: IN PROGRESS</h2>
+          <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>
+            Recommendation: IN PROGRESS
+          </h2>
           <p style={{ margin: 0, color: "var(--muted)" }}>{inProgressMessage}</p>
         </section>
       );
@@ -434,7 +434,8 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
               <div>
                 <h3 style={{ margin: 0, fontSize: 18 }}>Generative UI Artifact Stream</h3>
                 <p style={{ margin: "4px 0 0 0", color: "var(--muted)", fontSize: 13 }}>
-                  Interactive components rendering structured agent evidence, hypotheses, and reviewer actions.
+                  Interactive components rendering structured agent evidence, hypotheses, and
+                  reviewer actions.
                 </p>
               </div>
               <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--accent)" }}>
@@ -448,11 +449,7 @@ export const InvestigationConsole = ({ disputeId }: Props) => {
                 title="Human-in-the-Loop Review & Steering"
                 onSubmitAction={async (decision, guidance) => {
                   const mappedDecision: ApprovalDecision =
-                    decision === "request_revision"
-                      ? "request_revision"
-                      : decision === "approve"
-                      ? "approve"
-                      : "deny";
+                    decision === "approve" || decision === "request_revision" ? decision : "deny";
                   handleDecision(mappedDecision, guidance || "GenUI Steering Action", guidance);
                 }}
               />

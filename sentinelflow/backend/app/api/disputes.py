@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, cast
 from uuid import uuid4
 
@@ -41,6 +42,7 @@ from app.services.investigations import (
 )
 from app.services.tuning_export import export_tuning_dataset, serialize_samples_to_jsonl
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["disputes", "investigations"])
 
 
@@ -147,8 +149,8 @@ async def reset_disputes_to_defaults(
         telecom.get_metrics_tracker().reset()
         telecom.get_drift_monitor().reset()
         telecom.seed_telecom_warmup()
-    except Exception:  # noqa: S110
-        pass
+    except Exception as err:
+        logger.debug("Skipping telecom warmup reset during disputes reset: %s", err)
     return [
         DisputeSummary(
             id=item.id,

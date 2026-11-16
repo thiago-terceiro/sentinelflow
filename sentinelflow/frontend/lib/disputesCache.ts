@@ -18,9 +18,10 @@ let memoryFallbackCache: CacheEntry | null = null;
 let inFlightPromise: Promise<DisputeSummary[]> | null = null;
 
 const getCacheEntry = (): CacheEntry | null => {
-  const entry = typeof window !== "undefined"
-    ? window.__sentinelflow_disputes_cache__ ?? null
-    : memoryFallbackCache;
+  const entry =
+    typeof window !== "undefined"
+      ? (window.__sentinelflow_disputes_cache__ ?? null)
+      : memoryFallbackCache;
 
   if (!entry) {
     return null;
@@ -62,7 +63,9 @@ export const peekDisputesCache = (): DisputeSummary[] | null => {
   return entry ? entry.disputes : null;
 };
 
-export const getDisputesCached = async (options?: { forceRefresh?: boolean }): Promise<DisputeSummary[]> => {
+export const getDisputesCached = async (options?: {
+  forceRefresh?: boolean;
+}): Promise<DisputeSummary[]> => {
   const force = options?.forceRefresh ?? false;
 
   if (!force) {

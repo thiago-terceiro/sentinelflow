@@ -54,89 +54,308 @@ logger = logging.getLogger(__name__)
 
 # Curated base seeds paired with explicit audited semantic template families (SF-008)
 LEGIT_BASE_SAMPLES: list[tuple[str, str]] = [
-    ("Your verification code is 849201. It expires in 10 minutes. Do not share this code.", "legit_2fa_code"),
-    ("Carrier security code: 4920. Valid for 5 minutes. carrier.com/verify", "legit_auth_short_code"),
-    ("Your Uber ride is arriving now. Driver: Ahmed in a Toyota Camry (Plate: 7XYZ89).", "legit_local_service_eta"),
-    ("Your card ending in 4102 was charged $14.50 at Trader Joe's. Available balance: $1,240.10.", "legit_bank_card_transaction"),
-    ("USPS tracking #940011189956: Your package is out for delivery and will arrive by 7:00 PM.", "legit_package_delivery_tracking"),
-    ("Reminder: Your dental cleaning with Dr. Smith is tomorrow at 2:00 PM. Reply 1 to confirm, 2 to reschedule.", "legit_appointment_reminder"),
+    (
+        "Your verification code is 849201. It expires in 10 minutes. Do not share this code.",
+        "legit_2fa_code",
+    ),
+    (
+        "Carrier security code: 4920. Valid for 5 minutes. carrier.com/verify",
+        "legit_auth_short_code",
+    ),
+    (
+        "Your Uber ride is arriving now. Driver: Ahmed in a Toyota Camry (Plate: 7XYZ89).",
+        "legit_local_service_eta",
+    ),
+    (
+        "Your card ending in 4102 was charged $14.50 at Trader Joe's. Available balance: $1,240.10.",
+        "legit_bank_card_transaction",
+    ),
+    (
+        "USPS tracking #940011189956: Your package is out for delivery and will arrive by 7:00 PM.",
+        "legit_package_delivery_tracking",
+    ),
+    (
+        "Reminder: Your dental cleaning with Dr. Smith is tomorrow at 2:00 PM. Reply 1 to confirm, 2 to reschedule.",
+        "legit_appointment_reminder",
+    ),
     ("Hey! Are you still free for dinner tonight around 7?", "legit_casual_social_chat"),
-    ("Your appointment with Quest Diagnostics is scheduled for Thursday, Oct 24 at 9:30 AM.", "legit_appointment_reminder"),
-    ("Your prescription is ready for pickup at Walgreens Pharmacy on Main Street.", "legit_health_pharmacy"),
-    ("Google prompt: Tap YES on your phone to approve sign-in from Chrome on Windows.", "legit_2fa_login_approve"),
-    ("Amazon: Your order #112-4920491 has shipped and will arrive on Wednesday.", "legit_package_delivery_tracking"),
-    ("Delta Flight DL492 is on time. Gate B12. Boarding begins at 3:15 PM.", "legit_travel_gate_info"),
-    ("Wells Fargo Fraud Alert: Did you attempt $89.20 at Target? Reply YES or NO.", "legit_bank_fraud_alert_yesno"),
+    (
+        "Your appointment with Quest Diagnostics is scheduled for Thursday, Oct 24 at 9:30 AM.",
+        "legit_appointment_reminder",
+    ),
+    (
+        "Your prescription is ready for pickup at Walgreens Pharmacy on Main Street.",
+        "legit_health_pharmacy",
+    ),
+    (
+        "Google prompt: Tap YES on your phone to approve sign-in from Chrome on Windows.",
+        "legit_2fa_login_approve",
+    ),
+    (
+        "Amazon: Your order #112-4920491 has shipped and will arrive on Wednesday.",
+        "legit_package_delivery_tracking",
+    ),
+    (
+        "Delta Flight DL492 is on time. Gate B12. Boarding begins at 3:15 PM.",
+        "legit_travel_gate_info",
+    ),
+    (
+        "Wells Fargo Fraud Alert: Did you attempt $89.20 at Target? Reply YES or NO.",
+        "legit_bank_fraud_alert_yesno",
+    ),
     ("Running about 10 minutes late, see you guys soon!", "legit_casual_social_chat"),
-    ("Your monthly electric bill of $78.40 is scheduled for autopay on Nov 1. Thank you.", "legit_bank_autopay"),
+    (
+        "Your monthly electric bill of $78.40 is scheduled for autopay on Nov 1. Thank you.",
+        "legit_bank_autopay",
+    ),
     ("Lyft code 382910. Reply STOP to opt out.", "legit_auth_short_code"),
-    ("Your DoorDash order from Chipotle is being prepared and will arrive in 25-35 minutes.", "legit_local_service_eta"),
-    ("Hey mom, just landed safely at JFK. Will text when I get to the hotel.", "legit_casual_p2p_greetings"),
-    ("Bank of America: A direct deposit of $3,250.00 was posted to your account ending in 8821.", "legit_bank_direct_deposit"),
-    ("Your haircut appointment with Alex is confirmed for Saturday at 11:00 AM.", "legit_appointment_reminder"),
-    ("Security notice: A new device logged into your Slack workspace. Review at my.slack.com", "legit_2fa_login_alert"),
+    (
+        "Your DoorDash order from Chipotle is being prepared and will arrive in 25-35 minutes.",
+        "legit_local_service_eta",
+    ),
+    (
+        "Hey mom, just landed safely at JFK. Will text when I get to the hotel.",
+        "legit_casual_p2p_greetings",
+    ),
+    (
+        "Bank of America: A direct deposit of $3,250.00 was posted to your account ending in 8821.",
+        "legit_bank_direct_deposit",
+    ),
+    (
+        "Your haircut appointment with Alex is confirmed for Saturday at 11:00 AM.",
+        "legit_appointment_reminder",
+    ),
+    (
+        "Security notice: A new device logged into your Slack workspace. Review at my.slack.com",
+        "legit_2fa_login_alert",
+    ),
     ("Your test results are ready in the MyChart patient portal.", "legit_health_mychart"),
-    ("Thanks for visiting Blue Bottle Coffee! Here is your digital receipt: squareup.com/r/xyz", "legit_retail_receipt"),
-    ("Great presentation today, let's sync up on Monday to discuss next steps.", "legit_workplace_sync"),
-    ("Your reservation at Osteria Morini is confirmed for 4 guests on Friday at 8:00 PM.", "legit_hospitality_reservation"),
-    ("FedEx Delivery: Package with tracking 78291038472 was delivered to your front porch.", "legit_package_delivery_tracking"),
-    ("Hi Sarah, can you review the pull request when you get a chance? Thanks!", "legit_workplace_sync"),
+    (
+        "Thanks for visiting Blue Bottle Coffee! Here is your digital receipt: squareup.com/r/xyz",
+        "legit_retail_receipt",
+    ),
+    (
+        "Great presentation today, let's sync up on Monday to discuss next steps.",
+        "legit_workplace_sync",
+    ),
+    (
+        "Your reservation at Osteria Morini is confirmed for 4 guests on Friday at 8:00 PM.",
+        "legit_hospitality_reservation",
+    ),
+    (
+        "FedEx Delivery: Package with tracking 78291038472 was delivered to your front porch.",
+        "legit_package_delivery_tracking",
+    ),
+    (
+        "Hi Sarah, can you review the pull request when you get a chance? Thanks!",
+        "legit_workplace_sync",
+    ),
     ("Your two-factor authentication token is 501928 for login to GitHub.", "legit_2fa_code"),
-    ("Your gym membership renewal receipt for $49.00 has been processed.", "legit_bank_card_transaction"),
+    (
+        "Your gym membership renewal receipt for $49.00 has been processed.",
+        "legit_bank_card_transaction",
+    ),
     ("Can you pick up milk on your way home please?", "legit_casual_errands"),
-    ("Your reservation at Hyatt Regency is confirmed. Check-in is at 3 PM.", "legit_hospitality_reservation"),
-    ("Your package has been placed in Amazon Locker 'Sparrow'. Use code 829104 to collect.", "legit_package_delivery_tracking"),
-    ("Home Depot: Your store pickup order #W928103 is ready at the customer service desk.", "legit_retail_curbside"),
-    ("Hi David, thanks for following up. Let's schedule a 30-minute intro call next Tuesday.", "legit_workplace_sync"),
-    ("Microsoft account security code: 928371. If you didn't request this, ignore.", "legit_2fa_code"),
+    (
+        "Your reservation at Hyatt Regency is confirmed. Check-in is at 3 PM.",
+        "legit_hospitality_reservation",
+    ),
+    (
+        "Your package has been placed in Amazon Locker 'Sparrow'. Use code 829104 to collect.",
+        "legit_package_delivery_tracking",
+    ),
+    (
+        "Home Depot: Your store pickup order #W928103 is ready at the customer service desk.",
+        "legit_retail_curbside",
+    ),
+    (
+        "Hi David, thanks for following up. Let's schedule a 30-minute intro call next Tuesday.",
+        "legit_workplace_sync",
+    ),
+    (
+        "Microsoft account security code: 928371. If you didn't request this, ignore.",
+        "legit_2fa_code",
+    ),
     ("Your order from Apple Store is confirmed. Order number: W938472910.", "legit_retail_receipt"),
-    ("Your weekly screen time report is now available in settings.", "legit_personal_account_digest"),
-    ("Good morning team, the 9:30 AM standup will be pushed by 15 minutes today.", "legit_workplace_sync"),
-    ("Southwest Airlines: Boarding position A24 for flight WN1849 to Denver.", "legit_travel_gate_info"),
-    ("Your library books are due in 3 days. Renew online at publiclibrary.org", "legit_personal_account_digest"),
+    (
+        "Your weekly screen time report is now available in settings.",
+        "legit_personal_account_digest",
+    ),
+    (
+        "Good morning team, the 9:30 AM standup will be pushed by 15 minutes today.",
+        "legit_workplace_sync",
+    ),
+    (
+        "Southwest Airlines: Boarding position A24 for flight WN1849 to Denver.",
+        "legit_travel_gate_info",
+    ),
+    (
+        "Your library books are due in 3 days. Renew online at publiclibrary.org",
+        "legit_personal_account_digest",
+    ),
 ]
 
 FRAUD_BASE_SAMPLES: list[tuple[str, str]] = [
-    ("URGENT: Chase Bank alert. Unusual activity detected. Account suspended. Restore immediately: http://bit.ly/chase-verify-now", "fraud_account_suspension_lure"),
-    ("CONGRATULATIONS! Your phone number won a $1,000 Walmart gift card! Click here to claim: http://walmart-prizes2026.xyz/win", "fraud_prize_giveaway_lure"),
-    ("USPS Alert: Package 928301 could not be delivered due to wrong address. Pay $1.99 redelivery fee now: http://tinyurl.com/usps-redelivery-fee", "fraud_postal_customs_fee"),
-    ("Wells Fargo Security: We detected an unauthorized login from Russia. Verify your SSN to unlock your card: http://wellsfargo-secure-login.ru", "fraud_suspicious_ip_login_lure"),
-    ("IRS FINAL NOTICE: You owe $4,200 in delinquent taxes. Arrest warrant issued. Call 1-800-555-0199 immediately to avoid arrest.", "fraud_legal_tax_extortion"),
-    ("Bank of America: Your online banking has been temporarily disabled. Visit http://bofa-verify-identity.com to reactivate.", "fraud_account_suspension_lure"),
-    ("Exclusive Crypto VIP signal: Earn 300% return guaranteed within 24 hours! Join WhatsApp group: https://t.me/cryptogains999", "fraud_telegram_income_lure"),
-    ("Netflix: Your subscription payment failed. Your account will be closed today unless updated: http://netflix-billing-renew.info", "fraud_subscription_billing_scam"),
-    ("Toll Services: You have an unpaid toll invoice of $12.50. Late fees apply after 24h. Pay at: http://sunpass-toll-billing.top", "fraud_subscription_billing_scam"),
-    ("PayPal Security: Unauthorized transaction of $699.99 to Apple Store. Not you? Dispute immediately at: http://paypal-dispute-resolve.com", "fraud_transaction_dispute_lure"),
-    ("You have (1) pending package awaiting clearance. Confirm your identity and pay customs fee: http://dhl-express-clearance.net/track", "fraud_postal_customs_fee"),
-    ("URGENT: Your Apple ID has been locked for security reasons. Verify your account details: http://appleid-support-auth.com", "fraud_account_suspension_lure"),
-    ("Alert from Citibank: Suspicious wire transfer of $2,450 initiated. Stop transfer here: http://citi-security-stop.com", "fraud_transaction_dispute_lure"),
-    ("Winner notification! You have been selected for the 2026 Cash App Giveaway. Receive $750 instantly: http://cashapp-free750.online", "fraud_prize_giveaway_lure"),
-    ("Your SIM card will be deactivated in 24 hours due to unverified KYC. Update details now: http://telecom-kyc-verify.club", "fraud_device_telecom_account_phish"),
-    ("Amazon Security: Did you purchase iPhone 16 Pro for $1,199? If NOT, call fraud team right away at 1-888-555-0144.", "fraud_callback_order_scam"),
-    ("Dear customer, your debit card is blocked. Click http://chase-unblock-card.biz to submit photo ID and unlock.", "fraud_card_blocked_lure"),
-    ("FedEx: Delivery exception! Package held at facility due to unpaid duty. Pay $2.40: http://fedex-express-customs.cc", "fraud_postal_customs_fee"),
-    ("Target Shopper: You were chosen to receive a $500 shopping voucher! Complete short survey: http://target-voucher-survey.site", "fraud_prize_giveaway_lure"),
-    ("Your social security number has been compromised in a fraud investigation. Press 1 to speak with a federal agent.", "fraud_legal_tax_extortion"),
-    ("Attn: Your account with AT&T will be cancelled. Pay overdue balance of $45.10 here: http://att-billpay-portal.info", "fraud_subscription_billing_scam"),
-    ("URGENT: Venmo unauthorized charge of $450 to Steam Games. Cancel this payment: http://venmo-security-dispute.link", "fraud_transaction_dispute_lure"),
-    ("You qualified for $50,000 pre-approved loan with 0% APR. No credit check required! Apply now: http://fast-cash-loans-today.us", "fraud_grant_loan_lure"),
-    ("Crypto alert: 1.45 BTC has been deposited to your wallet. Confirm receipt and withdraw: http://binance-claim-crypto.cc", "fraud_crypto_account_lure"),
-    ("Your package #91823 is held at depot. Final delivery attempt tomorrow. Verify address: http://postal-package-update.info", "fraud_postal_customs_fee"),
-    ("Warning: Your iPhone backup was compromised. Visit http://icloud-warning-check.me to change password immediately.", "fraud_device_telecom_account_phish"),
-    ("Santander Alert: Card blocked due to suspicious activity. Follow link to verify: http://santander-unblock-service.top", "fraud_card_blocked_lure"),
-    ("Work from home opportunity! Earn $500/day rating products on your phone. Telegram: @jobrecruiter2026", "fraud_telegram_income_lure"),
-    ("Geek Squad: Auto-renewal charge of $399.99 processed. To request refund within 24h call: 1-800-555-0182", "fraud_callback_order_scam"),
-    ("Exclusive invitation: You are eligible to claim free government relief grant of $2,500. Register: http://gov-grant-claim.org", "fraud_grant_loan_lure"),
-    ("TD Bank: Suspicious login from IP 194.26.29.1. Secure your account now: http://tdbank-customer-protect.net", "fraud_suspicious_ip_login_lure"),
-    ("Capital One alert: Debit card flagged for fraud at Best Buy. Confirm identity: http://capitalone-fraud-prevention.xyz", "fraud_card_blocked_lure"),
-    ("Your WhatsApp account will expire tomorrow. Renew your service for $0.99 here: http://whatsapp-subscription-renew.com", "fraud_subscription_billing_scam"),
-    ("URGENT legal notice: Process server dispatched to your location. Call 855-555-0129 to settle dispute before court.", "fraud_legal_tax_extortion"),
-    ("Costco rewards: You have $150 in unredeemed cash back rewards expiring tonight! Redeem at: http://costco-cashback-points.site", "fraud_prize_giveaway_lure"),
-    ("Alert: Coinbase security key reset requested. If you did not initiate this, freeze account: http://coinbase-freeze-auth.com", "fraud_crypto_account_lure"),
-    ("US Postal Notice: Missing apartment number on parcel. Re-enter shipping address: http://usps-address-correct.com", "fraud_postal_customs_fee"),
-    ("Final reminder: Your car warranty is about to lapse. Extend coverage before deadline: http://auto-warranty-renew.online", "fraud_subscription_billing_scam"),
-    ("Your mobile number won 2nd prize in the UK National Lottery! Send email to claim: claim@national-lottery-promo.co", "fraud_prize_giveaway_lure"),
-    ("Citizens Bank: Transaction of $840 declined. Verify your phone number to re-enable card: http://citizens-verify.cc", "fraud_transaction_dispute_lure"),
+    (
+        "URGENT: Chase Bank alert. Unusual activity detected. Account suspended. Restore immediately: http://bit.ly/chase-verify-now",
+        "fraud_account_suspension_lure",
+    ),
+    (
+        "CONGRATULATIONS! Your phone number won a $1,000 Walmart gift card! Click here to claim: http://walmart-prizes2026.xyz/win",
+        "fraud_prize_giveaway_lure",
+    ),
+    (
+        "USPS Alert: Package 928301 could not be delivered due to wrong address. Pay $1.99 redelivery fee now: http://tinyurl.com/usps-redelivery-fee",
+        "fraud_postal_customs_fee",
+    ),
+    (
+        "Wells Fargo Security: We detected an unauthorized login from Russia. Verify your SSN to unlock your card: http://wellsfargo-secure-login.ru",
+        "fraud_suspicious_ip_login_lure",
+    ),
+    (
+        "IRS FINAL NOTICE: You owe $4,200 in delinquent taxes. Arrest warrant issued. Call 1-800-555-0199 immediately to avoid arrest.",
+        "fraud_legal_tax_extortion",
+    ),
+    (
+        "Bank of America: Your online banking has been temporarily disabled. Visit http://bofa-verify-identity.com to reactivate.",
+        "fraud_account_suspension_lure",
+    ),
+    (
+        "Exclusive Crypto VIP signal: Earn 300% return guaranteed within 24 hours! Join WhatsApp group: https://t.me/cryptogains999",
+        "fraud_telegram_income_lure",
+    ),
+    (
+        "Netflix: Your subscription payment failed. Your account will be closed today unless updated: http://netflix-billing-renew.info",
+        "fraud_subscription_billing_scam",
+    ),
+    (
+        "Toll Services: You have an unpaid toll invoice of $12.50. Late fees apply after 24h. Pay at: http://sunpass-toll-billing.top",
+        "fraud_subscription_billing_scam",
+    ),
+    (
+        "PayPal Security: Unauthorized transaction of $699.99 to Apple Store. Not you? Dispute immediately at: http://paypal-dispute-resolve.com",
+        "fraud_transaction_dispute_lure",
+    ),
+    (
+        "You have (1) pending package awaiting clearance. Confirm your identity and pay customs fee: http://dhl-express-clearance.net/track",
+        "fraud_postal_customs_fee",
+    ),
+    (
+        "URGENT: Your Apple ID has been locked for security reasons. Verify your account details: http://appleid-support-auth.com",
+        "fraud_account_suspension_lure",
+    ),
+    (
+        "Alert from Citibank: Suspicious wire transfer of $2,450 initiated. Stop transfer here: http://citi-security-stop.com",
+        "fraud_transaction_dispute_lure",
+    ),
+    (
+        "Winner notification! You have been selected for the 2026 Cash App Giveaway. Receive $750 instantly: http://cashapp-free750.online",
+        "fraud_prize_giveaway_lure",
+    ),
+    (
+        "Your SIM card will be deactivated in 24 hours due to unverified KYC. Update details now: http://telecom-kyc-verify.club",
+        "fraud_device_telecom_account_phish",
+    ),
+    (
+        "Amazon Security: Did you purchase iPhone 16 Pro for $1,199? If NOT, call fraud team right away at 1-888-555-0144.",
+        "fraud_callback_order_scam",
+    ),
+    (
+        "Dear customer, your debit card is blocked. Click http://chase-unblock-card.biz to submit photo ID and unlock.",
+        "fraud_card_blocked_lure",
+    ),
+    (
+        "FedEx: Delivery exception! Package held at facility due to unpaid duty. Pay $2.40: http://fedex-express-customs.cc",
+        "fraud_postal_customs_fee",
+    ),
+    (
+        "Target Shopper: You were chosen to receive a $500 shopping voucher! Complete short survey: http://target-voucher-survey.site",
+        "fraud_prize_giveaway_lure",
+    ),
+    (
+        "Your social security number has been compromised in a fraud investigation. Press 1 to speak with a federal agent.",
+        "fraud_legal_tax_extortion",
+    ),
+    (
+        "Attn: Your account with AT&T will be cancelled. Pay overdue balance of $45.10 here: http://att-billpay-portal.info",
+        "fraud_subscription_billing_scam",
+    ),
+    (
+        "URGENT: Venmo unauthorized charge of $450 to Steam Games. Cancel this payment: http://venmo-security-dispute.link",
+        "fraud_transaction_dispute_lure",
+    ),
+    (
+        "You qualified for $50,000 pre-approved loan with 0% APR. No credit check required! Apply now: http://fast-cash-loans-today.us",
+        "fraud_grant_loan_lure",
+    ),
+    (
+        "Crypto alert: 1.45 BTC has been deposited to your wallet. Confirm receipt and withdraw: http://binance-claim-crypto.cc",
+        "fraud_crypto_account_lure",
+    ),
+    (
+        "Your package #91823 is held at depot. Final delivery attempt tomorrow. Verify address: http://postal-package-update.info",
+        "fraud_postal_customs_fee",
+    ),
+    (
+        "Warning: Your iPhone backup was compromised. Visit http://icloud-warning-check.me to change password immediately.",
+        "fraud_device_telecom_account_phish",
+    ),
+    (
+        "Santander Alert: Card blocked due to suspicious activity. Follow link to verify: http://santander-unblock-service.top",
+        "fraud_card_blocked_lure",
+    ),
+    (
+        "Work from home opportunity! Earn $500/day rating products on your phone. Telegram: @jobrecruiter2026",
+        "fraud_telegram_income_lure",
+    ),
+    (
+        "Geek Squad: Auto-renewal charge of $399.99 processed. To request refund within 24h call: 1-800-555-0182",
+        "fraud_callback_order_scam",
+    ),
+    (
+        "Exclusive invitation: You are eligible to claim free government relief grant of $2,500. Register: http://gov-grant-claim.org",
+        "fraud_grant_loan_lure",
+    ),
+    (
+        "TD Bank: Suspicious login from IP 194.26.29.1. Secure your account now: http://tdbank-customer-protect.net",
+        "fraud_suspicious_ip_login_lure",
+    ),
+    (
+        "Capital One alert: Debit card flagged for fraud at Best Buy. Confirm identity: http://capitalone-fraud-prevention.xyz",
+        "fraud_card_blocked_lure",
+    ),
+    (
+        "Your WhatsApp account will expire tomorrow. Renew your service for $0.99 here: http://whatsapp-subscription-renew.com",
+        "fraud_subscription_billing_scam",
+    ),
+    (
+        "URGENT legal notice: Process server dispatched to your location. Call 855-555-0129 to settle dispute before court.",
+        "fraud_legal_tax_extortion",
+    ),
+    (
+        "Costco rewards: You have $150 in unredeemed cash back rewards expiring tonight! Redeem at: http://costco-cashback-points.site",
+        "fraud_prize_giveaway_lure",
+    ),
+    (
+        "Alert: Coinbase security key reset requested. If you did not initiate this, freeze account: http://coinbase-freeze-auth.com",
+        "fraud_crypto_account_lure",
+    ),
+    (
+        "US Postal Notice: Missing apartment number on parcel. Re-enter shipping address: http://usps-address-correct.com",
+        "fraud_postal_customs_fee",
+    ),
+    (
+        "Final reminder: Your car warranty is about to lapse. Extend coverage before deadline: http://auto-warranty-renew.online",
+        "fraud_subscription_billing_scam",
+    ),
+    (
+        "Your mobile number won 2nd prize in the UK National Lottery! Send email to claim: claim@national-lottery-promo.co",
+        "fraud_prize_giveaway_lure",
+    ),
+    (
+        "Citizens Bank: Transaction of $840 declined. Verify your phone number to re-enable card: http://citizens-verify.cc",
+        "fraud_transaction_dispute_lure",
+    ),
 ]
 
 LEGITIMATE_MESSAGES: list[str] = [text for text, _ in LEGIT_BASE_SAMPLES]
@@ -153,18 +372,31 @@ CONVERSATIONAL_BASE_SAMPLES: list[tuple[str, str]] = [
     ("Dinner was delicious, thanks for having us over!", "legit_casual_social_chat"),
     ("Let me know if you need any help with the garden this weekend.", "legit_casual_errands"),
     ("Just finished running at the park, heading home now.", "legit_casual_social_chat"),
-    ("Wishing you a very Happy Birthday and a fantastic year ahead!", "legit_casual_birthday_greetings"),
-    ("Happy Birthday! Have an amazing day celebrating with friends!", "legit_casual_birthday_greetings"),
-    ("Let me know if you want to carpool to soccer practice this weekend.", "legit_casual_family_activity"),
-    ("We can carpool to soccer practice on Saturday morning if you'd like.", "legit_casual_family_activity"),
+    (
+        "Wishing you a very Happy Birthday and a fantastic year ahead!",
+        "legit_casual_birthday_greetings",
+    ),
+    (
+        "Happy Birthday! Have an amazing day celebrating with friends!",
+        "legit_casual_birthday_greetings",
+    ),
+    (
+        "Let me know if you want to carpool to soccer practice this weekend.",
+        "legit_casual_family_activity",
+    ),
+    (
+        "We can carpool to soccer practice on Saturday morning if you'd like.",
+        "legit_casual_family_activity",
+    ),
     ("Could you bring my umbrella from the front hallway to the office?", "legit_casual_errands"),
-    ("Don't forget your umbrella today, looks like light rain this afternoon.", "legit_casual_errands"),
+    (
+        "Don't forget your umbrella today, looks like light rain this afternoon.",
+        "legit_casual_errands",
+    ),
 ]
 
 
-def extract_template_family_id(
-    text: str, label: int, explicit_family: str | None = None
-) -> str:
+def extract_template_family_id(text: str, label: int, explicit_family: str | None = None) -> str:
     """Assigns a stable template_family_id based on normalized base text structure without variables.
 
     Normalizes variable components: URLs, codes, phone numbers, monetary amounts,
@@ -277,7 +509,10 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
     otp_codes = [194820, 503918, 728194, 846201, 319472, 629104]
     otp_templates: tuple[tuple[str, str], ...] = (
         ("legit_2fa_phone_verify", "{service}: Confirmation code {code} to verify phone number."),
-        ("legit_2fa_email_verify", "{service}: Enter passcode {code} to verify your email address."),
+        (
+            "legit_2fa_email_verify",
+            "{service}: Enter passcode {code} to verify your email address.",
+        ),
         (
             "legit_2fa_login_approve",
             "{service} Verify: Tap to approve login attempt from Chrome browser on macOS.",
@@ -305,8 +540,14 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
 
     # Augment legit banking notifications (teaching model that legitimate banking alerts exist)
     legit_banks = [
-        "Chase", "Wells Fargo", "Bank of America", "Citibank", "Capital One",
-        "PNC Bank", "TD Bank", "US Bank"
+        "Chase",
+        "Wells Fargo",
+        "Bank of America",
+        "Citibank",
+        "Capital One",
+        "PNC Bank",
+        "TD Bank",
+        "US Bank",
     ]
     for i, b in enumerate(legit_banks):
         for j in range(5):
@@ -395,7 +636,11 @@ def build_augmented_dataset() -> tuple[list[str], list[int], list[str]]:
     # Augment fraud with financial and delivery scams
     banks_fraud = ["Barclays", "HSBC", "Santander", "Lloyds", "NatWest", "Standard Chartered"]
     scam_domains_extra = [
-        "auth-alert.xyz", "secure-desk.top", "verify-card.cc", "login-gate.club", "resolve-fraud.biz"
+        "auth-alert.xyz",
+        "secure-desk.top",
+        "verify-card.cc",
+        "login-gate.club",
+        "resolve-fraud.biz",
     ]
     for b in banks_fraud:
         b_key = b.lower().replace(" ", "")
@@ -565,9 +810,7 @@ def patch_skl2onnx_tfidf_bugs(
     if not isinstance(vocab, dict) or not vocab:
         raise RuntimeError("fitted_tfidf_vectorizer must have a non-empty vocabulary_ dictionary")
 
-    tfidf_vec_nodes = [
-        node for node in onnx_model.graph.node if node.op_type == "TfIdfVectorizer"
-    ]
+    tfidf_vec_nodes = [node for node in onnx_model.graph.node if node.op_type == "TfIdfVectorizer"]
     if len(tfidf_vec_nodes) != 1:
         raise RuntimeError(
             f"Expected exactly 1 TfIdfVectorizer node in ONNX graph, found {len(tfidf_vec_nodes)}"
@@ -578,9 +821,7 @@ def patch_skl2onnx_tfidf_bugs(
     for term, idx in sorted(vocab.items(), key=lambda item: int(item[1])):
         split_words[int(idx)] = str(term).split(" ")
 
-    ng_split_words = sorted(
-        [(len(tokens), tokens, idx) for idx, tokens in enumerate(split_words)]
-    )
+    ng_split_words = sorted([(len(tokens), tokens, idx) for idx, tokens in enumerate(split_words)])
     key_indices = [item[2] for item in ng_split_words]
     min_n, max_n = fitted_tfidf_vectorizer.ngram_range
     ngcounts = [0 for _ in range(min_n)]
@@ -601,9 +842,7 @@ def patch_skl2onnx_tfidf_bugs(
             onnx.helper.make_attribute("max_gram_length", int(max_n)),
             onnx.helper.make_attribute("mode", "TF"),
             onnx.helper.make_attribute("max_skip_count", 0),
-            onnx.helper.make_attribute(
-                "pool_strings", [w.encode("utf-8") for w in pool_words]
-            ),
+            onnx.helper.make_attribute("pool_strings", [w.encode("utf-8") for w in pool_words]),
             onnx.helper.make_attribute("ngram_indexes", key_indices),
             onnx.helper.make_attribute("ngram_counts", ngcounts),
             onnx.helper.make_attribute("weights", weights),
@@ -641,7 +880,11 @@ def patch_skl2onnx_tfidf_bugs(
             for node in onnx_model.graph.node
         )
 
-        if present_patched_names == expected_patched_names and not has_unpatched_add and not has_unpatched_log:
+        if (
+            present_patched_names == expected_patched_names
+            and not has_unpatched_add
+            and not has_unpatched_log
+        ):
             if "zeros_scalar" not in existing_inits:
                 raise RuntimeError(
                     "Corrupted already-patched ONNX graph: missing 'zeros_scalar' initializer"
@@ -754,6 +997,7 @@ def _compute_cross_split_leakage_audit(
     template_family_ids: list[str],
 ) -> dict[str, Any]:
     """Audits Dev/Val SHA-256 overlap, duplicates, and cross-family similarity."""
+
     def _norm_hash(value: str) -> str:
         norm = re.sub(r"\s+", " ", value.strip().lower())
         return hashlib.sha256(norm.encode("utf-8")).hexdigest()
@@ -771,12 +1015,14 @@ def _compute_cross_split_leakage_audit(
         1 for fam_set in structural_hashes.values() if len(fam_set) > 1
     )
 
+    word_regex = r"\b[a-zA-Z0-9_]+\b"
+
     vectorizer = TfidfVectorizer(
         ngram_range=(1, 2),
         sublinear_tf=True,
         max_features=2500,
         min_df=1,
-        token_pattern=r"\b[a-zA-Z0-9_]+\b",
+        token_pattern=word_regex,
     )
     tfidf_train = vectorizer.fit_transform(texts).toarray()
     tfidf_eval = vectorizer.transform(held_out_texts).toarray()
@@ -939,20 +1185,18 @@ MACRO_BANK_2WAY_GROUP_ID = "legit_bank_2way_macro"
 
 def get_macro_archetype_groups(groups: Sequence[str]) -> list[str]:
     """Collapses closely related legitimate 2-way bank alert templates for sensitivity checks."""
-    return [
-        MACRO_BANK_2WAY_GROUP_ID if g in MACRO_BANK_2WAY_SOURCE_FAMILIES else g
-        for g in groups
-    ]
+    return [MACRO_BANK_2WAY_GROUP_ID if g in MACRO_BANK_2WAY_SOURCE_FAMILIES else g for g in groups]
 
 
 def _create_tfidf_vectorizer() -> TfidfVectorizer:
     """Returns canonical TF-IDF vectorizer hyperparameters shared across train and OOF."""
+    word_regex = r"\b[a-zA-Z0-9_]+\b"
     return TfidfVectorizer(
         ngram_range=(1, 2),
         sublinear_tf=True,
         max_features=2500,
         min_df=1,
-        token_pattern=r"\b[a-zA-Z0-9_]+\b",
+        token_pattern=word_regex,
     )
 
 
@@ -1306,7 +1550,12 @@ def _evaluate_grouping_variant_oof(
                 "precision": round(float(precision_score(y_val_arr, val_pred, zero_division=0)), 4),
                 "recall": round(float(recall_score(y_val_arr, val_pred, zero_division=0)), 4),
                 "f1_score": round(float(f1_score(y_val_arr, val_pred, zero_division=0)), 4),
-                "confusion_matrix": {"tp": int(tp_f), "fp": int(fp_f), "tn": int(tn_f), "fn": int(fn_f)},
+                "confusion_matrix": {
+                    "tp": int(tp_f),
+                    "fp": int(fp_f),
+                    "tn": int(tn_f),
+                    "fn": int(fn_f),
+                },
             }
         )
 
@@ -1521,7 +1770,9 @@ def train_and_export_model(
 
     inner_fold0_sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
     inner_fold0_splits: list[tuple[np.ndarray, np.ndarray]] = []
-    for in_idx, (in_tr, in_va) in enumerate(inner_fold0_sgkf.split(x_train, y_train, groups=g_train)):
+    for in_idx, (in_tr, in_va) in enumerate(
+        inner_fold0_sgkf.split(x_train, y_train, groups=g_train)
+    ):
         _assert_split_disjoint(in_tr, in_va, g_train, f"fold0_inner_{in_idx}")
         inner_fold0_splits.append((np.asarray(in_tr, dtype=int), np.asarray(in_va, dtype=int)))
 
@@ -1548,14 +1799,24 @@ def train_and_export_model(
     logger.info("Nested Fold-0 StratifiedGroupKFold Results:")
     logger.info("  Brier Score (Before Calibration): %.4f", brier_before)
     logger.info("  Brier Score (After Calibration):  %.4f", brier_after)
-    logger.info("  Precision: %.4f | Recall: %.4f | F1: %.4f | ROC-AUC: %.4f | PR-AUC: %.4f", precision, recall, f1, roc_auc, pr_auc)
+    logger.info(
+        "  Precision: %.4f | Recall: %.4f | F1: %.4f | ROC-AUC: %.4f | PR-AUC: %.4f",
+        precision,
+        recall,
+        f1,
+        roc_auc,
+        pr_auc,
+    )
 
     # Full 5-fold zero-leakage nested OOF evaluation (fine-grained + macro sensitivity + cluster bootstrap)
     logger.info("Executing 5-fold zero-leakage nested OOF evaluation and cluster bootstrap...")
     oof_report, oof_records = evaluate_oof_cross_validation(texts, labels, template_family_ids)
 
     # Fit production calibrated pipeline using deterministic GroupKFold(n_splits=5) calibration folds
-    logger.info("Fitting production pipeline on all %d samples with GroupKFold(5) calibration...", len(texts))
+    logger.info(
+        "Fitting production pipeline on all %d samples with GroupKFold(5) calibration...",
+        len(texts),
+    )
     prod_pipeline = build_production_pipeline(texts, labels, template_family_ids)
 
     # Export calibrated production pipeline to ONNX with string tensor input
@@ -1570,7 +1831,9 @@ def train_and_export_model(
     training_dataset_sha256 = hashlib.sha256(
         "".join(f"{t}:{lbl}" for t, lbl in zip(texts, labels, strict=True)).encode("utf-8")
     ).hexdigest()
-    logger.info("Compiled ONNX model in memory (%d bytes, SHA256: %s)", len(model_bytes), model_sha256)
+    logger.info(
+        "Compiled ONNX model in memory (%d bytes, SHA256: %s)", len(model_bytes), model_sha256
+    )
 
     canonical_paths = get_canonical_artifact_paths()
     is_canonical_target = (
@@ -1682,9 +1945,7 @@ def train_and_export_model(
     base_metadata["benchmark_predictions_artifact"] = held_out_metrics[
         "benchmark_predictions_artifact"
     ]
-    base_metadata["benchmark_predictions_sha256"] = held_out_metrics[
-        "benchmark_predictions_sha256"
-    ]
+    base_metadata["benchmark_predictions_sha256"] = held_out_metrics["benchmark_predictions_sha256"]
     base_metadata["onnx_sklearn_parity"] = held_out_metrics["onnx_sklearn_parity"]
     base_metadata["ece"] = held_out_metrics["ece"]
     base_metadata["reliability_bins"] = held_out_metrics["reliability_bins"]

@@ -35,9 +35,7 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
   const hasSession = Boolean(cookieStore.get(ACCESS_TOKEN_COOKIE_NAME)?.value);
   const userInfo = cookieStore.get(TEST_USER_COOKIE_NAME)?.value ?? "";
   const [username, role] = userInfo.split(":", 2);
-  const capitalizedUsername = username
-    ? username.charAt(0).toUpperCase() + username.slice(1)
-    : "";
+  const capitalizedUsername = username ? username.charAt(0).toUpperCase() + username.slice(1) : "";
   const sessionLabel = capitalizedUsername || null;
 
   return (
@@ -66,10 +64,7 @@ const RootLayout = async ({ children }: Readonly<{ children: React.ReactNode }>)
           <header className="app-header">
             <div className="app-header-inner">
               <div className="app-header-top">
-                <Link
-                  href="/"
-                  className="app-brand-link"
-                >
+                <Link href="/" className="app-brand-link">
                   <span className="nav-icon">⚡ </span>SentinelFlow
                 </Link>
 

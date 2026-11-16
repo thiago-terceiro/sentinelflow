@@ -1053,9 +1053,7 @@ async def test_persist_graph_state_keeps_only_one_fresh_approval_after_revision(
         {"configurable": {"thread_id": "thread_rev_1"}},
     )
 
-    approval_ids = [
-        ev["id"] for ev in updated.timeline_events if ev["type"] == "approval_required"
-    ]
+    approval_ids = [ev["id"] for ev in updated.timeline_events if ev["type"] == "approval_required"]
     assert approval_ids == ["approval_inv_rev_1_rev1"]
 
 

@@ -57,8 +57,14 @@ test("wave lifting mathematical model produces bounded, smooth elevation without
     assert.ok(radius <= BASE_RADIUS + 0.45 + 1e-6, `Radius must not exceed maximum`);
 
     // Verify alpha bounds
-    assert.ok(alphaLight >= BASE_ALPHA_LIGHT && alphaLight <= 0.41, `Alpha light must stay within valid range`);
-    assert.ok(alphaDark >= BASE_ALPHA_DARK && alphaDark <= 0.39, `Alpha dark must stay within valid range`);
+    assert.ok(
+      alphaLight >= BASE_ALPHA_LIGHT && alphaLight <= 0.41,
+      `Alpha light must stay within valid range`
+    );
+    assert.ok(
+      alphaDark >= BASE_ALPHA_DARK && alphaDark <= 0.39,
+      `Alpha dark must stay within valid range`
+    );
   }
 });
 
@@ -68,7 +74,10 @@ test("compositor promotion and RAF performance constraints", () => {
 
   for (const rawDpr of mockDPRs) {
     const clampedDpr = Math.min(rawDpr || 1, DPR_MAX);
-    assert.ok(clampedDpr <= 2, `DPR must never exceed 2 on high-density screens, got ${clampedDpr}`);
+    assert.ok(
+      clampedDpr <= 2,
+      `DPR must never exceed 2 on high-density screens, got ${clampedDpr}`
+    );
     assert.ok(clampedDpr >= 1, `DPR must be at least 1`);
   }
 });

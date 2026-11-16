@@ -21,12 +21,7 @@ type Props = {
 };
 
 export const AnalyzerPanel = memo(
-  ({
-    analyzers,
-    highlightedEvidenceId,
-    pinnedEvidenceId,
-    onHighlightEvidence,
-  }: Props) => {
+  ({ analyzers, highlightedEvidenceId, pinnedEvidenceId, onHighlightEvidence }: Props) => {
     return (
       <section
         className="shell-card"
@@ -59,7 +54,9 @@ export const AnalyzerPanel = memo(
             margin: "8px 0 14px",
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Analyzer Findings & Contradictions</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
+            Analyzer Findings & Contradictions
+          </h2>
           <span style={{ color: "var(--muted)", fontSize: 13 }}>{analyzers.length} analyzers</span>
         </div>
         {analyzers.length === 0 ? (
@@ -113,7 +110,14 @@ export const AnalyzerPanel = memo(
                     >
                       Key Signals:
                     </span>
-                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--foreground)" }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        fontSize: 12,
+                        color: "var(--foreground)",
+                      }}
+                    >
                       {item.findings.map((f, idx) => (
                         <li key={idx} style={{ marginBottom: 2 }}>
                           {f}
@@ -176,7 +180,9 @@ export const AnalyzerPanel = memo(
                             alignItems: "center",
                             justifyContent: "center",
                             borderRadius: 4,
-                            background: isLinked ? "rgba(37,99,235,0.08)" : "rgba(255,255,255,0.06)",
+                            background: isLinked
+                              ? "rgba(37,99,235,0.08)"
+                              : "rgba(255,255,255,0.06)",
                             color: isLinked ? "var(--accent)" : "var(--foreground)",
                             border: isLinked
                               ? "1px solid var(--accent)"

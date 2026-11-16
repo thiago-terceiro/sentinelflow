@@ -147,7 +147,10 @@ export const AuditPage = () => {
   if (!hasAuthChecked) {
     return (
       <main>
-        <div className="shell-card" style={{ padding: 48, textAlign: "center", color: "var(--muted)" }}>
+        <div
+          className="shell-card"
+          style={{ padding: 48, textAlign: "center", color: "var(--muted)" }}
+        >
           <h1 style={{ margin: 0, fontSize: 18, color: "var(--muted)" }}>
             Checking authorization permissions...
           </h1>
@@ -179,10 +182,12 @@ export const AuditPage = () => {
               lineHeight: 1.6,
             }}
           >
-            The SentinelFlow Audit Ledger and AI Governance Portal contain sensitive compliance traces
-            and can only be accessed by users authenticated with the Auditor or Admin role.
+            The SentinelFlow Audit Ledger and AI Governance Portal contain sensitive compliance
+            traces and can only be accessed by users authenticated with the Auditor or Admin role.
           </p>
-          <div style={{ display: "inline-flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+          <div
+            style={{ display: "inline-flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}
+          >
             <Link
               href="/login?returnTo=/audit"
               style={{
@@ -365,8 +370,7 @@ export const AuditPage = () => {
               activeTab === "ledger"
                 ? "1px solid var(--accent)"
                 : "1px solid rgba(255,255,255,0.1)",
-            background:
-              activeTab === "ledger" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+            background: activeTab === "ledger" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
             color: activeTab === "ledger" ? "var(--foreground)" : "var(--muted)",
             cursor: "pointer",
           }}
@@ -385,11 +389,8 @@ export const AuditPage = () => {
             fontSize: 13,
             fontWeight: 600,
             border:
-              activeTab === "evals"
-                ? "1px solid var(--accent)"
-                : "1px solid rgba(255,255,255,0.1)",
-            background:
-              activeTab === "evals" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+              activeTab === "evals" ? "1px solid var(--accent)" : "1px solid rgba(255,255,255,0.1)",
+            background: activeTab === "evals" ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
             color: activeTab === "evals" ? "var(--foreground)" : "var(--muted)",
             cursor: "pointer",
           }}

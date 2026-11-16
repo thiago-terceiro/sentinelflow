@@ -12,8 +12,69 @@ export interface GenUIArtifactCardProps {
   toolStatus?: "running" | "completed" | "failed";
   toolOutput?: unknown;
   onSelectEvidence?: (id: string) => void;
-  onSubmitAction?: (decision: "approve" | "reject" | "request_revision", guidance?: string) => Promise<void>;
+  onSubmitAction?: (
+    decision: "approve" | "reject" | "request_revision",
+    guidance?: string
+  ) => Promise<void>;
 }
+
+const getConfidenceColor = (confidence: number): string => {
+  if (confidence >= 0.7) return "#ef4444";
+  if (confidence >= 0.4) return "#f59e0b";
+  return "#10b981";
+};
+
+const renderStatusBadge = (toolStatus: string) => {
+  if (toolStatus === "running") {
+    return (
+      <span
+        style={{
+          padding: "2px 8px",
+          borderRadius: 6,
+          fontSize: 11,
+          fontWeight: 700,
+          background: "var(--badge-flag-bg, #fef3c7)",
+          color: "var(--badge-flag-color, #78350f)",
+          border: "1px solid var(--badge-flag-border, #b45309)",
+        }}
+      >
+        RUNNING
+      </span>
+    );
+  }
+  if (toolStatus === "failed") {
+    return (
+      <span
+        style={{
+          padding: "2px 8px",
+          borderRadius: 6,
+          fontSize: 11,
+          fontWeight: 700,
+          background: "var(--badge-block-bg, #fee2e2)",
+          color: "var(--badge-block-color, #7f1d1d)",
+          border: "1px solid var(--badge-block-border, #991b1b)",
+        }}
+      >
+        FAILED
+      </span>
+    );
+  }
+  return (
+    <span
+      style={{
+        padding: "2px 8px",
+        borderRadius: 6,
+        fontSize: 11,
+        fontWeight: 700,
+        background: "var(--badge-allow-bg, #dcfce7)",
+        color: "var(--badge-allow-color, #14532d)",
+        border: "1px solid var(--badge-allow-border, #15803d)",
+      }}
+    >
+      VERIFIED
+    </span>
+  );
+};
 
 export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
   type,
@@ -42,58 +103,6 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const getStatusBadge = () => {
-    if (toolStatus === "running") {
-      return (
-        <span
-          style={{
-            padding: "2px 8px",
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 700,
-            background: "var(--badge-flag-bg, #fef3c7)",
-            color: "var(--badge-flag-color, #78350f)",
-            border: "1px solid var(--badge-flag-border, #b45309)",
-          }}
-        >
-          RUNNING
-        </span>
-      );
-    }
-    if (toolStatus === "failed") {
-      return (
-        <span
-          style={{
-            padding: "2px 8px",
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 700,
-            background: "var(--badge-block-bg, #fee2e2)",
-            color: "var(--badge-block-color, #7f1d1d)",
-            border: "1px solid var(--badge-block-border, #991b1b)",
-          }}
-        >
-          FAILED
-        </span>
-      );
-    }
-    return (
-      <span
-        style={{
-          padding: "2px 8px",
-          borderRadius: 6,
-          fontSize: 11,
-          fontWeight: 700,
-          background: "var(--badge-allow-bg, #dcfce7)",
-          color: "var(--badge-allow-color, #14532d)",
-          border: "1px solid var(--badge-allow-border, #15803d)",
-        }}
-      >
-        VERIFIED
-      </span>
-    );
   };
 
   return (
@@ -132,14 +141,22 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
           </span>
           <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h4>
         </div>
-        {getStatusBadge()}
+        {renderStatusBadge(toolStatus)}
       </div>
 
       {/* Evidence Artifact View */}
       {type === "evidence" && evidence ? (
         <div style={{ display: "grid", gap: 8, fontSize: 13 }}>
           <p style={{ margin: 0, color: "var(--foreground)" }}>{evidence.summary}</p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+              marginTop: 4,
+            }}
+          >
             <span
               style={{
                 fontFamily: "monospace",
@@ -181,7 +198,9 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
         <div style={{ display: "grid", gap: 8, fontSize: 13 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontWeight: 600 }}>{hypothesis.statement}</span>
-            <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--accent, #3b82f6)" }}>
+            <span
+              style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--accent, #3b82f6)" }}
+            >
               {Math.round(hypothesis.confidence * 100)}%
             </span>
           </div>
@@ -199,17 +218,20 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
               style={{
                 width: `${Math.round(hypothesis.confidence * 100)}%`,
                 height: "100%",
-                background:
-                  hypothesis.confidence >= 0.7
-                    ? "#ef4444"
-                    : hypothesis.confidence >= 0.4
-                    ? "#f59e0b"
-                    : "#10b981",
+                background: getConfidenceColor(hypothesis.confidence),
                 transition: "width 0.4s ease",
               }}
             />
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: "var(--muted)" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              flexWrap: "wrap",
+              fontSize: 11,
+              color: "var(--muted)",
+            }}
+          >
             <span>Supporting ({hypothesis.supporting_evidence_ids.length})</span>
             <span>·</span>
             <span>Contradicting ({hypothesis.contradicting_evidence_ids.length})</span>
@@ -221,7 +243,14 @@ export const GenUIArtifactCard: React.FC<GenUIArtifactCardProps> = ({
       {type === "action" ? (
         <div style={{ display: "grid", gap: 10, marginTop: 4 }}>
           {actionSuccess ? (
-            <p style={{ margin: 0, color: "var(--telecom-good, #14532d)", fontSize: 13, fontWeight: 700 }}>
+            <p
+              style={{
+                margin: 0,
+                color: "var(--telecom-good, #14532d)",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
               {actionSuccess}
             </p>
           ) : (
