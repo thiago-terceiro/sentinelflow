@@ -31,8 +31,11 @@ from typing import Any
 
 import numpy as np
 from app.telecom.onnx_engine import (
+    InvalidMLSignalError,
     compute_composite_score,
     evaluate_heuristics,
+    extract_onnx_probabilities,
+    validate_ml_probability,
 )
 from sklearn.metrics import (
     average_precision_score,
@@ -724,6 +727,12 @@ def get_held_out_evaluation_set() -> tuple[list[str], list[int]]:
 get_benchmark_evaluation_set = get_held_out_evaluation_set
 
 
+def _validate_probability_sequence(y_prob: Sequence[float] | np.ndarray) -> np.ndarray:
+    """Strictly validates that all probability entries are finite floats in [0.0, 1.0]."""
+    validated = [validate_ml_probability(p) for p in y_prob]
+    return np.asarray(validated, dtype=float)
+
+
 def compute_heuristic_score(text: str) -> float:
     """Evaluates shared compiled regex heuristics and compound escalation against message text."""
     score, _ = evaluate_heuristics(text)
@@ -737,6 +746,7 @@ def compute_category_metrics(
     heuristic_scores: list[float] | np.ndarray | None = None,
 ) -> dict[str, Any]:
     """Computes fine-grained performance breakdowns across all 16 message categories."""
+    y_prob_arr = _validate_probability_sequence(y_prob_arr)
     categories: dict[str, dict[str, Any]] = {}
     if heuristic_scores is None:
         h_arr = np.asarray([compute_heuristic_score(s["text"]) for s in samples], dtype=float)
@@ -828,6 +838,7 @@ def compute_ablation_metrics(
 ) -> dict[str, Any]:
     """Computes ablation comparison across ML alone, Heuristics alone, and Combined."""
     y_true_arr = np.asarray(y_true, dtype=int)
+    y_prob_arr = _validate_probability_sequence(y_prob_arr)
     h_arr = np.asarray(heuristic_scores, dtype=float)
 
     def _eval_classifier(scores: np.ndarray, thresh: float) -> dict[str, Any]:
@@ -882,6 +893,7 @@ def extract_error_analysis(
     comp_arr: np.ndarray,
 ) -> dict[str, Any]:
     """Extracts false positives, false negatives, and representative true classifications with diagnostic context."""
+    y_prob_arr = _validate_probability_sequence(y_prob_arr)
     false_positives_tier1: list[dict[str, Any]] = []
     false_positives_tier2: list[dict[str, Any]] = []
     false_negatives_tier1: list[dict[str, Any]] = []
@@ -2589,9 +2601,12 @@ def evaluate_perturbation_robustness(
         in_name = session.get_inputs()[0].name
         input_tensor = np.array([[t] for t in all_texts], dtype=object)
         raw_outputs = session.run(None, {in_name: input_tensor})
-        all_probs = [float(pm.get(1, 0.0)) for pm in raw_outputs[1]]
+        all_probs = extract_onnx_probabilities(raw_outputs, expected_batch_size=len(all_texts))
     else:
-        all_probs = [float(p) for p in predict_proba_fn(all_texts)]
+        raw_fn_probs = list(predict_proba_fn(all_texts))
+        if len(raw_fn_probs) != len(all_texts):
+            raise InvalidMLSignalError("batch_length_mismatch")
+        all_probs = [validate_ml_probability(p) for p in raw_fn_probs]
 
     families_out: list[dict[str, Any]] = []
     offset = 0
@@ -2718,7 +2733,7 @@ def compute_evaluation_metrics(
 ) -> dict[str, Any]:
     """Computes exact empirical evaluation metrics across both operational tiers, categories, and ablations."""
     y_true_arr = np.asarray(y_true, dtype=int)
-    y_prob_arr = np.asarray(y_prob, dtype=float)
+    y_prob_arr = _validate_probability_sequence(y_prob)
 
     # Raw model predictions at standard 0.50 decision boundary
     y_pred = (y_prob_arr >= threshold).astype(int)
@@ -2906,8 +2921,8 @@ def build_benchmark_prediction_rows(
     for idx, sample in enumerate(samples):
         text = sample["text"]
         label = int(sample["label"])
-        sk_p = float(sklearn_probs[idx])
-        ox_p = float(onnx_probs[idx])
+        sk_p = validate_ml_probability(sklearn_probs[idx])
+        ox_p = validate_ml_probability(onnx_probs[idx])
         p_diff = abs(sk_p - ox_p)
 
         h_score, triggered_rules = evaluate_heuristics(text)
@@ -3063,8 +3078,7 @@ def _run_evaluation_snapshot(
     # Single vectorized session.run across all held-out texts
     input_tensor = np.array([[t] for t in texts], dtype=object)
     raw_outputs = session.run(None, {input_name: input_tensor})
-    prob_maps = raw_outputs[1]
-    y_prob = [float(pm.get(1, 0.0)) for pm in prob_maps]
+    y_prob = extract_onnx_probabilities(raw_outputs, expected_batch_size=len(texts))
     onnx_probs_arr = np.asarray(y_prob, dtype=np.float64)
 
     if reference_pipeline is None:
@@ -3118,13 +3132,13 @@ def _run_evaluation_snapshot(
     )
     metrics["perturbation_robustness"] = evaluate_perturbation_robustness(
         model_path=model_path,
-        predict_proba_fn=lambda batch_texts: [
-            float(pm.get(1, 0.0))
-            for pm in session.run(
+        predict_proba_fn=lambda batch_texts: extract_onnx_probabilities(
+            session.run(
                 None,
                 {input_name: np.array([[t] for t in batch_texts], dtype=object)},
-            )[1]
-        ],
+            ),
+            expected_batch_size=len(batch_texts),
+        ),
     )
     model_bytes = model_path.read_bytes()
     model_sha256 = hashlib.sha256(model_bytes).hexdigest()

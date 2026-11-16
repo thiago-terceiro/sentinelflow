@@ -3053,6 +3053,24 @@
             "title": "Message Truncated",
             "description": "True when PII redaction expanded the message past 2000 characters and trailing redacted text was bounded",
             "default": false
+          },
+          "ml_signal_status": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "invalid",
+              "unavailable",
+              "degraded"
+            ],
+            "title": "Ml Signal Status",
+            "description": "Explicit ML inference signal status: valid, invalid, unavailable, or degraded",
+            "default": "valid"
+          },
+          "ml_signal_valid": {
+            "type": "boolean",
+            "title": "Ml Signal Valid",
+            "description": "True only when ONNX probability is finite, bounded in [0.0, 1.0], and active",
+            "default": true
           }
         },
         "type": "object",
@@ -3239,6 +3257,21 @@
           "graph_optimization_level": {
             "type": "string",
             "title": "Graph Optimization Level"
+          },
+          "ml_engine_status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "unavailable",
+              "degraded"
+            ],
+            "title": "Ml Engine Status",
+            "default": "healthy"
+          },
+          "ml_circuit_open": {
+            "type": "boolean",
+            "title": "Ml Circuit Open",
+            "default": false
           }
         },
         "type": "object",

@@ -1419,6 +1419,19 @@ export interface components {
              * @default false
              */
             message_truncated: boolean;
+            /**
+             * Ml Signal Status
+             * @description Explicit ML inference signal status: valid, invalid, unavailable, or degraded
+             * @default valid
+             * @enum {string}
+             */
+            ml_signal_status: "valid" | "invalid" | "unavailable" | "degraded";
+            /**
+             * Ml Signal Valid
+             * @description True only when ONNX probability is finite, bounded in [0.0, 1.0], and active
+             * @default true
+             */
+            ml_signal_valid: boolean;
         };
         /** TelecomEscalateRequest */
         TelecomEscalateRequest: {
@@ -1522,6 +1535,17 @@ export interface components {
             inter_op_num_threads: number;
             /** Graph Optimization Level */
             graph_optimization_level: string;
+            /**
+             * Ml Engine Status
+             * @default healthy
+             * @enum {string}
+             */
+            ml_engine_status: "healthy" | "unavailable" | "degraded";
+            /**
+             * Ml Circuit Open
+             * @default false
+             */
+            ml_circuit_open: boolean;
         };
         /** ValidationError */
         ValidationError: {

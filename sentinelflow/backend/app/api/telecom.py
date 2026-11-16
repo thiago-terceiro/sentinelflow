@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import time
 from collections.abc import AsyncIterator
 from typing import Any, Literal
@@ -12,7 +13,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Response
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import DisputeRecord
@@ -25,9 +26,12 @@ from app.services.trace_safety import (
 from app.telecom.drift_monitor import get_drift_monitor
 from app.telecom.onnx_engine import (
     InferenceResult,
+    InvalidMLSignalError,
+    MLSignalStatus,
     compute_composite_score,
     get_inference_engine,
     redact_sms_pii,
+    validate_ml_probability,
 )
 from app.telecom.telecom_metrics import export_prometheus_metrics, get_metrics_tracker
 from app.telecom.velocity_store import get_velocity_store
@@ -76,8 +80,27 @@ def _derive_telecom_customer_id(sender: str) -> str:
     return f"tel_{key_id}_{digest}"
 
 
+def _assert_finite_json_value(value: Any, field_name: str) -> Any:
+    """Rejects NaN/Infinity floats recursively before JSON or DB persistence."""
+    if isinstance(value, bool) or value is None:
+        return value
+    if isinstance(value, (int, float)):
+        num = float(value)
+        if not math.isfinite(num):
+            raise ValueError(f"{field_name} contains non-finite numeric value")
+        return value
+    if isinstance(value, dict):
+        return {k: _assert_finite_json_value(v, f"{field_name}.{k}") for k, v in value.items()}
+    if isinstance(value, list):
+        return [
+            _assert_finite_json_value(item, f"{field_name}[{idx}]")
+            for idx, item in enumerate(value)
+        ]
+    return value
+
+
 def _sanitize_velocity_dict(velocity: dict[str, Any]) -> dict[str, Any]:
-    """Redacts any sensitive identifiers inside velocity metadata before persistence or logging."""
+    """Redacts sensitive identifiers and rejects non-finite numeric values."""
     sanitized: dict[str, Any] = {}
     for key, val in velocity.items():
         if key in ("sender", "recipient") and isinstance(val, str):
@@ -86,10 +109,13 @@ def _sanitize_velocity_dict(velocity: dict[str, Any]) -> dict[str, Any]:
             sanitized[key] = redact_sms_pii(val)
         elif isinstance(val, list):
             sanitized[key] = [
-                redact_sms_pii(item) if isinstance(item, str) else item for item in val
+                redact_sms_pii(item)
+                if isinstance(item, str)
+                else _assert_finite_json_value(item, f"velocity.{key}")
+                for item in val
             ]
         else:
-            sanitized[key] = val
+            sanitized[key] = _assert_finite_json_value(val, f"velocity.{key}")
     return sanitized
 
 
@@ -100,6 +126,7 @@ _subscribers_lock = asyncio.Lock()
 
 async def broadcast_telecom_event(event: dict[str, Any]) -> None:
     """Dispatches a real-time event to all connected dashboard SSE streams."""
+    _assert_finite_json_value(event, "sse_event")
     if not _subscribers:
         return
     async with _subscribers_lock:
@@ -151,6 +178,8 @@ class TelecomClassifyRequest(BaseModel):
 
 
 class TelecomClassifyResponse(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     verdict: Literal["ALLOW", "BLOCK", "FLAG"]
     fraud_score: float
     latency_ms: float
@@ -166,9 +195,19 @@ class TelecomClassifyResponse(BaseModel):
             "and trailing redacted text was bounded"
         ),
     )
+    ml_signal_status: MLSignalStatus = Field(
+        default="valid",
+        description="Explicit ML inference signal status: valid, invalid, unavailable, or degraded",
+    )
+    ml_signal_valid: bool = Field(
+        default=True,
+        description="True only when ONNX probability is finite, bounded in [0.0, 1.0], and active",
+    )
 
 
 class TelecomEscalateRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     sender: str = Field(..., min_length=1, max_length=64, description="Originating phone number")
     recipient: str = Field(..., min_length=1, max_length=64, description="Destination phone number")
     message: str = Field(
@@ -204,6 +243,8 @@ class TelecomBatchRequest(BaseModel):
 
 
 class TelecomBatchResponse(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     total_processed: int
     batch_latency_ms: float
     results: list[TelecomClassifyResponse]
@@ -211,6 +252,8 @@ class TelecomBatchResponse(BaseModel):
 
 class TelecomHealthResponse(BaseModel):
     """Runtime reliability and telemetry state for the SentinelPulse telecom gateway."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
 
     status: Literal["healthy", "degraded"]
     model_sha256: str
@@ -222,6 +265,8 @@ class TelecomHealthResponse(BaseModel):
     intra_op_num_threads: int
     inter_op_num_threads: int
     graph_optimization_level: str
+    ml_engine_status: Literal["healthy", "unavailable", "degraded"] = "healthy"
+    ml_circuit_open: bool = False
 
 
 async def _create_escalated_dispute(
@@ -241,6 +286,14 @@ async def _create_escalated_dispute(
     customer_id: str | None = None,
     message_truncated: bool = False,
 ) -> DisputeRecord:
+    if (
+        isinstance(fraud_score, bool)
+        or not math.isfinite(float(fraud_score))
+        or fraud_score < 0.0
+        or fraud_score > 1.0
+    ):
+        raise ValueError("escalated dispute fraud_score must be finite and within [0.0, 1.0]")
+    safe_score = round(float(fraud_score), 4)
     assigned_code = case_code or f"TEL-{uuid4().hex[:8].upper()}"
     assigned_id = dispute_id or str(uuid4())
     masked_sender = _mask_phone(sender)
@@ -258,14 +311,14 @@ async def _create_escalated_dispute(
     narrative = (
         f"SentinelPulse Telecom Gateway Anomaly Alert:\n"
         f"Verdict: {verdict}\n"
-        f"Fraud Score: {fraud_score}\n"
+        f"Fraud Score: {safe_score}\n"
         f"Sender: {masked_sender}\n"
         f"Recipient: {masked_recipient}\n"
         f"Carrier: {safe_carrier or 'Unknown'}\n"
         f"Signals: {', '.join(safe_signals) if safe_signals else 'None'}\n"
         f"Message Content: {safe_message}\n"
         f"Message Truncated After Redaction: {truncation_note}\n"
-        f"Velocity Details: {json.dumps(safe_velocity)}"
+        f"Velocity Details: {json.dumps(safe_velocity, allow_nan=False)}"
     )
     dispute = DisputeRecord(
         id=assigned_id,
@@ -285,7 +338,7 @@ async def _create_escalated_dispute(
             "source": "sentinelpulse",
             "telecom_anomaly": True,
             "verdict": verdict,
-            "fraud_score": fraud_score,
+            "fraud_score": safe_score,
             "signals": safe_signals,
             "carrier": safe_carrier,
             "velocity": safe_velocity,
@@ -469,15 +522,59 @@ async def _process_single_message(
         precomputed_inference if precomputed_inference is not None else engine.predict(req.message)
     )
 
-    # 3. Composite score calculation via deterministic piecewise formulation
+    # Validate ML signal integrity at the gateway boundary so invalid or failed ML outputs
+    # never silently look like a valid 0.0 benign classification.
+    raw_status = getattr(inference_result, "ml_signal_status", "valid")
+    ml_error_reason: str | None = getattr(inference_result, "ml_error_reason", None)
+    safe_onnx_prob: float | None = None
+    effective_ml_status: MLSignalStatus
+    if raw_status == "valid":
+        try:
+            safe_onnx_prob = validate_ml_probability(inference_result.onnx_probability)
+            effective_ml_status = "valid"
+        except InvalidMLSignalError as err:
+            effective_ml_status = "invalid"
+            ml_error_reason = redact_sms_pii(str(err))
+    elif raw_status == "invalid":
+        effective_ml_status = "invalid"
+    elif raw_status == "unavailable":
+        effective_ml_status = "unavailable"
+    elif raw_status == "degraded":
+        effective_ml_status = "degraded"
+    else:
+        effective_ml_status = "invalid"
+        ml_error_reason = "unknown_ml_signal_status"
+
+    ml_signal_valid = effective_ml_status == "valid" and safe_onnx_prob is not None
+
+    # 3. Composite score calculation via deterministic piecewise formulation (with degraded floor)
     composite_score = compute_composite_score(
         heuristic_score=inference_result.heuristic_score,
-        onnx_probability=inference_result.onnx_probability,
+        onnx_probability=safe_onnx_prob,
         velocity_score=velocity_metrics.risk_contribution,
+        ml_signal_status=effective_ml_status,
     )
 
-    # Combine signals from both layers
+    # Combine signals from both layers without leaving misleading benign ML labels when degraded
     combined_signals = list(dict.fromkeys(inference_result.signals + velocity_metrics.signals))
+    if not ml_signal_valid:
+        combined_signals = [
+            sig
+            for sig in combined_signals
+            if sig
+            not in {
+                "ML:BENIGN_CLASSIFICATION",
+                "ML:ELEVATED_FRAUD_PROBABILITY",
+                "ML:HIGH_FRAUD_PROBABILITY",
+            }
+        ]
+        fallback_signal_tag = {
+            "unavailable": "ML:ENGINE_UNAVAILABLE",
+            "invalid": "ML:SIGNAL_INVALID",
+            "degraded": "ML:DEGRADED_MODE",
+        }[effective_ml_status]
+        if fallback_signal_tag not in combined_signals:
+            combined_signals.append(fallback_signal_tag)
 
     # 4. Final policy verdict
     if composite_score >= 0.75:
@@ -501,6 +598,25 @@ async def _process_single_message(
     t_end = time.perf_counter()
     total_latency_ms = round((t_end - t_start) * 1000.0, 3)
 
+    if not ml_signal_valid:
+        logger.warning(
+            "telecom_ml_signal_degraded event_id=%s ml_signal_status=%s "
+            "reason=%s verdict=%s composite_score=%.4f",
+            eid,
+            effective_ml_status,
+            ml_error_reason or effective_ml_status,
+            verdict,
+            rounded_composite,
+            extra={
+                "event": "telecom_ml_signal_degraded",
+                "event_id": eid,
+                "ml_signal_status": effective_ml_status,
+                "ml_error_reason": ml_error_reason or effective_ml_status,
+                "verdict": verdict,
+                "composite_score": rounded_composite,
+            },
+        )
+
     logger.info(
         "telecom_decision_audit event_id=%s verdict=%s composite_score=%.4f",
         eid,
@@ -510,7 +626,10 @@ async def _process_single_message(
             "event": "telecom_decision_audit",
             "event_id": eid,
             "model_sha256": getattr(engine, "model_sha256", ""),
-            "onnx_probability": round(inference_result.onnx_probability, 4),
+            "onnx_probability": round(safe_onnx_prob, 4) if safe_onnx_prob is not None else None,
+            "ml_signal_status": effective_ml_status,
+            "ml_signal_valid": ml_signal_valid,
+            "ml_error_reason": ml_error_reason,
             "heuristic_score": round(inference_result.heuristic_score, 4),
             "triggered_rules": triggered_rules,
             "velocity_score": round(velocity_metrics.risk_contribution, 4),
@@ -534,6 +653,7 @@ async def _process_single_message(
         carrier=velocity_metrics.carrier,
         onnx_latency_ms=inference_result.latency_ms,
         message_truncated=message_truncated,
+        ml_signal_status=effective_ml_status,
     )
 
     velocity_dict = {
@@ -578,6 +698,8 @@ async def _process_single_message(
         escalated_dispute_id=escalated_dispute_id,
         escalated_dispute_url=escalated_dispute_url,
         message_truncated=message_truncated,
+        ml_signal_status=effective_ml_status,
+        ml_signal_valid=ml_signal_valid,
     )
 
     # 6. Stream live event to connected frontend dashboard (with PII redacted) if subscribers active
@@ -597,6 +719,8 @@ async def _process_single_message(
             "escalated_dispute_id": escalated_dispute_id,
             "escalated_dispute_url": escalated_dispute_url,
             "message_truncated": message_truncated,
+            "ml_signal_status": effective_ml_status,
+            "ml_signal_valid": ml_signal_valid,
         }
         await broadcast_telecom_event(stream_payload)
 
@@ -991,6 +1115,7 @@ def seed_telecom_warmup(force: bool = False) -> None:
             signals=inf_res.signals,
             carrier=carrier.lower(),
             onnx_latency_ms=max(0.025, round(inf_res.latency_ms, 3)),
+            ml_signal_status=getattr(inf_res, "ml_signal_status", "valid"),
         )
         drift.record_observation(message, calibrated_score)
 
@@ -1042,23 +1167,45 @@ async def batch_classify_telecom_messages(
     )
 
 
+def _resolve_ml_engine_health(
+    engine: Any,
+) -> tuple[Literal["healthy", "unavailable", "degraded"], bool]:
+    """Determines ML engine readiness and circuit-breaker state for health/metrics endpoints."""
+    has_session_attrs = hasattr(engine, "_session") or hasattr(engine, "session")
+    active_session = (
+        getattr(engine, "_session", None)
+        if getattr(engine, "_session", None) is not None
+        else getattr(engine, "session", None)
+    )
+    ml_circuit_open = bool(getattr(engine, "_circuit_open", False))
+    if has_session_attrs and active_session is None:
+        return "unavailable", ml_circuit_open
+    if ml_circuit_open:
+        return "degraded", True
+    return "healthy", False
+
+
 @router.get("/telecom/health", response_model=TelecomHealthResponse)
 async def get_telecom_health() -> TelecomHealthResponse:
     """Returns ONNX session integrity/threading metadata and Redis circuit-breaker telemetry."""
     engine = get_inference_engine()
     velocity_status = get_velocity_store().get_status()
-    degraded = bool(velocity_status["velocity_degraded_mode"])
+    velocity_degraded = bool(velocity_status["velocity_degraded_mode"])
+    ml_engine_status, ml_circuit_open = _resolve_ml_engine_health(engine)
+    degraded = velocity_degraded or ml_engine_status != "healthy"
     return TelecomHealthResponse(
         status="degraded" if degraded else "healthy",
         model_sha256=getattr(engine, "model_sha256", ""),
         model_version="1.0.0",
         velocity_backend=velocity_status["velocity_backend"],
-        velocity_degraded_mode=degraded,
+        velocity_degraded_mode=velocity_degraded,
         circuit_cooldown_seconds=float(velocity_status["circuit_cooldown_seconds"]),
         cooldown_remaining_seconds=float(velocity_status["cooldown_remaining_seconds"]),
         intra_op_num_threads=getattr(engine, "intra_op_num_threads", 1),
         inter_op_num_threads=getattr(engine, "inter_op_num_threads", 1),
         graph_optimization_level=str(getattr(engine, "graph_optimization_level", "ORT_ENABLE_ALL")),
+        ml_engine_status=ml_engine_status,
+        ml_circuit_open=ml_circuit_open,
     )
 
 
@@ -1069,9 +1216,12 @@ async def get_telecom_metrics_summary() -> dict[str, Any]:
     summary = get_metrics_tracker().get_summary()
     engine = get_inference_engine()
     velocity_status = get_velocity_store().get_status()
+    ml_engine_status, ml_circuit_open = _resolve_ml_engine_health(engine)
     summary["model_sha256"] = getattr(engine, "model_sha256", "")
     summary["velocity_backend"] = velocity_status["velocity_backend"]
     summary["velocity_degraded_mode"] = velocity_status["velocity_degraded_mode"]
+    summary["ml_engine_status"] = ml_engine_status
+    summary["ml_circuit_open"] = ml_circuit_open
     summary["onnx_session"] = {
         "intra_op_num_threads": getattr(engine, "intra_op_num_threads", 1),
         "inter_op_num_threads": getattr(engine, "inter_op_num_threads", 1),
@@ -1153,9 +1303,9 @@ async def stream_telecom_events() -> StreamingResponse:
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=10.0)
                     if event.get("type") == "reset":
-                        yield f"event: reset\ndata: {json.dumps(event)}\n\n"
+                        yield f"event: reset\ndata: {json.dumps(event, allow_nan=False)}\n\n"
                     else:
-                        yield f"event: message\ndata: {json.dumps(event)}\n\n"
+                        yield f"event: message\ndata: {json.dumps(event, allow_nan=False)}\n\n"
                 except TimeoutError:
                     yield f"event: heartbeat\ndata: {json.dumps({'time': time.time()})}\n\n"
         finally:

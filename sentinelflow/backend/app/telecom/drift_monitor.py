@@ -39,6 +39,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import logging
+import math
 import time
 from dataclasses import dataclass
 
@@ -198,8 +199,13 @@ class DataDriftMonitor:
 
     def record_observation(self, message: str, fraud_score: float) -> None:
         """Records an incoming message's length, encoding density, and resulting fraud score."""
+        if isinstance(fraud_score, bool):
+            raise ValueError("drift observation fraud_score must be numeric, not bool")
+        numeric_score = float(fraud_score)
+        if not math.isfinite(numeric_score) or numeric_score < 0.0 or numeric_score > 1.0:
+            raise ValueError("drift observation fraud_score must be finite and within [0.0, 1.0]")
         self._message_lengths.append(len(message))
-        self._fraud_scores.append(float(fraud_score))
+        self._fraud_scores.append(numeric_score)
         non_ascii = sum(1 for c in message if ord(c) > 127)
         self._non_ascii_counts.append(non_ascii)
         has_url = 1 if ("http://" in message or "https://" in message) else 0

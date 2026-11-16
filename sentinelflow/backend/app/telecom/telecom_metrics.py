@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import collections
+import math
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -15,6 +16,12 @@ TELECOM_REQUESTS_TOTAL = Counter(
     "telecom_requests_total",
     "Total number of telecom classification requests",
     ["verdict"],
+)
+
+TELECOM_ML_SIGNAL_EVENTS_TOTAL = Counter(
+    "telecom_ml_signal_events_total",
+    "Total telecom classifications partitioned by ML signal state",
+    ["status"],
 )
 
 TELECOM_LATENCY_SECONDS = Histogram(
@@ -68,6 +75,7 @@ class InspectionEventRecord:
     signals: list[str]
     carrier: str
     message_truncated: bool = False
+    ml_signal_status: str = "valid"
 
 
 class TelecomMetricsTracker:
@@ -79,6 +87,12 @@ class TelecomMetricsTracker:
         self._timestamps: collections.deque[float] = collections.deque(maxlen=max_history)
         self._recent_events: collections.deque[InspectionEventRecord] = collections.deque(maxlen=50)
         self._counts: dict[str, int] = {"ALLOW": 0, "BLOCK": 0, "FLAG": 0}
+        self._ml_signal_counts: dict[str, int] = {
+            "valid": 0,
+            "invalid": 0,
+            "unavailable": 0,
+            "degraded": 0,
+        }
         self._total_requests: int = 0
 
     def reset(self) -> None:
@@ -87,6 +101,12 @@ class TelecomMetricsTracker:
         self._timestamps.clear()
         self._recent_events.clear()
         self._counts = {"ALLOW": 0, "BLOCK": 0, "FLAG": 0}
+        self._ml_signal_counts = {
+            "valid": 0,
+            "invalid": 0,
+            "unavailable": 0,
+            "degraded": 0,
+        }
         self._total_requests = 0
 
     def record_event(
@@ -102,16 +122,42 @@ class TelecomMetricsTracker:
         carrier: str,
         onnx_latency_ms: float = 0.0,
         message_truncated: bool = False,
+        ml_signal_status: str = "valid",
     ) -> None:
         """Records a classification event into Prometheus and local rolling buffers."""
+        if (
+            isinstance(fraud_score, bool)
+            or not math.isfinite(float(fraud_score))
+            or fraud_score < 0.0
+            or fraud_score > 1.0
+        ):
+            raise ValueError("telemetry fraud_score must be a finite float in [0.0, 1.0]")
+        if isinstance(latency_ms, bool) or not math.isfinite(float(latency_ms)) or latency_ms < 0.0:
+            raise ValueError("telemetry latency_ms must be a finite non-negative float")
+        if (
+            isinstance(onnx_latency_ms, bool)
+            or not math.isfinite(float(onnx_latency_ms))
+            or onnx_latency_ms < 0.0
+        ):
+            raise ValueError("telemetry onnx_latency_ms must be a finite non-negative float")
+
         now = time.time()
         self._total_requests += 1
         self._counts[verdict] = self._counts.get(verdict, 0) + 1
+        normalized_ml_status = (
+            ml_signal_status
+            if ml_signal_status in {"valid", "invalid", "unavailable", "degraded"}
+            else "invalid"
+        )
+        self._ml_signal_counts[normalized_ml_status] = (
+            self._ml_signal_counts.get(normalized_ml_status, 0) + 1
+        )
         self._latencies.append(latency_ms)
         self._timestamps.append(now)
 
         # Update Prometheus metrics
         TELECOM_REQUESTS_TOTAL.labels(verdict=verdict).inc()
+        TELECOM_ML_SIGNAL_EVENTS_TOTAL.labels(status=normalized_ml_status).inc()
         TELECOM_LATENCY_SECONDS.observe(latency_ms / 1000.0)
         if onnx_latency_ms > 0:
             TELECOM_ONNX_INFERENCE_SECONDS.observe(onnx_latency_ms / 1000.0)
@@ -130,6 +176,7 @@ class TelecomMetricsTracker:
                 signals=signals,
                 carrier=carrier,
                 message_truncated=message_truncated,
+                ml_signal_status=normalized_ml_status,
             )
         )
 
@@ -173,6 +220,7 @@ class TelecomMetricsTracker:
                 "flag": flagged,
                 "block": blocked,
             },
+            "ml_signal_counts": dict(self._ml_signal_counts),
             "fraud_rate_pct": fraud_rate,
             "latency": {
                 "p50_ms": p50,
@@ -194,6 +242,7 @@ class TelecomMetricsTracker:
                     "signals": ev.signals,
                     "carrier": ev.carrier,
                     "message_truncated": ev.message_truncated,
+                    "ml_signal_status": ev.ml_signal_status,
                 }
                 for ev in list(self._recent_events)[:30]
             ],

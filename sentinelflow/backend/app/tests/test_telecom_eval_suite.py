@@ -2478,3 +2478,53 @@ def test_documentation_metric_and_mirror_synchronization() -> None:
         )
         for tier in required_tiers:
             assert tier in doc_text, f"{rel_path} missing readiness tier {tier!r}"
+
+
+def test_sf017_offline_evaluation_rejects_invalid_onnx_outputs() -> None:
+    """SF-017: Offline evaluation must reject NaN/inf/out-of-range/missing-key ONNX outputs."""
+    from app.telecom.evaluate_model import (
+        build_benchmark_prediction_rows,
+        evaluate_perturbation_robustness,
+        get_held_out_evaluation_set,
+    )
+    from app.telecom.onnx_engine import InvalidMLSignalError, extract_onnx_probabilities
+
+    bad_outputs = [
+        [np.array([0]), [{0: 0.9, 1: float("nan")}]],
+        [np.array([0]), [{0: 0.9}]],
+        [np.array([0]), [{0: 0.0, 1: 1.5}]],
+        [np.array([0]), [{0: 1.0, 1: True}]],
+        [np.array([0])],
+    ]
+    for raw in bad_outputs:
+        with pytest.raises(InvalidMLSignalError):
+            extract_onnx_probabilities(raw, expected_batch_size=1)
+
+    with pytest.raises(InvalidMLSignalError):
+        evaluate_perturbation_robustness(
+            predict_proba_fn=lambda batch: [
+                float("nan") if idx == 0 else 0.5 for idx, _ in enumerate(batch)
+            ]
+        )
+
+    texts, labels = get_held_out_evaluation_set()
+    samples = [{"text": texts[0], "label": int(labels[0])}]
+    with pytest.raises(InvalidMLSignalError):
+        build_benchmark_prediction_rows(
+            samples=samples,
+            sklearn_probs=np.array([0.5], dtype=np.float64),
+            onnx_probs=np.array([float("nan")], dtype=np.float64),
+        )
+
+    from app.telecom.evaluate_model import compute_evaluation_metrics
+
+    with pytest.raises(InvalidMLSignalError):
+        compute_evaluation_metrics(
+            y_true=[0, 1],
+            y_prob=[float("nan"), 0.8],
+            texts=["Appointment confirmed", "IRS tax arrest warrant now"],
+            samples=[
+                {"category_id": "benign", "category_name": "Benign", "label": 0, "text": "Appointment confirmed"},
+                {"category_id": "fraud", "category_name": "Fraud", "label": 1, "text": "IRS tax arrest warrant now"},
+            ],
+        )

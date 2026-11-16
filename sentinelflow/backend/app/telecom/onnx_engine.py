@@ -21,8 +21,10 @@ import math
 import re
 import time
 import unicodedata
-from dataclasses import dataclass, field
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Literal
 
 import numpy as np
 import onnxruntime as ort
@@ -224,17 +226,108 @@ HEURISTIC_RULES: list[tuple[str, re.Pattern[str], float]] = [
 ]
 
 
-@dataclass(frozen=True)
+MLSignalStatus = Literal["valid", "invalid", "unavailable", "degraded"]
+DEGRADED_REVIEW_FLOOR = 0.40
+
+
+class InvalidMLSignalError(ValueError):
+    """Raised when an ONNX Runtime output is malformed, non-finite, or outside [0.0, 1.0]."""
+
+
+_VALID_NON_VALID_STATUSES: frozenset[str] = frozenset({"invalid", "unavailable", "degraded"})
+
+
+def _validate_finite_float(raw_value: Any, error_reason: str) -> float:
+    """Validates that raw_value is a finite real number (rejecting None, bool, NaN, and inf)."""
+    if isinstance(raw_value, bool) or raw_value is None:
+        raise InvalidMLSignalError(error_reason)
+    if not isinstance(raw_value, (int, float, np.integer, np.floating)):
+        raise InvalidMLSignalError(error_reason)
+    num = float(raw_value)
+    if not math.isfinite(num):
+        raise InvalidMLSignalError(error_reason)
+    return num
+
+
+@dataclass(frozen=True, init=False)
 class InferenceResult:
-    """Structured decision output from the SentinelPulse inference gateway."""
+    """Structured decision output from the SentinelPulse inference gateway.
+
+    Defaults intentionally represent an unavailable/unpopulated ML signal
+    (`onnx_probability=None`, `ml_signal_status="unavailable"`, `ml_signal_valid=False`)
+    so omitted or failed predictions can never masquerade as valid `0.0` predictions.
+    """
 
     verdict: str  # "ALLOW" | "BLOCK" | "FLAG"
     fraud_score: float  # [0.0, 1.0]
     latency_ms: float
-    signals: list[str] = field(default_factory=list)
-    model_version: str = "1.0.0"
-    onnx_probability: float = 0.0
-    heuristic_score: float = 0.0
+    signals: list[str]
+    model_version: str
+    onnx_probability: float | None
+    heuristic_score: float
+    ml_signal_status: MLSignalStatus
+    ml_signal_valid: bool
+    ml_error_reason: str | None
+
+    def __init__(
+        self,
+        verdict: str,
+        fraud_score: float,
+        latency_ms: float,
+        signals: list[str] | None = None,
+        model_version: str = "1.0.0",
+        onnx_probability: float | None = None,
+        heuristic_score: float = 0.0,
+        ml_signal_status: MLSignalStatus | None = None,
+        ml_signal_valid: bool | None = None,
+        ml_error_reason: str | None = None,
+    ) -> None:
+        safe_fraud_score = _validate_finite_float(fraud_score, "fraud_score_non_finite")
+        if safe_fraud_score < 0.0 or safe_fraud_score > 1.0:
+            raise InvalidMLSignalError("fraud_score_out_of_range")
+        safe_latency_ms = _validate_finite_float(latency_ms, "latency_ms_non_finite")
+        safe_heuristic = _validate_finite_float(heuristic_score, "heuristic_score_non_finite")
+        resolved_signals = [] if signals is None else list(signals)
+
+        resolved_status: MLSignalStatus
+        if ml_signal_status is not None:
+            if ml_signal_status != "valid" and ml_signal_status not in _VALID_NON_VALID_STATUSES:
+                raise InvalidMLSignalError("invalid_ml_signal_status")
+            resolved_status = ml_signal_status
+        elif onnx_probability is not None:
+            resolved_status = "valid"
+        elif ml_signal_valid is True:
+            raise InvalidMLSignalError("valid_ml_signal_requires_probability")
+        else:
+            resolved_status = "unavailable"
+
+        resolved_prob: float | None
+        resolved_valid: bool
+        if resolved_status == "valid":
+            if onnx_probability is None:
+                raise InvalidMLSignalError("valid_ml_signal_requires_probability")
+            resolved_prob = validate_ml_probability(onnx_probability)
+            if ml_signal_valid is False:
+                raise InvalidMLSignalError("ml_signal_status_validity_mismatch")
+            resolved_valid = True
+        else:
+            if onnx_probability is not None:
+                raise InvalidMLSignalError("non_valid_ml_signal_must_have_none_probability")
+            if ml_signal_valid is True:
+                raise InvalidMLSignalError("ml_signal_status_validity_mismatch")
+            resolved_prob = None
+            resolved_valid = False
+
+        object.__setattr__(self, "verdict", verdict)
+        object.__setattr__(self, "fraud_score", safe_fraud_score)
+        object.__setattr__(self, "latency_ms", safe_latency_ms)
+        object.__setattr__(self, "signals", resolved_signals)
+        object.__setattr__(self, "model_version", model_version)
+        object.__setattr__(self, "onnx_probability", resolved_prob)
+        object.__setattr__(self, "heuristic_score", safe_heuristic)
+        object.__setattr__(self, "ml_signal_status", resolved_status)
+        object.__setattr__(self, "ml_signal_valid", resolved_valid)
+        object.__setattr__(self, "ml_error_reason", ml_error_reason)
 
 
 _INVISIBLE_FORMAT_CHAR_RE = re.compile(r"[\u00ad\u200b-\u200f\u202a-\u202e\u2060\ufeff]")
@@ -467,6 +560,54 @@ def evaluate_heuristics(text: str) -> tuple[float, list[str]]:
     return max_heuristic, signals
 
 
+def validate_ml_probability(raw_value: Any) -> float:
+    """Strictly validates a raw ML probability (rejects bool, non-finite, or out-of-range)."""
+    if isinstance(raw_value, bool) or raw_value is None:
+        raise InvalidMLSignalError("ml_probability_non_numeric")
+    if not isinstance(raw_value, (int, float, np.integer, np.floating)):
+        raise InvalidMLSignalError("ml_probability_non_numeric")
+    num = float(raw_value)
+    if not math.isfinite(num):
+        raise InvalidMLSignalError("ml_probability_non_finite")
+    if num < 0.0 or num > 1.0:
+        raise InvalidMLSignalError("ml_probability_out_of_range")
+    return num
+
+
+def extract_onnx_probabilities(raw_outputs: Any, expected_batch_size: int) -> list[float]:
+    """Extracts and validates class-1 fraud probabilities from ONNX Runtime outputs."""
+    if expected_batch_size < 0:
+        raise InvalidMLSignalError("invalid_expected_batch_size")
+    if (
+        raw_outputs is None
+        or isinstance(raw_outputs, (str, bytes, Mapping))
+        or not hasattr(raw_outputs, "__len__")
+        or not hasattr(raw_outputs, "__getitem__")
+        or len(raw_outputs) < 2
+    ):
+        raise InvalidMLSignalError("missing_output_tensor")
+
+    raw_prob_maps = raw_outputs[1]
+    if raw_prob_maps is None or isinstance(raw_prob_maps, (str, bytes, Mapping)):
+        raise InvalidMLSignalError("malformed_probability_tensor")
+    try:
+        prob_maps = list(raw_prob_maps)
+    except TypeError as err:
+        raise InvalidMLSignalError("malformed_probability_tensor") from err
+
+    if len(prob_maps) != expected_batch_size:
+        raise InvalidMLSignalError("batch_length_mismatch")
+
+    validated: list[float] = []
+    for prob_map in prob_maps:
+        if not isinstance(prob_map, Mapping):
+            raise InvalidMLSignalError("malformed_probability_map")
+        if 1 not in prob_map:
+            raise InvalidMLSignalError("missing_fraud_class_probability")
+        validated.append(validate_ml_probability(prob_map[1]))
+    return validated
+
+
 def _clamp_unit_signal(value: float) -> float:
     """Clamps a numeric risk signal into [0.0, 1.0], mapping NaN/-inf to 0.0 and +inf to 1.0."""
     num = float(value)
@@ -479,8 +620,9 @@ def _clamp_unit_signal(value: float) -> float:
 
 def compute_composite_score(
     heuristic_score: float,
-    onnx_probability: float,
+    onnx_probability: float | None,
     velocity_score: float = 0.0,
+    ml_signal_status: MLSignalStatus = "valid",
 ) -> float:
     """Computes the continuous, monotonic non-decreasing composite fraud score.
 
@@ -524,11 +666,30 @@ def compute_composite_score(
 
        Guarantees d(S_composite)/dV >= 0 and d(S_composite)/dS_content >= 0 everywhere.
 
+    4. Safe Degraded-State Policy (`ml_signal_status != "valid"`):
+       Computes non-ML risk from `(H, 0.0, V)` (so high heuristics `H >= 0.80` or high
+       velocity `V >= 0.75` still escalate to `BLOCK`) and applies a Tier-1 review floor
+       `DEGRADED_REVIEW_FLOOR` (`0.40`, `FLAG`), preventing invalid/unavailable/degraded
+       ML outputs from silently appearing as `0.0` / `ALLOW`. When `ml_signal_status == "valid"`,
+       `onnx_probability` is strictly validated via `validate_ml_probability()` so `NaN`,
+       non-finite, or out-of-range values fail explicitly rather than clamping to `0.0`.
+
     Returns:
         float: Composite fraud score bounded strictly in [0.0, 1.0].
     """
+    if ml_signal_status != "valid":
+        if ml_signal_status not in _VALID_NON_VALID_STATUSES:
+            raise InvalidMLSignalError("invalid_ml_signal_status")
+        non_ml_score = compute_composite_score(
+            heuristic_score=heuristic_score,
+            onnx_probability=0.0,
+            velocity_score=velocity_score,
+            ml_signal_status="valid",
+        )
+        return round(float(min(1.0, max(non_ml_score, DEGRADED_REVIEW_FLOOR))), 4)
+
+    p = validate_ml_probability(onnx_probability)
     h = _clamp_unit_signal(heuristic_score)
-    p = _clamp_unit_signal(onnx_probability)
     v = _clamp_unit_signal(velocity_score)
 
     # Step 1: Authoritative High-Risk Heuristic Override
@@ -649,9 +810,10 @@ class OnnxInferenceEngine:
                 providers=["CPUExecutionProvider"],
             )
             self._session = self.session
-            # Cold-start warmup: run 1 dummy inference to prime threadpools & memory allocations
+            # Cold-start warmup: run 1 dummy inference to prime threadpools & verify output contract
             warmup_tensor = np.array([["warmup text"]], dtype=object)
-            self.session.run(None, {self._input_name: warmup_tensor})
+            warmup_outputs = self.session.run(None, {self._input_name: warmup_tensor})
+            extract_onnx_probabilities(warmup_outputs, expected_batch_size=1)
             logger.info(
                 "Initialized ONNX Runtime CPU session from %s (SHA-256: %s, warmup complete)",
                 self.model_path,
@@ -673,6 +835,10 @@ class OnnxInferenceEngine:
 
     _evaluate_heuristics = evaluate_heuristics
 
+    def _get_active_session(self) -> ort.InferenceSession | None:
+        """Returns the active ONNX Runtime session, or None if unavailable."""
+        return self._session if self._session is not None else self.session
+
     def _is_circuit_open(self) -> bool:
         """Returns True when the ONNX session is unavailable or circuit-broken."""
         return bool(
@@ -680,44 +846,57 @@ class OnnxInferenceEngine:
             or (self._session is None and self.session is None)
         )
 
-    def predict(self, text: str) -> InferenceResult:
-        """Synchronously classifies an SMS text message with sub-millisecond execution."""
-        t_start = time.perf_counter()
+    @staticmethod
+    def _build_inference_result(
+        *,
+        heuristic_score: float,
+        base_signals: list[str],
+        onnx_prob: float | None,
+        ml_signal_status: MLSignalStatus,
+        ml_error_reason: str | None,
+        latency_ms: float,
+    ) -> InferenceResult:
+        """Builds a status-aware InferenceResult without masking invalid or degraded ML."""
+        signals = list(base_signals)
+        ml_signal_valid = ml_signal_status == "valid" and onnx_prob is not None
+        effective_status: MLSignalStatus = (
+            ml_signal_status
+            if ml_signal_valid
+            else (ml_signal_status if ml_signal_status != "valid" else "invalid")
+        )
 
-        # 1. Fast regex rule engine
-        heuristic_score, signals = self.evaluate_heuristics(text)
+        fraud_score = compute_composite_score(
+            heuristic_score=heuristic_score,
+            onnx_probability=onnx_prob if ml_signal_valid else None,
+            velocity_score=0.0,
+            ml_signal_status=effective_status,
+        )
 
-        # 2. ONNX Runtime model inference
-        onnx_prob = 0.0
-        active_session = self._session or self.session
-        if active_session is not None:
-            try:
-                # String input tensor with shape [1, 1]
-                input_tensor = np.array([[text]], dtype=object)
-                raw_outputs = active_session.run(None, {self._input_name: input_tensor})
-                # Output structure: [label_array, probabilities_map_list]
-                prob_map = raw_outputs[1][0]  # {0: p_legit, 1: p_fraud}
-                onnx_prob = float(prob_map.get(1, 0.0))
-            except Exception as err:
-                logger.error("ONNX inference failed: %s", redact_sms_pii(str(err)))
+        if ml_signal_valid and onnx_prob is not None:
+            if onnx_prob >= 0.75:
+                signals.append("ML:HIGH_FRAUD_PROBABILITY")
+            elif onnx_prob >= 0.40:
+                signals.append("ML:ELEVATED_FRAUD_PROBABILITY")
+            else:
+                signals.append("ML:BENIGN_CLASSIFICATION")
+            reported_prob: float | None = round(onnx_prob, 4)
+        else:
+            if effective_status == "unavailable":
+                signals.append("ML:ENGINE_UNAVAILABLE")
+                signals.append("ENGINE:HEURISTIC_ONLY")
+            elif effective_status == "invalid":
+                signals.append("ML:SIGNAL_INVALID")
                 signals.append("ENGINE:ONNX_FALLBACK")
-                onnx_prob = heuristic_score
-        else:
-            signals.append("ENGINE:HEURISTIC_ONLY")
-            onnx_prob = heuristic_score
+            else:
+                signals.append("ML:DEGRADED_MODE")
+                engine_tag = (
+                    "ENGINE:HEURISTIC_ONLY"
+                    if ml_error_reason == "circuit_breaker_open"
+                    else "ENGINE:ONNX_FALLBACK"
+                )
+                signals.append(engine_tag)
+            reported_prob = None
 
-        # 3. Composite score calculation via deterministic piecewise formulation
-        fraud_score = compute_composite_score(heuristic_score, onnx_prob, 0.0)
-
-        # Add signal flags based on score thresholds
-        if onnx_prob >= 0.75:
-            signals.append("ML:HIGH_FRAUD_PROBABILITY")
-        elif onnx_prob >= 0.40:
-            signals.append("ML:ELEVATED_FRAUD_PROBABILITY")
-        else:
-            signals.append("ML:BENIGN_CLASSIFICATION")
-
-        # 4. Final verdict determination
         if fraud_score >= 0.75:
             verdict = "BLOCK"
         elif fraud_score >= 0.40:
@@ -725,85 +904,108 @@ class OnnxInferenceEngine:
         else:
             verdict = "ALLOW"
 
-        t_end = time.perf_counter()
-        latency_ms = (t_end - t_start) * 1000.0
-
         return InferenceResult(
             verdict=verdict,
             fraud_score=round(fraud_score, 4),
             latency_ms=round(latency_ms, 3),
             signals=signals,
             model_version="1.0.0",
-            onnx_probability=round(onnx_prob, 4),
+            onnx_probability=reported_prob,
             heuristic_score=round(heuristic_score, 4),
+            ml_signal_status=effective_status,
+            ml_signal_valid=ml_signal_valid,
+            ml_error_reason=ml_error_reason,
         )
 
+    def predict(self, text: str) -> InferenceResult:
+        """Synchronously classifies an SMS text message with sub-millisecond execution."""
+        t_start = time.perf_counter()
+
+        # 1. Fast regex rule engine
+        heuristic_score, base_signals = self.evaluate_heuristics(text)
+
+        # 2. Explicit ML signal inference with strict output validation
+        probs, ml_status, ml_error_reason = self.predict_proba_batch_with_status([text])
+        onnx_prob = (
+            probs[0] if (ml_status == "valid" and probs is not None and len(probs) == 1) else None
+        )
+
+        latency_ms = (time.perf_counter() - t_start) * 1000.0
+        return self._build_inference_result(
+            heuristic_score=heuristic_score,
+            base_signals=base_signals,
+            onnx_prob=onnx_prob,
+            ml_signal_status=ml_status,
+            ml_error_reason=ml_error_reason,
+            latency_ms=latency_ms,
+        )
+
+    def predict_proba_batch_with_status(
+        self, texts: list[str]
+    ) -> tuple[list[float] | None, MLSignalStatus, str | None]:
+        """Executes vectorized ONNX inference and returns probabilities plus signal status."""
+        if not texts:
+            return [], "valid", None
+
+        active_session = self._get_active_session()
+        if active_session is None:
+            logger.error("ONNX inference unavailable: active session is None")
+            return None, "unavailable", "onnx_session_unavailable"
+
+        if bool(getattr(self, "_circuit_open", False)):
+            logger.warning("ONNX inference bypassed in degraded mode: circuit breaker open")
+            return None, "degraded", "circuit_breaker_open"
+
+        try:
+            input_tensor = np.array([[t] for t in texts], dtype=object)
+            raw_outputs = active_session.run(None, {self._input_name: input_tensor})
+            probs = extract_onnx_probabilities(raw_outputs, expected_batch_size=len(texts))
+            return probs, "valid", None
+        except InvalidMLSignalError as err:
+            safe_reason = redact_sms_pii(str(err))
+            logger.error("ONNX output signal validation failed: %s", safe_reason)
+            return None, "invalid", safe_reason
+        except Exception as err:
+            logger.error("ONNX inference failed: %s", redact_sms_pii(str(err)))
+            return None, "degraded", "onnx_runtime_error"
+
     def predict_proba_batch(self, texts: list[str]) -> list[float]:
-        """Executes vectorized ONNX CPU inference across a batch of SMS messages."""
+        """Executes vectorized ONNX CPU inference across a batch of SMS messages.
+
+        Raises `InvalidMLSignalError` if ONNX inference is unavailable, degraded, or
+        returns invalid/non-finite probabilities instead of emitting `NaN` or `0.0`.
+        """
         if not texts:
             return []
-        active_session = self._session or self.session
-        if active_session is not None:
-            try:
-                input_tensor = np.array([[t] for t in texts], dtype=object)
-                raw_outputs = active_session.run(None, {self._input_name: input_tensor})
-                prob_maps = raw_outputs[1]
-                return [float(prob_map.get(1, 0.0)) for prob_map in prob_maps]
-            except Exception as err:
-                logger.error("ONNX batch inference failed: %s", redact_sms_pii(str(err)))
-        return [self.evaluate_heuristics(t)[0] for t in texts]
+        probs, ml_status, ml_error_reason = self.predict_proba_batch_with_status(texts)
+        if ml_status == "valid" and probs is not None:
+            return probs
+        raise InvalidMLSignalError(f"ml_signal_{ml_status}:{ml_error_reason or ml_status}")
 
     def predict_batch(self, texts: list[str]) -> list[InferenceResult]:
         """Classifies a batch of SMS messages using a single vectorized ONNX session call."""
         if not texts:
             return []
         t_start = time.perf_counter()
-        circuit_open = self._is_circuit_open()
         heuristics = [self.evaluate_heuristics(t) for t in texts]
-        onnx_indices = [
-            idx
-            for idx, (h_score, _) in enumerate(heuristics)
-            if not circuit_open and h_score < 0.85
-        ]
-        onnx_probs_by_idx: dict[int, float] = {}
-        if onnx_indices:
-            subset_texts = [texts[idx] for idx in onnx_indices]
-            subset_probs = self.predict_proba_batch(subset_texts)
-            for idx, prob in zip(onnx_indices, subset_probs, strict=False):
-                onnx_probs_by_idx[idx] = prob
+        probs, ml_status, ml_error_reason = self.predict_proba_batch_with_status(texts)
 
-        per_item_latency_ms = round(
-            ((time.perf_counter() - t_start) * 1000.0) / max(len(texts), 1), 3
-        )
+        per_item_latency_ms = ((time.perf_counter() - t_start) * 1000.0) / max(len(texts), 1)
         results: list[InferenceResult] = []
-        active_session = self._session or self.session
-        for idx, (heuristic_score, signals_raw) in enumerate(heuristics):
-            signals = list(signals_raw)
-            onnx_prob = onnx_probs_by_idx.get(idx, heuristic_score)
-            if active_session is None or circuit_open:
-                signals.append("ENGINE:HEURISTIC_ONLY")
-            fraud_score = compute_composite_score(heuristic_score, onnx_prob, 0.0)
-            if onnx_prob >= 0.75:
-                signals.append("ML:HIGH_FRAUD_PROBABILITY")
-            elif onnx_prob >= 0.40:
-                signals.append("ML:ELEVATED_FRAUD_PROBABILITY")
-            else:
-                signals.append("ML:BENIGN_CLASSIFICATION")
-            if fraud_score >= 0.75:
-                verdict = "BLOCK"
-            elif fraud_score >= 0.40:
-                verdict = "FLAG"
-            else:
-                verdict = "ALLOW"
+        for idx, (heuristic_score, base_signals) in enumerate(heuristics):
+            onnx_prob = (
+                probs[idx]
+                if (ml_status == "valid" and probs is not None and idx < len(probs))
+                else None
+            )
             results.append(
-                InferenceResult(
-                    verdict=verdict,
-                    fraud_score=round(fraud_score, 4),
+                self._build_inference_result(
+                    heuristic_score=heuristic_score,
+                    base_signals=base_signals,
+                    onnx_prob=onnx_prob,
+                    ml_signal_status=ml_status,
+                    ml_error_reason=ml_error_reason,
                     latency_ms=per_item_latency_ms,
-                    signals=signals,
-                    model_version="1.0.0",
-                    onnx_probability=round(onnx_prob, 4),
-                    heuristic_score=round(heuristic_score, 4),
                 )
             )
         return results

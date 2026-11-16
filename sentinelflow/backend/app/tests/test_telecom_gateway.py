@@ -634,9 +634,11 @@ def test_production_runtime_vs_evaluation_scoring_parity() -> None:
         # Production runtime scoring (content-only, velocity=0)
         prod_res = engine.predict(msg)
 
-        # Evaluation scoring path
+        # Evaluation scoring path (strictly validated probability)
+        from app.telecom.onnx_engine import validate_ml_probability
+
         eval_h, eval_signals = evaluate_heuristics(msg)
-        eval_p = engine.predict_proba_batch([msg])[0]
+        eval_p = validate_ml_probability(engine.predict_proba_batch([msg])[0])
         eval_composite = compute_composite_score(
             heuristic_score=eval_h,
             onnx_probability=eval_p,
@@ -1281,14 +1283,9 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
         ("velocity_union_050_mid", 0.0, 0.20, 0.50, 0.6000, "FLAG"),
         ("velocity_union_100_max", 0.0, 0.20, 1.00, 1.0000, "BLOCK"),
         ("velocity_union_blended_content", 0.20, 0.50, 0.25, 0.6512, "FLAG"),
-        # Category 7: Defensive clamping on out-of-range and non-finite inputs
-        ("clamp_negative_all", -0.5, -1.2, -0.3, 0.0000, "ALLOW"),
-        ("clamp_above_one_p_v", 0.0, 1.5, 1.8, 1.0000, "BLOCK"),
-        ("clamp_nan_all", float("nan"), float("nan"), float("nan"), 0.0000, "ALLOW"),
+        # Category 7: Defensive clamping on heuristic/velocity bounds (with valid P)
         ("clamp_nan_mixed_h", float("nan"), 0.50, 0.0, 0.5000, "FLAG"),
-        ("clamp_neg_inf_all", float("-inf"), float("-inf"), float("-inf"), 0.0000, "ALLOW"),
         ("clamp_pos_inf_h", float("inf"), 0.0, 0.0, 1.0000, "BLOCK"),
-        ("clamp_pos_inf_p", 0.0, float("inf"), 0.0, 1.0000, "BLOCK"),
         ("clamp_pos_inf_v", 0.0, 0.20, float("inf"), 1.0000, "BLOCK"),
     ],
 )
@@ -2696,9 +2693,14 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
                         "Tensor error on PIN 4829 and +1-415-555-0199 (alice@example.com)"
                     )
 
+            from app.telecom.onnx_engine import InvalidMLSignalError
+
             engine._session = _FailingSession()  # type: ignore[assignment]
-            engine.predict("Test message")
-            engine.predict_proba_batch(["Test batch message"])
+            res_fail = engine.predict("Test message")
+            assert res_fail.ml_signal_status == "degraded"
+            assert res_fail.onnx_probability is None
+            with pytest.raises(InvalidMLSignalError):
+                engine.predict_proba_batch(["Test batch message"])
         finally:
             engine._session = orig_sess
 
@@ -2706,3 +2708,620 @@ async def test_input_length_bounds_redos_and_log_pii_redaction(
         formatted_err = formatter.format(rec)
         for leaked in ("4829", "415-555-0199", "alice@example.com"):
             assert leaked not in formatted_err
+
+
+@pytest.mark.parametrize(
+    ("case_id", "raw_outputs"),
+    [
+        ("nan_prob", [np.array([0]), [{0: 0.9, 1: float("nan")}]]),
+        ("pos_inf_prob", [np.array([0]), [{0: 0.1, 1: float("inf")}]]),
+        ("neg_inf_prob", [np.array([0]), [{0: 0.1, 1: float("-inf")}]]),
+        ("negative_prob", [np.array([0]), [{0: 1.1, 1: -0.01}]]),
+        ("gt_one_prob", [np.array([0]), [{0: -0.2, 1: 1.25}]]),
+        ("bool_true_prob", [np.array([0]), [{0: False, 1: True}]]),
+        ("bool_false_prob", [np.array([0]), [{0: True, 1: False}]]),
+        ("none_prob", [np.array([0]), [{0: 1.0, 1: None}]]),
+        ("string_prob", [np.array([0]), [{0: 0.8, 1: "0.2"}]]),
+        ("missing_class_1_key", [np.array([0]), [{0: 0.99}]]),
+        ("non_mapping_prob_map", [np.array([0]), [[0.9, 0.1]]]),
+        ("missing_output_tensor", [np.array([0])]),
+        ("none_raw_outputs", None),
+        ("batch_length_mismatch_empty", [np.array([]), []]),
+    ],
+)
+def test_sf017_invalid_ml_signal_never_silently_defaults_to_allow(
+    case_id: str,
+    raw_outputs: Any,
+) -> None:
+    """SF-017: Malformed/NaN/inf/out-of-range ONNX outputs must surface invalid status and never look like 0.0 ALLOW."""
+    from app.telecom.onnx_engine import DEGRADED_REVIEW_FLOOR, InvalidMLSignalError
+
+    engine = OnnxInferenceEngine()
+
+    class _MalformedSession:
+        def run(self, *_args: Any, **_kwargs: Any) -> Any:
+            return raw_outputs
+
+    engine._session = _MalformedSession()  # type: ignore[assignment]
+    engine.session = _MalformedSession()  # type: ignore[assignment]
+
+    clean_otp = "Your login verification code is 492018. Do not share."
+    res = engine.predict(clean_otp)
+
+    assert res.ml_signal_status == "invalid", (
+        f"{case_id}: expected invalid, got {res.ml_signal_status}"
+    )
+    assert res.ml_signal_valid is False
+    assert res.onnx_probability is None
+    assert res.ml_error_reason is not None
+    assert "ML:SIGNAL_INVALID" in res.signals
+    assert "ENGINE:ONNX_FALLBACK" in res.signals
+    assert "ML:BENIGN_CLASSIFICATION" not in res.signals
+    assert res.fraud_score >= DEGRADED_REVIEW_FLOOR
+    assert res.verdict == "FLAG"
+
+    batch_probs, batch_status, _ = engine.predict_proba_batch_with_status([clean_otp])
+    assert batch_probs is None
+    assert batch_status == "invalid"
+
+    with pytest.raises(InvalidMLSignalError):
+        engine.predict_proba_batch([clean_otp])
+
+
+def test_sf017_explicit_state_separation_valid_unavailable_and_degraded() -> None:
+    """SF-017: Explicitly separates valid (low vs high), invalid, unavailable, and degraded ML states."""
+    from app.telecom.onnx_engine import DEGRADED_REVIEW_FLOOR
+
+    engine = OnnxInferenceEngine()
+    benign_msg = "Team standup moved to 10:30 AM in Room B."
+    fraud_msg = "URGENT: Chase Bank alert. Account suspended! Verify now at http://bit.ly/chase-now"
+    tax_override_msg = "IRS FINAL NOTICE: Delinquent tax payment due. Arrest warrant issued!"
+
+    # 1 & 2: Valid low risk (< 0.40) and valid high risk (>= 0.40)
+    res_low = engine.predict(benign_msg)
+    assert res_low.ml_signal_status == "valid"
+    assert res_low.ml_signal_valid is True
+    assert res_low.onnx_probability is not None and 0.0 <= res_low.onnx_probability < 0.40
+    assert "ML:BENIGN_CLASSIFICATION" in res_low.signals
+    assert res_low.verdict == "ALLOW"
+
+    res_high = engine.predict(fraud_msg)
+    assert res_high.ml_signal_status == "valid"
+    assert res_high.ml_signal_valid is True
+    assert res_high.onnx_probability is not None and res_high.onnx_probability >= 0.40
+    assert any(
+        sig in res_high.signals
+        for sig in ("ML:ELEVATED_FRAUD_PROBABILITY", "ML:HIGH_FRAUD_PROBABILITY")
+    )
+    assert res_high.verdict in {"FLAG", "BLOCK"}
+
+    # Batch inference on healthy engine should classify every message with valid ML signals (no hidden short-circuit)
+    batch_valid = engine.predict_batch([benign_msg, tax_override_msg])
+    assert len(batch_valid) == 2
+    assert all(r.ml_signal_status == "valid" and r.ml_signal_valid for r in batch_valid)
+    assert all(r.onnx_probability is not None for r in batch_valid)
+    assert batch_valid[1].verdict == "BLOCK"
+
+    # 3: Unavailable inference engine (no active ONNX session)
+    orig_session = engine.session
+    orig_priv_session = engine._session
+    try:
+        engine.session = None
+        engine._session = None
+        res_unavail = engine.predict(benign_msg)
+        assert res_unavail.ml_signal_status == "unavailable"
+        assert res_unavail.ml_signal_valid is False
+        assert res_unavail.onnx_probability is None
+        assert res_unavail.ml_error_reason == "onnx_session_unavailable"
+        assert "ML:ENGINE_UNAVAILABLE" in res_unavail.signals
+        assert "ENGINE:HEURISTIC_ONLY" in res_unavail.signals
+        assert "ML:BENIGN_CLASSIFICATION" not in res_unavail.signals
+        assert res_unavail.fraud_score == DEGRADED_REVIEW_FLOOR
+        assert res_unavail.verdict == "FLAG"
+
+        # Deterministic H >= 0.80 still escalates to BLOCK even when engine unavailable
+        res_unavail_block = engine.predict(tax_override_msg)
+        assert res_unavail_block.ml_signal_status == "unavailable"
+        assert res_unavail_block.onnx_probability is None
+        assert res_unavail_block.fraud_score == 1.0
+        assert res_unavail_block.verdict == "BLOCK"
+
+        # 4: Explicitly degraded mode via circuit breaker (_circuit_open = True)
+        engine.session = orig_session
+        engine._session = orig_priv_session
+        engine._circuit_open = True  # type: ignore[attr-defined]
+        res_cb = engine.predict(benign_msg)
+        assert res_cb.ml_signal_status == "degraded"
+        assert res_cb.ml_signal_valid is False
+        assert res_cb.onnx_probability is None
+        assert res_cb.ml_error_reason == "circuit_breaker_open"
+        assert "ML:DEGRADED_MODE" in res_cb.signals
+        assert "ENGINE:HEURISTIC_ONLY" in res_cb.signals
+        assert "ML:BENIGN_CLASSIFICATION" not in res_cb.signals
+        assert res_cb.fraud_score == DEGRADED_REVIEW_FLOOR
+        assert res_cb.verdict == "FLAG"
+
+        batch_cb = engine.predict_batch([benign_msg, tax_override_msg])
+        assert batch_cb[0].ml_signal_status == "degraded"
+        assert batch_cb[0].verdict == "FLAG"
+        assert batch_cb[1].ml_signal_status == "degraded"
+        assert batch_cb[1].verdict == "BLOCK"
+    finally:
+        engine.session = orig_session
+        engine._session = orig_priv_session
+        if hasattr(engine, "_circuit_open"):
+            delattr(engine, "_circuit_open")
+
+    # 5: Explicitly degraded mode via runtime session.run() exception
+    mock_sess = MagicMock()
+    mock_sess.run.side_effect = RuntimeError("Simulated ONNX runtime fault")
+    try:
+        engine._session = mock_sess
+        engine.session = mock_sess
+        res_err = engine.predict(benign_msg)
+        assert res_err.ml_signal_status == "degraded"
+        assert res_err.ml_signal_valid is False
+        assert res_err.onnx_probability is None
+        assert res_err.ml_error_reason == "onnx_runtime_error"
+        assert "ML:DEGRADED_MODE" in res_err.signals
+        assert "ENGINE:ONNX_FALLBACK" in res_err.signals
+        assert "ML:BENIGN_CLASSIFICATION" not in res_err.signals
+        assert res_err.fraud_score == DEGRADED_REVIEW_FLOOR
+        assert res_err.verdict == "FLAG"
+    finally:
+        engine._session = orig_priv_session
+        engine.session = orig_session
+
+
+@pytest.mark.asyncio
+async def test_sf017_api_observability_health_metrics_and_degraded_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """SF-017: /v1/classify, /health, /metrics/summary, /metrics, and audit logs surface ML state safely."""
+    import logging
+    from types import SimpleNamespace
+
+    from app.api.telecom import reset_telecom_telemetry
+
+    await reset_telecom_telemetry()
+
+    class _NaNInjectedEngine:
+        model_sha256 = "0" * 64
+        intra_op_num_threads = 1
+        inter_op_num_threads = 1
+        graph_optimization_level = "ORT_ENABLE_ALL"
+        _session = None
+        session = None
+
+        def predict(self, _text: str) -> Any:
+            # Simulates an unvalidated custom engine bypassing InferenceResult with NaN + "valid"
+            return SimpleNamespace(
+                verdict="ALLOW",
+                fraud_score=0.0,
+                latency_ms=0.2,
+                signals=["ML:BENIGN_CLASSIFICATION"],
+                model_version="1.0.0",
+                onnx_probability=float("nan"),
+                heuristic_score=0.0,
+                ml_signal_status="valid",
+                ml_signal_valid=True,
+                ml_error_reason=None,
+            )
+
+    stub_store = MagicMock()
+    stub_metrics = MagicMock(
+        velocity_10s=1,
+        velocity_60s=1,
+        velocity_1h=1,
+        carrier="unknown",
+        carrier_risk=0.0,
+        ip_count_60s=1,
+        signals=[],
+        risk_contribution=0.0,
+    )
+
+    async def _fake_vel(*_args: Any, **_kwargs: Any) -> Any:
+        return stub_metrics
+
+    stub_store.record_and_evaluate = _fake_vel
+    stub_store.get_status.return_value = {
+        "velocity_backend": "redis",
+        "velocity_degraded_mode": False,
+        "circuit_cooldown_seconds": 30.0,
+        "cooldown_remaining_seconds": 0.0,
+    }
+
+    monkeypatch.setattr("app.api.telecom.get_velocity_store", lambda: stub_store)
+    monkeypatch.setattr("app.api.telecom.get_inference_engine", lambda: _NaNInjectedEngine())
+
+    caplog.clear()
+    secret_otp_sms = "Your Chase verification OTP is 839201 for +1-415-555-0199"
+    with caplog.at_level(logging.WARNING):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            resp = await client.post(
+                "/v1/classify",
+                json={
+                    "sender": "+15551230001",
+                    "recipient": "+14155550199",
+                    "message": secret_otp_sms,
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["ml_signal_status"] == "invalid"
+            assert body["ml_signal_valid"] is False
+            assert body["fraud_score"] == 0.4
+            assert body["verdict"] == "FLAG"
+            assert "ML:SIGNAL_INVALID" in body["signals"]
+            assert "ML:BENIGN_CLASSIFICATION" not in body["signals"]
+
+            health_resp = await client.get("/api/v1/telecom/health")
+            assert health_resp.status_code == 200
+            health_json = health_resp.json()
+            assert health_json["status"] == "degraded"
+            assert health_json["ml_engine_status"] == "unavailable"
+
+            summary_resp = await client.get("/api/v1/telecom/metrics/summary")
+            assert summary_resp.status_code == 200
+            summary_json = summary_resp.json()
+            assert summary_json["ml_signal_counts"]["invalid"] >= 1
+            assert summary_json["ml_engine_status"] == "unavailable"
+
+            prom_resp = await client.get("/api/v1/metrics")
+            assert prom_resp.status_code == 200
+            assert 'telecom_ml_signal_events_total{status="invalid"}' in prom_resp.text
+
+    degraded_warnings = [
+        rec
+        for rec in caplog.records
+        if rec.__dict__.get("event") == "telecom_ml_signal_degraded"
+    ]
+    assert len(degraded_warnings) >= 1
+    for rec in caplog.records:
+        msg = rec.getMessage()
+        assert "839201" not in msg
+        assert "415-555-0199" not in msg
+
+    # High velocity still escalates to BLOCK during unavailable/invalid ML
+    stub_metrics.risk_contribution = 0.80
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        block_resp = await client.post(
+            "/v1/classify",
+            json={
+                "sender": "+15551230002",
+                "recipient": "+14155550199",
+                "message": "Appointment reminder for Tuesday.",
+            },
+        )
+        assert block_resp.status_code == 200
+        block_body = block_resp.json()
+        assert block_body["ml_signal_status"] == "invalid"
+        assert block_body["fraud_score"] == 0.8
+        assert block_body["verdict"] == "BLOCK"
+
+
+def test_sf017r1_inference_result_constructor_invariants() -> None:
+    """SF-017R1: Enforces safe InferenceResult defaults and rejects contradictory/missing valid probabilities."""
+    from app.telecom.onnx_engine import InferenceResult, InvalidMLSignalError
+
+    # 1. Default construction must represent absent/unavailable ML, never 0.0 / valid
+    default_res = InferenceResult(verdict="FLAG", fraud_score=0.4, latency_ms=0.2)
+    assert default_res.onnx_probability is None
+    assert default_res.ml_signal_status == "unavailable"
+    assert default_res.ml_signal_valid is False
+
+    # 2. Partial construction with explicit None agrees on unavailable & invalid
+    none_res = InferenceResult("FLAG", 0.4, 0.2, onnx_probability=None)
+    assert none_res.onnx_probability is None
+    assert none_res.ml_signal_status == "unavailable"
+    assert none_res.ml_signal_valid is False
+
+    # 3. Partial construction specifying non-valid status defaults prob=None and valid=False
+    for status in ("invalid", "unavailable", "degraded"):
+        non_valid_res = InferenceResult(
+            "FLAG",
+            0.4,
+            0.2,
+            ml_signal_status=status,  # type: ignore[arg-type]
+        )
+        assert non_valid_res.onnx_probability is None
+        assert non_valid_res.ml_signal_status == status
+        assert non_valid_res.ml_signal_valid is False
+
+    # 4. Explicit valid zero probability (0.0) succeeds and resolves to valid=True
+    explicit_zero = InferenceResult("ALLOW", 0.0, 0.2, onnx_probability=0.0)
+    assert explicit_zero.onnx_probability == 0.0
+    assert explicit_zero.ml_signal_status == "valid"
+    assert explicit_zero.ml_signal_valid is True
+
+    explicit_zero_full = InferenceResult(
+        "ALLOW",
+        0.0,
+        0.2,
+        onnx_probability=0.0,
+        ml_signal_status="valid",
+        ml_signal_valid=True,
+    )
+    assert explicit_zero_full.onnx_probability == 0.0
+    assert explicit_zero_full.ml_signal_valid is True
+
+    # 5. Contradictory or unvalidated valid states must raise InvalidMLSignalError
+    invalid_constructions: list[dict[str, Any]] = [
+        {"ml_signal_status": "valid"},
+        {"ml_signal_valid": True},
+        {"onnx_probability": None, "ml_signal_status": "valid"},
+        {"onnx_probability": 0.0, "ml_signal_valid": False},
+        {"onnx_probability": 0.0, "ml_signal_status": "unavailable"},
+        {"onnx_probability": 0.2, "ml_signal_status": "invalid"},
+        {"onnx_probability": 0.2, "ml_signal_status": "degraded"},
+        {"ml_signal_status": "invalid", "ml_signal_valid": True},
+        {"ml_signal_status": "unavailable", "ml_signal_valid": True},
+        {"ml_signal_status": "degraded", "ml_signal_valid": True},
+        {"onnx_probability": float("nan")},
+        {"onnx_probability": float("inf")},
+        {"onnx_probability": float("-inf")},
+        {"onnx_probability": -0.01},
+        {"onnx_probability": 1.01},
+        {"onnx_probability": True},
+    ]
+    for kwargs in invalid_constructions:
+        with pytest.raises(InvalidMLSignalError):
+            InferenceResult("FLAG", 0.4, 0.2, **kwargs)
+
+    # Non-finite score/latency/heuristic fields are also rejected
+    with pytest.raises(InvalidMLSignalError):
+        InferenceResult("FLAG", float("nan"), 0.2)
+    with pytest.raises(InvalidMLSignalError):
+        InferenceResult("FLAG", 0.4, float("nan"))
+    with pytest.raises(InvalidMLSignalError):
+        InferenceResult("FLAG", 0.4, 0.2, heuristic_score=float("nan"))
+
+
+@pytest.mark.asyncio
+async def test_sf017r1_end_to_end_classify_decision_matrix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SF-017R1: Proves end-to-end /v1/classify verdicts across ML states x heuristics x velocity."""
+    from app.telecom.onnx_engine import DEGRADED_REVIEW_FLOOR
+
+    engine = OnnxInferenceEngine()
+    orig_session = engine.session
+    orig_priv_session = engine._session
+
+    stub_store = MagicMock()
+    stub_metrics = MagicMock(
+        velocity_10s=1,
+        velocity_60s=1,
+        velocity_1h=1,
+        carrier="unknown",
+        carrier_risk=0.0,
+        ip_count_60s=1,
+        signals=[],
+        risk_contribution=0.0,
+    )
+
+    async def _fake_vel(*_args: Any, **_kwargs: Any) -> Any:
+        return stub_metrics
+
+    stub_store.record_and_evaluate = _fake_vel
+    stub_store.get_status.return_value = {
+        "velocity_backend": "redis",
+        "velocity_degraded_mode": False,
+        "circuit_cooldown_seconds": 30.0,
+        "cooldown_remaining_seconds": 0.0,
+    }
+    monkeypatch.setattr("app.api.telecom.get_velocity_store", lambda: stub_store)
+    monkeypatch.setattr("app.api.telecom.get_inference_engine", lambda: engine)
+
+    otp_msg = "Your bank verification code is 582910. Do not share this code."
+    mod_heur_msg = "USPS Alert: Package 928301 held. Pay customs fee now."
+    high_heur_msg = "IRS FINAL NOTICE: Delinquent tax payment due. Arrest warrant issued!"
+
+    class _StubSession:
+        def __init__(self, prob_or_err: float | Exception) -> None:
+            self._val = prob_or_err
+
+        def run(self, *_args: Any, **_kwargs: Any) -> Any:
+            if isinstance(self._val, Exception):
+                raise self._val
+            return [np.array([0]), [{0: 1.0 - self._val, 1: self._val}]]
+
+    async def _post(client: httpx.AsyncClient, msg: str, vel: float) -> dict[str, Any]:
+        stub_metrics.risk_contribution = vel
+        resp = await client.post(
+            "/v1/classify",
+            json={
+                "sender": "+15550009999",
+                "recipient": "+14155551234",
+                "message": msg,
+                "escalate": False,
+            },
+        )
+        assert resp.status_code == 200
+        return dict(resp.json())
+
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            # A. Valid ML < 0.40 (low prob = 0.05) -> ALLOW on low V, FLAG on mid V, BLOCK on high V
+            sess_low = _StubSession(0.05)
+            engine.session = sess_low  # type: ignore[assignment]
+            engine._session = sess_low  # type: ignore[assignment]
+            low_otp = await _post(client, otp_msg, 0.0)
+            assert low_otp["ml_signal_status"] == "valid"
+            assert low_otp["ml_signal_valid"] is True
+            assert low_otp["verdict"] == "ALLOW"
+            assert low_otp["fraud_score"] == 0.05
+
+            mid_v_otp = await _post(client, otp_msg, 0.50)
+            assert mid_v_otp["verdict"] == "FLAG"
+            assert 0.40 <= mid_v_otp["fraud_score"] < 0.75
+
+            high_v_otp = await _post(client, otp_msg, 0.80)
+            assert high_v_otp["verdict"] == "BLOCK"
+            assert high_v_otp["fraud_score"] >= 0.75
+
+            # B. Valid ML >= 0.40 (elevated 0.50 -> FLAG, high 0.85 -> BLOCK)
+            sess_elev = _StubSession(0.50)
+            engine.session = sess_elev  # type: ignore[assignment]
+            engine._session = sess_elev  # type: ignore[assignment]
+            elev_res = await _post(client, otp_msg, 0.0)
+            assert elev_res["ml_signal_status"] == "valid"
+            assert elev_res["verdict"] == "FLAG"
+
+            sess_high = _StubSession(0.85)
+            engine.session = sess_high  # type: ignore[assignment]
+            engine._session = sess_high  # type: ignore[assignment]
+            high_res = await _post(client, otp_msg, 0.0)
+            assert high_res["ml_signal_status"] == "valid"
+            assert high_res["verdict"] == "BLOCK"
+
+            # C. Non-valid ML modes: invalid (NaN), unavailable, circuit-open degraded, runtime fault degraded
+            modes: list[tuple[str, Any, bool]] = [
+                ("invalid", _StubSession(float("nan")), False),
+                ("unavailable", None, False),
+                ("degraded", _StubSession(0.01), True),
+                ("degraded", _StubSession(RuntimeError("Simulated AVX fault")), False),
+            ]
+            for expected_status, sess_obj, cb_open in modes:
+                engine.session = sess_obj
+                engine._session = sess_obj
+                if cb_open:
+                    engine._circuit_open = True  # type: ignore[attr-defined]
+                elif hasattr(engine, "_circuit_open"):
+                    delattr(engine, "_circuit_open")
+
+                # 1. Clean OTP-like message (H=0.0, V=0.0) does NOT get ALLOW under degraded ML
+                deg_otp = await _post(client, otp_msg, 0.0)
+                assert deg_otp["ml_signal_status"] == expected_status
+                assert deg_otp["ml_signal_valid"] is False
+                assert deg_otp["fraud_score"] == DEGRADED_REVIEW_FLOOR
+                assert deg_otp["verdict"] == "FLAG"
+                assert "ML:BENIGN_CLASSIFICATION" not in deg_otp["signals"]
+
+                # 2. Moderate heuristic (H=0.65, V=0.0) floors to FLAG 0.40 (not ALLOW)
+                deg_mod = await _post(client, mod_heur_msg, 0.0)
+                assert deg_mod["ml_signal_status"] == expected_status
+                assert deg_mod["fraud_score"] == DEGRADED_REVIEW_FLOOR
+                assert deg_mod["verdict"] == "FLAG"
+
+                # 3. High deterministic heuristic (H=0.80, V=0.0) still escalates to BLOCK
+                deg_high_h = await _post(client, high_heur_msg, 0.0)
+                assert deg_high_h["ml_signal_status"] == expected_status
+                assert deg_high_h["fraud_score"] == 1.0
+                assert deg_high_h["verdict"] == "BLOCK"
+
+                # 4. Clean OTP + high velocity (H=0.0, V=0.80) still escalates to BLOCK
+                deg_high_v = await _post(client, otp_msg, 0.80)
+                assert deg_high_v["ml_signal_status"] == expected_status
+                assert deg_high_v["fraud_score"] == 0.8
+                assert deg_high_v["verdict"] == "BLOCK"
+    finally:
+        engine.session = orig_session
+        engine._session = orig_priv_session
+        if hasattr(engine, "_circuit_open"):
+            delattr(engine, "_circuit_open")
+
+
+@pytest.mark.asyncio
+async def test_sf017r1_nan_rejected_at_all_downstream_boundaries(
+    telecom_db_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """SF-017R1: NaN cannot silently enter scoring, eval metrics, JSON/API, telemetry, or DB audit state."""
+    from app.api.telecom import broadcast_telecom_event
+    from app.telecom.onnx_engine import InvalidMLSignalError, _clamp_unit_signal
+    from app.telecom.telecom_metrics import TelecomMetricsTracker
+
+    # Unit clamping still works explicitly for H/V signals via _clamp_unit_signal
+    assert _clamp_unit_signal(float("nan")) == 0.0
+    assert _clamp_unit_signal(float("-inf")) == 0.0
+    assert _clamp_unit_signal(float("inf")) == 1.0
+
+    # 1. Composite scoring rejects invalid ML inputs explicitly
+    for bad_prob in (float("nan"), float("inf"), float("-inf"), -0.05, 1.05, True, None):
+        with pytest.raises(InvalidMLSignalError):
+            compute_composite_score(0.0, bad_prob, 0.0)
+
+    # 2. Telemetry tracker rejects NaN fraud_score or latency_ms
+    tracker = TelecomMetricsTracker()
+    with pytest.raises(ValueError, match="finite"):
+        tracker.record_event(
+            event_id="evt_nan",
+            sender="+1555***0001",
+            recipient="+1555***0002",
+            message="test",
+            verdict="ALLOW",
+            fraud_score=float("nan"),
+            latency_ms=1.0,
+            signals=[],
+            carrier="unknown",
+        )
+    with pytest.raises(ValueError, match="finite"):
+        tracker.record_event(
+            event_id="evt_nan_lat",
+            sender="+1555***0001",
+            recipient="+1555***0002",
+            message="test",
+            verdict="ALLOW",
+            fraud_score=0.1,
+            latency_ms=float("nan"),
+            signals=[],
+            carrier="unknown",
+        )
+
+    # 3. Drift monitor rejects NaN fraud_score
+    drift = get_drift_monitor()
+    with pytest.raises(ValueError, match="finite"):
+        drift.record_observation("Test message", float("nan"))
+
+    # 4. SSE broadcaster & Pydantic JSON boundaries reject NaN
+    with pytest.raises(ValueError, match="non-finite"):
+        await broadcast_telecom_event({"id": "evt_nan", "fraud_score": float("nan")})
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        raw_nan_json = (
+            '{"sender":"+15551112222","recipient":"+14155551234",'
+            '"message":"Test","verdict":"ALLOW","fraud_score":NaN}'
+        )
+        esc_resp = await client.post(
+            "/api/v1/telecom/escalate",
+            content=raw_nan_json,
+            headers={"Content-Type": "application/json"},
+        )
+        assert esc_resp.status_code == 422
+
+    # 5. Persisted dispute audit helper rejects NaN in score and velocity payload
+    from app.api.telecom import _create_escalated_dispute
+
+    async with telecom_db_session_factory() as db_sess:
+        with pytest.raises(ValueError, match="finite"):
+            await _create_escalated_dispute(
+                db_sess,
+                sender="+15551112222",
+                recipient="+14155551234",
+                message="Test",
+                carrier="unknown",
+                verdict="FLAG",
+                fraud_score=float("nan"),
+                signals=["ML:SIGNAL_INVALID"],
+                velocity={"velocity_10s": 1},
+            )
+        with pytest.raises(ValueError, match="non-finite"):
+            await _create_escalated_dispute(
+                db_sess,
+                sender="+15551112222",
+                recipient="+14155551234",
+                message="Test",
+                carrier="unknown",
+                verdict="FLAG",
+                fraud_score=0.4,
+                signals=["ML:SIGNAL_INVALID"],
+                velocity={"carrier_risk": float("nan")},
+            )
