@@ -662,7 +662,6 @@ def test_calibrated_classifier_cv_platt_parity() -> None:
 
     from app.telecom.train_onnx_model import build_augmented_dataset
     from sklearn.calibration import CalibratedClassifierCV
-    from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import Pipeline
 
@@ -687,7 +686,10 @@ def test_calibrated_classifier_cv_platt_parity() -> None:
         assert 0.0 <= p <= 1.0, f"ONNX probability {p} outside [0, 1]"
 
     # Quick scikit-learn reference pipeline matching GroupKFold(5) production calibration
-    from app.telecom.train_onnx_model import build_production_calibration_splits
+    from app.telecom.train_onnx_model import (
+        _create_tfidf_vectorizer,
+        build_production_calibration_splits,
+    )
 
     texts, labels, groups = build_augmented_dataset()
     prod_splits = build_production_calibration_splits(texts, labels, groups, n_splits=5)
@@ -700,15 +702,7 @@ def test_calibrated_classifier_cv_platt_parity() -> None:
     )
     pipe = Pipeline(
         [
-            (
-                "tfidf",
-                TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    sublinear_tf=True,
-                    max_features=2500,
-                    token_pattern=r"\b[a-zA-Z0-9_]+\b",
-                ),
-            ),
+            ("tfidf", _create_tfidf_vectorizer()),
             ("clf", calibrated_clf),
         ]
     )
@@ -726,11 +720,11 @@ def test_onnx_sklearn_full_benchmark_parity() -> None:
 
     from app.telecom.evaluate_model import get_held_out_evaluation_set
     from app.telecom.train_onnx_model import (
+        _create_tfidf_vectorizer,
         build_augmented_dataset,
         build_production_calibration_splits,
     )
     from sklearn.calibration import CalibratedClassifierCV
-    from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import Pipeline
 
@@ -751,15 +745,7 @@ def test_onnx_sklearn_full_benchmark_parity() -> None:
     )
     pipe = Pipeline(
         [
-            (
-                "tfidf",
-                TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    sublinear_tf=True,
-                    max_features=2500,
-                    token_pattern=r"\b[a-zA-Z0-9_]+\b",
-                ),
-            ),
+            ("tfidf", _create_tfidf_vectorizer()),
             ("clf", calibrated_clf),
         ]
     )
@@ -1106,28 +1092,22 @@ def test_onnx_patch_adversarial_edge_cases_and_idempotency() -> None:
     import onnxruntime as ort
     from app.telecom.evaluate_model import _compute_verdict
     from app.telecom.onnx_engine import compute_composite_score, evaluate_heuristics
-    from app.telecom.train_onnx_model import build_augmented_dataset, patch_skl2onnx_tfidf_bugs
+    from app.telecom.train_onnx_model import (
+        _create_tfidf_vectorizer,
+        build_augmented_dataset,
+        patch_skl2onnx_tfidf_bugs,
+    )
     from onnx import TensorProto, helper
     from skl2onnx import to_onnx
     from skl2onnx.common.data_types import StringTensorType
     from sklearn.calibration import CalibratedClassifierCV
-    from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import Pipeline
 
     texts, labels, _ = build_augmented_dataset()
     pipe = Pipeline(
         [
-            (
-                "tfidf",
-                TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    sublinear_tf=True,
-                    max_features=2500,
-                    min_df=1,
-                    token_pattern=r"\b[a-zA-Z0-9_]+\b",
-                ),
-            ),
+            ("tfidf", _create_tfidf_vectorizer()),
             (
                 "clf",
                 CalibratedClassifierCV(
@@ -2974,9 +2954,7 @@ async def test_sf017_api_observability_health_metrics_and_degraded_boundary(
             assert 'telecom_ml_signal_events_total{status="invalid"}' in prom_resp.text
 
     degraded_warnings = [
-        rec
-        for rec in caplog.records
-        if rec.__dict__.get("event") == "telecom_ml_signal_degraded"
+        rec for rec in caplog.records if rec.__dict__.get("event") == "telecom_ml_signal_degraded"
     ]
     assert len(degraded_warnings) >= 1
     for rec in caplog.records:

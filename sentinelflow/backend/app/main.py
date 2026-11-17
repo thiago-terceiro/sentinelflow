@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -37,6 +38,7 @@ from app.telemetry import configure_telemetry
 
 settings = get_settings()
 configure_logging()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -48,8 +50,8 @@ async def lifespan(_app: FastAPI):
                 async with engine.begin() as conn:
                     await conn.run_sync(Base.metadata.create_all)
             await seed()
-        except Exception:  # noqa: S110
-            pass
+        except Exception as err:
+            logger.warning("Startup database initialization skipped or deferred: %s", err)
     yield
     await _drain_background_tasks()
     await get_velocity_store().close()

@@ -78,9 +78,7 @@ export const getLatestDisputeInvestigation = async (
       }, 150);
     });
     try {
-      return await request<InvestigationRun | null>(
-        `/disputes/${disputeId}/investigations/latest`
-      );
+      return await request<InvestigationRun | null>(`/disputes/${disputeId}/investigations/latest`);
     } catch {
       throw firstError;
     }

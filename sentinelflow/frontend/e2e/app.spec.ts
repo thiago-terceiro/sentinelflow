@@ -11,22 +11,27 @@ test.describe("SentinelFlow Web Application", () => {
     await expect(page.locator("button[type='submit']")).toBeVisible();
   });
 
-  test("unauthenticated access to audit page renders access-restricted gate with sign-in link", async ({ page }) => {
+  test("unauthenticated access to audit page renders access-restricted gate with sign-in link", async ({
+    page,
+  }) => {
     await page.goto("/audit");
-    await expect(page.locator("h1")).toContainText("Access Restricted: Auditor or Admin Role Required");
+    await expect(page.locator("h1")).toContainText(
+      "Access Restricted: Auditor or Admin Role Required"
+    );
     await expect(page.getByRole("link", { name: /Sign In as Auditor/i })).toHaveAttribute(
       "href",
       "/login?returnTo=/audit"
     );
   });
 
-  test("unauthenticated access to disputes page renders access-restricted gate with sign-in link", async ({ page }) => {
+  test("unauthenticated access to disputes page renders access-restricted gate with sign-in link", async ({
+    page,
+  }) => {
     await page.goto("/disputes");
     await expect(page.locator("h2")).toContainText("Sign in to inspect seeded disputes");
-    await expect(page.getByRole("link", { name: /Sign in to Investigation Console/i })).toHaveAttribute(
-      "href",
-      "/login?returnTo=/disputes"
-    );
+    await expect(
+      page.getByRole("link", { name: /Sign in to Investigation Console/i })
+    ).toHaveAttribute("href", "/login?returnTo=/disputes");
   });
 
   test("@visual login page visual appearance snapshot", async ({ page }) => {

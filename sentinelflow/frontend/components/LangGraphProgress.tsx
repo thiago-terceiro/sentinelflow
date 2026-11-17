@@ -26,6 +26,12 @@ type Props = {
   agentMessage?: string | null;
 };
 
+const getGraphStateColor = (isCompleted: boolean, isFailed: boolean): string => {
+  if (isCompleted) return "var(--success)";
+  if (isFailed) return "var(--danger)";
+  return "var(--accent)";
+};
+
 const fallbackMessage = (status: string) => {
   if (status === "APPROVAL_REQUIRED") {
     return "Awaiting reviewer approval";
@@ -125,7 +131,10 @@ export const LangGraphProgress = memo(
     };
 
     return (
-      <div className="shell-card" style={{ padding: "20px 24px", minHeight: 224, boxSizing: "border-box" }}>
+      <div
+        className="shell-card"
+        style={{ padding: "20px 24px", minHeight: 224, boxSizing: "border-box" }}
+      >
         <div
           style={{
             display: "flex",
@@ -172,11 +181,7 @@ export const LangGraphProgress = memo(
                   <span style={{ color: "var(--muted)" }}>Active Graph State:</span>
                   <strong
                     style={{
-                      color: isCompleted
-                        ? "var(--success)"
-                        : isFailed
-                        ? "var(--danger)"
-                        : "var(--accent)",
+                      color: getGraphStateColor(isCompleted, isFailed),
                       fontWeight: 700,
                     }}
                   >
@@ -331,38 +336,39 @@ export const LangGraphProgress = memo(
           })}
         </div>
 
-      <div
-        style={{
-          marginTop: 14,
-          minHeight: 40,
-          display: "flex",
-          alignItems: "center",
-          padding: "10px 14px",
-          borderRadius: 8,
-          fontSize: 12,
-          boxSizing: "border-box",
-          background: reviewerGuidance
-            ? "rgba(99, 102, 241, 0.06)"
-            : "rgba(255, 255, 255, 0.02)",
-          borderLeft: reviewerGuidance
-            ? "3px solid var(--accent)"
-            : "3px solid var(--panel-border)",
-          transition: "background 0.15s ease, border-color 0.15s ease",
-        }}
-      >
-        {reviewerGuidance ? (
-          <div>
-            <strong style={{ color: "var(--accent, #93c5fd)" }}>Reviewer Steering Guidance Applied: </strong>
-            <span style={{ color: "var(--foreground)" }}>{reviewerGuidance}</span>
-          </div>
-        ) : (
-          <span style={{ color: "var(--muted)" }}>
-            No reviewer steering guidance applied · Autonomous execution baseline
-          </span>
-        )}
+        <div
+          style={{
+            marginTop: 14,
+            minHeight: 40,
+            display: "flex",
+            alignItems: "center",
+            padding: "10px 14px",
+            borderRadius: 8,
+            fontSize: 12,
+            boxSizing: "border-box",
+            background: reviewerGuidance ? "rgba(99, 102, 241, 0.06)" : "rgba(255, 255, 255, 0.02)",
+            borderLeft: reviewerGuidance
+              ? "3px solid var(--accent)"
+              : "3px solid var(--panel-border)",
+            transition: "background 0.15s ease, border-color 0.15s ease",
+          }}
+        >
+          {reviewerGuidance ? (
+            <div>
+              <strong style={{ color: "var(--accent, #93c5fd)" }}>
+                Reviewer Steering Guidance Applied:{" "}
+              </strong>
+              <span style={{ color: "var(--foreground)" }}>{reviewerGuidance}</span>
+            </div>
+          ) : (
+            <span style={{ color: "var(--muted)" }}>
+              No reviewer steering guidance applied · Autonomous execution baseline
+            </span>
+          )}
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 LangGraphProgress.displayName = "LangGraphProgress";

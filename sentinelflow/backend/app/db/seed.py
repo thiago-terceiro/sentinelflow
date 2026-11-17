@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -11,6 +12,8 @@ from app.security import Principal, Role
 from app.services.audit import record_audit_event
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 CASES: list[dict[str, Any]] = [
     {
@@ -991,15 +994,15 @@ async def reset_database_to_defaults(session: AsyncSession) -> list[DisputeRecor
     reset_active_jobs()
     try:
         _memory_checkpointer().storage.clear()
-    except Exception:  # noqa: S110
-        pass
+    except Exception as err:
+        logger.debug("Ignoring checkpointer cleanup failure during reset: %s", err)
 
     try:
         async with session.begin_nested():
             await session.execute(delete(AuditArtifactRecord))
             await session.execute(delete(AuditRecord))
-    except Exception:  # noqa: S110
-        pass
+    except Exception as err:
+        logger.debug("Ignoring audit cleanup failure during reset: %s", err)
 
     await session.execute(delete(InvestigationRecord))
     await session.commit()

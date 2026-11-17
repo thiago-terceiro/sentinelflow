@@ -64,9 +64,13 @@ const auditPage = async (page, pageName, theme, viewportName, axeSource, failure
   });
 
   if (axeResults.violations.length > 0) {
-    console.log(`  ❌ Axe-Core found ${axeResults.violations.length} violation(s) in [${tagLabel}]:`);
+    console.log(
+      `  ❌ Axe-Core found ${axeResults.violations.length} violation(s) in [${tagLabel}]:`
+    );
     for (const v of axeResults.violations) {
-      console.log(`     - [${v.impact?.toUpperCase()}] ${v.id}: ${v.help} (${v.nodes.length} nodes)`);
+      console.log(
+        `     - [${v.impact?.toUpperCase()}] ${v.id}: ${v.help} (${v.nodes.length} nodes)`
+      );
       for (const n of v.nodes) {
         console.log(`       Target: ${n.target.join(" ")}`);
         console.log(`       Detail: ${n.failureSummary?.slice(0, 160)}`);
@@ -103,7 +107,11 @@ const auditPage = async (page, pageName, theme, viewportName, axeSource, failure
     for (const el of interactives) {
       if (el.offsetParent === null) continue; // Skip hidden elements
       const computed = window.getComputedStyle(el);
-      if (computed.display === "none" || computed.visibility === "hidden" || computed.opacity === "0") {
+      if (
+        computed.display === "none" ||
+        computed.visibility === "hidden" ||
+        computed.opacity === "0"
+      ) {
         continue;
       }
 
@@ -161,7 +169,13 @@ const auditPage = async (page, pageName, theme, viewportName, axeSource, failure
         `     - <${issue.tag}> "${issue.text}": ${issue.reason}${issue.width ? ` (${issue.width}x${issue.height}px)` : ""}`
       );
       pageFailures++;
-      failureLog.push({ target: pageName, theme, viewport: viewportName, type: "Rule 2 A11y", ...issue });
+      failureLog.push({
+        target: pageName,
+        theme,
+        viewport: viewportName,
+        type: "Rule 2 A11y",
+        ...issue,
+      });
     }
   } else {
     console.log(`  ✅ Target Size, ARIA & Label-in-Name [${tagLabel}]: 100% compliant`);
@@ -199,7 +213,10 @@ const auditPage = async (page, pageName, theme, viewportName, axeSource, failure
       const actionsCenterY = actionsRect.top + actionsRect.height / 2;
 
       if (vpName === "desktop") {
-        if (Math.abs(brandCenterY - navCenterY) > 16 || Math.abs(brandCenterY - actionsCenterY) > 16) {
+        if (
+          Math.abs(brandCenterY - navCenterY) > 16 ||
+          Math.abs(brandCenterY - actionsCenterY) > 16
+        ) {
           issues.push({
             check: "Desktop Single-Row Navbar",
             detail: `Navbar items are not vertically aligned on a single row (brandY=${Math.round(brandCenterY)}, navY=${Math.round(navCenterY)}, actionsY=${Math.round(actionsCenterY)})`,
@@ -270,12 +287,8 @@ const auditPage = async (page, pageName, theme, viewportName, axeSource, failure
       if (heroCard) {
         const h1 = heroCard.querySelector("h1");
         const spans = Array.from(heroCard.querySelectorAll("span"));
-        const stageBadge = spans.find((s) =>
-          (s.textContent || "").trim().match(/^Stage [12]:/i)
-        );
-        const statusSpan = spans.find((s) =>
-          (s.textContent || "").trim().match(/ACTIVE$/i)
-        );
+        const stageBadge = spans.find((s) => (s.textContent || "").trim().match(/^Stage [12]:/i));
+        const statusSpan = spans.find((s) => (s.textContent || "").trim().match(/ACTIVE$/i));
 
         if (stageBadge && statusSpan && h1) {
           const stageRect = stageBadge.getBoundingClientRect();
@@ -295,7 +308,9 @@ const auditPage = async (page, pageName, theme, viewportName, axeSource, failure
             });
           }
 
-          const badgeRadius = parseFloat(window.getComputedStyle(stageBadge).borderTopLeftRadius || "0");
+          const badgeRadius = parseFloat(
+            window.getComputedStyle(stageBadge).borderTopLeftRadius || "0"
+          );
           if (badgeRadius > 10) {
             issues.push({
               check: "Stage Badge Border Radius",
@@ -323,14 +338,24 @@ const auditPage = async (page, pageName, theme, viewportName, axeSource, failure
   }, viewportName);
 
   if (layoutViolations.length > 0) {
-    console.log(`  ❌ Visual Layout / Geometry violations in [${tagLabel}]: ${layoutViolations.length}`);
+    console.log(
+      `  ❌ Visual Layout / Geometry violations in [${tagLabel}]: ${layoutViolations.length}`
+    );
     for (const v of layoutViolations) {
       console.log(`     - [${v.check}] ${v.detail}`);
       pageFailures++;
-      failureLog.push({ target: pageName, theme, viewport: viewportName, type: "Visual Layout", ...v });
+      failureLog.push({
+        target: pageName,
+        theme,
+        viewport: viewportName,
+        type: "Visual Layout",
+        ...v,
+      });
     }
   } else {
-    console.log(`  ✅ Visual Layout & Geometry [${tagLabel}]: All responsive & structural invariants hold`);
+    console.log(
+      `  ✅ Visual Layout & Geometry [${tagLabel}]: All responsive & structural invariants hold`
+    );
   }
 
   return pageFailures;
@@ -368,12 +393,18 @@ const main = async () => {
   for (const vp of VIEWPORTS) {
     for (const theme of THEME_MODES) {
       console.log(`\n======================================================`);
-      console.log(`>>> AUDITING MATRIX: ${theme.toUpperCase()} MODE | ${vp.name.toUpperCase()} (${vp.width}×${vp.height}) <<<`);
+      console.log(
+        `>>> AUDITING MATRIX: ${theme.toUpperCase()} MODE | ${vp.name.toUpperCase()} (${vp.width}×${vp.height}) <<<`
+      );
       console.log(`======================================================`);
 
       // Section 1: Public Pages (Unauthenticated)
-      console.log(`\n--- 1. Public Unauthenticated Routes [${theme.toUpperCase()} / ${vp.name.toUpperCase()}] ---`);
-      const publicContext = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+      console.log(
+        `\n--- 1. Public Unauthenticated Routes [${theme.toUpperCase()} / ${vp.name.toUpperCase()}] ---`
+      );
+      const publicContext = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+      });
       const publicPage = await publicContext.newPage();
 
       const publicTargets = [
@@ -390,7 +421,14 @@ const main = async () => {
         try {
           await publicPage.goto(fullUrl, { waitUntil: "networkidle", timeout: 10000 });
           await applyTheme(publicPage, theme);
-          totalFailures += await auditPage(publicPage, target.name, theme, vp.name, axeSource, failureLog);
+          totalFailures += await auditPage(
+            publicPage,
+            target.name,
+            theme,
+            vp.name,
+            axeSource,
+            failureLog
+          );
         } catch (err) {
           console.error(`  ❌ Failed to connect to ${fullUrl}: ${err.message}`);
           totalFailures++;
@@ -425,7 +463,9 @@ const main = async () => {
       try {
         await publicPage.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
         await applyTheme(publicPage, theme);
-        const menuBtn = await publicPage.$('button[aria-label="Appearance and accessibility preferences"]');
+        const menuBtn = await publicPage.$(
+          'button[aria-label="Appearance and accessibility preferences"]'
+        );
         if (menuBtn) {
           await menuBtn.click();
           await publicPage.waitForTimeout(300);
@@ -445,11 +485,25 @@ const main = async () => {
       await publicContext.close();
 
       // Section 2: Authenticated Reviewer Routes (Disputes Queue & Detail Workbenches)
-      console.log(`\n--- 2. Authenticated Reviewer Routes [${theme.toUpperCase()} / ${vp.name.toUpperCase()}] ---`);
-      const reviewerContext = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+      console.log(
+        `\n--- 2. Authenticated Reviewer Routes [${theme.toUpperCase()} / ${vp.name.toUpperCase()}] ---`
+      );
+      const reviewerContext = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+      });
       await reviewerContext.addCookies([
-        { name: "sentinelflow_access_token", value: "dev-reviewer", domain: "localhost", path: "/" },
-        { name: "sentinelflow_test_user", value: "reviewer:reviewer", domain: "localhost", path: "/" },
+        {
+          name: "sentinelflow_access_token",
+          value: "dev-reviewer",
+          domain: "localhost",
+          path: "/",
+        },
+        {
+          name: "sentinelflow_test_user",
+          value: "reviewer:reviewer",
+          domain: "localhost",
+          path: "/",
+        },
       ]);
       const reviewerPage = await reviewerContext.newPage();
 
@@ -483,8 +537,11 @@ const main = async () => {
       }
 
       // Audit each discovered dispute detail workbench page (all on desktop, first 2 on mobile for speed while covering all components)
-      const linksToAudit = vp.name === "desktop" ? disputeDetailLinks : disputeDetailLinks.slice(0, 2);
-      console.log(`Auditing ${linksToAudit.length} seeded dispute workbench link(s) in [${theme}/${vp.name}]:`);
+      const linksToAudit =
+        vp.name === "desktop" ? disputeDetailLinks : disputeDetailLinks.slice(0, 2);
+      console.log(
+        `Auditing ${linksToAudit.length} seeded dispute workbench link(s) in [${theme}/${vp.name}]:`
+      );
       let interactiveWorkbenchAudited = false;
       for (const detailLink of linksToAudit) {
         const shortId = detailLink.split("/").pop() || detailLink;
@@ -523,7 +580,9 @@ const main = async () => {
 
             if (openedAny) {
               await reviewerPage.waitForTimeout(250);
-              console.log(`Auditing [${theme}/${vp.name}]: Dispute Workbench Interactive Panels (${shortId})...`);
+              console.log(
+                `Auditing [${theme}/${vp.name}]: Dispute Workbench Interactive Panels (${shortId})...`
+              );
               totalFailures += await auditPage(
                 reviewerPage,
                 `Dispute Workbench Interactive Panels [${shortId}]`,
@@ -538,18 +597,32 @@ const main = async () => {
         } catch (err) {
           console.error(`  ❌ Failed to audit dispute ${shortId}: ${err.message}`);
           totalFailures++;
-          failureLog.push({ target: `Dispute Workbench [${shortId}]`, theme, viewport: vp.name, error: err.message });
+          failureLog.push({
+            target: `Dispute Workbench [${shortId}]`,
+            theme,
+            viewport: vp.name,
+            error: err.message,
+          });
         }
       }
 
       await reviewerContext.close();
 
       // Section 3: Authenticated Auditor Routes (Audit Ledger & AI Evaluations)
-      console.log(`\n--- 3. Authenticated Auditor Routes [${theme.toUpperCase()} / ${vp.name.toUpperCase()}] ---`);
-      const auditorContext = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+      console.log(
+        `\n--- 3. Authenticated Auditor Routes [${theme.toUpperCase()} / ${vp.name.toUpperCase()}] ---`
+      );
+      const auditorContext = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+      });
       await auditorContext.addCookies([
         { name: "sentinelflow_access_token", value: "dev-auditor", domain: "localhost", path: "/" },
-        { name: "sentinelflow_test_user", value: "auditor:auditor", domain: "localhost", path: "/" },
+        {
+          name: "sentinelflow_test_user",
+          value: "auditor:auditor",
+          domain: "localhost",
+          path: "/",
+        },
       ]);
       const auditorPage = await auditorContext.newPage();
 

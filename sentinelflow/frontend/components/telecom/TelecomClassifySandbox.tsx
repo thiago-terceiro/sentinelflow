@@ -34,6 +34,264 @@ const getVerdictBadgeStyle = (verdict: TelecomVerdict) => {
   };
 };
 
+type ClassificationResultCardProps = {
+  classificationResult: TelecomFeedItem;
+  hasSession: boolean;
+  isEscalating: boolean;
+  escalatedDispute: {
+    id: string;
+    case_code?: string;
+    url: string;
+  } | null;
+  onEscalateResult: () => Promise<void>;
+};
+
+const ClassificationResultCard = memo(
+  ({
+    classificationResult,
+    hasSession,
+    isEscalating,
+    escalatedDispute,
+    onEscalateResult,
+  }: ClassificationResultCardProps) => {
+    const verdictStyle = getVerdictBadgeStyle(classificationResult.verdict);
+    const shouldShowEscalation =
+      classificationResult.verdict === "FLAG" || classificationResult.verdict === "BLOCK";
+    const signals = classificationResult.signals ?? [];
+
+    return (
+      <div
+        style={{
+          marginTop: 20,
+          padding: "18px 20px",
+          borderRadius: "var(--card-radius, 8px)",
+          background: "var(--panel, #ffffff)",
+          border: "1px solid var(--panel-border)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                padding: "4px 10px",
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 800,
+                background: verdictStyle.bg,
+                color: verdictStyle.color,
+                border: verdictStyle.border,
+              }}
+            >
+              {classificationResult.verdict}
+            </span>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              Fraud Score:{" "}
+              <strong style={{ color: "var(--foreground)" }}>
+                {classificationResult.fraud_score}
+              </strong>
+            </span>
+            {classificationResult.message_truncated ? (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "var(--badge-flag-bg, #fef3c7)",
+                  color: "var(--badge-flag-color, #78350f)",
+                  border: "1px solid var(--badge-flag-border, #b45309)",
+                }}
+              >
+                TRUNCATED AFTER REDACTION
+              </span>
+            ) : null}
+          </div>
+
+          <span
+            title="Internal _process_single_message() processing time (excludes caller-observed HTTP framing, FastAPI/Pydantic I/O, and network RTT)"
+            style={{
+              fontSize: 13,
+              fontFamily: "monospace",
+              color: "var(--telecom-good, #14532d)",
+              fontWeight: 700,
+            }}
+          >
+            <span className="page-icon">⏱ </span>
+            {classificationResult.latency_ms} ms internal
+          </span>
+        </div>
+
+        {signals.length > 0 ? (
+          <div style={{ marginBottom: 10 }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--muted)",
+                display: "block",
+                marginBottom: 4,
+                fontWeight: 700,
+              }}
+            >
+              TRIGGERED SIGNALS:
+            </span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {signals.map((sig) => (
+                <span
+                  key={sig}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    background: sig.startsWith("RULE:")
+                      ? "var(--badge-block-bg, #fee2e2)"
+                      : "var(--accent-soft, #dbeafe)",
+                    color: sig.startsWith("RULE:")
+                      ? "var(--badge-block-color, #991b1b)"
+                      : "var(--accent, #1e3a8a)",
+                    border: sig.startsWith("RULE:")
+                      ? "1px solid var(--badge-block-border, #b91c1c)"
+                      : "1px solid var(--panel-border, #93c5fd)",
+                  }}
+                >
+                  {sig}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {classificationResult.velocity ? (
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--muted)",
+              paddingTop: 8,
+              borderTop: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <span>Velocity: </span>
+            <strong style={{ color: "var(--foreground)" }}>
+              {classificationResult.velocity.velocity_10s} msgs/10s
+            </strong>{" "}
+            · <span>{classificationResult.velocity.velocity_60s} msgs/60s</span> ·{" "}
+            <span>Carrier: {classificationResult.carrier}</span>
+          </div>
+        ) : null}
+
+        {shouldShowEscalation ? (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "16px 18px",
+              borderRadius: "var(--card-radius, 8px)",
+              background:
+                "linear-gradient(135deg, rgba(201, 243, 106, 0.08) 0%, rgba(37, 99, 235, 0.08) 100%)",
+              border: "1px solid var(--accent, rgba(201, 243, 106, 0.35))",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div>
+              <strong style={{ fontSize: 13, color: "var(--foreground)", display: "block" }}>
+                ⚡ Two-Tier Anomaly Escalation
+              </strong>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                Synchronous inline ingress (architectural &lt;15ms HTTP target not established;
+                reported timer measures internal processing and AI-18 heuristics) flagged this
+                anomaly ({classificationResult.verdict}). Escalate to Stage 2 for autonomous
+                multi-agent dispute investigation.
+              </span>
+            </div>
+
+            {escalatedDispute ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <Link
+                  href={escalatedDispute.url}
+                  prefetch={true}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    minHeight: 44,
+                    padding: "12px 20px",
+                    borderRadius: "var(--card-radius, 6px)",
+                    background: "var(--accent, #1e3a8a)",
+                    color: "var(--accent-ink, #ffffff)",
+                    textDecoration: "none",
+                    boxShadow: "0 0 16px rgba(30, 58, 138, 0.35)",
+                  }}
+                  className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                >
+                  <span>
+                    → Investigate in SentinelFlow{" "}
+                    {escalatedDispute.case_code ? `(${escalatedDispute.case_code})` : ""}
+                  </span>
+                </Link>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                  Dispute record created. Ready for LangGraph investigation.
+                </span>
+              </div>
+            ) : (
+              <div>
+                <button
+                  type="button"
+                  disabled={isEscalating}
+                  aria-label={
+                    !hasSession
+                      ? "Escalate to SentinelFlow (Sign In): authenticate to investigate flagged anomaly"
+                      : "Escalate to SentinelFlow: investigate flagged anomaly"
+                  }
+                  onClick={() => {
+                    void onEscalateResult();
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    minHeight: 44,
+                    padding: "12px 20px",
+                    borderRadius: "var(--card-radius, 6px)",
+                    background: "var(--accent-soft, #dbeafe)",
+                    color: "var(--accent, #1e3a8a)",
+                    border: "2px solid var(--accent, #1e40af)",
+                    cursor: isEscalating ? "wait" : "pointer",
+                    fontWeight: 700,
+                    transition: "all 0.15s ease",
+                  }}
+                  className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                >
+                  {isEscalating ? (
+                    "Escalating to SentinelFlow..."
+                  ) : (
+                    <>
+                      <span>⚡</span>
+                      <span>Escalate to SentinelFlow {!hasSession ? "(Sign In)" : ""}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+);
+
+ClassificationResultCard.displayName = "ClassificationResultCard";
+
 export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }: Props) => {
   const formId = useId();
   const { hasSession } = useSentinelPulse();
@@ -434,233 +692,13 @@ export const TelecomClassifySandbox = memo(({ presets, onClassificationSuccess }
 
       {/* Test Decision Output */}
       {classificationResult ? (
-        <div
-          style={{
-            marginTop: 20,
-            padding: "18px 20px",
-            borderRadius: "var(--card-radius, 8px)",
-            background: "var(--panel, #ffffff)",
-            border: "1px solid var(--panel-border)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: 800,
-                  background: getVerdictBadgeStyle(classificationResult.verdict).bg,
-                  color: getVerdictBadgeStyle(classificationResult.verdict).color,
-                  border: getVerdictBadgeStyle(classificationResult.verdict).border,
-                }}
-              >
-                {classificationResult.verdict}
-              </span>
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>
-                Fraud Score:{" "}
-                <strong style={{ color: "var(--foreground)" }}>
-                  {classificationResult.fraud_score}
-                </strong>
-              </span>
-              {classificationResult.message_truncated ? (
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background: "var(--badge-flag-bg, #fef3c7)",
-                    color: "var(--badge-flag-color, #78350f)",
-                    border: "1px solid var(--badge-flag-border, #b45309)",
-                  }}
-                >
-                  TRUNCATED AFTER REDACTION
-                </span>
-              ) : null}
-            </div>
-
-            <span
-              title="Internal _process_single_message() processing time (excludes caller-observed HTTP framing, FastAPI/Pydantic I/O, and network RTT)"
-              style={{
-                fontSize: 13,
-                fontFamily: "monospace",
-                color: "var(--telecom-good, #14532d)",
-                fontWeight: 700,
-              }}
-            >
-              <span className="page-icon">⏱ </span>
-              {classificationResult.latency_ms} ms internal
-            </span>
-          </div>
-
-          {classificationResult.signals && classificationResult.signals.length > 0 ? (
-            <div style={{ marginBottom: 10 }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "var(--muted)",
-                  display: "block",
-                  marginBottom: 4,
-                  fontWeight: 700,
-                }}
-              >
-                TRIGGERED SIGNALS:
-              </span>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {classificationResult.signals.map((sig) => (
-                  <span
-                    key={sig}
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      background: sig.startsWith("RULE:")
-                        ? "var(--badge-block-bg, #fee2e2)"
-                        : "var(--accent-soft, #dbeafe)",
-                      color: sig.startsWith("RULE:")
-                        ? "var(--badge-block-color, #991b1b)"
-                        : "var(--accent, #1e3a8a)",
-                      border: sig.startsWith("RULE:")
-                        ? "1px solid var(--badge-block-border, #b91c1c)"
-                        : "1px solid var(--panel-border, #93c5fd)",
-                    }}
-                  >
-                    {sig}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {classificationResult.velocity ? (
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--muted)",
-                paddingTop: 8,
-                borderTop: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <span>Velocity: </span>
-              <strong style={{ color: "var(--foreground)" }}>
-                {classificationResult.velocity.velocity_10s} msgs/10s
-              </strong>{" "}
-              · <span>{classificationResult.velocity.velocity_60s} msgs/60s</span> ·{" "}
-              <span>Carrier: {classificationResult.carrier}</span>
-            </div>
-          ) : null}
-
-          {/* Two-Tier Escalation Action */}
-          {classificationResult.verdict === "FLAG" || classificationResult.verdict === "BLOCK" ? (
-            <div
-              style={{
-                marginTop: 14,
-                padding: "16px 18px",
-                borderRadius: "var(--card-radius, 8px)",
-                background:
-                  "linear-gradient(135deg, rgba(201, 243, 106, 0.08) 0%, rgba(37, 99, 235, 0.08) 100%)",
-                border: "1px solid var(--accent, rgba(201, 243, 106, 0.35))",
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              <div>
-                <strong style={{ fontSize: 13, color: "var(--foreground)", display: "block" }}>
-                  ⚡ Two-Tier Anomaly Escalation
-                </strong>
-                <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                  Synchronous inline ingress (architectural &lt;15ms HTTP target not established;
-                  reported timer measures internal processing and AI-18 heuristics) flagged this
-                  anomaly ({classificationResult.verdict}). Escalate to Stage 2 for autonomous
-                  multi-agent dispute investigation.
-                </span>
-              </div>
-
-              {escalatedDispute ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <Link
-                    href={escalatedDispute.url}
-                    prefetch={true}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      minHeight: 44,
-                      padding: "12px 20px",
-                      borderRadius: "var(--card-radius, 6px)",
-                      background: "var(--accent, #1e3a8a)",
-                      color: "var(--accent-ink, #ffffff)",
-                      textDecoration: "none",
-                      boxShadow: "0 0 16px rgba(30, 58, 138, 0.35)",
-                    }}
-                    className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-                  >
-                    <span>
-                      → Investigate in SentinelFlow{" "}
-                      {escalatedDispute.case_code ? `(${escalatedDispute.case_code})` : ""}
-                    </span>
-                  </Link>
-                  <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                    Dispute record created. Ready for LangGraph investigation.
-                  </span>
-                </div>
-              ) : (
-                <div>
-                  <button
-                    type="button"
-                    disabled={isEscalating}
-                    aria-label={
-                      !hasSession
-                        ? "Escalate to SentinelFlow (Sign In): authenticate to investigate flagged anomaly"
-                        : "Escalate to SentinelFlow: investigate flagged anomaly"
-                    }
-                    onClick={() => {
-                      void handleEscalateResult();
-                    }}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 13,
-                      minHeight: 44,
-                      padding: "12px 20px",
-                      borderRadius: "var(--card-radius, 6px)",
-                      background: "var(--accent-soft, #dbeafe)",
-                      color: "var(--accent, #1e3a8a)",
-                      border: "2px solid var(--accent, #1e40af)",
-                      cursor: isEscalating ? "wait" : "pointer",
-                      fontWeight: 700,
-                      transition: "all 0.15s ease",
-                    }}
-                    className="focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-                  >
-                    {isEscalating ? (
-                      "Escalating to SentinelFlow..."
-                    ) : (
-                      <>
-                        <span>⚡</span>
-                        <span>Escalate to SentinelFlow {!hasSession ? "(Sign In)" : ""}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
+        <ClassificationResultCard
+          classificationResult={classificationResult}
+          hasSession={hasSession}
+          isEscalating={isEscalating}
+          escalatedDispute={escalatedDispute}
+          onEscalateResult={handleEscalateResult}
+        />
       ) : null}
     </div>
   );

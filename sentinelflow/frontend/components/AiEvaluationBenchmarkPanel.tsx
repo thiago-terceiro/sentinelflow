@@ -247,7 +247,13 @@ export const AiEvaluationBenchmarkPanel = () => {
             opacity: isRunningLive ? 0.6 : 1,
           }}
         >
-          {isRunningLive ? "Running Benchmark..." : <><span className="page-icon">⚡ </span>Run Live Benchmark</>}
+          {isRunningLive ? (
+            "Running Benchmark..."
+          ) : (
+            <>
+              <span className="page-icon">⚡ </span>Run Live Benchmark
+            </>
+          )}
         </button>
       </div>
 

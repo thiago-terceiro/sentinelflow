@@ -186,7 +186,10 @@ export const SentinelPulseProvider = ({
         };
         if (payload.metrics) {
           setMetrics(payload.metrics);
-          if (Array.isArray(payload.metrics.recent_feed) && payload.metrics.recent_feed.length > 0) {
+          if (
+            Array.isArray(payload.metrics.recent_feed) &&
+            payload.metrics.recent_feed.length > 0
+          ) {
             hasHydratedFeedRef.current = true;
             setLiveFeed(payload.metrics.recent_feed);
           }

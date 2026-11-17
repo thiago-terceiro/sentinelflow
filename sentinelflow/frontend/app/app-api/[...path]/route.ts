@@ -71,8 +71,7 @@ const proxy = async (request: NextRequest, parts: string[]): Promise<Response> =
     );
   }
 
-  const isPublicRoute =
-    parts[0] === "telecom" || (parts[0] === "disputes" && parts[1] === "reset");
+  const isPublicRoute = parts[0] === "telecom" || (parts[0] === "disputes" && parts[1] === "reset");
   const token = resolveCallerToken(request);
   if (!token && !isPublicRoute) {
     return Response.json(

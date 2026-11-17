@@ -55,7 +55,11 @@ export const EvidencePanel = memo(
     const listContainerRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-      if (highlightedEvidenceId && cardRefs.current[highlightedEvidenceId] && listContainerRef.current) {
+      if (
+        highlightedEvidenceId &&
+        cardRefs.current[highlightedEvidenceId] &&
+        listContainerRef.current
+      ) {
         const container = listContainerRef.current;
         const card = cardRefs.current[highlightedEvidenceId];
         if (card) {
@@ -108,8 +112,12 @@ export const EvidencePanel = memo(
             textAlign: "left",
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, textAlign: "left" }}>Evidence Provenance</h2>
-          <span style={{ color: "var(--muted)", fontSize: 13, textAlign: "left" }}>{evidence.length} items</span>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, textAlign: "left" }}>
+            Evidence Provenance
+          </h2>
+          <span style={{ color: "var(--muted)", fontSize: 13, textAlign: "left" }}>
+            {evidence.length} items
+          </span>
           {highlightedEvidenceId ? (
             <span
               style={{
@@ -254,7 +262,9 @@ export const EvidencePanel = memo(
                     {Math.round(item.confidence * 100)}%
                   </span>
                 </div>
-                <p style={{ margin: "10px 0 8px", fontSize: 13, lineHeight: 1.5, textAlign: "left" }}>
+                <p
+                  style={{ margin: "10px 0 8px", fontSize: 13, lineHeight: 1.5, textAlign: "left" }}
+                >
                   {item.summary}
                 </p>
                 <div
@@ -271,7 +281,9 @@ export const EvidencePanel = memo(
                     textAlign: "left",
                   }}
                 >
-                  <span style={{ fontFamily: "monospace", overflowWrap: "anywhere", textAlign: "left" }}>
+                  <span
+                    style={{ fontFamily: "monospace", overflowWrap: "anywhere", textAlign: "left" }}
+                  >
                     Source: {formatProvenance(item.provenance)}
                   </span>
                   {item.collected_at ? (

@@ -138,6 +138,39 @@ jobs:
           " >> $GITHUB_STEP_SUMMARY
           fi
 
+  ml-vocabulary-portability:
+    name: ml-vocabulary-portability (${{ matrix.os }}, py${{ matrix.python-version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install target Python & sync locked backend dependencies
+        working-directory: sentinelflow/backend
+        run: |
+          uv python install ${{ matrix.python-version }}
+          uv sync --python ${{ matrix.python-version }} --locked --extra dev
+
+      - name: Report runner versions & deterministic vocabulary / ONNX digests
+        working-directory: sentinelflow/backend
+        run: |
+          uv run --no-sync python -c "import hashlib, json, platform, sys, numpy, scipy, sklearn, onnx, skl2onnx, onnxruntime; from pathlib import Path; from app.telecom.train_onnx_model import _create_tfidf_vectorizer, build_augmented_dataset, compute_vocabulary_manifest; texts, _, _ = build_augmented_dataset(); vec = _create_tfidf_vectorizer(); vec.fit(texts); manifest = compute_vocabulary_manifest(vec); onnx_sha = hashlib.sha256(Path('app/telecom/models/sms_fraud_model.onnx').read_bytes()).hexdigest(); print(json.dumps({'os': platform.system(), 'platform': platform.platform(), 'python': sys.version.split()[0], 'numpy': numpy.__version__, 'scipy': scipy.__version__, 'scikit_learn': sklearn.__version__, 'onnx': onnx.__version__, 'skl2onnx': skl2onnx.__version__, 'onnxruntime': onnxruntime.__version__, 'vocabulary_sha256': manifest['vocabulary_sha256'], 'ordered_terms_sha256': manifest['ordered_terms_sha256'], 'disk_onnx_sha256': onnx_sha}, sort_keys=True))"
+
+      - name: Verify cross-platform deterministic TF-IDF vocabulary & ONNX reproducibility
+        working-directory: sentinelflow/backend
+        run: uv run --no-sync pytest app/tests/test_telecom_eval_suite.py -k "test_sf018_ or test_dataset_semantic_family_isolation_and_fold_balance or test_onnx_export_reproducibility_and_runtime_sha256_validation" -v
+
   frontend-validate:
     name: frontend-validate
     runs-on: ubuntu-latest
@@ -219,6 +252,10 @@ jobs:
       - name: Install dependencies
         working-directory: sentinelflow/frontend
         run: pnpm install
+
+      - name: Build frontend production bundle
+        working-directory: sentinelflow/frontend
+        run: pnpm build
 
       - name: Install Playwright Browsers
         working-directory: sentinelflow/frontend

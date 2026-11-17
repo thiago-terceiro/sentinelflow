@@ -14,56 +14,17 @@ type Props = {
   ) => Promise<void> | void;
 };
 
-export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDecision }: Props) => {
-  const [comment, setComment] = useState("Risk threshold crossed; reviewer confirmation required.");
-  const [guidance, setGuidance] = useState("");
-  const [isSteeringOpen, setIsSteeringOpen] = useState(false);
-
-  if (!requiresApproval) {
-    return (
-      <section className="shell-card" style={{ padding: 24 }}>
-        <p
-          style={{
-            margin: 0,
-            color: "var(--muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            fontSize: 11,
-          }}
-        >
-          Human-in-the-loop review
-        </p>
-        <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>Human Approval & Steering</h2>
-        <p style={{ color: "var(--muted)", margin: 0 }}>No review action is currently required.</p>
-      </section>
+export const ApprovalPanel = memo(
+  ({ requiresApproval, isSubmitting, error, onDecision }: Props) => {
+    const [comment, setComment] = useState(
+      "Risk threshold crossed; reviewer confirmation required."
     );
-  }
+    const [guidance, setGuidance] = useState("");
+    const [isSteeringOpen, setIsSteeringOpen] = useState(false);
 
-  const handleApprove = () => {
-    void onDecision("approve", comment);
-  };
-
-  const handleDeny = () => {
-    void onDecision("deny", comment);
-  };
-
-  const handleRequestRevision = () => {
-    const steeringGuidance = guidance.trim() || comment;
-    void onDecision("request_revision", comment, steeringGuidance);
-  };
-
-  return (
-    <section className="shell-card" style={{ padding: 24 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 10,
-        }}
-      >
-        <div>
+    if (!requiresApproval) {
+      return (
+        <section className="shell-card" style={{ padding: 24 }}>
           <p
             style={{
               margin: 0,
@@ -75,172 +36,157 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDe
           >
             Human-in-the-loop review
           </p>
-          <h2 style={{ margin: "8px 0 4px", fontSize: 18, fontWeight: 600 }}>
-            Human Approval & Steering (LangGraph Interrupt)
+          <h2 style={{ margin: "8px 0 14px", fontSize: 18, fontWeight: 600 }}>
+            Human Approval & Steering
           </h2>
-          <p style={{ color: "var(--muted)", margin: "4px 0 16px 0" }}>
-            The graph interrupted execution at the <code>approval</code> checkpoint. Reviewers can
-            approve, deny, or steer the agent to re-investigate.
+          <p style={{ color: "var(--muted)", margin: 0 }}>
+            No review action is currently required.
           </p>
-        </div>
-        <span
-          style={{
-            padding: "4px 10px",
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 700,
-            background: "var(--badge-flag-bg, #fef3c7)",
-            color: "var(--badge-flag-color, #78350f)",
-            border: "1px solid var(--badge-flag-border, #b45309)",
-          }}
-        >
-          Awaiting Human Action
-        </span>
-      </div>
+        </section>
+      );
+    }
 
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
-          Reviewer Assessment / Rationale
-        </label>
-        <textarea
-          value={comment}
-          onChange={(event) => setComment(event.target.value)}
-          rows={3}
-          style={{
-            width: "100%",
-            borderRadius: 10,
-            border: "1px solid var(--panel-border)",
-            padding: 12,
-            background: "rgba(0,0,0,0.1)",
-            color: "inherit",
-          }}
-        />
-      </div>
+    const handleApprove = () => {
+      void onDecision("approve", comment);
+    };
 
-      {isSteeringOpen ? (
+    const handleDeny = () => {
+      void onDecision("deny", comment);
+    };
+
+    const handleRequestRevision = () => {
+      const steeringGuidance = guidance.trim() || comment;
+      void onDecision("request_revision", comment, steeringGuidance);
+    };
+
+    return (
+      <section className="shell-card" style={{ padding: 24 }}>
         <div
           style={{
-            marginBottom: 16,
-            padding: 16,
-            borderRadius: 12,
-            background: "rgba(99,102,241,0.08)",
-            border: "1px solid rgba(99,102,241,0.25)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 10,
           }}
         >
-          <label
+          <div>
+            <p
+              style={{
+                margin: 0,
+                color: "var(--muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                fontSize: 11,
+              }}
+            >
+              Human-in-the-loop review
+            </p>
+            <h2 style={{ margin: "8px 0 4px", fontSize: 18, fontWeight: 600 }}>
+              Human Approval & Steering (LangGraph Interrupt)
+            </h2>
+            <p style={{ color: "var(--muted)", margin: "4px 0 16px 0" }}>
+              The graph interrupted execution at the <code>approval</code> checkpoint. Reviewers can
+              approve, deny, or steer the agent to re-investigate.
+            </p>
+          </div>
+          <span
             style={{
-              display: "block",
-              marginBottom: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--accent)",
+              padding: "4px 10px",
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 700,
+              background: "var(--badge-flag-bg, #fef3c7)",
+              color: "var(--badge-flag-color, #78350f)",
+              border: "1px solid var(--badge-flag-border, #b45309)",
             }}
           >
-            🎯 Agent Re-Investigation Steering Guidance
+            Awaiting Human Action
+          </span>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
+            Reviewer Assessment / Rationale
           </label>
-          <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
-            Instruct the investigator agent on which hypotheses to challenge, what specific tools to
-            invoke, or which evidence contradictions to resolve.
-          </p>
           <textarea
-            value={guidance}
-            onChange={(event) => setGuidance(event.target.value)}
-            placeholder="e.g. Cross-examine the device geolocation with transaction IP velocity and re-evaluate the customer stability hypothesis..."
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
             rows={3}
             style={{
               width: "100%",
               borderRadius: 10,
-              border: "1px solid rgba(99,102,241,0.3)",
+              border: "1px solid var(--panel-border)",
               padding: 12,
-              background: "rgba(0,0,0,0.2)",
+              background: "rgba(0,0,0,0.1)",
               color: "inherit",
             }}
           />
         </div>
-      ) : null}
 
-      {error ? (
-        <div
-          role="alert"
-          style={{
-            marginBottom: 16,
-            padding: "10px 14px",
-            borderRadius: 10,
-            background: "rgba(239, 68, 68, 0.12)",
-            border: "1px solid rgba(239, 68, 68, 0.35)",
-            color: "var(--danger)",
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          {error}
-        </div>
-      ) : null}
-
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <button
-          onClick={handleApprove}
-          disabled={isSubmitting}
-          style={{
-            border: 0,
-            borderRadius: 999,
-            padding: "10px 20px",
-            minHeight: 44,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#14532d",
-            color: "#ffffff",
-            fontWeight: 700,
-            cursor: isSubmitting ? "not-allowed" : "pointer",
-          }}
-        >
-          {isSubmitting ? "Submitting..." : "✓ Approve Recommendation"}
-        </button>
-
-        <button
-          onClick={handleDeny}
-          disabled={isSubmitting}
-          style={{
-            border: 0,
-            borderRadius: 999,
-            padding: "10px 20px",
-            minHeight: 44,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#991b1b",
-            color: "#ffffff",
-            fontWeight: 700,
-            cursor: isSubmitting ? "not-allowed" : "pointer",
-          }}
-        >
-          {isSubmitting ? "Submitting..." : "✗ Deny Dispute"}
-        </button>
-
-        {!isSteeringOpen ? (
-          <button
-            onClick={() => setIsSteeringOpen(true)}
-            disabled={isSubmitting}
+        {isSteeringOpen ? (
+          <div
             style={{
-              border: "1px solid var(--panel-border)",
-              borderRadius: 999,
-              padding: "10px 20px",
-              minHeight: 44,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "var(--accent-soft)",
-              color: "var(--accent)",
-              fontWeight: 700,
-              cursor: "pointer",
+              marginBottom: 16,
+              padding: 16,
+              borderRadius: 12,
+              background: "rgba(99,102,241,0.08)",
+              border: "1px solid rgba(99,102,241,0.25)",
             }}
           >
-            ⟲ Request Revision (Steer Agent)
-          </button>
-        ) : (
+            <label
+              style={{
+                display: "block",
+                marginBottom: 6,
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--accent)",
+              }}
+            >
+              🎯 Agent Re-Investigation Steering Guidance
+            </label>
+            <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+              Instruct the investigator agent on which hypotheses to challenge, what specific tools
+              to invoke, or which evidence contradictions to resolve.
+            </p>
+            <textarea
+              value={guidance}
+              onChange={(event) => setGuidance(event.target.value)}
+              placeholder="e.g. Cross-examine the device geolocation with transaction IP velocity and re-evaluate the customer stability hypothesis..."
+              rows={3}
+              style={{
+                width: "100%",
+                borderRadius: 10,
+                border: "1px solid rgba(99,102,241,0.3)",
+                padding: 12,
+                background: "rgba(0,0,0,0.2)",
+                color: "inherit",
+              }}
+            />
+          </div>
+        ) : null}
+
+        {error ? (
+          <div
+            role="alert"
+            style={{
+              marginBottom: 16,
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: "rgba(239, 68, 68, 0.12)",
+              border: "1px solid rgba(239, 68, 68, 0.35)",
+              color: "var(--danger)",
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            {error}
+          </div>
+        ) : null}
+
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <button
-            onClick={handleRequestRevision}
+            onClick={handleApprove}
             disabled={isSubmitting}
             style={{
               border: 0,
@@ -250,18 +196,80 @@ export const ApprovalPanel = memo(({ requiresApproval, isSubmitting, error, onDe
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "#1e3a8a",
+              background: "#14532d",
               color: "#ffffff",
               fontWeight: 700,
               cursor: isSubmitting ? "not-allowed" : "pointer",
             }}
           >
-            {isSubmitting ? "Submitting..." : "⟲ Send Steering & Resume Loop"}
+            {isSubmitting ? "Submitting..." : "✓ Approve Recommendation"}
           </button>
-        )}
-      </div>
-    </section>
-  );
-});
+
+          <button
+            onClick={handleDeny}
+            disabled={isSubmitting}
+            style={{
+              border: 0,
+              borderRadius: 999,
+              padding: "10px 20px",
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#991b1b",
+              color: "#ffffff",
+              fontWeight: 700,
+              cursor: isSubmitting ? "not-allowed" : "pointer",
+            }}
+          >
+            {isSubmitting ? "Submitting..." : "✗ Deny Dispute"}
+          </button>
+
+          {!isSteeringOpen ? (
+            <button
+              onClick={() => setIsSteeringOpen(true)}
+              disabled={isSubmitting}
+              style={{
+                border: "1px solid var(--panel-border)",
+                borderRadius: 999,
+                padding: "10px 20px",
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "var(--accent-soft)",
+                color: "var(--accent)",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              ⟲ Request Revision (Steer Agent)
+            </button>
+          ) : (
+            <button
+              onClick={handleRequestRevision}
+              disabled={isSubmitting}
+              style={{
+                border: 0,
+                borderRadius: 999,
+                padding: "10px 20px",
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#1e3a8a",
+                color: "#ffffff",
+                fontWeight: 700,
+                cursor: isSubmitting ? "not-allowed" : "pointer",
+              }}
+            >
+              {isSubmitting ? "Submitting..." : "⟲ Send Steering & Resume Loop"}
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+);
 
 ApprovalPanel.displayName = "ApprovalPanel";

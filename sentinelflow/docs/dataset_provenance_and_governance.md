@@ -15,12 +15,12 @@ Verified on disk prior to `SF-010` execution (`sentinelflow/backend/app/telecom/
 
 | Artifact | Verified File / Corpus SHA-256 | Role & Frozen Invariant |
 |---|---|---|
-| `models/sms_fraud_model.onnx` | `d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9` | Frozen ONNX inference binary (`199,525` bytes) |
+| `models/sms_fraud_model.onnx` | `824c6c2c254791205184efadd8f0b2dc43f22e7222b411e75c2b99c340a9604b` | Deterministic ONNX inference binary (`198,496` bytes; regenerated in `SF-018`) |
 | Training Corpus (`build_augmented_dataset`, `N = 703`) | `5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699` | Frozen `Class A` corpus (`543` legit, `160` fraud, `56` families) |
 | Development & Validation Benchmark (`N = 400`) | `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03` | Frozen `Class B` Dev/Val suite (`200` benign, `200` fraud) |
 
 Machine-readable governance files live under `sentinelflow/backend/app/telecom/datasets/` (committed with canonical **LF** line endings enforced by `.gitattributes`):
-- `external_source_assessment.json` — Complete suitability ledger across all 8 audited sources (`canonical LF sha256 = 72fa9ff4a519b75204272ba05d3138f6d0a3b8379b1d0fec493a8d72578f6eb9`), explicitly separating programmatically computed evidence from qualitative manual candidate adjudications
+- `external_source_assessment.json` — Complete suitability ledger across all 8 audited sources (`canonical LF sha256 = f42d962c8f420a18cc996586d0b2c0cb5af94828ba12496097ec1b9a2cd97081`), explicitly separating programmatically computed evidence from qualitative manual candidate adjudications
 - `uci_sms_spam_secondary.json` — Isolated `UCI SMS Spam Collection v.1` secondary benchmark:
   - Canonical LF Git/Disk file SHA-256: `169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7`
   - Timestamp-independent `canonical_content_sha256`: `793d53864389c7ef0b534c943a8baade86bf3c1d61a4f4ea7b2672fa63ce6249`
@@ -118,7 +118,7 @@ Message-level Wilson CIs strictly assume independent, identically distributed Be
    - No heuristic regex edits, weight shifts, Platt parameter tuning, or threshold shifts (`0.40` / `0.75`).
    - Any post-holdout fix invalidates that holdout permanently and requires procuring a newly sealed, disjoint holdout before re-claiming unseen-holdout generalization.
 3. **What Unblocks `SF-011`:** Acquiring either (a) de-identified, CDR-verified two-class carrier telemetry (`Class D` raw/minimal-redacted legitimate transactional SMS + confirmed smishing under compatible non-confounding formatting), or (b) a vetted open-licensed verbatim English two-class corpus containing verified fraud/smishing and matched benign transactional controls passing all five gates in `external_source_assessment.json`. Until then, **`SF-011` remains `BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT`**.
-4. **`SF-011` Acquisition & Class C Qualification Audit Ledger:** See [`sf011_class_c_acquisition_and_qualification.md`](./sf011_class_c_acquisition_and_qualification.md) and [`sf011_acquisition_routes.json`](../sentinelflow/backend/app/telecom/datasets/sf011_acquisition_routes.json) (`canonical LF sha256 = 8150a2125b66c99cb10d3199a0026fae711a202dd5511a4d5572d63d466caebc`), documenting 12 additional investigated routes, the 7-gate qualification evaluator, and statistical Wilson CI / operational PPV minimums confirming `UNAVAILABLE_BLOCKED`.
+4. **`SF-011` Acquisition & Class C Qualification Audit Ledger:** See [`sf011_class_c_acquisition_and_qualification.md`](./sf011_class_c_acquisition_and_qualification.md) and [`sf011_acquisition_routes.json`](../sentinelflow/backend/app/telecom/datasets/sf011_acquisition_routes.json) (`canonical LF sha256 = 3dfecd48945fac61201146c38a1cace369e9e190091f1f6f9c13b937f394cb09`), documenting 12 additional investigated routes, the 7-gate qualification evaluator, and statistical Wilson CI / operational PPV minimums confirming `UNAVAILABLE_BLOCKED`.
 
 ---
 

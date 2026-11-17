@@ -23,7 +23,9 @@ const isServerReachable = async (url) => {
     const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
     if (!res.ok && res.status >= 500) return false;
     const html = await res.text();
-    return html.includes("/_next/") && (html.includes("SentinelFlow") || html.includes("SentinelPulse"));
+    return (
+      html.includes("/_next/") && (html.includes("SentinelFlow") || html.includes("SentinelPulse"))
+    );
   } catch {
     return false;
   }
@@ -34,7 +36,10 @@ const main = async () => {
   console.log("🛡️  SENTINELFLOW PRE-PUSH VERIFICATION GATE");
   console.log("======================================================");
 
-  runStep("Checking Backend Lockfile Consistency (uv lock --check)", "uv lock --check --directory ../backend");
+  runStep(
+    "Checking Backend Lockfile Consistency (uv lock --check)",
+    "uv lock --check --directory ../backend"
+  );
   runStep("Checking Code Style & Architecture Rules", "node scripts/check-rules.js");
   runStep("Running Strict TypeScript Compiler Check", "npx tsc --noEmit");
   runStep("Running Unit & State Derivation Tests", "npm test");
@@ -47,10 +52,7 @@ const main = async () => {
       "Running Multi-Viewport (Desktop + Mobile) & Multi-Theme (Light + Dark) Visual, Layout & WCAG AAA Auditor",
       "node scripts/test-a11y-aaa.mjs"
     );
-    runStep(
-      "Running Playwright E2E & Visual Regression Suite",
-      "npx playwright test"
-    );
+    runStep("Running Playwright E2E & Visual Regression Suite", "npx playwright test");
   } else {
     console.warn(
       `\n⚠️  [Pre-Push Gate] Local dev server at ${baseUrl} is not currently running; skipping live browser audit in hook (CI will enforce full browser suite).`

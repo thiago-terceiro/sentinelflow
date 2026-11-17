@@ -234,21 +234,20 @@ def test_onnx_export_reproducibility_and_runtime_sha256_validation(tmp_path: Pat
     model_path = backend_dir / "app" / "telecom" / "models" / "sms_fraud_model.onnx"
     metadata_path = backend_dir / "app" / "telecom" / "models" / "sms_fraud_metadata.json"
 
-    # 1. Verify clean-process export reproducibility across independent subprocesses
+    # 1. Verify clean-process export reproducibility across independent subprocesses & hash seeds
     export_snippet = (
         "import hashlib; "
         "from app.telecom.train_onnx_model import ("
-        "build_augmented_dataset, build_production_calibration_splits, patch_skl2onnx_tfidf_bugs"
+        "_create_tfidf_vectorizer, build_augmented_dataset, build_production_calibration_splits, patch_skl2onnx_tfidf_bugs"
         "); "
         "from skl2onnx import to_onnx; "
         "from skl2onnx.common.data_types import StringTensorType; "
         "from sklearn.calibration import CalibratedClassifierCV; "
-        "from sklearn.feature_extraction.text import TfidfVectorizer; "
         "from sklearn.linear_model import LogisticRegression; "
         "from sklearn.pipeline import Pipeline; "
         "texts, labels, groups = build_augmented_dataset(); "
         "splits = build_production_calibration_splits(texts, labels, groups, n_splits=5); "
-        "pipe = Pipeline([('tfidf', TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, max_features=2500, min_df=1, token_pattern=r'\\b[a-zA-Z0-9_]+\\b')), "
+        "pipe = Pipeline([('tfidf', _create_tfidf_vectorizer()), "
         "('clf', CalibratedClassifierCV(estimator=LogisticRegression(C=1.5, max_iter=1000, class_weight='balanced', random_state=42), method='sigmoid', cv=splits, ensemble='auto'))]); "
         "pipe.fit(texts, labels); "
         "m = patch_skl2onnx_tfidf_bugs(to_onnx(pipe, initial_types=[('text', StringTensorType([None, 1]))], target_opset=14), pipe.named_steps['tfidf']); "
@@ -256,7 +255,7 @@ def test_onnx_export_reproducibility_and_runtime_sha256_validation(tmp_path: Pat
     )
 
     procs: list[subprocess.Popen[str]] = []
-    for seed in ("0", "0"):
+    for seed in ("0", "99"):
         env = os.environ.copy()
         env["PYTHONHASHSEED"] = seed
         procs.append(
@@ -780,6 +779,8 @@ def test_dataset_semantic_family_isolation_and_fold_balance() -> None:
     audit = live_inv["cross_split_leakage_audit"]
     assert audit["dev_val_normalized_sha256_overlap"] == 0
     assert audit["intra_corpus_normalized_sha256_duplicates"] == 0
+    assert int(audit["structural_template_hash_collisions_across_families"]) == 0
+    assert float(audit["max_cross_family_centroid_cosine"]) <= 0.55
 
     # Committed dataset_inventory.json must exist and match the live training dataset
     canonical_paths = get_canonical_artifact_paths()
@@ -2016,7 +2017,7 @@ def test_sf012r_grouped_uncertainty_ppv_scenarios_cost_sensitivity_and_language_
         "not independent threshold validation" in sys_text.lower()
         or "not independent threshold selection validation" in sys_text.lower()
     )
-    assert "28.92%" in report_text
+    assert f"{desc_85_ppv_005 * 100.0:.2f}%" in report_text
     assert "unvalidated exploratory/provisional candidate" in report_text.lower()
     assert "unvalidated provisional candidate" in sys_text.lower()
 
@@ -2524,7 +2525,329 @@ def test_sf017_offline_evaluation_rejects_invalid_onnx_outputs() -> None:
             y_prob=[float("nan"), 0.8],
             texts=["Appointment confirmed", "IRS tax arrest warrant now"],
             samples=[
-                {"category_id": "benign", "category_name": "Benign", "label": 0, "text": "Appointment confirmed"},
-                {"category_id": "fraud", "category_name": "Fraud", "label": 1, "text": "IRS tax arrest warrant now"},
+                {
+                    "category_id": "benign",
+                    "category_name": "Benign",
+                    "label": 0,
+                    "text": "Appointment confirmed",
+                },
+                {
+                    "category_id": "fraud",
+                    "category_name": "Fraud",
+                    "label": 1,
+                    "text": "IRS tax arrest warrant now",
+                },
             ],
         )
+
+
+def test_sf018_deterministic_tfidf_cutoff_tie_breaking_and_no_df_secondary_key() -> None:
+    """SF-018: Cutoff ties resolve deterministically by (-total_tf, utf8_bytewise) without df."""
+    from app.telecom.train_onnx_model import DeterministicTfidfVectorizer
+
+    # Docs construct a deliberate cutoff tie among tf=1 tokens AND a tf=2 tie where df differs:
+    # 'always' (tf=3, df=3) > ('zest' tf=2 df=2 vs 'amber' tf=2 df=1) > 10 tied tf=1 tokens.
+    docs = [
+        "always amber amber",
+        "always zest",
+        "always zest",
+        "tango hotel alpha",
+        "victor bravo echo",
+        "uniform charlie delta",
+    ]
+    # Note: reversing document order must yield the exact same selected vocabulary & index mapping.
+    vec_fwd = DeterministicTfidfVectorizer(
+        ngram_range=(1, 1),
+        sublinear_tf=True,
+        max_features=5,
+        min_df=1,
+        token_pattern=r"\b[a-zA-Z0-9_]+\b",
+    )
+    vec_rev = DeterministicTfidfVectorizer(
+        ngram_range=(1, 1),
+        sublinear_tf=True,
+        max_features=5,
+        min_df=1,
+        token_pattern=r"\b[a-zA-Z0-9_]+\b",
+    )
+    x_fwd = vec_fwd.fit_transform(docs)
+    vec_rev.fit(list(reversed(docs)))
+
+    # Top 3 tf>1: 'always' (tf=3), 'amber' (tf=2, df=1), 'zest' (tf=2, df=2).
+    # Top 2 tied tf=1 lexicographically: 'alpha', 'bravo'.
+    expected_vocab = {"alpha": 0, "always": 1, "amber": 2, "bravo": 3, "zest": 4}
+    assert vec_fwd.vocabulary_ == expected_vocab
+    assert vec_rev.vocabulary_ == expected_vocab
+    assert x_fwd.shape == (len(docs), 5)
+
+    # Specifically confirm df is NOT a secondary tie-breaker: with max_features=2,
+    # 'amber' (tf=2, df=1) must beat 'zest' (tf=2, df=2) by UTF-8 bytewise term ordering.
+    vec_no_df = DeterministicTfidfVectorizer(
+        ngram_range=(1, 1),
+        max_features=2,
+        min_df=1,
+        token_pattern=r"\b[a-zA-Z0-9_]+\b",
+    )
+    vec_no_df.fit(docs)
+    assert vec_no_df.vocabulary_ == {"always": 0, "amber": 1}
+
+
+def test_sf018_sklearn_limit_features_contract_compatibility() -> None:
+    """SF-018: Guardrail fails loudly if upstream CountVectorizer._limit_features signature shifts."""
+    import inspect
+
+    import sklearn
+    from app.telecom.train_onnx_model import DeterministicTfidfVectorizer
+    from sklearn.feature_extraction.text import CountVectorizer
+
+    sig = inspect.signature(CountVectorizer._limit_features)
+    assert tuple(sig.parameters.keys()) == ("self", "X", "vocabulary", "high", "low", "limit"), (
+        f"Upstream _limit_features signature changed on sklearn {sklearn.__version__}: {sig}"
+    )
+    det_sig = inspect.signature(DeterministicTfidfVectorizer._limit_features)
+    assert tuple(det_sig.parameters.keys()) == ("self", "X", "vocabulary", "high", "low", "limit")
+
+
+def test_sf018_clean_process_hashseed_invariance_and_vocabulary_manifest() -> None:
+    """SF-018: Independent clean processes produce identical vocabulary digest & index map."""
+    import os
+    import subprocess
+    import sys
+
+    backend_dir = Path(__file__).resolve().parents[2]
+    snippet = (
+        "import json; "
+        "from app.telecom.train_onnx_model import ("
+        "_create_tfidf_vectorizer, build_augmented_dataset, compute_vocabulary_manifest"
+        "); "
+        "texts, _, _ = build_augmented_dataset(); "
+        "vec = _create_tfidf_vectorizer(); "
+        "x = vec.fit_transform(texts); "
+        "m = compute_vocabulary_manifest(vec); "
+        "m['nnz'] = int(x.nnz); "
+        "print(json.dumps(m, sort_keys=True))"
+    )
+
+    manifests: list[dict[str, Any]] = []
+    for seed in ("0", "42", "98765"):
+        env = os.environ.copy()
+        env["PYTHONHASHSEED"] = seed
+        proc = subprocess.run(  # noqa: S603
+            [sys.executable, "-c", snippet],
+            cwd=str(backend_dir),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        manifests.append(json.loads(proc.stdout.strip()))
+
+    assert manifests[0] == manifests[1] == manifests[2]
+
+    canonical = get_canonical_artifact_paths()
+    metadata = json.loads(canonical["metadata"].read_text(encoding="utf-8"))
+    metrics = json.loads(canonical["metrics"].read_text(encoding="utf-8"))
+    stored_prov = metadata["vocabulary_provenance"]
+    assert metrics["vocabulary_provenance"] == stored_prov
+    assert manifests[0]["vocabulary_sha256"] == stored_prov["vocabulary_sha256"]
+    assert manifests[0]["ordered_terms_sha256"] == stored_prov["ordered_terms_sha256"]
+    assert manifests[0]["vocabulary_size"] == 2500
+
+
+def test_sf018_zero_fold_and_audit_vocabulary_idf_leakage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SF-018: Proves validation-only canary tokens never enter outer, inner, or audit vocab/IDF."""
+    from app.telecom import train_onnx_model as tom
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.model_selection import StratifiedGroupKFold
+
+    texts, labels, groups = tom.build_augmented_dataset()
+    sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    outer_tr_idx, outer_va_idx = next(sgkf.split(texts, labels, groups=groups))
+
+    # 1. Inject outer-validation-only canary token repeated heavily in val fold
+    outer_canary = "canaryouteronlytokentf"
+    poisoned_texts = list(texts)
+    for i in outer_va_idx:
+        poisoned_texts[int(i)] = f"{poisoned_texts[int(i)]} {outer_canary} {outer_canary}"
+
+    x_tr = [poisoned_texts[int(i)] for i in outer_tr_idx]
+    y_tr = [labels[int(i)] for i in outer_tr_idx]
+    g_tr = [groups[int(i)] for i in outer_tr_idx]
+    inner_sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    inner_splits = [
+        (np.asarray(it, dtype=int), np.asarray(iv, dtype=int))
+        for it, iv in inner_sgkf.split(x_tr, y_tr, groups=g_tr)
+    ]
+
+    # 2. Inject inner-calibration-validation-only canary token strictly into fold 0 inner val split
+    inner_canary = "canaryinnercalonlytokentf"
+    inner0_tr, inner0_va = inner_splits[0]
+    x_tr_inner_poisoned = list(x_tr)
+    for idx in inner0_va:
+        x_tr_inner_poisoned[int(idx)] = (
+            f"{x_tr_inner_poisoned[int(idx)]} {inner_canary} {inner_canary}"
+        )
+
+    fold_model = CalibratedClassifierCV(
+        estimator=tom._create_text_lr_pipeline(),
+        method="sigmoid",
+        cv=inner_splits,
+        ensemble="auto",
+    )
+    fold_model.fit(x_tr_inner_poisoned, y_tr)
+
+    # Outer canary must not enter ANY inner calibrated estimator vocabulary or IDF
+    # Inner fold-0 canary must not enter fold-0 calibrated estimator's TF-IDF vocabulary or IDF
+    for split_idx, cal_clf in enumerate(fold_model.calibrated_classifiers_):
+        fitted_vec = cal_clf.estimator.named_steps["tfidf"]
+        assert outer_canary not in fitted_vec.vocabulary_
+        assert len(fitted_vec.idf_) == len(fitted_vec.vocabulary_)
+        if split_idx == 0:
+            assert inner_canary not in fitted_vec.vocabulary_
+
+    # 3. Leakage audit must fit TF-IDF strictly on train corpus, ignoring held-out canary tokens
+    audit_canary = "canarydevvalonlytokentf"
+    monkeypatch.setattr(
+        tom,
+        "get_held_out_evaluation_set",
+        lambda: ([f"{audit_canary} {audit_canary} legit message"], [0]),
+    )
+    captured_audit_vocabs: list[dict[str, int]] = []
+    orig_create = tom._create_tfidf_vectorizer
+
+    def _spy_vectorizer() -> tom.DeterministicTfidfVectorizer:
+        vec = orig_create()
+        orig_ft = vec.fit_transform
+
+        def _wrapped_ft(raw_documents: Any, y: Any = None) -> Any:
+            out = orig_ft(raw_documents, y)
+            captured_audit_vocabs.append(dict(vec.vocabulary_))
+            return out
+
+        vec.fit_transform = _wrapped_ft  # type: ignore[method-assign]
+        return vec
+
+    monkeypatch.setattr(tom, "_create_tfidf_vectorizer", _spy_vectorizer)
+    tom._compute_cross_split_leakage_audit(texts, labels, groups)
+    assert len(captured_audit_vocabs) == 1
+    assert audit_canary not in captured_audit_vocabs[0]
+
+
+def test_sf018_onnx_graph_pool_matches_deterministic_vocabulary() -> None:
+    """SF-018: Exported ONNX TfIdfVectorizer pool/indexes align with deterministic sklearn vocab."""
+    import onnx
+    from app.telecom.train_onnx_model import (
+        _create_tfidf_vectorizer,
+        build_augmented_dataset,
+        compute_vocabulary_manifest,
+    )
+
+    texts, _, _ = build_augmented_dataset()
+    vec = _create_tfidf_vectorizer()
+    vec.fit(texts)
+    manifest = compute_vocabulary_manifest(vec)
+
+    canonical = get_canonical_artifact_paths()
+    metadata = json.loads(canonical["metadata"].read_text(encoding="utf-8"))
+    assert metadata["vocabulary_provenance"] == manifest
+
+    model = onnx.load(str(canonical["model"]))
+    tfidf_nodes = [n for n in model.graph.node if n.op_type == "TfIdfVectorizer"]
+    assert len(tfidf_nodes) == 1
+    attrs = {a.name: a for a in tfidf_nodes[0].attribute}
+    pool_strings = [s.decode("utf-8") for s in attrs["pool_strings"].strings]
+    ngram_counts = list(attrs["ngram_counts"].ints)
+    ngram_indexes = list(attrs["ngram_indexes"].ints)
+
+    # Reconstruct 1-gram and 2-gram feature mappings directly from ONNX node attributes
+    assert len(ngram_counts) >= 2
+    uni_start = int(ngram_counts[0])
+    bi_start = int(ngram_counts[1])
+    uni_tokens = pool_strings[uni_start:bi_start]
+    bi_tokens = [
+        f"{pool_strings[i]} {pool_strings[i + 1]}" for i in range(bi_start, len(pool_strings), 2)
+    ]
+    onnx_vocab = {
+        tok: int(idx) for tok, idx in zip(uni_tokens + bi_tokens, ngram_indexes, strict=True)
+    }
+    assert onnx_vocab == {str(k): int(v) for k, v in vec.vocabulary_.items()}
+
+
+def test_sf018_nested_oof_inner_calibration_idf_isolation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SF-018: Proves _evaluate_grouping_variant_oof fits inner calibration TF-IDF/IDF without val leakage."""
+    from app.telecom import train_onnx_model as tom
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.model_selection import StratifiedGroupKFold
+
+    texts, labels, groups = tom.build_augmented_dataset()
+    shared_token = "account"
+    val_only_canary = "canaryoofinnerfoldtok"
+    real_cal_fit = CalibratedClassifierCV.fit
+
+    def _capture_oof_idf_snapshots(
+        corrupt_outer0_inner0: bool,
+    ) -> list[dict[str, Any]]:
+        snapshots: list[dict[str, Any]] = []
+
+        def _wrapped_fit(self: CalibratedClassifierCV, x_tr: Any, y_tr: Any, **kwargs: Any) -> Any:
+            if corrupt_outer0_inner0 and len(snapshots) == 0 and hasattr(self.cv, "__iter__"):
+                splits_list = list(self.cv)
+                _, inner0_val_idx = splits_list[0]
+                x_mod = list(x_tr)
+                for idx in inner0_val_idx:
+                    x_mod[int(idx)] = (
+                        f"{x_mod[int(idx)]} {val_only_canary} {shared_token} {shared_token}"
+                    )
+                self.cv = splits_list
+                res = real_cal_fit(self, x_mod, y_tr, **kwargs)
+            else:
+                res = real_cal_fit(self, x_tr, y_tr, **kwargs)
+
+            inner_records: list[dict[str, Any]] = []
+            for cal_est in self.calibrated_classifiers_:
+                vec = cal_est.estimator.named_steps["tfidf"]
+                idx = vec.vocabulary_.get(shared_token)
+                inner_records.append(
+                    {
+                        "vocab": dict(vec.vocabulary_),
+                        "shared_idf": float(vec.idf_[idx]) if idx is not None else None,
+                    }
+                )
+            snapshots.append({"inner": inner_records})
+            return res
+
+        monkeypatch.setattr(CalibratedClassifierCV, "fit", _wrapped_fit)
+        summary, _ = tom._evaluate_grouping_variant_oof(
+            texts,
+            labels,
+            groups,
+            groups,
+            n_splits=5,
+            n_bootstrap=10,
+        )
+        assert summary["max_outer_group_overlap"] == 0
+        assert summary["max_inner_group_overlap"] == 0
+        return snapshots
+
+    clean_snapshots = _capture_oof_idf_snapshots(corrupt_outer0_inner0=False)
+    corrupted_snapshots = _capture_oof_idf_snapshots(corrupt_outer0_inner0=True)
+
+    assert len(clean_snapshots) == 5
+    # Verify inner split 0 in outer fold 0 is bitwise invariant to inner0_val mutations
+    clean_in0 = clean_snapshots[0]["inner"][0]
+    corr_in0 = corrupted_snapshots[0]["inner"][0]
+    assert val_only_canary not in corr_in0["vocab"]
+    assert clean_in0["vocab"] == corr_in0["vocab"]
+    assert clean_in0["shared_idf"] is not None
+    assert clean_in0["shared_idf"] == pytest.approx(corr_in0["shared_idf"], abs=0.0)
+
+    # Sanity check: the outer split partition itself had non-empty inner0 validation rows containing shared_token
+    outer0_tr, _ = next(
+        StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42).split(
+            texts, labels, groups=groups
+        )
+    )
+    assert len(outer0_tr) == 562

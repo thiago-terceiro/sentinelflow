@@ -16,8 +16,7 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
       const actions = document.querySelector(".app-header-actions")!;
       return {
         headerHeight: header.getBoundingClientRect().height,
-        brandMidY:
-          (brand.getBoundingClientRect().top + brand.getBoundingClientRect().bottom) / 2,
+        brandMidY: (brand.getBoundingClientRect().top + brand.getBoundingClientRect().bottom) / 2,
         navMidY: (nav.getBoundingClientRect().top + nav.getBoundingClientRect().bottom) / 2,
         actionsMidY:
           (actions.getBoundingClientRect().top + actions.getBoundingClientRect().bottom) / 2,
@@ -42,8 +41,7 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
       return {
         brandBottom: brand.getBoundingClientRect().bottom,
         navTop: nav.getBoundingClientRect().top,
-        brandMidY:
-          (brand.getBoundingClientRect().top + brand.getBoundingClientRect().bottom) / 2,
+        brandMidY: (brand.getBoundingClientRect().top + brand.getBoundingClientRect().bottom) / 2,
         actionsMidY:
           (actions.getBoundingClientRect().top + actions.getBoundingClientRect().bottom) / 2,
         links,
@@ -66,9 +64,7 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
 
-    const toggleBtn = page.locator(
-      'button[aria-label="Appearance and accessibility preferences"]'
-    );
+    const toggleBtn = page.locator('button[aria-label="Appearance and accessibility preferences"]');
     await expect(toggleBtn).toBeVisible();
     await toggleBtn.click();
 
@@ -97,12 +93,19 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.context().addCookies([
       { name: "sentinelflow_access_token", value: "dev-reviewer", domain: "localhost", path: "/" },
-      { name: "sentinelflow_test_user", value: "reviewer:reviewer", domain: "localhost", path: "/" },
+      {
+        name: "sentinelflow_test_user",
+        value: "reviewer:reviewer",
+        domain: "localhost",
+        path: "/",
+      },
     ]);
 
     for (const route of ["/", "/disputes"]) {
       await page.goto(route);
-      await expect(page.locator('main .shell-card h1 [data-testid="hero-title-icon"]').first()).toBeVisible();
+      await expect(
+        page.locator('main .shell-card h1 [data-testid="hero-title-icon"]').first()
+      ).toBeVisible();
 
       const layout = await page.evaluate(() => {
         const heroCard = document.querySelector("main .shell-card")!;
@@ -169,7 +172,12 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     // 2. Authenticated Reviewer arriving from SentinelPulse (?from=pulse) sees "← To Disputes"
     await page.context().addCookies([
       { name: "sentinelflow_access_token", value: "dev-reviewer", domain: "localhost", path: "/" },
-      { name: "sentinelflow_test_user", value: "reviewer:reviewer", domain: "localhost", path: "/" },
+      {
+        name: "sentinelflow_test_user",
+        value: "reviewer:reviewer",
+        domain: "localhost",
+        path: "/",
+      },
     ]);
 
     await page.goto("/disputes/5683eeae-b598-40c7-8d0f-a222dd137065?from=pulse");
@@ -187,13 +195,47 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
   }) => {
     await page.context().addCookies([
       { name: "sentinelflow_access_token", value: "dev-reviewer", domain: "localhost", path: "/" },
-      { name: "sentinelflow_test_user", value: "reviewer:reviewer", domain: "localhost", path: "/" },
+      {
+        name: "sentinelflow_test_user",
+        value: "reviewer:reviewer",
+        domain: "localhost",
+        path: "/",
+      },
     ]);
+
+    const initialDisputes = [
+      {
+        id: "5683eeae-b598-40c7-8d0f-a222dd137065",
+        case_code: "SF-10001",
+        title: "Card-not-present velocity anomaly at CloudStore",
+        amount: 1450.0,
+        currency: "USD",
+        status: "open",
+        created_at: "2026-09-03T00:00:00Z",
+      },
+    ];
+    const refreshedDisputes = [
+      ...initialDisputes,
+      {
+        id: "640e103a-66fa-42ac-9356-f9efddae99e3",
+        case_code: "SF-10002",
+        title: "Unauthorized wire transfer after SIM swap",
+        amount: 2890.5,
+        currency: "USD",
+        status: "under_review",
+        created_at: "2026-09-04T00:00:00Z",
+      },
+    ];
 
     let disputesApiFetchCount = 0;
     await page.route("**/app-api/disputes", async (route) => {
       disputesApiFetchCount += 1;
-      await route.continue();
+      const payload = disputesApiFetchCount === 1 ? initialDisputes : refreshedDisputes;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(payload),
+      });
     });
 
     // Initial visit populates cache
@@ -206,6 +248,8 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     const refreshBtn = page.getByRole("button", { name: /Refresh disputes list/i });
     await expect(refreshBtn).toBeVisible();
     await expect(page.locator("text=SF-10001")).toBeVisible();
+    await expect(page.locator("text=SF-10002")).toHaveCount(0);
+    expect(disputesApiFetchCount).toBe(1);
 
     // Navigate away via client-side navbar link and return to /disputes
     await page.locator(".app-nav-link", { hasText: "SentinelPulse" }).click();
@@ -214,6 +258,7 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await page.locator(".app-nav-link", { hasText: "SentinelFlow" }).click();
     await expect(page).toHaveURL(/\/disputes$/);
     await expect(page.locator("text=SF-10001")).toBeVisible();
+    await expect(page.locator("text=SF-10002")).toHaveCount(0);
 
     // Returning via client-side navigation uses the warm cache without triggering a new fetch
     expect(disputesApiFetchCount).toBe(1);
@@ -225,5 +270,7 @@ test.describe("SentinelFlow Deterministic Visual, Layout & UX Regression Suite",
     await refreshBtn.click();
     await refreshDisputesResponse;
     expect(disputesApiFetchCount).toBe(2);
+    await expect(page.locator("text=SF-10002")).toBeVisible();
+    await expect(page.locator("text=Unauthorized wire transfer after SIM swap")).toBeVisible();
   });
 });

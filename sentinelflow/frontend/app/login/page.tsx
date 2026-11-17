@@ -15,8 +15,8 @@ const ROLE_DISPLAY_ORDER: TestAuthRole[] = [
   "senior_investigator",
 ];
 
-const ORDERED_USERS = ROLE_DISPLAY_ORDER.map(
-  (role) => TEST_AUTH_USERS.find((u) => u.role === role)!
+const ORDERED_USERS = ROLE_DISPLAY_ORDER.map((role) =>
+  TEST_AUTH_USERS.find((u) => u.role === role)!
 ).filter(Boolean);
 
 const errorMessages: Record<string, string> = {
@@ -161,7 +161,12 @@ const LoginPage = () => {
               required
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              style={{ padding: "10px 12px", minHeight: 44, borderRadius: 8, border: "1px solid var(--border)" }}
+              style={{
+                padding: "10px 12px",
+                minHeight: 44,
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+              }}
             />
           </label>
 
@@ -174,7 +179,12 @@ const LoginPage = () => {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              style={{ padding: "10px 12px", minHeight: 44, borderRadius: 8, border: "1px solid var(--border)" }}
+              style={{
+                padding: "10px 12px",
+                minHeight: 44,
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+              }}
             />
           </label>
 
