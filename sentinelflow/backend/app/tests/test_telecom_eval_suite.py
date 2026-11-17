@@ -2851,3 +2851,54 @@ def test_sf018_nested_oof_inner_calibration_idf_isolation(
         )
     )
     assert len(outer0_tr) == 562
+
+
+def test_sf019_fold4_baseline_reconciliation_and_no_change_invariants() -> None:
+    """SF-019 locks the 40 Fold-4 FPs diagnosis, candidate comparison evidence, and frozen baseline."""
+    canonical = get_canonical_artifact_paths()
+    oof_rows = json.loads(
+        (canonical["model"].resolve().parents[1] / "oof_predictions.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    bank12_rows = [r for r in oof_rows if r["family_id"] == "legit_bank_security_alert_12"]
+    assert len(bank12_rows) == 40
+    assert all(r["outer_fold"] == 4 for r in bank12_rows)
+    assert sum(1 for r in bank12_rows if r["oof_prediction_p50"] == 1) == 40
+    assert sum(1 for r in bank12_rows if r["oof_composite_score"] >= 0.40) == 40
+    assert sum(1 for r in bank12_rows if r["oof_composite_score"] >= 0.75) == 13
+
+    for contrast_fam in ("legit_bank_auth_alert_yn", "legit_bank_fraud_alert_yesno"):
+        rows = [r for r in oof_rows if r["family_id"] == contrast_fam]
+        assert sum(1 for r in rows if r["oof_prediction_p50"] == 1) == 0
+
+    comp_path = canonical["model"].resolve().parents[1] / "sf019_generalization_comparison.json"
+    assert comp_path.exists()
+    comparison = json.loads(comp_path.read_text(encoding="utf-8"))
+    assert comparison["reconciled_fold4_baseline_fps"]["count"] == 40
+    onnx_sha = hashlib.sha256(canonical["model"].read_bytes()).hexdigest()
+    assert onnx_sha == comparison["baseline_hashes_sf018"]["model_onnx_sha256"]
+
+
+def test_sf022_qualification_ledger_blocks_fabricated_class_c_holdout() -> None:
+    """SF-022 enforces blocked Class C governance: no fabricated holdout, frozen model intact."""
+    datasets_dir = Path(__file__).resolve().parents[1] / "telecom" / "datasets"
+    ledger_path = datasets_dir / "sf022_qualification_ledger.json"
+    assert ledger_path.exists()
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+
+    assert ledger["ticket_id"] == "SF-022"
+    assert ledger["outcome"] == "UNAVAILABLE_BLOCKED"
+    assert ledger["class_c_holdout_created"] is False
+    assert ledger["phase2_executed"] is False
+    assert ledger["phase3_executed"] is False
+    assert not (datasets_dir / "quarantined_test_holdout.json").exists()
+
+    candidates = ledger["sf022_phase1_new_candidates"]
+    assert len(candidates) >= 7
+    assert all(c["decision"] == "REJECTED" for c in candidates)
+    assert all(bool(c.get("failed_gates")) for c in candidates)
+
+    canonical = get_canonical_artifact_paths()
+    onnx_sha = hashlib.sha256(canonical["model"].read_bytes()).hexdigest()
+    assert onnx_sha == ledger["frozen_model_references_sf018_retained"]["frozen_onnx_model_sha256"]

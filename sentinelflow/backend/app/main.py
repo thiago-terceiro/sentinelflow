@@ -43,24 +43,35 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    seed_telecom_warmup()
-    if settings.APP_ENV != "test":
+    _app.state.startup_complete = False
+    try:
+        seed_telecom_warmup()
+        from app.telecom.onnx_engine import get_inference_engine
+
         try:
-            if settings.DATABASE_URL.startswith("sqlite"):
-                async with engine.begin() as conn:
-                    await conn.run_sync(Base.metadata.create_all)
-            await seed()
+            get_inference_engine()
         except Exception as err:
-            logger.warning("Startup database initialization skipped or deferred: %s", err)
-    yield
-    await _drain_background_tasks()
-    await get_velocity_store().close()
-    await close_redis_pool()
-    await close_checkpointer()
-    await engine.dispose()
-    provider = trace.get_tracer_provider()
-    if hasattr(provider, "shutdown"):
-        provider.shutdown()
+            logger.warning("Startup ONNX engine initialization failed: %s", err)
+        if settings.APP_ENV != "test":
+            try:
+                if settings.DATABASE_URL.startswith("sqlite"):
+                    async with engine.begin() as conn:
+                        await conn.run_sync(Base.metadata.create_all)
+                await seed()
+            except Exception as err:
+                logger.warning("Startup database initialization skipped or deferred: %s", err)
+        _app.state.startup_complete = True
+        yield
+    finally:
+        _app.state.startup_complete = False
+        await _drain_background_tasks()
+        await get_velocity_store().close()
+        await close_redis_pool()
+        await close_checkpointer()
+        await engine.dispose()
+        provider = trace.get_tracer_provider()
+        if hasattr(provider, "shutdown"):
+            provider.shutdown()
 
 
 app = FastAPI(
@@ -71,6 +82,7 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.ENABLE_API_DOCS else None,
     lifespan=lifespan,
 )
+app.state.startup_complete = False
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[str(origin) for origin in settings.CORS_ALLOWED_ORIGINS],

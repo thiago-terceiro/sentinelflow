@@ -1,0 +1,3098 @@
+{
+  "ticket_id": "SF-019",
+  "linear_id": "AI-32",
+  "baseline_hashes_sf018": {
+    "model_onnx_sha256": "824c6c2c254791205184efadd8f0b2dc43f22e7222b411e75c2b99c340a9604b",
+    "metadata_json_sha256": "76563175a60e0500e2a76898508df2b4e457de31cdc1662e28b062c74b2c407c",
+    "oof_predictions_sha256": "96dbbf312aeb35cc3d6813faba1b123ca207328cc1361b736a89bc31fbfefc1d",
+    "dataset_inventory_sha256": "cf2c992e19344e5fe36a23ccda83fa559ee5b63ff863aab2a2814b03a2cc5289",
+    "ml_metrics_sha256": "a8990534f993842c6cdfe91f2b714280007dc7e04132ef390f0d1385ce34474a",
+    "benchmark_predictions_400_sha256": "f7bb0b9b8f5996a2b01338f9e2edae456db4d8d98e3fbc6f155d372693233bf7",
+    "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
+  },
+  "candidate_hashes_sf019": {
+    "model_onnx_sha256": "2362003b1d8ca13daafaf44b5355215ae15fc2aeeeda8ccb1b4bf30d849ac5b7",
+    "metadata_json_sha256": "658a96a57b68ef8b7563cb8cf11ce643a5d3265e3da595ea0a7d6942ce6ca736",
+    "oof_predictions_sha256": "754dafd2721ebca27ff2ae159b36de3d3c7ad99f66f61e898aa5c491f80b281d",
+    "dataset_inventory_sha256": "6f1abb198b8a35e1b8a7741b0d27e5ec146073c61e3e84e16e85d9cde4b2eb12",
+    "ml_metrics_sha256": "c8ec2255fa196796631b8e4fb87f9843073ec0c2fc5236e0602ec0f4e6874c68",
+    "benchmark_predictions_400_sha256": "9b28fbf2576278d4742702a71fe42977fca5e30977b15c8741066c63c885cd89",
+    "training_dataset_sha256": "7803ab7ca1bf9dc38c204d46825882fbca549c3fa4cff4995b0fbed7e3c5878c"
+  },
+  "dataset_comparison": {
+    "before_sf018": {
+      "n_samples": 703,
+      "n_legit": 543,
+      "n_fraud": 160,
+      "n_families": 56
+    },
+    "after_sf019": {
+      "n_samples": 719,
+      "n_legit": 559,
+      "n_fraud": 160,
+      "n_families": 59
+    },
+    "added_families": [
+      {
+        "family_id": "legit_cloud_unusual_signin_notice",
+        "sample_count": 6,
+        "label": 0,
+        "rationale": "URL-free, callback-free benign cloud/enterprise sign-in notice using 'security alert' + 'unusual' with no credential ask"
+      },
+      {
+        "family_id": "legit_utility_numeric_status_12",
+        "sample_count": 5,
+        "label": 0,
+        "rationale": "URL-free, callback-free utility outage/restoration confirmation using Reply 1/2 syntax"
+      },
+      {
+        "family_id": "legit_clinic_numeric_confirm_12",
+        "sample_count": 5,
+        "label": 0,
+        "rationale": "URL-free, callback-free clinic appointment confirmation using Reply 1/2 syntax"
+      }
+    ]
+  },
+  "reconciled_fold4_baseline_fps": {
+    "count": 40,
+    "sample_ids": [
+      322,
+      325,
+      328,
+      331,
+      334,
+      337,
+      340,
+      343,
+      346,
+      349,
+      352,
+      355,
+      358,
+      361,
+      364,
+      367,
+      370,
+      373,
+      376,
+      379,
+      382,
+      385,
+      388,
+      391,
+      394,
+      397,
+      400,
+      403,
+      406,
+      409,
+      412,
+      415,
+      418,
+      421,
+      424,
+      427,
+      430,
+      433,
+      436,
+      439
+    ]
+  },
+  "fold4_token_diagnostics_candidate": {
+    "fold_id": 3,
+    "tokens": {
+      "security": {
+        "in_vocab": true,
+        "legit_df": 70,
+        "fraud_df": 69,
+        "coef": 0.7035
+      },
+      "alert": {
+        "in_vocab": true,
+        "legit_df": 127,
+        "fraud_df": 96,
+        "coef": 0.8979
+      },
+      "security alert": {
+        "in_vocab": true,
+        "legit_df": 6,
+        "fraud_df": 65,
+        "coef": 1.3538
+      },
+      "unusual": {
+        "in_vocab": true,
+        "legit_df": 6,
+        "fraud_df": 36,
+        "coef": 0.8551
+      },
+      "charge": {
+        "in_vocab": true,
+        "legit_df": 0,
+        "fraud_df": 1,
+        "coef": 0.2369
+      },
+      "text": {
+        "in_vocab": true,
+        "legit_df": 8,
+        "fraud_df": 0,
+        "coef": -0.2816
+      },
+      "authorized": {
+        "in_vocab": false
+      },
+      "1": {
+        "in_vocab": true,
+        "legit_df": 8,
+        "fraud_df": 8,
+        "coef": 0.7589
+      },
+      "2": {
+        "in_vocab": true,
+        "legit_df": 6,
+        "fraud_df": 26,
+        "coef": 0.6415
+      }
+    }
+  },
+  "fine_grained_oof_comparison": {
+    "before_sf018": {
+      "per_fold": [
+        {
+          "fold": 0,
+          "train_size": 562,
+          "val_size": 141,
+          "train_group_count": 47,
+          "val_group_count": 9,
+          "val_legit_count": 109,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.22695,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9699,
+          "pr_auc": 0.9629,
+          "brier_score": 0.0631,
+          "precision": 1.0,
+          "recall": 0.8438,
+          "f1_score": 0.9153,
+          "confusion_matrix": {
+            "tp": 27,
+            "fp": 0,
+            "tn": 109,
+            "fn": 5
+          }
+        },
+        {
+          "fold": 1,
+          "train_size": 563,
+          "val_size": 140,
+          "train_group_count": 41,
+          "val_group_count": 15,
+          "val_legit_count": 108,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.228571,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9783,
+          "pr_auc": 0.9631,
+          "brier_score": 0.0494,
+          "precision": 1.0,
+          "recall": 0.8125,
+          "f1_score": 0.8966,
+          "confusion_matrix": {
+            "tp": 26,
+            "fp": 0,
+            "tn": 108,
+            "fn": 6
+          }
+        },
+        {
+          "fold": 2,
+          "train_size": 560,
+          "val_size": 143,
+          "train_group_count": 48,
+          "val_group_count": 8,
+          "val_legit_count": 108,
+          "val_fraud_count": 35,
+          "val_fraud_rate": 0.244755,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 1.0,
+          "pr_auc": 1.0,
+          "brier_score": 0.0205,
+          "precision": 0.9722,
+          "recall": 1.0,
+          "f1_score": 0.9859,
+          "confusion_matrix": {
+            "tp": 35,
+            "fp": 1,
+            "tn": 107,
+            "fn": 0
+          }
+        },
+        {
+          "fold": 3,
+          "train_size": 564,
+          "val_size": 139,
+          "train_group_count": 47,
+          "val_group_count": 9,
+          "val_legit_count": 109,
+          "val_fraud_count": 30,
+          "val_fraud_rate": 0.215827,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 1.0,
+          "pr_auc": 1.0,
+          "brier_score": 0.0026,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1_score": 1.0,
+          "confusion_matrix": {
+            "tp": 30,
+            "fp": 0,
+            "tn": 109,
+            "fn": 0
+          }
+        },
+        {
+          "fold": 4,
+          "train_size": 563,
+          "val_size": 140,
+          "train_group_count": 41,
+          "val_group_count": 15,
+          "val_legit_count": 109,
+          "val_fraud_count": 31,
+          "val_fraud_rate": 0.221429,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.7715,
+          "pr_auc": 0.5791,
+          "brier_score": 0.2031,
+          "precision": 0.2727,
+          "recall": 0.4839,
+          "f1_score": 0.3488,
+          "confusion_matrix": {
+            "tp": 15,
+            "fp": 40,
+            "tn": 69,
+            "fn": 16
+          }
+        }
+      ],
+      "per_fold_summary": {
+        "roc_auc": {
+          "mean": 0.9439,
+          "std": 0.087
+        },
+        "pr_auc": {
+          "mean": 0.901,
+          "std": 0.1618
+        },
+        "brier_score": {
+          "mean": 0.0677,
+          "std": 0.0709
+        },
+        "precision": {
+          "mean": 0.849,
+          "std": 0.2883
+        },
+        "recall": {
+          "mean": 0.828,
+          "std": 0.1887
+        },
+        "f1_score": {
+          "mean": 0.8293,
+          "std": 0.2435
+        }
+      },
+      "pooled_oof_ml": {
+        "decision_threshold": 0.5,
+        "roc_auc": 0.9563,
+        "pr_auc": 0.8763,
+        "brier_score": 0.0676,
+        "ece": 0.09059,
+        "precision": 0.7644,
+        "recall": 0.8313,
+        "specificity": 0.9245,
+        "false_positive_rate": 0.0755,
+        "f1_score": 0.7964,
+        "confusion_matrix": {
+          "tp": 133,
+          "fp": 41,
+          "tn": 502,
+          "fn": 27
+        }
+      },
+      "pooled_oof_composite": {
+        "velocity_score": 0.0,
+        "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+        "tier1": {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 156,
+            "fp": 44,
+            "tn": 499,
+            "fn": 4
+          },
+          "precision": 0.78,
+          "recall": 0.975,
+          "specificity": 0.919,
+          "false_positive_rate": 0.081,
+          "f1_score": 0.8667
+        },
+        "tier2": {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 118,
+            "fp": 13,
+            "tn": 530,
+            "fn": 42
+          },
+          "precision": 0.9008,
+          "recall": 0.7375,
+          "specificity": 0.9761,
+          "false_positive_rate": 0.0239,
+          "f1_score": 0.811
+        }
+      }
+    },
+    "after_sf019": {
+      "per_fold": [
+        {
+          "fold": 0,
+          "train_size": 576,
+          "val_size": 143,
+          "train_group_count": 50,
+          "val_group_count": 9,
+          "val_legit_count": 111,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.223776,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9806,
+          "pr_auc": 0.9604,
+          "brier_score": 0.0533,
+          "precision": 1.0,
+          "recall": 0.9062,
+          "f1_score": 0.9508,
+          "confusion_matrix": {
+            "tp": 29,
+            "fp": 0,
+            "tn": 111,
+            "fn": 3
+          }
+        },
+        {
+          "fold": 1,
+          "train_size": 575,
+          "val_size": 144,
+          "train_group_count": 43,
+          "val_group_count": 16,
+          "val_legit_count": 112,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.222222,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9372,
+          "pr_auc": 0.9256,
+          "brier_score": 0.0501,
+          "precision": 1.0,
+          "recall": 0.8125,
+          "f1_score": 0.8966,
+          "confusion_matrix": {
+            "tp": 26,
+            "fp": 0,
+            "tn": 112,
+            "fn": 6
+          }
+        },
+        {
+          "fold": 2,
+          "train_size": 573,
+          "val_size": 146,
+          "train_group_count": 50,
+          "val_group_count": 9,
+          "val_legit_count": 111,
+          "val_fraud_count": 35,
+          "val_fraud_rate": 0.239726,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 1.0,
+          "pr_auc": 1.0,
+          "brier_score": 0.02,
+          "precision": 0.9722,
+          "recall": 1.0,
+          "f1_score": 0.9859,
+          "confusion_matrix": {
+            "tp": 35,
+            "fp": 1,
+            "tn": 110,
+            "fn": 0
+          }
+        },
+        {
+          "fold": 3,
+          "train_size": 576,
+          "val_size": 143,
+          "train_group_count": 44,
+          "val_group_count": 15,
+          "val_legit_count": 112,
+          "val_fraud_count": 31,
+          "val_fraud_rate": 0.216783,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.8039,
+          "pr_auc": 0.6457,
+          "brier_score": 0.1433,
+          "precision": 0.3256,
+          "recall": 0.4516,
+          "f1_score": 0.3784,
+          "confusion_matrix": {
+            "tp": 14,
+            "fp": 29,
+            "tn": 83,
+            "fn": 17
+          }
+        },
+        {
+          "fold": 4,
+          "train_size": 576,
+          "val_size": 143,
+          "train_group_count": 49,
+          "val_group_count": 10,
+          "val_legit_count": 113,
+          "val_fraud_count": 30,
+          "val_fraud_rate": 0.20979,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 1.0,
+          "pr_auc": 1.0,
+          "brier_score": 0.0418,
+          "precision": 0.9677,
+          "recall": 1.0,
+          "f1_score": 0.9836,
+          "confusion_matrix": {
+            "tp": 30,
+            "fp": 1,
+            "tn": 112,
+            "fn": 0
+          }
+        }
+      ],
+      "per_fold_summary": {
+        "roc_auc": {
+          "mean": 0.9443,
+          "std": 0.0739
+        },
+        "pr_auc": {
+          "mean": 0.9063,
+          "std": 0.1332
+        },
+        "brier_score": {
+          "mean": 0.0617,
+          "std": 0.0424
+        },
+        "precision": {
+          "mean": 0.8531,
+          "std": 0.2641
+        },
+        "recall": {
+          "mean": 0.8341,
+          "std": 0.2035
+        },
+        "f1_score": {
+          "mean": 0.8391,
+          "std": 0.2326
+        }
+      },
+      "pooled_oof_ml": {
+        "decision_threshold": 0.5,
+        "roc_auc": 0.9683,
+        "pr_auc": 0.9309,
+        "brier_score": 0.0615,
+        "ece": 0.072793,
+        "precision": 0.8121,
+        "recall": 0.8375,
+        "specificity": 0.9445,
+        "false_positive_rate": 0.0555,
+        "f1_score": 0.8246,
+        "confusion_matrix": {
+          "tp": 134,
+          "fp": 31,
+          "tn": 528,
+          "fn": 26
+        }
+      },
+      "pooled_oof_composite": {
+        "velocity_score": 0.0,
+        "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+        "tier1": {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 154,
+            "fp": 66,
+            "tn": 493,
+            "fn": 6
+          },
+          "precision": 0.7,
+          "recall": 0.9625,
+          "specificity": 0.8819,
+          "false_positive_rate": 0.1181,
+          "f1_score": 0.8105
+        },
+        "tier2": {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 132,
+            "fp": 0,
+            "tn": 559,
+            "fn": 28
+          },
+          "precision": 1.0,
+          "recall": 0.825,
+          "specificity": 1.0,
+          "false_positive_rate": 0.0,
+          "f1_score": 0.9041
+        }
+      }
+    }
+  },
+  "macro_bank_2way_oof_comparison": {
+    "before_sf018": {
+      "per_fold": [
+        {
+          "fold": 0,
+          "train_size": 552,
+          "val_size": 151,
+          "train_group_count": 46,
+          "val_group_count": 8,
+          "val_legit_count": 121,
+          "val_fraud_count": 30,
+          "val_fraud_rate": 0.198675,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.6882,
+          "pr_auc": 0.3493,
+          "brier_score": 0.2475,
+          "precision": 0.3333,
+          "recall": 0.6667,
+          "f1_score": 0.4444,
+          "confusion_matrix": {
+            "tp": 20,
+            "fp": 40,
+            "tn": 81,
+            "fn": 10
+          }
+        },
+        {
+          "fold": 1,
+          "train_size": 567,
+          "val_size": 136,
+          "train_group_count": 39,
+          "val_group_count": 15,
+          "val_legit_count": 105,
+          "val_fraud_count": 31,
+          "val_fraud_rate": 0.227941,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9868,
+          "pr_auc": 0.9521,
+          "brier_score": 0.0677,
+          "precision": 0.9333,
+          "recall": 0.4516,
+          "f1_score": 0.6087,
+          "confusion_matrix": {
+            "tp": 14,
+            "fp": 1,
+            "tn": 104,
+            "fn": 17
+          }
+        },
+        {
+          "fold": 2,
+          "train_size": 566,
+          "val_size": 137,
+          "train_group_count": 44,
+          "val_group_count": 10,
+          "val_legit_count": 105,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.233577,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9887,
+          "pr_auc": 0.9793,
+          "brier_score": 0.0208,
+          "precision": 1.0,
+          "recall": 0.9375,
+          "f1_score": 0.9677,
+          "confusion_matrix": {
+            "tp": 30,
+            "fp": 0,
+            "tn": 105,
+            "fn": 2
+          }
+        },
+        {
+          "fold": 3,
+          "train_size": 564,
+          "val_size": 139,
+          "train_group_count": 43,
+          "val_group_count": 11,
+          "val_legit_count": 107,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.230216,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9936,
+          "pr_auc": 0.9873,
+          "brier_score": 0.0422,
+          "precision": 1.0,
+          "recall": 0.9375,
+          "f1_score": 0.9677,
+          "confusion_matrix": {
+            "tp": 30,
+            "fp": 0,
+            "tn": 107,
+            "fn": 2
+          }
+        },
+        {
+          "fold": 4,
+          "train_size": 563,
+          "val_size": 140,
+          "train_group_count": 44,
+          "val_group_count": 10,
+          "val_legit_count": 105,
+          "val_fraud_count": 35,
+          "val_fraud_rate": 0.25,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9997,
+          "pr_auc": 0.9992,
+          "brier_score": 0.0263,
+          "precision": 0.9722,
+          "recall": 1.0,
+          "f1_score": 0.9859,
+          "confusion_matrix": {
+            "tp": 35,
+            "fp": 1,
+            "tn": 104,
+            "fn": 0
+          }
+        }
+      ],
+      "per_fold_summary": {
+        "roc_auc": {
+          "mean": 0.9314,
+          "std": 0.1217
+        },
+        "pr_auc": {
+          "mean": 0.8534,
+          "std": 0.2525
+        },
+        "brier_score": {
+          "mean": 0.0809,
+          "std": 0.0849
+        },
+        "precision": {
+          "mean": 0.8478,
+          "std": 0.2584
+        },
+        "recall": {
+          "mean": 0.7987,
+          "std": 0.2083
+        },
+        "f1_score": {
+          "mean": 0.7949,
+          "std": 0.2253
+        }
+      },
+      "pooled_oof_ml": {
+        "decision_threshold": 0.5,
+        "roc_auc": 0.9321,
+        "pr_auc": 0.7406,
+        "brier_score": 0.0839,
+        "ece": 0.100058,
+        "precision": 0.7544,
+        "recall": 0.8063,
+        "specificity": 0.9227,
+        "false_positive_rate": 0.0773,
+        "f1_score": 0.7795,
+        "confusion_matrix": {
+          "tp": 129,
+          "fp": 42,
+          "tn": 501,
+          "fn": 31
+        }
+      },
+      "pooled_oof_composite": {
+        "velocity_score": 0.0,
+        "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+        "tier1": {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 154,
+            "fp": 43,
+            "tn": 500,
+            "fn": 6
+          },
+          "precision": 0.7817,
+          "recall": 0.9625,
+          "specificity": 0.9208,
+          "false_positive_rate": 0.0792,
+          "f1_score": 0.8627
+        },
+        "tier2": {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 116,
+            "fp": 40,
+            "tn": 503,
+            "fn": 44
+          },
+          "precision": 0.7436,
+          "recall": 0.725,
+          "specificity": 0.9263,
+          "false_positive_rate": 0.0737,
+          "f1_score": 0.7342
+        }
+      }
+    },
+    "after_sf019": {
+      "per_fold": [
+        {
+          "fold": 0,
+          "train_size": 568,
+          "val_size": 151,
+          "train_group_count": 49,
+          "val_group_count": 8,
+          "val_legit_count": 121,
+          "val_fraud_count": 30,
+          "val_fraud_rate": 0.198675,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.8317,
+          "pr_auc": 0.7765,
+          "brier_score": 0.1713,
+          "precision": 0.375,
+          "recall": 0.8,
+          "f1_score": 0.5106,
+          "confusion_matrix": {
+            "tp": 24,
+            "fp": 40,
+            "tn": 81,
+            "fn": 6
+          }
+        },
+        {
+          "fold": 1,
+          "train_size": 578,
+          "val_size": 141,
+          "train_group_count": 41,
+          "val_group_count": 16,
+          "val_legit_count": 110,
+          "val_fraud_count": 31,
+          "val_fraud_rate": 0.219858,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9906,
+          "pr_auc": 0.9695,
+          "brier_score": 0.0631,
+          "precision": 0.9565,
+          "recall": 0.7097,
+          "f1_score": 0.8148,
+          "confusion_matrix": {
+            "tp": 22,
+            "fp": 1,
+            "tn": 109,
+            "fn": 9
+          }
+        },
+        {
+          "fold": 2,
+          "train_size": 577,
+          "val_size": 142,
+          "train_group_count": 46,
+          "val_group_count": 11,
+          "val_legit_count": 110,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.225352,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9994,
+          "pr_auc": 0.9981,
+          "brier_score": 0.012,
+          "precision": 0.9688,
+          "recall": 0.9688,
+          "f1_score": 0.9688,
+          "confusion_matrix": {
+            "tp": 31,
+            "fp": 1,
+            "tn": 109,
+            "fn": 1
+          }
+        },
+        {
+          "fold": 3,
+          "train_size": 578,
+          "val_size": 141,
+          "train_group_count": 46,
+          "val_group_count": 11,
+          "val_legit_count": 109,
+          "val_fraud_count": 32,
+          "val_fraud_rate": 0.22695,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9877,
+          "pr_auc": 0.9764,
+          "brier_score": 0.0493,
+          "precision": 1.0,
+          "recall": 0.875,
+          "f1_score": 0.9333,
+          "confusion_matrix": {
+            "tp": 28,
+            "fp": 0,
+            "tn": 109,
+            "fn": 4
+          }
+        },
+        {
+          "fold": 4,
+          "train_size": 575,
+          "val_size": 144,
+          "train_group_count": 46,
+          "val_group_count": 11,
+          "val_legit_count": 109,
+          "val_fraud_count": 35,
+          "val_fraud_rate": 0.243056,
+          "outer_group_overlap_count": 0,
+          "roc_auc": 0.9992,
+          "pr_auc": 0.9975,
+          "brier_score": 0.0327,
+          "precision": 0.9706,
+          "recall": 0.9429,
+          "f1_score": 0.9565,
+          "confusion_matrix": {
+            "tp": 33,
+            "fp": 1,
+            "tn": 108,
+            "fn": 2
+          }
+        }
+      ],
+      "per_fold_summary": {
+        "roc_auc": {
+          "mean": 0.9617,
+          "std": 0.0652
+        },
+        "pr_auc": {
+          "mean": 0.9436,
+          "std": 0.0843
+        },
+        "brier_score": {
+          "mean": 0.0657,
+          "std": 0.0555
+        },
+        "precision": {
+          "mean": 0.8542,
+          "std": 0.24
+        },
+        "recall": {
+          "mean": 0.8593,
+          "std": 0.095
+        },
+        "f1_score": {
+          "mean": 0.8368,
+          "std": 0.172
+        }
+      },
+      "pooled_oof_ml": {
+        "decision_threshold": 0.5,
+        "roc_auc": 0.9595,
+        "pr_auc": 0.8999,
+        "brier_score": 0.0669,
+        "ece": 0.056167,
+        "precision": 0.7624,
+        "recall": 0.8625,
+        "specificity": 0.9231,
+        "false_positive_rate": 0.0769,
+        "f1_score": 0.8094,
+        "confusion_matrix": {
+          "tp": 138,
+          "fp": 43,
+          "tn": 516,
+          "fn": 22
+        }
+      },
+      "pooled_oof_composite": {
+        "velocity_score": 0.0,
+        "velocity_note": "Offline OOF composite assumes V=0.0 matching single-message benchmark.",
+        "tier1": {
+          "threshold": 0.4,
+          "confusion_matrix": {
+            "tp": 155,
+            "fp": 59,
+            "tn": 500,
+            "fn": 5
+          },
+          "precision": 0.7243,
+          "recall": 0.9688,
+          "specificity": 0.8945,
+          "false_positive_rate": 0.1055,
+          "f1_score": 0.8289
+        },
+        "tier2": {
+          "threshold": 0.75,
+          "confusion_matrix": {
+            "tp": 117,
+            "fp": 0,
+            "tn": 559,
+            "fn": 43
+          },
+          "precision": 1.0,
+          "recall": 0.7312,
+          "specificity": 1.0,
+          "false_positive_rate": 0.0,
+          "f1_score": 0.8448
+        }
+      }
+    }
+  },
+  "explicit_lmo_all3_bank_2way_comparison": {
+    "before_sf018": {
+      "legit_bank_auth_alert_yn": {
+        "sample_count": 40,
+        "fp_p50": 0,
+        "p_min": 0.0218,
+        "p_mean": 0.0401,
+        "p_max": 0.0618
+      },
+      "legit_bank_fraud_alert_yesno": {
+        "sample_count": 41,
+        "fp_p50": 8,
+        "p_min": 0.1912,
+        "p_mean": 0.4191,
+        "p_max": 0.5263
+      },
+      "legit_bank_security_alert_12": {
+        "sample_count": 40,
+        "fp_p50": 40,
+        "p_min": 0.67,
+        "p_mean": 0.7455,
+        "p_max": 0.8527
+      }
+    },
+    "after_sf019": {
+      "legit_bank_auth_alert_yn": {
+        "sample_count": 40,
+        "fp_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0201,
+        "p_mean": 0.0492,
+        "p_max": 0.0815
+      },
+      "legit_bank_fraud_alert_yesno": {
+        "sample_count": 41,
+        "fp_p50": 19,
+        "tier1_flagged_or_blocked": 14,
+        "tier2_blocked": 0,
+        "p_min": 0.1918,
+        "p_mean": 0.4808,
+        "p_max": 0.61
+      },
+      "legit_bank_security_alert_12": {
+        "sample_count": 40,
+        "fp_p50": 40,
+        "tier1_flagged_or_blocked": 40,
+        "tier2_blocked": 0,
+        "p_min": 0.5366,
+        "p_mean": 0.6403,
+        "p_max": 0.7672
+      }
+    },
+    "total_fps_before": 48,
+    "total_fps_after": 59
+  },
+  "calibration_split_stability": {
+    "strategy_after": "StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)",
+    "group_kfold_unstratified": [
+      {
+        "fold": 0,
+        "val_fraud": 51,
+        "val_legit": 93,
+        "a": -15.7227,
+        "b": -5.174
+      },
+      {
+        "fold": 1,
+        "val_fraud": 19,
+        "val_legit": 125,
+        "a": -14.2293,
+        "b": -4.3225
+      },
+      {
+        "fold": 2,
+        "val_fraud": 46,
+        "val_legit": 98,
+        "a": -6.9362,
+        "b": 0.5711
+      },
+      {
+        "fold": 3,
+        "val_fraud": 37,
+        "val_legit": 107,
+        "a": -5.4919,
+        "b": 0.5893
+      },
+      {
+        "fold": 4,
+        "val_fraud": 7,
+        "val_legit": 136,
+        "a": -4.6657,
+        "b": 2.0247
+      }
+    ],
+    "stratified_group_kfold": [
+      {
+        "fold": 0,
+        "val_fraud": 32,
+        "val_legit": 111,
+        "a": -15.201,
+        "b": -2.7217
+      },
+      {
+        "fold": 1,
+        "val_fraud": 32,
+        "val_legit": 112,
+        "a": -8.1274,
+        "b": -2.5798
+      },
+      {
+        "fold": 2,
+        "val_fraud": 35,
+        "val_legit": 111,
+        "a": -7.8016,
+        "b": 1.162
+      },
+      {
+        "fold": 3,
+        "val_fraud": 31,
+        "val_legit": 112,
+        "a": -4.0628,
+        "b": 0.0853
+      },
+      {
+        "fold": 4,
+        "val_fraud": 30,
+        "val_legit": 113,
+        "a": -6.5848,
+        "b": 2.9458
+      }
+    ]
+  },
+  "dev_val_400_secondary_comparison": {
+    "before_sf018": {
+      "ml": {
+        "confusion_matrix": {
+          "tp": 191,
+          "fp": 8,
+          "tn": 192,
+          "fn": 9
+        },
+        "precision": 0.9598,
+        "recall": 0.955,
+        "f1_score": 0.9574,
+        "roc_auc": 0.9959,
+        "pr_auc": 0.996,
+        "brier_score": 0.038,
+        "ece": 0.096515
+      },
+      "tier1": {
+        "threshold": 0.4,
+        "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
+        "confusion_matrix": {
+          "tp": 200,
+          "fp": 10,
+          "tn": 190,
+          "fn": 0
+        },
+        "precision": 0.9524,
+        "recall": 1.0,
+        "specificity": 0.95,
+        "f1_score": 0.9756,
+        "false_positive_rate": 0.05
+      },
+      "tier2": {
+        "threshold": 0.75,
+        "description": "BLOCK (Immediate Carrier Wire Drop)",
+        "confusion_matrix": {
+          "tp": 180,
+          "fp": 0,
+          "tn": 200,
+          "fn": 20
+        },
+        "precision": 1.0,
+        "recall": 0.9,
+        "specificity": 1.0,
+        "f1_score": 0.9474,
+        "false_positive_rate": 0.0
+      }
+    },
+    "after_sf019": {
+      "ml": {
+        "confusion_matrix": {
+          "tp": 194,
+          "fp": 8,
+          "tn": 192,
+          "fn": 6
+        },
+        "precision": 0.9604,
+        "recall": 0.97,
+        "f1_score": 0.9652,
+        "roc_auc": 0.994,
+        "pr_auc": 0.9944,
+        "brier_score": 0.0327,
+        "ece": 0.055049
+      },
+      "tier1": {
+        "threshold": 0.4,
+        "description": "FLAG + BLOCK (Async Human / Agent Review Queue)",
+        "confusion_matrix": {
+          "tp": 200,
+          "fp": 13,
+          "tn": 187,
+          "fn": 0
+        },
+        "precision": 0.939,
+        "recall": 1.0,
+        "specificity": 0.935,
+        "f1_score": 0.9685,
+        "false_positive_rate": 0.065
+      },
+      "tier2": {
+        "threshold": 0.75,
+        "description": "BLOCK (Immediate Carrier Wire Drop)",
+        "confusion_matrix": {
+          "tp": 182,
+          "fp": 0,
+          "tn": 200,
+          "fn": 18
+        },
+        "precision": 1.0,
+        "recall": 0.91,
+        "specificity": 1.0,
+        "f1_score": 0.9529,
+        "false_positive_rate": 0.0
+      },
+      "onnx_sklearn_parity": {
+        "sample_count": 400,
+        "max_prob_abs_diff": 1.398375416572506e-07,
+        "mean_prob_abs_diff": 2.042603964418179e-08,
+        "ml_p50_parity_count": 400,
+        "ml_p50_parity_rate": 1.0,
+        "tier1_flag_parity_count": 400,
+        "tier1_flag_parity_rate": 1.0,
+        "tier2_block_parity_count": 400,
+        "tier2_block_parity_rate": 1.0,
+        "verdict_parity_count": 400,
+        "verdict_parity_rate": 1.0,
+        "max_tfidf_vector_abs_diff": 6.927941320622466e-08,
+        "mean_tfidf_vector_abs_diff": 2.4515054792353942e-08
+      }
+    }
+  },
+  "per_family_oof_comparison": [
+    {
+      "family_id": "fraud_account_suspension_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_account_suspension_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 3,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 3,
+        "tier2_blocked": 3,
+        "p_min": 0.6802,
+        "p_mean": 0.7951,
+        "p_max": 0.9662
+      },
+      "after_sf019": {
+        "family_id": "fraud_account_suspension_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 3,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 3,
+        "tier2_blocked": 3,
+        "p_min": 0.8194,
+        "p_mean": 0.9041,
+        "p_max": 0.9866
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_callback_order_scam",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_callback_order_scam",
+        "outer_fold": 0,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 2,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0237,
+        "p_mean": 0.105,
+        "p_max": 0.1863
+      },
+      "after_sf019": {
+        "family_id": "fraud_callback_order_scam",
+        "outer_fold": 0,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 2,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0488,
+        "p_mean": 0.1296,
+        "p_max": 0.2104
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_card_blocked_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_card_blocked_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 3,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 3,
+        "tier2_blocked": 3,
+        "p_min": 0.6038,
+        "p_mean": 0.731,
+        "p_max": 0.8863
+      },
+      "after_sf019": {
+        "family_id": "fraud_card_blocked_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 3,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 3,
+        "tier2_blocked": 3,
+        "p_min": 0.7163,
+        "p_mean": 0.8662,
+        "p_max": 0.975
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_crypto_account_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_crypto_account_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 2,
+        "tier2_blocked": 1,
+        "p_min": 0.6511,
+        "p_mean": 0.7062,
+        "p_max": 0.7613
+      },
+      "after_sf019": {
+        "family_id": "fraud_crypto_account_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 2,
+        "tier2_blocked": 2,
+        "p_min": 0.7972,
+        "p_mean": 0.8377,
+        "p_max": 0.8782
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 1
+    },
+    {
+      "family_id": "fraud_device_telecom_account_phish",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_device_telecom_account_phish",
+        "outer_fold": 4,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 2,
+        "tier1_flagged_or_blocked": 2,
+        "tier2_blocked": 0,
+        "p_min": 0.2916,
+        "p_mean": 0.3564,
+        "p_max": 0.4212
+      },
+      "after_sf019": {
+        "family_id": "fraud_device_telecom_account_phish",
+        "outer_fold": 3,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 2,
+        "tier1_flagged_or_blocked": 2,
+        "tier2_blocked": 0,
+        "p_min": 0.1936,
+        "p_mean": 0.2973,
+        "p_max": 0.401
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_family_venmo_cashapp_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_family_venmo_cashapp_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 8,
+        "fp_p50": 0,
+        "fn_p50": 1,
+        "tier1_flagged_or_blocked": 8,
+        "tier2_blocked": 7,
+        "p_min": 0.4357,
+        "p_mean": 0.6825,
+        "p_max": 0.8797
+      },
+      "after_sf019": {
+        "family_id": "fraud_family_venmo_cashapp_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 8,
+        "fp_p50": 0,
+        "fn_p50": 1,
+        "tier1_flagged_or_blocked": 8,
+        "tier2_blocked": 7,
+        "p_min": 0.3616,
+        "p_mean": 0.7275,
+        "p_max": 0.9473
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_family_wame_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_family_wame_lure",
+        "outer_fold": 4,
+        "true_label": 1,
+        "sample_count": 9,
+        "fp_p50": 0,
+        "fn_p50": 8,
+        "tier1_flagged_or_blocked": 9,
+        "tier2_blocked": 1,
+        "p_min": 0.3996,
+        "p_mean": 0.4861,
+        "p_max": 0.694
+      },
+      "after_sf019": {
+        "family_id": "fraud_family_wame_lure",
+        "outer_fold": 3,
+        "true_label": 1,
+        "sample_count": 9,
+        "fp_p50": 0,
+        "fn_p50": 8,
+        "tier1_flagged_or_blocked": 9,
+        "tier2_blocked": 1,
+        "p_min": 0.4068,
+        "p_mean": 0.4886,
+        "p_max": 0.664
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_family_wire_http_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_family_wire_http_lure",
+        "outer_fold": 4,
+        "true_label": 1,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 6,
+        "tier2_blocked": 6,
+        "p_min": 0.8765,
+        "p_mean": 0.9173,
+        "p_max": 0.9652
+      },
+      "after_sf019": {
+        "family_id": "fraud_family_wire_http_lure",
+        "outer_fold": 3,
+        "true_label": 1,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 6,
+        "tier2_blocked": 6,
+        "p_min": 0.8072,
+        "p_mean": 0.8697,
+        "p_max": 0.9305
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_family_zelle_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_family_zelle_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 7,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 7,
+        "tier2_blocked": 5,
+        "p_min": 0.5271,
+        "p_mean": 0.7312,
+        "p_max": 0.864
+      },
+      "after_sf019": {
+        "family_id": "fraud_family_zelle_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 7,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 7,
+        "tier2_blocked": 7,
+        "p_min": 0.6212,
+        "p_mean": 0.8301,
+        "p_max": 0.9435
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 2
+    },
+    {
+      "family_id": "fraud_grant_loan_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_grant_loan_lure",
+        "outer_fold": 4,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 1,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 1,
+        "p_min": 0.2295,
+        "p_mean": 0.5561,
+        "p_max": 0.8826
+      },
+      "after_sf019": {
+        "family_id": "fraud_grant_loan_lure",
+        "outer_fold": 3,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 1,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 1,
+        "p_min": 0.2001,
+        "p_mean": 0.5135,
+        "p_max": 0.8269
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_legal_tax_extortion",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_legal_tax_extortion",
+        "outer_fold": 4,
+        "true_label": 1,
+        "sample_count": 3,
+        "fp_p50": 0,
+        "fn_p50": 1,
+        "tier1_flagged_or_blocked": 3,
+        "tier2_blocked": 2,
+        "p_min": 0.4485,
+        "p_mean": 0.5451,
+        "p_max": 0.6658
+      },
+      "after_sf019": {
+        "family_id": "fraud_legal_tax_extortion",
+        "outer_fold": 3,
+        "true_label": 1,
+        "sample_count": 3,
+        "fp_p50": 0,
+        "fn_p50": 2,
+        "tier1_flagged_or_blocked": 2,
+        "tier2_blocked": 2,
+        "p_min": 0.3706,
+        "p_mean": 0.4863,
+        "p_max": 0.6343
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 1,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_postal_customs_fee",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_postal_customs_fee",
+        "outer_fold": 0,
+        "true_label": 1,
+        "sample_count": 30,
+        "fp_p50": 0,
+        "fn_p50": 3,
+        "tier1_flagged_or_blocked": 30,
+        "tier2_blocked": 16,
+        "p_min": 0.1512,
+        "p_mean": 0.5595,
+        "p_max": 0.9289
+      },
+      "after_sf019": {
+        "family_id": "fraud_postal_customs_fee",
+        "outer_fold": 0,
+        "true_label": 1,
+        "sample_count": 30,
+        "fp_p50": 0,
+        "fn_p50": 1,
+        "tier1_flagged_or_blocked": 30,
+        "tier2_blocked": 27,
+        "p_min": 0.1916,
+        "p_mean": 0.6359,
+        "p_max": 0.9035
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": -2,
+      "tier2_delta": 11
+    },
+    {
+      "family_id": "fraud_prize_giveaway_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_prize_giveaway_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 3,
+        "tier1_flagged_or_blocked": 4,
+        "tier2_blocked": 2,
+        "p_min": 0.1035,
+        "p_mean": 0.3861,
+        "p_max": 0.6994
+      },
+      "after_sf019": {
+        "family_id": "fraud_prize_giveaway_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 3,
+        "tier1_flagged_or_blocked": 4,
+        "tier2_blocked": 2,
+        "p_min": 0.0843,
+        "p_mean": 0.4107,
+        "p_max": 0.9048
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_subscription_billing_scam",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_subscription_billing_scam",
+        "outer_fold": 4,
+        "true_label": 1,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 4,
+        "tier1_flagged_or_blocked": 5,
+        "tier2_blocked": 1,
+        "p_min": 0.3163,
+        "p_mean": 0.45,
+        "p_max": 0.7893
+      },
+      "after_sf019": {
+        "family_id": "fraud_subscription_billing_scam",
+        "outer_fold": 3,
+        "true_label": 1,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 4,
+        "tier1_flagged_or_blocked": 4,
+        "tier2_blocked": 1,
+        "p_min": 0.1591,
+        "p_mean": 0.3745,
+        "p_max": 0.7558
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_suspicious_ip_login_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_suspicious_ip_login_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 2,
+        "tier2_blocked": 1,
+        "p_min": 0.6412,
+        "p_mean": 0.6452,
+        "p_max": 0.6491
+      },
+      "after_sf019": {
+        "family_id": "fraud_suspicious_ip_login_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 2,
+        "tier2_blocked": 1,
+        "p_min": 0.7087,
+        "p_mean": 0.7801,
+        "p_max": 0.8514
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_telegram_income_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_telegram_income_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 2,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0237,
+        "p_mean": 0.0957,
+        "p_max": 0.1676
+      },
+      "after_sf019": {
+        "family_id": "fraud_telegram_income_lure",
+        "outer_fold": 1,
+        "true_label": 1,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 2,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0083,
+        "p_mean": 0.0692,
+        "p_max": 0.1301
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_transaction_dispute_lure",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_transaction_dispute_lure",
+        "outer_fold": 4,
+        "true_label": 1,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 4,
+        "tier2_blocked": 4,
+        "p_min": 0.746,
+        "p_mean": 0.8421,
+        "p_max": 0.9317
+      },
+      "after_sf019": {
+        "family_id": "fraud_transaction_dispute_lure",
+        "outer_fold": 3,
+        "true_label": 1,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 4,
+        "tier2_blocked": 4,
+        "p_min": 0.7508,
+        "p_mean": 0.8328,
+        "p_max": 0.9372
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_uk_bank_alert",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_uk_bank_alert",
+        "outer_fold": 3,
+        "true_label": 1,
+        "sample_count": 30,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 30,
+        "tier2_blocked": 30,
+        "p_min": 0.9921,
+        "p_mean": 0.997,
+        "p_max": 0.9994
+      },
+      "after_sf019": {
+        "family_id": "fraud_uk_bank_alert",
+        "outer_fold": 4,
+        "true_label": 1,
+        "sample_count": 30,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 30,
+        "tier2_blocked": 30,
+        "p_min": 0.9839,
+        "p_mean": 0.9934,
+        "p_max": 0.9977
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "fraud_urgent_brand_alert",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "fraud_urgent_brand_alert",
+        "outer_fold": 2,
+        "true_label": 1,
+        "sample_count": 35,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 35,
+        "tier2_blocked": 35,
+        "p_min": 0.755,
+        "p_mean": 0.8906,
+        "p_max": 0.9876
+      },
+      "after_sf019": {
+        "family_id": "fraud_urgent_brand_alert",
+        "outer_fold": 2,
+        "true_label": 1,
+        "sample_count": 35,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 35,
+        "tier2_blocked": 35,
+        "p_min": 0.5913,
+        "p_mean": 0.775,
+        "p_max": 0.9109
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_2fa_auth_signin",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_2fa_auth_signin",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0262,
+        "p_mean": 0.0262,
+        "p_max": 0.0263
+      },
+      "after_sf019": {
+        "family_id": "legit_2fa_auth_signin",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0257,
+        "p_mean": 0.0261,
+        "p_max": 0.0262
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_2fa_code",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_2fa_code",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 53,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0039,
+        "p_mean": 0.0453,
+        "p_max": 0.0488
+      },
+      "after_sf019": {
+        "family_id": "legit_2fa_code",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 53,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0057,
+        "p_mean": 0.0368,
+        "p_max": 0.0392
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_2fa_email_verify",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_2fa_email_verify",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0738,
+        "p_mean": 0.074,
+        "p_max": 0.0741
+      },
+      "after_sf019": {
+        "family_id": "legit_2fa_email_verify",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.082,
+        "p_mean": 0.0827,
+        "p_max": 0.0828
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_2fa_login_alert",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_2fa_login_alert",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 7,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.207,
+        "p_mean": 0.2108,
+        "p_max": 0.2335
+      },
+      "after_sf019": {
+        "family_id": "legit_2fa_login_alert",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 7,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0468,
+        "p_mean": 0.0639,
+        "p_max": 0.1668
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_2fa_login_approve",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_2fa_login_approve",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 7,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0427,
+        "p_mean": 0.0674,
+        "p_max": 0.2128
+      },
+      "after_sf019": {
+        "family_id": "legit_2fa_login_approve",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 7,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0498,
+        "p_mean": 0.0689,
+        "p_max": 0.181
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_2fa_phone_verify",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_2fa_phone_verify",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.2677,
+        "p_mean": 0.2699,
+        "p_max": 0.2703
+      },
+      "after_sf019": {
+        "family_id": "legit_2fa_phone_verify",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.1455,
+        "p_mean": 0.1464,
+        "p_max": 0.1466
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_2fa_recovery_pin",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_2fa_recovery_pin",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.1245,
+        "p_mean": 0.1257,
+        "p_max": 0.126
+      },
+      "after_sf019": {
+        "family_id": "legit_2fa_recovery_pin",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.1152,
+        "p_mean": 0.1157,
+        "p_max": 0.1158
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_appointment_reminder",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_appointment_reminder",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 3,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0057,
+        "p_mean": 0.0172,
+        "p_max": 0.0376
+      },
+      "after_sf019": {
+        "family_id": "legit_appointment_reminder",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 3,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0039,
+        "p_mean": 0.0054,
+        "p_max": 0.0078
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_auth_short_code",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_auth_short_code",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0258,
+        "p_mean": 0.0339,
+        "p_max": 0.042
+      },
+      "after_sf019": {
+        "family_id": "legit_auth_short_code",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.054,
+        "p_mean": 0.0657,
+        "p_max": 0.0774
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_bank_auth_alert_yn",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_bank_auth_alert_yn",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 40,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.008,
+        "p_mean": 0.0108,
+        "p_max": 0.0153
+      },
+      "after_sf019": {
+        "family_id": "legit_bank_auth_alert_yn",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 40,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0075,
+        "p_mean": 0.0172,
+        "p_max": 0.0343
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_bank_autopay",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_bank_autopay",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 41,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.015,
+        "p_mean": 0.0514,
+        "p_max": 0.16
+      },
+      "after_sf019": {
+        "family_id": "legit_bank_autopay",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 41,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0062,
+        "p_mean": 0.0416,
+        "p_max": 0.141
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_bank_card_transaction",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_bank_card_transaction",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0026,
+        "p_mean": 0.0353,
+        "p_max": 0.068
+      },
+      "after_sf019": {
+        "family_id": "legit_bank_card_transaction",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.012,
+        "p_mean": 0.2503,
+        "p_max": 0.4886
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_bank_direct_deposit",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_bank_direct_deposit",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 41,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0162,
+        "p_mean": 0.0355,
+        "p_max": 0.0882
+      },
+      "after_sf019": {
+        "family_id": "legit_bank_direct_deposit",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 41,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0105,
+        "p_mean": 0.028,
+        "p_max": 0.0785
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_bank_fraud_alert_yesno",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_bank_fraud_alert_yesno",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 41,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0086,
+        "p_mean": 0.1328,
+        "p_max": 0.2122
+      },
+      "after_sf019": {
+        "family_id": "legit_bank_fraud_alert_yesno",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 41,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0803,
+        "p_mean": 0.1833,
+        "p_max": 0.2482
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_bank_security_alert_12",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_bank_security_alert_12",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 40,
+        "fp_p50": 40,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 40,
+        "tier2_blocked": 13,
+        "p_min": 0.627,
+        "p_mean": 0.7283,
+        "p_max": 0.8078
+      },
+      "after_sf019": {
+        "family_id": "legit_bank_security_alert_12",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 40,
+        "fp_p50": 29,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 40,
+        "tier2_blocked": 0,
+        "p_min": 0.4157,
+        "p_mean": 0.5598,
+        "p_max": 0.6548
+      },
+      "fp_p50_delta": -11,
+      "fn_p50_delta": 0,
+      "tier2_delta": -13
+    },
+    {
+      "family_id": "legit_bank_statement",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_bank_statement",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 40,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.009,
+        "p_mean": 0.016,
+        "p_max": 0.0248
+      },
+      "after_sf019": {
+        "family_id": "legit_bank_statement",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 40,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0132,
+        "p_mean": 0.0198,
+        "p_max": 0.0256
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_casual_birthday_greetings",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_casual_birthday_greetings",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.1342,
+        "p_mean": 0.3121,
+        "p_max": 0.49
+      },
+      "after_sf019": {
+        "family_id": "legit_casual_birthday_greetings",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 1,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 2,
+        "tier2_blocked": 0,
+        "p_min": 0.4322,
+        "p_mean": 0.5313,
+        "p_max": 0.6303
+      },
+      "fp_p50_delta": 1,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_casual_device_switch",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_casual_device_switch",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 8,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0417,
+        "p_mean": 0.2081,
+        "p_max": 0.4743
+      },
+      "after_sf019": {
+        "family_id": "legit_casual_device_switch",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 8,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.015,
+        "p_mean": 0.1271,
+        "p_max": 0.4161
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_casual_errands",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_casual_errands",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0247,
+        "p_mean": 0.0496,
+        "p_max": 0.1157
+      },
+      "after_sf019": {
+        "family_id": "legit_casual_errands",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0199,
+        "p_mean": 0.0335,
+        "p_max": 0.0682
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_casual_family_activity",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_casual_family_activity",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0001,
+        "p_mean": 0.0067,
+        "p_max": 0.0113
+      },
+      "after_sf019": {
+        "family_id": "legit_casual_family_activity",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0037,
+        "p_mean": 0.0189,
+        "p_max": 0.0351
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_casual_p2p_greetings",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_casual_p2p_greetings",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 9,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0457,
+        "p_mean": 0.1833,
+        "p_max": 0.4083
+      },
+      "after_sf019": {
+        "family_id": "legit_casual_p2p_greetings",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 9,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0145,
+        "p_mean": 0.1653,
+        "p_max": 0.4326
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_casual_social_chat",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_casual_social_chat",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 7,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0039,
+        "p_mean": 0.0744,
+        "p_max": 0.2486
+      },
+      "after_sf019": {
+        "family_id": "legit_casual_social_chat",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 7,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0132,
+        "p_mean": 0.073,
+        "p_max": 0.3347
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_clinic_numeric_confirm_12",
+      "status": "added_sf019",
+      "before_sf018": null,
+      "after_sf019": {
+        "family_id": "legit_clinic_numeric_confirm_12",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0053,
+        "p_mean": 0.0083,
+        "p_max": 0.012
+      },
+      "fp_p50_delta": null,
+      "fn_p50_delta": null,
+      "tier2_delta": null
+    },
+    {
+      "family_id": "legit_cloud_unusual_signin_notice",
+      "status": "added_sf019",
+      "before_sf018": null,
+      "after_sf019": {
+        "family_id": "legit_cloud_unusual_signin_notice",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 6,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.1083,
+        "p_mean": 0.1593,
+        "p_max": 0.2035
+      },
+      "fp_p50_delta": null,
+      "fn_p50_delta": null,
+      "tier2_delta": null
+    },
+    {
+      "family_id": "legit_health_mychart",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_health_mychart",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 21,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0031,
+        "p_mean": 0.1682,
+        "p_max": 0.1765
+      },
+      "after_sf019": {
+        "family_id": "legit_health_mychart",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 21,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 20,
+        "tier2_blocked": 0,
+        "p_min": 0.0144,
+        "p_mean": 0.4554,
+        "p_max": 0.4774
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_health_pharmacy",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_health_pharmacy",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 21,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0,
+        "p_mean": 0.0004,
+        "p_max": 0.0004
+      },
+      "after_sf019": {
+        "family_id": "legit_health_pharmacy",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 21,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0015,
+        "p_mean": 0.0237,
+        "p_max": 0.0248
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_hospitality_reservation",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_hospitality_reservation",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0019,
+        "p_mean": 0.0022,
+        "p_max": 0.0026
+      },
+      "after_sf019": {
+        "family_id": "legit_hospitality_reservation",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0016,
+        "p_mean": 0.0034,
+        "p_max": 0.0051
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_local_service_eta",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_local_service_eta",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0012,
+        "p_mean": 0.0032,
+        "p_max": 0.0053
+      },
+      "after_sf019": {
+        "family_id": "legit_local_service_eta",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0013,
+        "p_mean": 0.0043,
+        "p_max": 0.0073
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_p2p_messaging_app",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_p2p_messaging_app",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0112,
+        "p_mean": 0.023,
+        "p_max": 0.0346
+      },
+      "after_sf019": {
+        "family_id": "legit_p2p_messaging_app",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.009,
+        "p_mean": 0.028,
+        "p_max": 0.0489
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_package_delivery_tracking",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_package_delivery_tracking",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 1,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0372,
+        "p_mean": 0.2438,
+        "p_max": 0.58
+      },
+      "after_sf019": {
+        "family_id": "legit_package_delivery_tracking",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 1,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 1,
+        "tier2_blocked": 0,
+        "p_min": 0.0919,
+        "p_mean": 0.2761,
+        "p_max": 0.5697
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_personal_account_digest",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_personal_account_digest",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0024,
+        "p_mean": 0.0083,
+        "p_max": 0.0142
+      },
+      "after_sf019": {
+        "family_id": "legit_personal_account_digest",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 2,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0282,
+        "p_mean": 0.1912,
+        "p_max": 0.3542
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_phone_repair_pickup",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_phone_repair_pickup",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0006,
+        "p_mean": 0.001,
+        "p_max": 0.0018
+      },
+      "after_sf019": {
+        "family_id": "legit_phone_repair_pickup",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0066,
+        "p_mean": 0.0114,
+        "p_max": 0.0217
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_phone_repair_quote",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_phone_repair_quote",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.004,
+        "p_mean": 0.0535,
+        "p_max": 0.1141
+      },
+      "after_sf019": {
+        "family_id": "legit_phone_repair_quote",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0067,
+        "p_mean": 0.0295,
+        "p_max": 0.0647
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_retail_curbside",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_retail_curbside",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 25,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0,
+        "p_mean": 0.0001,
+        "p_max": 0.0005
+      },
+      "after_sf019": {
+        "family_id": "legit_retail_curbside",
+        "outer_fold": 2,
+        "true_label": 0,
+        "sample_count": 25,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.002,
+        "p_mean": 0.0036,
+        "p_max": 0.0066
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_retail_receipt",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_retail_receipt",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 26,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0051,
+        "p_mean": 0.0205,
+        "p_max": 0.3036
+      },
+      "after_sf019": {
+        "family_id": "legit_retail_receipt",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 26,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0008,
+        "p_mean": 0.0087,
+        "p_max": 0.1512
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_temporary_travel_sim",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_temporary_travel_sim",
+        "outer_fold": 1,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0783,
+        "p_mean": 0.1438,
+        "p_max": 0.2493
+      },
+      "after_sf019": {
+        "family_id": "legit_temporary_travel_sim",
+        "outer_fold": 4,
+        "true_label": 0,
+        "sample_count": 4,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.1179,
+        "p_mean": 0.3114,
+        "p_max": 0.3875
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_travel_flight_confirmation",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_travel_flight_confirmation",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 20,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.181,
+        "p_mean": 0.181,
+        "p_max": 0.181
+      },
+      "after_sf019": {
+        "family_id": "legit_travel_flight_confirmation",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 20,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.2838,
+        "p_mean": 0.2838,
+        "p_max": 0.2838
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_travel_gate_info",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_travel_gate_info",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 22,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0042,
+        "p_mean": 0.0104,
+        "p_max": 0.0341
+      },
+      "after_sf019": {
+        "family_id": "legit_travel_gate_info",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 22,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0055,
+        "p_mean": 0.0119,
+        "p_max": 0.0323
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    },
+    {
+      "family_id": "legit_utility_numeric_status_12",
+      "status": "added_sf019",
+      "before_sf018": null,
+      "after_sf019": {
+        "family_id": "legit_utility_numeric_status_12",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0468,
+        "p_mean": 0.0522,
+        "p_max": 0.0692
+      },
+      "fp_p50_delta": null,
+      "fn_p50_delta": null,
+      "tier2_delta": null
+    },
+    {
+      "family_id": "legit_workplace_sync",
+      "status": "existing",
+      "before_sf018": {
+        "family_id": "legit_workplace_sync",
+        "outer_fold": 3,
+        "true_label": 0,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0296,
+        "p_mean": 0.0938,
+        "p_max": 0.172
+      },
+      "after_sf019": {
+        "family_id": "legit_workplace_sync",
+        "outer_fold": 0,
+        "true_label": 0,
+        "sample_count": 5,
+        "fp_p50": 0,
+        "fn_p50": 0,
+        "tier1_flagged_or_blocked": 0,
+        "tier2_blocked": 0,
+        "p_min": 0.0274,
+        "p_mean": 0.0986,
+        "p_max": 0.1616
+      },
+      "fp_p50_delta": 0,
+      "fn_p50_delta": 0,
+      "tier2_delta": 0
+    }
+  ]
+}

@@ -159,11 +159,14 @@ class RedisVelocityStore:
 
     def _get_client(self) -> aioredis.Redis:
         if self._client is None:
+            # Windows default timer resolution (15.625ms) aliases sub-20ms asyncio timeouts
+            # to immediate expirations; 50ms I/O and 100ms connect timeouts prevent spurious
+            # cold-handshake circuit-breaker trips while still failing fast on Redis outages.
             self._pool = aioredis.ConnectionPool.from_url(
                 self.redis_url,
                 max_connections=50,
-                socket_timeout=0.015,  # 15ms SLA budget socket timeout
-                socket_connect_timeout=0.015,
+                socket_timeout=0.050,
+                socket_connect_timeout=0.100,
                 decode_responses=False,
             )
             self._client = aioredis.Redis(connection_pool=self._pool)

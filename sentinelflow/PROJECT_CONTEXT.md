@@ -13,7 +13,7 @@
 
 ### Architectural Tenet: 100% Free, Open-Source & Local-First Stack
 - **Zero Paid SaaS Dependencies**: No paid LangSmith, Datadog, Snyk, or commercial vendor lock-in.
-- **Local/Self-Hosted Execution (No Demonstrated Production Deployment)**: Docker Compose spins up PostgreSQL 16, standalone Redis 7, Backend (FastAPI), Frontend (Next.js 16), Nginx, Prometheus, and Jaeger locally. The repository has **no demonstrated production deployment**; real Redis network behavior, production Redis deployment, production-scale load, and independent multi-worker container throughput have **not** been validated.
+- **Local/Self-Hosted Execution (No Demonstrated Production Deployment)**: Docker Compose spins up PostgreSQL 16, standalone Redis 7, Backend (FastAPI), Frontend (Next.js 16), Nginx, Prometheus, and Jaeger locally. The repository has **no demonstrated production deployment**; `SF-020` and `SF-021` validated local standalone Docker Redis 7 + `W=4` Uvicorn concurrency (`666.01 RPS` sustained at `C=8`, `11.235ms p95` HTTP) and clean-checkout reproducibility, whereas production Redis deployment, cloud autoscaling, and internet-scale traffic remain **unvalidated**.
 
 ---
 
@@ -80,8 +80,8 @@ Architectural target for telecom and CPaaS messaging anti-abuse (historical ~5,0
   - Step 3: Lightweight classification model exported to **ONNX Runtime (CPU)** (`< 0.1 ms` measured on short SMS; `~1.0–5.5 ms` p99 on 2,000-char padded inputs). Existing local loopback and single-loop results do not represent independent clients, multiple OS workers, or production traffic; the architectural end-to-end HTTP `< 15 ms` target (Boundary B) is **NOT ESTABLISHED**.
   - Composite Verdict: Evaluates combined risk signals to return `ALLOW`, `FLAG`, or `BLOCK` with execution latency tracking.
   - PII & HMAC Pseudonymization: `redact_sms_pii()` redacts sensitive patterns prior to logging/escalation, and `TELECOM_HMAC_KEY_ID` / `TELECOM_HMAC_SECRET` derive 128-bit versioned pseudonyms (key/key-ID rotation requires coordinated operational handling; no automatic rotation or mismatch detection is implemented).
-- **Degraded-Mode & Circuit Breakers (`SF-017`)**:
-  - `VelocityFeatureStore` trips a 30s local deque fallback on Redis errors/timeouts (`socket_timeout=0.015s`); while ONNX remains valid (`ml_signal_status == "valid"`), low-risk 2FA/OTP messages continue returning `ALLOW`.
+- **Degraded-Mode & Circuit Breakers (`SF-017` / `SF-020`)**:
+  - `RedisVelocityStore` trips a 30s local deque fallback on Redis errors/timeouts (`socket_timeout=0.050s`, `socket_connect_timeout=0.100s` per `SF-020` real-Redis timeout hardening); while ONNX remains valid (`ml_signal_status == "valid"`), low-risk 2FA/OTP messages continue returning `ALLOW`.
   - When ONNX ML signals are `"invalid"`, `"unavailable"`, or `"degraded"` (`_circuit_open` or runtime exception), `onnx_probability` is `None` (`ml_signal_valid=False`) and `DEGRADED_REVIEW_FLOOR = 0.40` (`FLAG`) applies across `/v1/classify` (including OTP-like traffic—no `ALLOW` bypass exists in degraded ML), while `H >= 0.80` or `V >= 0.75` still escalates to `BLOCK`.
 
 ### 3.3 Cryptographic Audit Ledger & PII Governance

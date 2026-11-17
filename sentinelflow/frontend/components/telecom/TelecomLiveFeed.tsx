@@ -395,6 +395,42 @@ export const TelecomLiveFeed = memo(({ initialFeed = [] }: Props) => {
                       TRUNCATED AFTER REDACTION
                     </span>
                   ) : null}
+                  {ev.sender.includes("*") || ev.message.includes("[REDACTED_") ? (
+                    <span
+                      data-testid="pii-redacted-indicator"
+                      style={{
+                        display: "inline-block",
+                        marginLeft: 6,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "1px 5px",
+                        borderRadius: 4,
+                        background: "var(--badge-allow-bg, #dcfce7)",
+                        color: "var(--badge-allow-color, #14532d)",
+                        border: "1px solid var(--badge-allow-border, #15803d)",
+                      }}
+                    >
+                      PII REDACTED
+                    </span>
+                  ) : null}
+                  {ev.ml_signal_valid === false ||
+                  (ev.ml_signal_status && ev.ml_signal_status !== "valid") ? (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        marginLeft: 6,
+                        fontSize: 10,
+                        fontWeight: 800,
+                        padding: "1px 5px",
+                        borderRadius: 4,
+                        background: "var(--badge-block-bg, #fee2e2)",
+                        color: "var(--badge-block-color, #7f1d1d)",
+                        border: "1px solid var(--badge-block-border, #991b1b)",
+                      }}
+                    >
+                      ML FALLBACK ({ev.ml_signal_status || "invalid"})
+                    </span>
+                  ) : null}
                 </p>
 
                 {ev.signals && ev.signals.length > 0 ? (

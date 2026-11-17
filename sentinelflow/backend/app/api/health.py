@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from sqlalchemy import text
 
 from app.api.deps import DBSessionDep
 from app.config import get_settings
 from app.errors import AppError
 from app.graph.graph import validate_production_checkpointer
+from app.telecom.onnx_engine import get_inference_engine
 from app.telemetry import telemetry_operator_status
 
 router = APIRouter(tags=["health"])
@@ -34,8 +36,16 @@ async def check_redis_connectivity(redis_url: str) -> None:
         await client.aclose()
 
 
-@router.get("/ready")
-async def ready(session: DBSessionDep) -> dict[str, str]:
+async def ready(session: DBSessionDep, request: Any = None) -> dict[str, str]:
+    app_obj = getattr(request, "app", None)
+    app_state = getattr(app_obj, "state", None)
+    if app_state is not None and getattr(app_state, "startup_complete", True) is False:
+        raise AppError(
+            code="READINESS_STARTING",
+            message="Service startup initialization is still in progress.",
+            status_code=503,
+        )
+
     await session.execute(text("SELECT 1"))
     schema_row = (
         (
@@ -65,6 +75,30 @@ async def ready(session: DBSessionDep) -> dict[str, str]:
         raise AppError(
             code="READINESS_SCHEMA_MISSING",
             message="Required database schema is unavailable.",
+            status_code=503,
+        )
+
+    try:
+        engine = get_inference_engine()
+        session_active = getattr(engine, "session", None)
+    except Exception as exc:
+        logger.error(
+            "Readiness failed: ONNX inference engine initialization error.",
+            extra={"event": "readiness_failed", "reason": str(exc)},
+        )
+        raise AppError(
+            code="READINESS_MODEL_UNAVAILABLE",
+            message="ONNX inference model session is unavailable.",
+            status_code=503,
+        ) from exc
+    if session_active is None:
+        logger.error(
+            "Readiness failed: ONNX inference session is unavailable.",
+            extra={"event": "readiness_failed"},
+        )
+        raise AppError(
+            code="READINESS_MODEL_UNAVAILABLE",
+            message="ONNX inference model session is unavailable.",
             status_code=503,
         )
 
@@ -109,6 +143,11 @@ async def ready(session: DBSessionDep) -> dict[str, str]:
                     status_code=503,
                 ) from exc
     return {"status": "ready"}
+
+
+@router.get("/ready")
+async def ready_endpoint(request: Request, session: DBSessionDep) -> dict[str, str]:
+    return await ready(session, request=request)
 
 
 @router.get("/health/telemetry")

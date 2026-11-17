@@ -19,6 +19,9 @@ export type TelecomFeedItem = {
   escalated_dispute_id?: string | null;
   escalated_dispute_url?: string | null;
   message_truncated?: boolean;
+  ml_signal_status?: "valid" | "invalid" | "unavailable" | "degraded" | string;
+  ml_signal_valid?: boolean;
+  ml_error_reason?: string | null;
 };
 
 export type MetricsSummary = {
@@ -37,6 +40,10 @@ export type MetricsSummary = {
     p99_ms: number;
     avg_ms: number;
   };
+  velocity_backend?: "redis" | "local_memory_fallback" | string;
+  velocity_degraded_mode?: boolean;
+  ml_engine_status?: string;
+  ml_circuit_open?: boolean;
   recent_feed: TelecomFeedItem[];
 };
 

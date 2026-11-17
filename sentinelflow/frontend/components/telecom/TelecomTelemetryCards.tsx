@@ -272,6 +272,65 @@ export const TelecomTelemetryCards = memo(({ metrics, drift }: Props) => {
           <span>KS p-val: {drift ? drift.ks_p_value.toFixed(3) : "1.000"}</span>
           <span>PSI: {drift ? drift.psi_score.toFixed(3) : "0.000"}</span>
         </div>
+        <div
+          data-testid="telecom-runtime-status"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            marginTop: 8,
+          }}
+        >
+          <span
+            data-testid="velocity-backend-status"
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              padding: "2px 7px",
+              borderRadius: 4,
+              background: metrics.velocity_degraded_mode
+                ? "var(--badge-flag-bg, #fef3c7)"
+                : "var(--badge-allow-bg, #dcfce7)",
+              color: metrics.velocity_degraded_mode
+                ? "var(--badge-flag-color, #78350f)"
+                : "var(--badge-allow-color, #14532d)",
+              border: metrics.velocity_degraded_mode
+                ? "1px solid var(--badge-flag-border, #b45309)"
+                : "1px solid var(--badge-allow-border, #15803d)",
+            }}
+          >
+            {metrics.velocity_degraded_mode ? "Redis: Degraded Fallback" : "Redis: Connected"}
+          </span>
+          <span
+            data-testid="ml-engine-status"
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              padding: "2px 7px",
+              borderRadius: 4,
+              background:
+                metrics.ml_circuit_open ||
+                (metrics.ml_engine_status && metrics.ml_engine_status !== "healthy")
+                  ? "var(--badge-block-bg, #fee2e2)"
+                  : "var(--badge-allow-bg, #dcfce7)",
+              color:
+                metrics.ml_circuit_open ||
+                (metrics.ml_engine_status && metrics.ml_engine_status !== "healthy")
+                  ? "var(--badge-block-color, #7f1d1d)"
+                  : "var(--badge-allow-color, #14532d)",
+              border:
+                metrics.ml_circuit_open ||
+                (metrics.ml_engine_status && metrics.ml_engine_status !== "healthy")
+                  ? "1px solid var(--badge-block-border, #991b1b)"
+                  : "1px solid var(--badge-allow-border, #15803d)",
+            }}
+          >
+            {metrics.ml_circuit_open ||
+            (metrics.ml_engine_status && metrics.ml_engine_status !== "healthy")
+              ? `ML Engine: ${(metrics.ml_engine_status || "degraded").toUpperCase()}`
+              : "ML Engine: Healthy"}
+          </span>
+        </div>
       </div>
     </div>
   );

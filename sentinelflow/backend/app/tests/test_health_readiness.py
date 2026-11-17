@@ -189,3 +189,58 @@ async def test_telemetry_health_returns_operator_status(
 
     assert payload["status"] == "ok"
     assert payload["probe_emitted"] is True
+
+
+async def test_ready_fails_while_startup_is_in_progress(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.api.health.get_settings",
+        lambda: SimpleNamespace(APP_ENV="development", OPENAI_API_KEY=None),
+    )
+    session = _FakeSession(
+        {
+            "disputes": "disputes",
+            "investigations": "investigations",
+            "audit_records": "audit_records",
+        }
+    )
+    fake_request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(startup_complete=False))
+    )
+
+    try:
+        await ready(cast(AsyncSession, session), request=fake_request)  # type: ignore[arg-type]
+    except AppError as exc:
+        assert exc.code == "READINESS_STARTING"
+        assert exc.status_code == 503
+    else:
+        raise AssertionError("Expected readiness to fail while startup is in progress")
+
+
+async def test_ready_fails_when_onnx_model_session_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.api.health.get_settings",
+        lambda: SimpleNamespace(APP_ENV="development", OPENAI_API_KEY=None),
+    )
+    monkeypatch.setattr(
+        "app.api.health.get_inference_engine",
+        lambda: SimpleNamespace(session=None),
+    )
+    session = _FakeSession(
+        {
+            "disputes": "disputes",
+            "investigations": "investigations",
+            "audit_records": "audit_records",
+        }
+    )
+
+    try:
+        await ready(cast(AsyncSession, session))
+    except AppError as exc:
+        assert exc.code == "READINESS_MODEL_UNAVAILABLE"
+        assert exc.status_code == 503
+    else:
+        raise AssertionError("Expected readiness to fail when ONNX session is unavailable")

@@ -3303,3 +3303,12 @@ async def test_sf017r1_nan_rejected_at_all_downstream_boundaries(
                 signals=["ML:SIGNAL_INVALID"],
                 velocity={"carrier_risk": float("nan")},
             )
+
+
+def test_sf020_redis_velocity_store_timeouts_avoid_sub_tick_truncation() -> None:
+    """SF-020: Redis timeouts must exceed Windows 15.6ms timer resolution for real TCP sockets."""
+    store = RedisVelocityStore(redis_url="redis://127.0.0.1:6379/0")
+    client = store._get_client()
+    pool_kwargs = client.connection_pool.connection_kwargs
+    assert float(pool_kwargs["socket_timeout"]) >= 0.050
+    assert float(pool_kwargs["socket_connect_timeout"]) >= 0.100

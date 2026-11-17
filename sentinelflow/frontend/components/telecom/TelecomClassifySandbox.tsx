@@ -77,7 +77,7 @@ const ClassificationResultCard = memo(
             marginBottom: 12,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <span
               style={{
                 padding: "4px 10px",
@@ -112,6 +112,42 @@ const ClassificationResultCard = memo(
                 TRUNCATED AFTER REDACTION
               </span>
             ) : null}
+            {classificationResult.sender?.includes("*") ||
+            classificationResult.message?.includes("[REDACTED_") ? (
+              <span
+                data-testid="pii-redacted-indicator"
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "var(--badge-allow-bg, #dcfce7)",
+                  color: "var(--badge-allow-color, #14532d)",
+                  border: "1px solid var(--badge-allow-border, #15803d)",
+                }}
+              >
+                PII REDACTED
+              </span>
+            ) : null}
+            {classificationResult.ml_signal_valid === false ||
+            (classificationResult.ml_signal_status &&
+              classificationResult.ml_signal_status !== "valid") ||
+            signals.includes("ML:SIGNAL_INVALID") ? (
+              <span
+                data-testid="ml-degraded-badge"
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "var(--badge-block-bg, #fee2e2)",
+                  color: "var(--badge-block-color, #7f1d1d)",
+                  border: "1px solid var(--badge-block-border, #991b1b)",
+                }}
+              >
+                ML FALLBACK ({(classificationResult.ml_signal_status || "invalid").toUpperCase()})
+              </span>
+            ) : null}
           </div>
 
           <span
@@ -127,6 +163,30 @@ const ClassificationResultCard = memo(
             {classificationResult.latency_ms} ms internal
           </span>
         </div>
+
+        {classificationResult.ml_signal_valid === false ||
+        (classificationResult.ml_signal_status &&
+          classificationResult.ml_signal_status !== "valid") ||
+        signals.includes("ML:SIGNAL_INVALID") ? (
+          <div
+            role="status"
+            data-testid="ml-degraded-notice"
+            style={{
+              marginBottom: 10,
+              padding: "10px 12px",
+              borderRadius: 6,
+              background: "var(--badge-flag-bg, #fef3c7)",
+              color: "var(--badge-flag-color, #78350f)",
+              border: "1px solid var(--badge-flag-border, #b45309)",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            ONNX ML inference returned invalid/unavailable status (
+            {classificationResult.ml_signal_status ?? "invalid"}). Fail-open heuristic and
+            velocity scoring applied without suppressing delivery.
+          </div>
+        ) : null}
 
         {signals.length > 0 ? (
           <div style={{ marginBottom: 10 }}>

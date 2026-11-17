@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0.0",
+  "ticket_id": "SF-022",
+  "linear_id": "AI-35",
+  "assessed_at_utc": "2026-11-17T15:32:00+00:00",
+  "outcome": "UNAVAILABLE_BLOCKED",
+  "class_c_holdout_created": false,
+  "model_adaptation_performed": false,
+  "frozen_model_references_sf018_retained": {
+    "frozen_onnx_model_sha256": "824c6c2c254791205184efadd8f0b2dc43f22e7222b411e75c2b99c340a9604b",
+    "frozen_training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
+    "frozen_dev_val_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
+    "uci_secondary_lf_sha256": "169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7",
+    "sf010_assessment_lf_sha256": "f42d962c8f420a18cc996586d0b2c0cb5af94828ba12496097ec1b9a2cd97081"
+  },
+  "prior_rejected_routes_carried_forward": {
+    "sf010_sf010r_candidates": 8,
+    "sf011_acquisition_routes": 12,
+    "reference_files": [
+      "app/telecom/datasets/external_source_assessment.json",
+      "app/telecom/datasets/sf011_acquisition_routes.json"
+    ]
+  },
+  "sf022_phase1_new_candidates": [
+    {
+      "candidate_id": "hf_redasers_difraud_sms",
+      "name": "DIFrauD SMS Domain Split (redasers/difraud sms/)",
+      "source_url": "https://huggingface.co/datasets/redasers/difraud/tree/main/sms",
+      "publisher": "redasers (DIFrauD benchmark)",
+      "language": "en",
+      "license": "mit",
+      "origin_type": "mixed_legacy_repackaging",
+      "sample_count": 6574,
+      "class_balance": {
+        "label_0_benign": 5300,
+        "label_1_fraud_or_spam": 1274
+      },
+      "splits_bytes": {
+        "sms/train.jsonl": 568925,
+        "sms/validation.jsonl": 70800,
+        "sms/test.jsonl": 69286
+      },
+      "direct_verification": {
+        "normalized_sha256_matches_with_uci_228": 4752,
+        "uci_duplicate_share": 0.722848
+      },
+      "failed_gates": [
+        "authenticity_and_relevance",
+        "label_quality",
+        "independence"
+      ],
+      "decision": "REJECTED",
+      "rejection_reason": "4,752 of 6,574 rows (72.28%) match normalized_sha256 entries in legacy 2002-2011 UCI #228 SMS Spam Collection; collapses commercial promotional spam into binary positive label 1."
+    },
+    {
+      "candidate_id": "mendeley_vmg875v4xs_llm_smishing",
+      "name": "A Balanced Dataset for Spam and Smishing Detection using Large Language Models (LLMs)",
+      "source_url": "https://data.mendeley.com/datasets/vmg875v4xs/1",
+      "publisher": "Mendeley Data (Munoz & Islam, DOI 10.17632/vmg875v4xs.1)",
+      "language": "en",
+      "license": "unspecified_on_api_record",
+      "origin_type": "synthetic_llm_generated_or_augmented",
+      "sample_count": 10191,
+      "class_balance": {
+        "ham": 3397,
+        "spam": 3397,
+        "smishing": 3397
+      },
+      "files": [
+        "Dataset_10191.csv (1,370,873 B)",
+        "URL_Email_Phone_Rules.ipynb (3,167 B)"
+      ],
+      "failed_gates": [
+        "authenticity_and_relevance",
+        "provenance_and_lawful_access"
+      ],
+      "decision": "REJECTED",
+      "rejection_reason": "Primary Mendeley metadata explicitly states 'A large language model (LLM) was trained to create this dataset' to balance 3,397 rows/class; fails real-world Class C authenticity requirement and exposes null/unverified API license field."
+    },
+    {
+      "candidate_id": "hf_ealvaradob_phishing_sms_subset",
+      "name": "ealvaradob/phishing-dataset (SMS subset)",
+      "source_url": "https://huggingface.co/datasets/ealvaradob/phishing-dataset",
+      "publisher": "HuggingFace community mirror (ealvaradob)",
+      "language": "en",
+      "license": "apache-2.0",
+      "origin_type": "downstream_mirror",
+      "failed_gates": [
+        "authenticity_and_relevance",
+        "independence"
+      ],
+      "decision": "REJECTED",
+      "rejection_reason": "SMS text portion mirrors Mendeley f45bkkt8pr.1 (Mishra & Soni), already rejected in SF-010 for 56.6% exact normalized UCI #228 overlap and redaction confounding."
+    },
+    {
+      "candidate_id": "hf_grephon777_phishing_dataset",
+      "name": "grephon777/phishing-dataset",
+      "source_url": "https://huggingface.co/datasets/grephon777/phishing-dataset",
+      "publisher": "HuggingFace community mirror (grephon777)",
+      "language": "en",
+      "license": "apache-2.0",
+      "origin_type": "downstream_mirror",
+      "failed_gates": [
+        "authenticity_and_relevance",
+        "independence"
+      ],
+      "decision": "REJECTED",
+      "rejection_reason": "Derived mirror of Mendeley f45bkkt8pr.1 / ealvaradob phishing-dataset rather than an independent primary carrier collection."
+    },
+    {
+      "candidate_id": "hf_uniquedata_spam_text_messages",
+      "name": "UniqueData/spam-text-messages-dataset",
+      "source_url": "https://huggingface.co/datasets/UniqueData/spam-text-messages-dataset",
+      "publisher": "UniqueData (commercial preview)",
+      "language": "en",
+      "license": "cc-by-nc-nd-4.0",
+      "origin_type": "commercial_sample_teaser",
+      "sample_count": 25,
+      "failed_gates": [
+        "two_class_coverage",
+        "provenance_and_lawful_access",
+        "evaluation_suitability"
+      ],
+      "decision": "REJECTED",
+      "rejection_reason": "Only 25 preview examples exposed; CC-BY-NC-ND-4.0 restricts commercial/derivative processing and lacks documented incident sampling frame."
+    },
+    {
+      "candidate_id": "zenodo_17551984_phishvn",
+      "name": "PhishVN Threat Intelligence & LLM-Paraphrased Dataset",
+      "source_url": "https://zenodo.org/records/17551984",
+      "publisher": "Academic Zenodo record 17551984",
+      "language": "vi",
+      "origin_type": "llm_paraphrased_and_non_english",
+      "failed_gates": [
+        "authenticity_and_relevance",
+        "two_class_coverage"
+      ],
+      "decision": "REJECTED",
+      "rejection_reason": "Vietnamese URL/phishing intelligence and LLM-paraphrased evasion benchmark; incompatible language/modality with English SMS carrier corpus."
+    },
+    {
+      "candidate_id": "zenodo_14607454_chichewa_sms",
+      "name": "SMS Fraud Classification dataset for Chichewa",
+      "source_url": "https://zenodo.org/records/14607454",
+      "publisher": "Academic Zenodo record 14607454 (DOI 10.5281/zenodo.14607454)",
+      "language": "ny (Chichewa + translations)",
+      "origin_type": "translated_regional_corpus",
+      "sample_count": 676,
+      "failed_gates": [
+        "authenticity_and_relevance",
+        "evaluation_suitability"
+      ],
+      "decision": "REJECTED",
+      "rejection_reason": "676 Chichewa-origin messages with human/machine translations; translation artifacts and regional dialect do not evaluate real-world English A2P/P2P smishing distribution."
+    }
+  ],
+  "phase2_executed": false,
+  "phase3_executed": false,
+  "conclusion": "Zero qualifying Class C datasets identified across 20 prior routes (SF-010/SF-011) and 7 newly audited SF-022 Phase 1 candidates. External evaluation remains UNAVAILABLE / BLOCKED; frozen SF-019 model and synthetic Dev/Val artifacts remain unmodified."
+}
