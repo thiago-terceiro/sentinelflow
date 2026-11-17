@@ -779,6 +779,8 @@ def test_dataset_semantic_family_isolation_and_fold_balance() -> None:
     audit = live_inv["cross_split_leakage_audit"]
     assert audit["dev_val_normalized_sha256_overlap"] == 0
     assert audit["intra_corpus_normalized_sha256_duplicates"] == 0
+    assert int(audit["structural_template_hash_collisions_across_families"]) == 0
+    assert float(audit["max_cross_family_centroid_cosine"]) <= 0.55
 
     # Committed dataset_inventory.json must exist and match the live training dataset
     canonical_paths = get_canonical_artifact_paths()
@@ -2770,3 +2772,82 @@ def test_sf018_onnx_graph_pool_matches_deterministic_vocabulary() -> None:
         tok: int(idx) for tok, idx in zip(uni_tokens + bi_tokens, ngram_indexes, strict=True)
     }
     assert onnx_vocab == {str(k): int(v) for k, v in vec.vocabulary_.items()}
+
+
+def test_sf018_nested_oof_inner_calibration_idf_isolation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SF-018: Proves _evaluate_grouping_variant_oof fits inner calibration TF-IDF/IDF without val leakage."""
+    from app.telecom import train_onnx_model as tom
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.model_selection import StratifiedGroupKFold
+
+    texts, labels, groups = tom.build_augmented_dataset()
+    shared_token = "account"
+    val_only_canary = "canaryoofinnerfoldtok"
+    real_cal_fit = CalibratedClassifierCV.fit
+
+    def _capture_oof_idf_snapshots(
+        corrupt_outer0_inner0: bool,
+    ) -> list[dict[str, Any]]:
+        snapshots: list[dict[str, Any]] = []
+
+        def _wrapped_fit(self: CalibratedClassifierCV, x_tr: Any, y_tr: Any, **kwargs: Any) -> Any:
+            if corrupt_outer0_inner0 and len(snapshots) == 0 and hasattr(self.cv, "__iter__"):
+                splits_list = list(self.cv)
+                _, inner0_val_idx = splits_list[0]
+                x_mod = list(x_tr)
+                for idx in inner0_val_idx:
+                    x_mod[int(idx)] = (
+                        f"{x_mod[int(idx)]} {val_only_canary} {shared_token} {shared_token}"
+                    )
+                self.cv = splits_list
+                res = real_cal_fit(self, x_mod, y_tr, **kwargs)
+            else:
+                res = real_cal_fit(self, x_tr, y_tr, **kwargs)
+
+            inner_records: list[dict[str, Any]] = []
+            for cal_est in self.calibrated_classifiers_:
+                vec = cal_est.estimator.named_steps["tfidf"]
+                idx = vec.vocabulary_.get(shared_token)
+                inner_records.append(
+                    {
+                        "vocab": dict(vec.vocabulary_),
+                        "shared_idf": float(vec.idf_[idx]) if idx is not None else None,
+                    }
+                )
+            snapshots.append({"inner": inner_records})
+            return res
+
+        monkeypatch.setattr(CalibratedClassifierCV, "fit", _wrapped_fit)
+        summary, _ = tom._evaluate_grouping_variant_oof(
+            texts,
+            labels,
+            groups,
+            groups,
+            n_splits=5,
+            n_bootstrap=10,
+        )
+        assert summary["max_outer_group_overlap"] == 0
+        assert summary["max_inner_group_overlap"] == 0
+        return snapshots
+
+    clean_snapshots = _capture_oof_idf_snapshots(corrupt_outer0_inner0=False)
+    corrupted_snapshots = _capture_oof_idf_snapshots(corrupt_outer0_inner0=True)
+
+    assert len(clean_snapshots) == 5
+    # Verify inner split 0 in outer fold 0 is bitwise invariant to inner0_val mutations
+    clean_in0 = clean_snapshots[0]["inner"][0]
+    corr_in0 = corrupted_snapshots[0]["inner"][0]
+    assert val_only_canary not in corr_in0["vocab"]
+    assert clean_in0["vocab"] == corr_in0["vocab"]
+    assert clean_in0["shared_idf"] is not None
+    assert clean_in0["shared_idf"] == pytest.approx(corr_in0["shared_idf"], abs=0.0)
+
+    # Sanity check: the outer split partition itself had non-empty inner0 validation rows containing shared_token
+    outer0_tr, _ = next(
+        StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42).split(
+            texts, labels, groups=groups
+        )
+    )
+    assert len(outer0_tr) == 562
