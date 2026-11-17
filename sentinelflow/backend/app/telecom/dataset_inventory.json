@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-11-10T21:35:56.366854+00:00",
+  "generated_at": "2026-11-16T23:35:17.730584+00:00",
   "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
   "total_samples": 703,
   "legit_count": 543,
@@ -537,13 +537,13 @@
     "dev_val_normalized_sha256_overlap": 0,
     "intra_corpus_normalized_sha256_duplicates": 0,
     "structural_template_hash_collisions_across_families": 0,
-    "max_cross_family_centroid_cosine": 0.459025,
-    "mean_cross_family_centroid_cosine": 0.031589,
+    "max_cross_family_centroid_cosine": 0.478229,
+    "mean_cross_family_centroid_cosine": 0.03363,
     "max_cross_family_centroid_pair": [
-      "fraud_family_wire_http_lure",
-      "fraud_family_zelle_lure"
+      "legit_casual_device_switch",
+      "legit_casual_p2p_greetings"
     ],
     "max_dev_val_vs_train_tfidf_cosine": 1.0,
-    "mean_dev_val_nearest_train_tfidf_cosine": 0.345139
+    "mean_dev_val_nearest_train_tfidf_cosine": 0.343929
   }
 }

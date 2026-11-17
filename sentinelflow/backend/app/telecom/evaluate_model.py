@@ -1922,6 +1922,17 @@ def compute_threshold_sensitivity_analysis(
     return out
 
 
+def _load_dataset_inventory_max_cosine() -> str:
+    """Reads live max_cross_family_centroid_cosine from dataset_inventory.json."""
+    inv_path = Path(__file__).resolve().parent / "dataset_inventory.json"
+    if inv_path.exists():
+        data = json.loads(inv_path.read_text(encoding="utf-8"))
+        val = data.get("cross_split_leakage_audit", {}).get("max_cross_family_centroid_cosine")
+        if val is not None:
+            return f"{float(val):.6f}"
+    return "unavailable"
+
+
 def build_threshold_and_base_rate_bundle(
     y_true: Sequence[int] | np.ndarray,
     y_prob: Sequence[float] | np.ndarray,
@@ -1991,7 +2002,7 @@ def build_threshold_and_base_rate_bundle(
                 "Nominally distinct families share authoring generators (8 US banks span 12 benign/fraud "
                 "families; 3 two-way bank alert families share one syntax loop; fraud_urgent_brand_alert [35] "
                 "+ fraud_uk_bank_alert [30] form 40.6% of fraud rows; SF-007 phone-damage/P2P vocabulary "
-                "spans 8-10 families with max_cross_family_centroid_cosine=0.459025)."
+                f"spans 8-10 families with max_cross_family_centroid_cosine={_load_dataset_inventory_max_cosine()})."
             ),
             "cluster_size_skew": (
                 "Benign sizes range 2..53 (26.5x, top-5=39.8%); fraud sizes range 2..35 (17.5x, top-3=59.4% "

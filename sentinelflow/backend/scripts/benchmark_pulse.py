@@ -28,14 +28,13 @@ import numpy as np
 import onnxruntime as ort
 import sklearn
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from app.main import app
 from app.telecom.evaluate_model import evaluate_onnx_model
 from app.telecom.onnx_engine import get_inference_engine
-from app.telecom.train_onnx_model import build_augmented_dataset
+from app.telecom.train_onnx_model import _create_tfidf_vectorizer, build_augmented_dataset
 from app.telecom.velocity_store import RedisVelocityStore
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -98,7 +97,7 @@ def benchmark_sklearn_vs_onnx(
     calibrated_clf = CalibratedClassifierCV(base_clf, method="sigmoid", cv=5)
     sklearn_pipe = Pipeline(
         [
-            ("tfidf", TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, max_features=2500)),
+            ("tfidf", _create_tfidf_vectorizer()),
             ("clf", calibrated_clf),
         ]
     )

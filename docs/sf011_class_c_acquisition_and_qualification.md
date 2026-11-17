@@ -3,7 +3,7 @@
 **Ticket:** `SF-011` (`AI-14`)  
 **Ticket Type:** External Dataset Acquisition, Qualification, & Experimental Design Investigation (No Holdout Evaluation / No Model Changes)  
 **Primary Class C Holdout Status:** `UNAVAILABLE / BLOCKED` (`quarantined_test_holdout.json` **NOT** created)  
-**Machine-Readable Evidence Ledger:** [`sf011_acquisition_routes.json`](../sentinelflow/backend/app/telecom/datasets/sf011_acquisition_routes.json) (`sha256 = 8150a2125b66c99cb10d3199a0026fae711a202dd5511a4d5572d63d466caebc`, `42,563` bytes, LF)  
+**Machine-Readable Evidence Ledger:** [`sf011_acquisition_routes.json`](../sentinelflow/backend/app/telecom/datasets/sf011_acquisition_routes.json) (`sha256 = 3dfecd48945fac61201146c38a1cace369e9e190091f1f6f9c13b937f394cb09`, `42,563` bytes, LF)  
 **Deterministic Gate Evaluator:** [`evaluate_class_c_qualification_routes`](../sentinelflow/backend/app/telecom/dataset_quarantine.py)
 
 ---
@@ -16,11 +16,11 @@ Consequently, **`quarantined_test_holdout.json` remains intentionally absent**, 
 
 | Baseline Asset | Canonical LF / Binary SHA-256 | Status under `SF-011` |
 | --- | --- | --- |
-| Frozen ONNX Classifier (`sms_fraud_model.onnx`) | `d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9` | Unchanged (zero retraining, zero inference) |
+| Frozen ONNX Classifier (`sms_fraud_model.onnx`) | `824c6c2c254791205184efadd8f0b2dc43f22e7222b411e75c2b99c340a9604b` | Unchanged (zero retraining, zero inference) |
 | Frozen Training Corpus (`N = 703`) | `5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699` | Unchanged |
 | Frozen Dev/Val Benchmark (`N = 400`) | `210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03` | Unchanged |
 | Secondary Legacy Benchmark (`uci_sms_spam_secondary.json`) | `169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7` | Unchanged (secondary Class B/E reference only) |
-| `SF-010` Source Assessment (`external_source_assessment.json`) | `72fa9ff4a519b75204272ba05d3138f6d0a3b8379b1d0fec493a8d72578f6eb9` | Unchanged |
+| `SF-010` Source Assessment (`external_source_assessment.json`) | `f42d962c8f420a18cc996586d0b2c0cb5af94828ba12496097ec1b9a2cd97081` | Unchanged |
 
 ---
 
@@ -135,7 +135,7 @@ Because **public open downloads cannot lawfully supply paired contemporary benig
 1. **Primary Viable Path — Direct Carrier / CPaaS / Fintech Shadow Enclave (`Class C / D`):**
    - Execute an institutional **Data Use Agreement (DUA)** + **IRB / privacy legal review** (GDPR/CCPA/ECPA) with a mobile network operator, tier-1 CPaaS aggregator, or bank fraud-ops team.
    - Sample a **contemporaneous two-class panel** inside the partner's security boundary: adjudicated fraud/7726-confirmed smishing ($n_{+,\text{eff}} \ge 300\text{–}500$) paired with stratified benign A2P/P2P traffic ($n_{-,\text{eff}} \ge 1,000\text{–}2,000$) logged under the **same formatting rules** (preserving URL hosts/TLDs and structural cues while hashing/tokenizing direct MSISDNs/names).
-   - Run inference **zero-export inside the partner enclave** against pinned immutable model hash `d330466e...` and export only aggregate counts, Wilson intervals, cluster-adjusted SEs, and Tier-1/Tier-2 disposition rates.
+   - Run inference **zero-export inside the partner enclave** against pinned immutable model hash `824c6c2c...` and export only aggregate counts, Wilson intervals, cluster-adjusted SEs, and Tier-1/Tier-2 disposition rates.
 2. **Secondary Institutional Path — Consortia & MNO Research Teams (`APWG eCX`, `M3AAWG`, `arXiv:2508.05276`):**
    - Pursue institutional affiliation or industry sponsorship via `M3AAWG` / `GSMA Foundry` or an `APWG` cybercrime research grant (`membership@apwg.org`) paired with an MNO collaborator able to supply matched non-7726 benign control slices inside a restricted enclave.
 
