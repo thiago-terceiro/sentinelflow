@@ -15,8 +15,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-# Frozen baseline checksums captured prior to SF-010 changes (must remain unchanged)
-FROZEN_ONNX_MODEL_SHA256 = "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9"
+# Frozen baseline checksums (ONNX updated in SF-018; Train/DevVal corpora unchanged)
+FROZEN_ONNX_MODEL_SHA256 = "824c6c2c254791205184efadd8f0b2dc43f22e7222b411e75c2b99c340a9604b"
 FROZEN_TRAINING_DATASET_SHA256 = "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699"
 FROZEN_DEV_VAL_DATASET_SHA256 = "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03"
 

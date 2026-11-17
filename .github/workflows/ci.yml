@@ -138,6 +138,31 @@ jobs:
           " >> $GITHUB_STEP_SUMMARY
           fi
 
+  ml-vocabulary-portability:
+    name: ml-vocabulary-portability (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Sync locked backend dependencies
+        working-directory: sentinelflow/backend
+        run: uv sync --locked --extra dev
+
+      - name: Verify cross-platform deterministic TF-IDF vocabulary & ONNX alignment
+        working-directory: sentinelflow/backend
+        run: uv run --no-sync pytest app/tests/test_telecom_eval_suite.py -k "test_sf018_ or test_dataset_semantic_family_isolation_and_fold_balance"
+
   frontend-validate:
     name: frontend-validate
     runs-on: ubuntu-latest

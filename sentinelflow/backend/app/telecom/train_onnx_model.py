@@ -31,10 +31,14 @@ from app.telecom.evaluate_model import (
     publish_evaluation_artifacts_atomically,
 )
 from app.telecom.onnx_engine import compute_composite_score, evaluate_heuristics
-from skl2onnx import to_onnx
+from skl2onnx import to_onnx, update_registered_converter
 from skl2onnx.common.data_types import StringTensorType
+from skl2onnx.operator_converters.tfidf_vectoriser import convert_sklearn_tfidf_vectoriser
+from skl2onnx.shape_calculators.text_vectorizer import (
+    calculate_sklearn_text_vectorizer_output_shapes,
+)
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, _document_frequency
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
@@ -1015,15 +1019,7 @@ def _compute_cross_split_leakage_audit(
         1 for fam_set in structural_hashes.values() if len(fam_set) > 1
     )
 
-    word_regex = r"\b[a-zA-Z0-9_]+\b"
-
-    vectorizer = TfidfVectorizer(
-        ngram_range=(1, 2),
-        sublinear_tf=True,
-        max_features=2500,
-        min_df=1,
-        token_pattern=word_regex,
-    )
+    vectorizer = _create_tfidf_vectorizer()
     tfidf_train = vectorizer.fit_transform(texts).toarray()
     tfidf_eval = vectorizer.transform(held_out_texts).toarray()
 
@@ -1188,10 +1184,106 @@ def get_macro_archetype_groups(groups: Sequence[str]) -> list[str]:
     return [MACRO_BANK_2WAY_GROUP_ID if g in MACRO_BANK_2WAY_SOURCE_FAMILIES else g for g in groups]
 
 
-def _create_tfidf_vectorizer() -> TfidfVectorizer:
-    """Returns canonical TF-IDF vectorizer hyperparameters shared across train and OOF."""
+DETERMINISTIC_VOCABULARY_TIE_BREAK_RULE = "(-total_tf, utf8_bytewise_term_lexicographic)"
+
+
+class DeterministicTfidfVectorizer(TfidfVectorizer):
+    """TfidfVectorizer subclass with OS-independent deterministic cutoff tie-breaking (SF-018).
+
+    Depends on CountVectorizer._limit_features(self, X, vocabulary, high=None, low=None, limit=None)
+    from scikit-learn==1.9.1. Preserves all tokenization, n-gram, df-pruning, IDF, and sublinear
+    semantics while replacing unstable np.argsort quicksort at the max_features boundary with a
+    canonical sort key: (-total_corpus_tf, term.encode("utf-8")).
+    """
+
+    def _limit_features(
+        self,
+        X: Any,
+        vocabulary: dict[str, int],
+        high: int | float | None = None,
+        low: int | float | None = None,
+        limit: int | None = None,
+    ) -> Any:
+        if high is None and low is None and limit is None:
+            return X
+
+        dfs = _document_frequency(X)
+        mask = np.ones(len(dfs), dtype=bool)
+        if high is not None:
+            mask &= dfs <= high
+        if low is not None:
+            mask &= dfs >= low
+
+        if limit is not None and int(mask.sum()) > limit:
+            tfs = np.asarray(X.sum(axis=0)).ravel()
+            index_to_term = {int(old_idx): str(term) for term, old_idx in vocabulary.items()}
+            candidate_indices = [int(i) for i in np.where(mask)[0]]
+            # Primary key: descending total corpus term frequency; tie-break: UTF-8 bytewise order.
+            candidate_indices.sort(
+                key=lambda idx: (-float(tfs[idx]), index_to_term[idx].encode("utf-8"))
+            )
+            new_mask = np.zeros(len(dfs), dtype=bool)
+            new_mask[candidate_indices[:limit]] = True
+            mask = new_mask
+
+        new_indices = np.cumsum(mask) - 1
+        for term, old_index in list(vocabulary.items()):
+            if mask[old_index]:
+                vocabulary[term] = int(new_indices[old_index])
+            else:
+                del vocabulary[term]
+
+        kept_indices = np.where(mask)[0]
+        if len(kept_indices) == 0:
+            raise ValueError(
+                "After pruning, no terms remain. Try a lower min_df or a higher max_df."
+            )
+        return X[:, kept_indices]
+
+
+update_registered_converter(
+    DeterministicTfidfVectorizer,
+    "SklearnTfidfVectorizer",
+    calculate_sklearn_text_vectorizer_output_shapes,
+    convert_sklearn_tfidf_vectoriser,
+    options={
+        "tokenexp": None,
+        "separators": None,
+        "nan": [True, False],
+        "keep_empty_string": [True, False],
+        "locale": None,
+    },
+)
+
+
+def compute_vocabulary_manifest(vectorizer: TfidfVectorizer) -> dict[str, Any]:
+    """Computes compact deterministic SHA-256 provenance digests for a fitted vectorizer."""
+    raw_vocab = getattr(vectorizer, "vocabulary_", None)
+    if not isinstance(raw_vocab, dict) or not raw_vocab:
+        raise ValueError("Vectorizer must be fitted with a non-empty vocabulary_")
+
+    sorted_items = sorted(
+        ((str(term), int(idx)) for term, idx in raw_vocab.items()),
+        key=lambda item: (item[1], item[0].encode("utf-8")),
+    )
+    canonical_mapping = {term: idx for term, idx in sorted_items}
+    mapping_payload = json.dumps(
+        canonical_mapping, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    terms_payload = "\n".join(term for term, _ in sorted_items).encode("utf-8")
+    return {
+        "vocabulary_size": len(sorted_items),
+        "max_features": getattr(vectorizer, "max_features", None),
+        "tie_break_rule": DETERMINISTIC_VOCABULARY_TIE_BREAK_RULE,
+        "vocabulary_sha256": hashlib.sha256(mapping_payload).hexdigest(),
+        "ordered_terms_sha256": hashlib.sha256(terms_payload).hexdigest(),
+    }
+
+
+def _create_tfidf_vectorizer() -> DeterministicTfidfVectorizer:
+    """Returns canonical deterministic TF-IDF vectorizer shared across train, audit, and OOF."""
     word_regex = r"\b[a-zA-Z0-9_]+\b"
-    return TfidfVectorizer(
+    return DeterministicTfidfVectorizer(
         ngram_range=(1, 2),
         sublinear_tf=True,
         max_features=2500,
@@ -1861,13 +1953,14 @@ def train_and_export_model(
         "model_name": "SentinelPulse-SMS-Fraud-ONNX",
         "version": "1.0.0",
         "architecture": (
-            "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> "
+            "DeterministicTfidfVectorizer(ngram_range=(1,2), sublinear_tf=True, token_pattern=r'\\b[a-zA-Z0-9_]+\\b') -> "
             "CalibratedClassifierCV(LogisticRegression(C=1.5, class_weight=balanced), method=sigmoid, cv=GroupKFold(5))"
         ),
         "framework": "scikit-learn + skl2onnx + onnxruntime",
         "opset": 14,
         "model_sha256": model_sha256,
         "training_dataset_sha256": training_dataset_sha256,
+        "vocabulary_provenance": compute_vocabulary_manifest(prod_pipeline.named_steps["tfidf"]),
         "calibration": {
             "method": "sigmoid",
             "cv_folds": 5,
@@ -1918,6 +2011,7 @@ def train_and_export_model(
             staged_model_bytes=model_bytes,
             base_metadata=base_metadata,
             extra_metrics_fields={
+                "vocabulary_provenance": base_metadata["vocabulary_provenance"],
                 "brier_score_before_calibration": round(brier_before, 4),
                 "brier_score_after_calibration": round(brier_after, 4),
                 "oof_cross_validation": oof_report,

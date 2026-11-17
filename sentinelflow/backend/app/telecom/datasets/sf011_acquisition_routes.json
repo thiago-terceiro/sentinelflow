@@ -3,11 +3,11 @@
   "ticket_id": "SF-011",
   "assessed_at_utc": "2026-11-11T15:45:57.832715+00:00",
   "sf010_and_sf010r_baseline_references": {
-    "frozen_onnx_model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
+    "frozen_onnx_model_sha256": "824c6c2c254791205184efadd8f0b2dc43f22e7222b411e75c2b99c340a9604b",
     "frozen_training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
     "frozen_dev_val_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03",
     "uci_secondary_lf_sha256": "169277295ceccf600f43eb10f4c61614cc68c1c935d245cf8db8ebf3e31143e7",
-    "sf010_assessment_lf_sha256": "72fa9ff4a519b75204272ba05d3138f6d0a3b8379b1d0fec493a8d72578f6eb9",
+    "sf010_assessment_lf_sha256": "f42d962c8f420a18cc996586d0b2c0cb5af94828ba12496097ec1b9a2cd97081",
     "primary_holdout_artifact_created": false,
     "sf_011_holdout_status": "BLOCKED_ON_PRIMARY_EXTERNAL_HOLDOUT"
   },
@@ -719,7 +719,7 @@
         "No active DUA, institutional membership sponsor, or live carrier/CPaaS enclave currently exists in this repository.",
         "APWG eCX primarily covers URLs/phishing feeds and GSMA Scam Signal exchanges network session signals rather than raw SMS text bodies."
       ],
-      "next_actionable_step": "Primary viable path to unblock Class C / Class D: secure a signed MNO/CPaaS/fintech DUA + privacy-preserving evaluation enclave sampling both stratified benign transactional SMS (n_- >= 1,000 i.i.d.-eq) and adjudicated smishing (n_+ >= 300-500 i.i.d.-eq) for a single-shot run against frozen ONNX SHA-256 d330466e..."
+      "next_actionable_step": "Primary viable path to unblock Class C / Class D: secure a signed MNO/CPaaS/fintech DUA + privacy-preserving evaluation enclave sampling both stratified benign transactional SMS (n_- >= 1,000 i.i.d.-eq) and adjudicated smishing (n_+ >= 300-500 i.i.d.-eq) for a single-shot run against frozen ONNX SHA-256 824c6c2c..."
     }
   ],
   "gate_evaluation": {

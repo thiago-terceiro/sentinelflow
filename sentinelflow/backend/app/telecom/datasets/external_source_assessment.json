@@ -3,7 +3,7 @@
   "ticket_id": "SF-010R",
   "assessed_at_utc": "2026-11-11T11:42:29.594906+00:00",
   "frozen_baseline_locks": {
-    "onnx_model_sha256": "d330466e8a28e43e4d8452fdef76f64470429851f19c568ea83399e7d16beaa9",
+    "onnx_model_sha256": "824c6c2c254791205184efadd8f0b2dc43f22e7222b411e75c2b99c340a9604b",
     "training_dataset_sha256": "5bcedbea725ac6c5c2113bfdcf06ec5cb949afd92e556329a94567a8b8abb699",
     "dev_val_dataset_sha256": "210192f01e0508f4a09ce657ea3cb8c7207167f84e393beb2fc476b70c664e03"
   },
